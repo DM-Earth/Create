@@ -12,4 +12,6 @@ The main branch is where the instructions for this repository and how to use it 
 
 ## How to use
 Pull the source code from `<version>/upstream`, then use [loom's `migratemappings`](https://fabricmc.net/wiki/tutorial:migratemappings) to convert the source code to yarn (after conversion, please manually fix the mixin),
-after the conversion is complete, create a new `<version>/temp` branch for sending PRs to the `<version>/yarn` branch. Delete `<version>/temp` branch after PR merge
+after the conversion is complete, create a new `<version>/temp` branch for sending PRs to the `<version>/yarn` branch. Delete `<version>/temp` branch after PR merge.
+
+**Note: Don't push any change in `<version>/upstream`.**
