@@ -142,7 +142,7 @@ machete {
 
 tasks.register("buildOrPublish") {
     group = "build"
-    String mavenUser = System.getenv("MAVEN_USER")
+    String mavenUser = System.getenv("GITHUB_ACTOR")
     if (mavenUser != null && !mavenUser.isEmpty()) {
         dependsOn(tasks.named("publish"))
         println("prepared for publish")
@@ -274,5 +274,6 @@ tasks.remapJar.configure {
 }
 
 // see gradle/publishing.gradle for publishing
-apply from: "gradle/publishing/publishing.gradle"
+//apply from: "gradle/publishing/publishing.gradle"
+apply from: "gradle/publishing/maven.gradle"
 apply from: "gradle/compat/compat.gradle"
