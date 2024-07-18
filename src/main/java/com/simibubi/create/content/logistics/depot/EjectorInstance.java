@@ -6,8 +6,7 @@ import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.ShaftInstance;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.util.Mth;
+import net.minecraft.util.math.MathHelper;
 
 public class EjectorInstance extends ShaftInstance<EjectorBlockEntity> implements DynamicInstance {
 
@@ -27,7 +26,7 @@ public class EjectorInstance extends ShaftInstance<EjectorBlockEntity> implement
 	public void beginFrame() {
 		float lidProgress = getLidProgress();
 
-		if (Mth.equal(lidProgress, lastProgress)) return;
+		if (MathHelper.approximatelyEquals(lidProgress, lastProgress)) return;
 
 		pivotPlate(lidProgress);
 		lastProgress = lidProgress;

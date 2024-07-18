@@ -6,11 +6,10 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraft.world.level.block.state.properties.RailShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.enums.RailShape;
+import net.minecraft.state.property.Property;
 
 public class ControllerRailGenerator extends SpecialBlockStateGen {
 
@@ -26,7 +25,7 @@ public class ControllerRailGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		RailShape shape = state.getValue(ControllerRailBlock.SHAPE);
+		RailShape shape = state.get(ControllerRailBlock.SHAPE);
 		boolean backwards = ControllerRailBlock.isStateBackwards(state);
 		int rotation = backwards ? 180 : 0;
 
@@ -46,7 +45,7 @@ public class ControllerRailGenerator extends SpecialBlockStateGen {
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> ctx, RegistrateBlockstateProvider prov,
 												BlockState state) {
-		RailShape shape = state.getValue(ControllerRailBlock.SHAPE);
+		RailShape shape = state.get(ControllerRailBlock.SHAPE);
 		boolean backwards = ControllerRailBlock.isStateBackwards(state);
 
 		String model = shape.isAscending() ? backwards ? "ascending_south" : "ascending_north" : "north_south";

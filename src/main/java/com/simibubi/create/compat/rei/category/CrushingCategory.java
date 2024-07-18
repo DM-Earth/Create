@@ -16,8 +16,8 @@ import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.client.gui.widgets.Widgets;
 import me.shedaniel.rei.api.common.entry.EntryStack;
 import me.shedaniel.rei.api.common.entry.type.VanillaEntryTypes;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public class CrushingCategory extends CreateRecipeCategory<AbstractCrushingRecipe> {
 
@@ -38,10 +38,10 @@ public class CrushingCategory extends CreateRecipeCategory<AbstractCrushingRecip
 		int size = results.size();
 		int offset = -size * 19 / 2;
 		for (int outputIndex = 0; outputIndex < results.size(); outputIndex++) {
-			List<Component> tooltip = new ArrayList<>();
+			List<Text> tooltip = new ArrayList<>();
 			if (results.get(outputIndex).getChance() != 1)
 				tooltip.add(Lang.translateDirect("recipe.processing.chance", results.get(outputIndex).getChance() < 0.01 ? "<1" : (int) (results.get(outputIndex).getChance() * 100))
-								.withStyle(ChatFormatting.GOLD));
+								.formatted(Formatting.GOLD));
 			widgets.add(Widgets.createSlot(new Point((origin.x + getDisplayWidth(display) / 2 + offset + 19 * outputIndex) + 1, origin.y + 78 + 1)).disableBackground().markOutput().entry(EntryStack.of(VanillaEntryTypes.ITEM, results.get(outputIndex).getStack()).tooltip(tooltip)));
 			widgets.add(WidgetUtil.textured(getRenderedSlot(display.getRecipe(), outputIndex), origin.x + getDisplayWidth(display) / 2 + offset + 19 * outputIndex, origin.y + 78));
 		}

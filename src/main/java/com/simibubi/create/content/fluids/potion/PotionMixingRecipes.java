@@ -23,16 +23,14 @@ import io.github.fabricators_of_create.porting_lib.mixin.accessors.common.access
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import net.fabricmc.fabric.api.registry.FabricBrewingRecipeRegistry;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionBrewing;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.Potions;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKey;
 
 public class PotionMixingRecipes {
 
@@ -58,7 +56,7 @@ public class PotionMixingRecipes {
 
 		for (Item container : allowedSupportedContainers) {
 			BottleType bottleType = PotionFluidHandler.bottleTypeFromItem(container);
-			for (PotionBrewing.Mix<Potion> mix : PotionBrewingAccessor.port_lib$POTION_MIXES()) {
+			for (net.minecraft.recipe.BrewingRecipeRegistry.Recipe<Potion> mix : PotionBrewingAccessor.port_lib$POTION_MIXES()) {
 				PotionBrewing$MixAccessor<Potion> access = (PotionBrewing$MixAccessor<Potion>) mix;
 				FluidStack fromFluid = PotionFluidHandler.getFluidFromPotion(access.port_lib$from(), bottleType, FluidConstants.BUCKET);
 				FluidStack toFluid = PotionFluidHandler.getFluidFromPotion(access.port_lib$to(), bottleType, FluidConstants.BUCKET);
@@ -67,7 +65,7 @@ public class PotionMixingRecipes {
 			}
 		}
 
-		for (PotionBrewing.Mix<Item> mix : PotionBrewingAccessor.port_lib$CONTAINER_MIXES()) {
+		for (net.minecraft.recipe.BrewingRecipeRegistry.Recipe<Item> mix : PotionBrewingAccessor.port_lib$CONTAINER_MIXES()) {
 			PotionBrewing$MixAccessor<Item> access = (PotionBrewing$MixAccessor<Item>) mix;
 			Item from = access.port_lib$from();
 			if (!allowedSupportedContainers.contains(from)) {
@@ -81,7 +79,7 @@ public class PotionMixingRecipes {
 			BottleType toBottleType = PotionFluidHandler.bottleTypeFromItem(to);
 			Ingredient ingredient = access.port_lib$ingredient();
 
-			for (Entry<ResourceKey<Potion>, Potion> entry : BuiltInRegistries.POTION.entrySet()) {
+			for (Entry<RegistryKey<Potion>, Potion> entry : Registries.POTION.getEntrySet()) {
 				Potion potion = entry.getValue();
 				if (potion == Potions.EMPTY) {
 					continue;
@@ -134,7 +132,7 @@ public class PotionMixingRecipes {
 		Set<Item> processedItems = new HashSet<>();
 		for (MixingRecipe recipe : all) {
 			for (Ingredient ingredient : recipe.getIngredients()) {
-				for (ItemStack itemStack : ingredient.getItems()) {
+				for (ItemStack itemStack : ingredient.getMatchingStacks()) {
 					Item item = itemStack.getItem();
 					if (processedItems.add(item)) {
 						byItem.computeIfAbsent(item, i -> new ArrayList<>())

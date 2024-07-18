@@ -4,14 +4,12 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import com.simibubi.create.content.contraptions.glue.SuperGlueItem;
 import com.simibubi.create.foundation.ponder.PonderScene;
 import com.simibubi.create.foundation.ponder.Selection;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 
 public class DisplayWorldSectionInstruction extends FadeIntoSceneInstruction<WorldSectionElement> {
 

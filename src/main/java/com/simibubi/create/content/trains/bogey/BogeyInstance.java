@@ -1,17 +1,15 @@
 package com.simibubi.create.content.trains.bogey;
 
 import java.util.Optional;
-
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.BlockRenderView;
+import net.minecraft.world.LightType;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.util.AnimationTickHolder;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.trains.entity.CarriageBogey;
 import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.phys.Vec3;
 
 public final class BogeyInstance {
 	private final BogeySizes.BogeySize size;
@@ -34,7 +32,7 @@ public final class BogeyInstance {
 		renderer.initialiseContraptionModelData(materialManager, bogey);
 	}
 
-	public void beginFrame(float wheelAngle, PoseStack ms) {
+	public void beginFrame(float wheelAngle, MatrixStack ms) {
 		if (ms == null) {
 			renderer.emptyTransforms();
 			return;
@@ -44,18 +42,18 @@ public final class BogeyInstance {
 		renderer.render(bogey.bogeyData, wheelAngle, ms);
 	}
 
-	public void updateLight(BlockAndTintGetter world, CarriageContraptionEntity entity) {
-		var lightPos = BlockPos.containing(getLightPos(entity));
+	public void updateLight(BlockRenderView world, CarriageContraptionEntity entity) {
+		var lightPos = BlockPos.ofFloored(getLightPos(entity));
 		commonRenderer
-			.ifPresent(bogeyRenderer -> bogeyRenderer.updateLight(world.getBrightness(LightLayer.BLOCK, lightPos),
-				world.getBrightness(LightLayer.SKY, lightPos)));
-		renderer.updateLight(world.getBrightness(LightLayer.BLOCK, lightPos),
-			world.getBrightness(LightLayer.SKY, lightPos));
+			.ifPresent(bogeyRenderer -> bogeyRenderer.updateLight(world.getLightLevel(LightType.BLOCK, lightPos),
+				world.getLightLevel(LightType.SKY, lightPos)));
+		renderer.updateLight(world.getLightLevel(LightType.BLOCK, lightPos),
+			world.getLightLevel(LightType.SKY, lightPos));
 	}
 
-	private Vec3 getLightPos(CarriageContraptionEntity entity) {
+	private Vec3d getLightPos(CarriageContraptionEntity entity) {
 		return bogey.getAnchorPosition() != null ? bogey.getAnchorPosition()
-			: entity.getLightProbePosition(AnimationTickHolder.getPartialTicks());
+			: entity.getClientCameraPosVec(AnimationTickHolder.getPartialTicks());
 	}
 
 	@FunctionalInterface

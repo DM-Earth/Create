@@ -7,7 +7,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
-
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.EntryListWidget;
+import net.minecraft.util.Formatting;
 import com.google.common.base.Predicates;
 import com.simibubi.create.foundation.config.ui.ConfigAnnotations;
 import com.simibubi.create.foundation.config.ui.ConfigHelper;
@@ -22,9 +24,6 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Pair;
 
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractSelectionList;
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.AbstractSelectionList$EntryAccessor;
 
 public class ValueEntry<T> extends ConfigScreenList.LabeledEntry {
@@ -53,7 +52,7 @@ public class ValueEntry<T> extends ConfigScreenList.LabeledEntry {
 		listeners.add(resetButton);
 
 		List<String> path = value.getPath();
-		labelTooltip.add(Components.literal(label).withStyle(ChatFormatting.WHITE));
+		labelTooltip.add(Components.literal(label).formatted(Formatting.WHITE));
 		String comment = spec.getComment();
 		if (comment == null || comment.isEmpty())
 			return;
@@ -83,7 +82,7 @@ public class ValueEntry<T> extends ConfigScreenList.LabeledEntry {
 		if (annotations.containsKey(ConfigAnnotations.RequiresRestart.CLIENT.getName()))
 			labelTooltip.addAll(TooltipHelper.cutStringTextComponent("Changing this value will require a _restart_ to take full effect", Palette.GRAY_AND_RED));
 
-		labelTooltip.add(Components.literal(ConfigScreen.modID + ":" + path.get(path.size() - 1)).withStyle(ChatFormatting.DARK_GRAY));
+		labelTooltip.add(Components.literal(ConfigScreen.modID + ":" + path.get(path.size() - 1)).formatted(Formatting.DARK_GRAY));
 	}
 
 	public ValueEntry(String label) {
@@ -104,7 +103,7 @@ public class ValueEntry<T> extends ConfigScreenList.LabeledEntry {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
+	public void render(DrawContext graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
 		super.render(graphics, index, y, x, width, height, mouseX, mouseY, p_230432_9_, partialTicks);
 
 		resetButton.setX(x + width - resetWidth + 6);
@@ -145,7 +144,7 @@ public class ValueEntry<T> extends ConfigScreenList.LabeledEntry {
 
 	protected void bumpCog() {bumpCog(10f);}
 	protected void bumpCog(float force) {
-		AbstractSelectionList<?> list = ((AbstractSelectionList$EntryAccessor<?>) this).port_lib$getList();
+		EntryListWidget<?> list = ((AbstractSelectionList$EntryAccessor<?>) this).port_lib$getList();
 		if (list != null && list instanceof ConfigScreenList)
 			((ConfigScreenList) list).bumpCog(force);
 	}

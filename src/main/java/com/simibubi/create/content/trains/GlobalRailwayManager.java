@@ -28,12 +28,11 @@ import com.simibubi.create.content.trains.graph.TrackGraphVisualizer;
 import com.simibubi.create.content.trains.graph.TrackNodeLocation;
 import com.simibubi.create.content.trains.signal.SignalEdgeGroup;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
@@ -53,8 +52,8 @@ public class GlobalRailwayManager {
 		cleanUp();
 	}
 
-	public void playerLogin(Player player) {
-		if (player instanceof ServerPlayer serverPlayer) {
+	public void playerLogin(PlayerEntity player) {
+		if (player instanceof ServerPlayerEntity serverPlayer) {
 			loadTrackData(serverPlayer.getServer());
 			trackNetworks.values()
 				.forEach(g -> sync.sendFullGraphTo(g, serverPlayer));
@@ -72,11 +71,11 @@ public class GlobalRailwayManager {
 		}
 	}
 
-	public void playerLogout(Player player) {}
+	public void playerLogout(PlayerEntity player) {}
 
-	public void levelLoaded(LevelAccessor level) {
+	public void levelLoaded(WorldAccess level) {
 		MinecraftServer server = level.getServer();
-		if (server == null || server.overworld() != level)
+		if (server == null || server.getOverworld() != level)
 			return;
 		cleanUp();
 		savedData = null;
@@ -106,7 +105,7 @@ public class GlobalRailwayManager {
 
 	public void markTracksDirty() {
 		if (savedData != null)
-			savedData.setDirty();
+			savedData.markDirty();
 	}
 
 	public void addTrain(Train train) {
@@ -155,7 +154,7 @@ public class GlobalRailwayManager {
 		markTracksDirty();
 	}
 
-	public void updateSplitGraph(LevelAccessor level, TrackGraph graph) {
+	public void updateSplitGraph(WorldAccess level, TrackGraph graph) {
 		Set<TrackGraph> disconnected = graph.findDisconnectedGraphs(level, null);
 		disconnected.forEach(this::putGraphWithDefaultGroup);
 		if (!disconnected.isEmpty()) {
@@ -165,7 +164,7 @@ public class GlobalRailwayManager {
 	}
 
 	@Nullable
-	public TrackGraph getGraph(LevelAccessor level, TrackNodeLocation vertex) {
+	public TrackGraph getGraph(WorldAccess level, TrackNodeLocation vertex) {
 		if (trackNetworks == null)
 			return null;
 		for (TrackGraph railGraph : trackNetworks.values())
@@ -174,7 +173,7 @@ public class GlobalRailwayManager {
 		return null;
 	}
 
-	public List<TrackGraph> getGraphs(LevelAccessor level, TrackNodeLocation vertex) {
+	public List<TrackGraph> getGraphs(WorldAccess level, TrackNodeLocation vertex) {
 		if (trackNetworks == null)
 			return Collections.emptyList();
 		ArrayList<TrackGraph> intersecting = new ArrayList<>();
@@ -184,8 +183,8 @@ public class GlobalRailwayManager {
 		return intersecting;
 	}
 
-	public void tick(Level level) {
-		if (level.dimension() != Level.OVERWORLD)
+	public void tick(World level) {
+		if (level.getRegistryKey() != World.OVERWORLD)
 			return;
 
 		signalEdgeGroups.forEach((id, group) -> {
@@ -202,7 +201,7 @@ public class GlobalRailwayManager {
 
 		trackNetworks.forEach((id, graph) -> graph.tickPoints(false));
 
-		GlobalTrainDisplayData.updateTick = level.getGameTime() % 100 == 0;
+		GlobalTrainDisplayData.updateTick = level.getTime() % 100 == 0;
 		if (GlobalTrainDisplayData.updateTick)
 			GlobalTrainDisplayData.refresh();
 
@@ -214,7 +213,7 @@ public class GlobalRailwayManager {
 //				TrackGraphVisualizer.debugViewNodes(trackGraph);
 	}
 
-	private void tickTrains(Level level) {
+	private void tickTrains(World level) {
 		// keeping two lists ensures a tick order starting at longest waiting
 		for (Train train : waitingTrains)
 			train.earlyTick(level);
@@ -279,8 +278,8 @@ public class GlobalRailwayManager {
 		return AllConfigs.client().showExtendedTrackGraphOnF3.get();
 	}
 
-	public GlobalRailwayManager sided(LevelAccessor level) {
-		if (level != null && !level.isClientSide())
+	public GlobalRailwayManager sided(WorldAccess level) {
+		if (level != null && !level.isClient())
 			return this;
 		MutableObject<GlobalRailwayManager> m = new MutableObject<>();
 		EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> clientManager(m));

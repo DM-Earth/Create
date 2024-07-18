@@ -7,22 +7,20 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
-
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.foundation.utility.IntAttached;
 import com.simibubi.create.foundation.utility.LongAttached;
 import com.simibubi.create.foundation.utility.WorldAttached;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.LevelAccessor;
 
 public class ControlsServerHandler {
 
 	public static WorldAttached<Map<UUID, ControlsContext>> receivedInputs = new WorldAttached<>($ -> new HashMap<>());
 	static final int TIMEOUT = 30;
 
-	public static void tick(LevelAccessor world) {
+	public static void tick(WorldAccess world) {
 		Map<UUID, ControlsContext> map = receivedInputs.get(world);
 		for (Iterator<Entry<UUID, ControlsContext>> iterator = map.entrySet()
 			.iterator(); iterator.hasNext();) {
@@ -43,7 +41,7 @@ public class ControlsServerHandler {
 					entryIterator.remove(); // key released
 			}
 
-			Player player = world.getPlayerByUUID(entry.getKey());
+			PlayerEntity player = world.getPlayerByUuid(entry.getKey());
 			if (player == null) {
 				ctx.entity.stopControlling(ctx.controlsLocalPos);
 				iterator.remove();
@@ -61,7 +59,7 @@ public class ControlsServerHandler {
 		}
 	}
 
-	public static void receivePressed(LevelAccessor world, AbstractContraptionEntity entity, BlockPos controlsPos,
+	public static void receivePressed(WorldAccess world, AbstractContraptionEntity entity, BlockPos controlsPos,
 		UUID uniqueID, Collection<Integer> collect, boolean pressed) {
 		Map<UUID, ControlsContext> map = receivedInputs.get(world);
 

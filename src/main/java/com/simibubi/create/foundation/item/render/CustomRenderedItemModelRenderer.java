@@ -1,33 +1,31 @@
 package com.simibubi.create.foundation.item.render;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry.DynamicItemRenderer;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
 
 public abstract class CustomRenderedItemModelRenderer implements DynamicItemRenderer {
 
 	@Override
-	public void render(ItemStack stack, ItemDisplayContext transformType, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
-		if(!(Minecraft.getInstance()
+	public void render(ItemStack stack, ModelTransformationMode transformType, MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay) {
+		if(!(MinecraftClient.getInstance()
 				.getItemRenderer()
 				.getModel(stack, null, null, 0) instanceof CustomRenderedItemModel)) return; // insure we are only casting CustomRenderedItemModel incase another mod's messes with models
-		CustomRenderedItemModel mainModel = (CustomRenderedItemModel) Minecraft.getInstance()
+		CustomRenderedItemModel mainModel = (CustomRenderedItemModel) MinecraftClient.getInstance()
 			.getItemRenderer()
 			.getModel(stack, null, null, 0);
 		PartialItemModelRenderer renderer = PartialItemModelRenderer.of(stack, transformType, ms, buffer, overlay);
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(0.5F, 0.5F, 0.5F);
 		render(stack, mainModel, renderer, transformType, ms, buffer, light, overlay);
-		ms.popPose();
+		ms.pop();
 	}
 
-	protected abstract void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ItemDisplayContext transformType,
-		PoseStack ms, MultiBufferSource buffer, int light, int overlay);
+	protected abstract void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ModelTransformationMode transformType,
+		MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay);
 
 }

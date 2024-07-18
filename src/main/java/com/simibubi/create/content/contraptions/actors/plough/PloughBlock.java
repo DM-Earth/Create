@@ -6,11 +6,11 @@ import com.mojang.authlib.GameProfile;
 import com.simibubi.create.content.contraptions.actors.AttachedActorBlock;
 
 import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.world.ServerWorld;
 
 public class PloughBlock extends AttachedActorBlock {
 
-	public PloughBlock(Properties p_i48377_1_) {
+	public PloughBlock(Settings p_i48377_1_) {
 		super(p_i48377_1_);
 	}
 
@@ -22,7 +22,7 @@ public class PloughBlock extends AttachedActorBlock {
 		public static final GameProfile PLOUGH_PROFILE =
 				new GameProfile(UUID.fromString("9e2faded-eeee-4ec2-c314-dad129ae971d"), "Plough");
 
-		public PloughFakePlayer(ServerLevel world) {
+		public PloughFakePlayer(ServerWorld world) {
 			super(world, PLOUGH_PROFILE);
 		}
 

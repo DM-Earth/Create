@@ -3,7 +3,20 @@ package com.simibubi.create.content.trains.display;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3i;
 import com.google.gson.JsonElement;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -12,21 +25,6 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.DyeHelper;
 import com.simibubi.create.foundation.utility.DynamicComponent;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 
 public class FlapDisplayBlockEntity extends KineticBlockEntity {
 
@@ -61,30 +59,30 @@ public class FlapDisplayBlockEntity extends KineticBlockEntity {
 	}
 
 	public void updateControllerStatus() {
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!(blockState.getBlock() instanceof FlapDisplayBlock))
 			return;
 
-		Direction leftDirection = blockState.getValue(FlapDisplayBlock.HORIZONTAL_FACING)
-			.getClockWise();
-		boolean shouldBeController = !blockState.getValue(FlapDisplayBlock.UP)
-			&& level.getBlockState(worldPosition.relative(leftDirection)) != blockState;
+		Direction leftDirection = blockState.get(FlapDisplayBlock.HORIZONTAL_FACING)
+			.rotateYClockwise();
+		boolean shouldBeController = !blockState.get(FlapDisplayBlock.UP)
+			&& world.getBlockState(pos.offset(leftDirection)) != blockState;
 
 		int newXSize = 1;
 		int newYSize = 1;
 
 		if (shouldBeController) {
 			for (int xOffset = 1; xOffset < 32; xOffset++) {
-				if (level.getBlockState(worldPosition.relative(leftDirection.getOpposite(), xOffset)) != blockState)
+				if (world.getBlockState(pos.offset(leftDirection.getOpposite(), xOffset)) != blockState)
 					break;
 				newXSize++;
 			}
 			for (int yOffset = 0; yOffset < 32; yOffset++) {
-				if (!level.getBlockState(worldPosition.relative(Direction.DOWN, yOffset))
-					.getOptionalValue(FlapDisplayBlock.DOWN)
+				if (!world.getBlockState(pos.offset(Direction.DOWN, yOffset))
+					.getOrEmpty(FlapDisplayBlock.DOWN)
 					.orElse(false))
 					break;
 				newYSize++;
@@ -108,7 +106,7 @@ public class FlapDisplayBlockEntity extends KineticBlockEntity {
 	public void tick() {
 		super.tick();
 		isRunning = super.isSpeedRequirementFulfilled();
-		if ((!level.isClientSide || !isRunning) && !isVirtual())
+		if ((!world.isClient || !isRunning) && !isVirtual())
 			return;
 		int activeFlaps = 0;
 		boolean instant = getSpeed() > 128;
@@ -118,12 +116,12 @@ public class FlapDisplayBlockEntity extends KineticBlockEntity {
 		if (activeFlaps == 0)
 			return;
 
-		float volume = Mth.clamp(activeFlaps / 20f, 0.25f, 1.5f);
-		float bgVolume = Mth.clamp(activeFlaps / 40f, 0.25f, 1f);
-		BlockPos middle = worldPosition.relative(getDirection().getClockWise(), xSize / 2)
-			.relative(Direction.DOWN, ySize / 2);
-		AllSoundEvents.SCROLL_VALUE.playAt(level, middle, volume, 0.56f, false);
-		level.playLocalSound(middle.getX(), middle.getY(), middle.getZ(), SoundEvents.CALCITE_HIT, SoundSource.BLOCKS,
+		float volume = MathHelper.clamp(activeFlaps / 20f, 0.25f, 1.5f);
+		float bgVolume = MathHelper.clamp(activeFlaps / 40f, 0.25f, 1f);
+		BlockPos middle = pos.offset(getDirection().rotateYClockwise(), xSize / 2)
+			.offset(Direction.DOWN, ySize / 2);
+		AllSoundEvents.SCROLL_VALUE.playAt(world, middle, volume, 0.56f, false);
+		world.playSound(middle.getX(), middle.getY(), middle.getZ(), SoundEvents.BLOCK_CALCITE_HIT, SoundCategory.BLOCKS,
 			.35f * bgVolume, 1.95f, false);
 	}
 
@@ -160,8 +158,8 @@ public class FlapDisplayBlockEntity extends KineticBlockEntity {
 			return;
 
 		manualLines[lineIndex] = true;
-		Component text = isVirtual() ? Component.Serializer.fromJson(rawComponentText)
-			: DynamicComponent.parseCustomText(level, worldPosition, json);
+		Text text = isVirtual() ? Text.Serializer.fromJson(rawComponentText)
+			: DynamicComponent.parseCustomText(world, pos, json);
 		flapDisplaySection.setText(text);
 		if (isVirtual())
 			flapDisplaySection.refresh(true);
@@ -200,7 +198,7 @@ public class FlapDisplayBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 
 		tag.putBoolean("Controller", isController);
@@ -226,7 +224,7 @@ public class FlapDisplayBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		super.read(tag, clientPacket);
 		boolean wasActive = isController;
 		int prevX = xSize;
@@ -260,38 +258,38 @@ public class FlapDisplayBlockEntity extends KineticBlockEntity {
 	}
 
 	public int getLineIndexAt(double yCoord) {
-		return (int) Mth.clamp(Math.floor(2 * (worldPosition.getY() - yCoord + 1)), 0, ySize * 2);
+		return (int) MathHelper.clamp(Math.floor(2 * (pos.getY() - yCoord + 1)), 0, ySize * 2);
 	}
 
 	public FlapDisplayBlockEntity getController() {
 		if (isController)
 			return this;
 
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!(blockState.getBlock() instanceof FlapDisplayBlock))
 			return null;
 
-		MutableBlockPos pos = getBlockPos().mutable();
-		Direction side = blockState.getValue(FlapDisplayBlock.HORIZONTAL_FACING)
-			.getClockWise();
+		Mutable pos = getPos().mutableCopy();
+		Direction side = blockState.get(FlapDisplayBlock.HORIZONTAL_FACING)
+			.rotateYClockwise();
 
 		for (int i = 0; i < 64; i++) {
-			BlockState other = level.getBlockState(pos);
+			BlockState other = world.getBlockState(pos);
 
-			if (other.getOptionalValue(FlapDisplayBlock.UP)
+			if (other.getOrEmpty(FlapDisplayBlock.UP)
 				.orElse(false)) {
 				pos.move(Direction.UP);
 				continue;
 			}
 
-			if (!level.getBlockState(pos.relative(side))
-				.getOptionalValue(FlapDisplayBlock.UP)
+			if (!world.getBlockState(pos.offset(side))
+				.getOrEmpty(FlapDisplayBlock.UP)
 				.orElse(true)) {
 				pos.move(side);
 				continue;
 			}
 
-			BlockEntity found = level.getBlockEntity(pos);
+			BlockEntity found = world.getBlockEntity(pos);
 			if (found instanceof FlapDisplayBlockEntity flap && flap.isController)
 				return flap;
 
@@ -302,17 +300,17 @@ public class FlapDisplayBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		AABB aabb = new AABB(worldPosition);
+	protected Box createRenderBoundingBox() {
+		Box aabb = new Box(pos);
 		if (!isController)
 			return aabb;
-		Vec3i normal = getDirection().getClockWise()
-			.getNormal();
-		return aabb.expandTowards(normal.getX() * xSize, -ySize, normal.getZ() * xSize);
+		Vec3i normal = getDirection().rotateYClockwise()
+			.getVector();
+		return aabb.stretch(normal.getX() * xSize, -ySize, normal.getZ() * xSize);
 	}
 
 	public Direction getDirection() {
-		return getBlockState().getOptionalValue(FlapDisplayBlock.HORIZONTAL_FACING)
+		return getCachedState().getOrEmpty(FlapDisplayBlock.HORIZONTAL_FACING)
 			.orElse(Direction.SOUTH)
 			.getOpposite();
 	}

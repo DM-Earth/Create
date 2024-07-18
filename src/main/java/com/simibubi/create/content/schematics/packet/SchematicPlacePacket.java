@@ -4,12 +4,11 @@ import com.simibubi.create.content.schematics.SchematicPrinter;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.simibubi.create.foundation.utility.BlockHelper;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.World;
 
 public class SchematicPlacePacket extends SimplePacketBase {
 
@@ -19,27 +18,27 @@ public class SchematicPlacePacket extends SimplePacketBase {
 		this.stack = stack;
 	}
 
-	public SchematicPlacePacket(FriendlyByteBuf buffer) {
-		stack = buffer.readItem();
+	public SchematicPlacePacket(PacketByteBuf buffer) {
+		stack = buffer.readItemStack();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeItem(stack);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeItemStack(stack);
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
 			if (!player.isCreative())
 				return;
 
-			Level world = player.level();
+			World world = player.getWorld();
 			SchematicPrinter printer = new SchematicPrinter();
-			printer.loadSchematic(stack, world, !player.canUseGameMasterBlocks());
+			printer.loadSchematic(stack, world, !player.isCreativeLevelTwoOp());
 			if (!printer.isLoaded() || printer.isErrored())
 				return;
 
@@ -54,10 +53,10 @@ public class SchematicPlacePacket extends SimplePacketBase {
 					if (placingAir && !includeAir)
 						return;
 
-					CompoundTag data = BlockHelper.prepareBlockEntityData(state, blockEntity);
+					NbtCompound data = BlockHelper.prepareBlockEntityData(state, blockEntity);
 					BlockHelper.placeSchematicBlock(world, state, pos, null, data);
 				}, (pos, entity) -> {
-					world.addFreshEntity(entity);
+					world.spawnEntity(entity);
 				});
 			}
 		});

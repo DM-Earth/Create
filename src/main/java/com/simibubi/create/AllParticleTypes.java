@@ -16,13 +16,11 @@ import com.simibubi.create.foundation.utility.Lang;
 import io.github.fabricators_of_create.porting_lib.util.LazyRegistrar;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.core.Registry;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.particle.ParticleManager;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleType;
+import net.minecraft.registry.Registries;
 
 public enum AllParticleTypes {
 
@@ -41,7 +39,7 @@ public enum AllParticleTypes {
 
 	private final ParticleEntry<?> entry;
 
-	<D extends ParticleOptions> AllParticleTypes(Supplier<? extends ICustomParticleData<D>> typeFactory) {
+	<D extends ParticleEffect> AllParticleTypes(Supplier<? extends ICustomParticleData<D>> typeFactory) {
 		String name = Lang.asId(name());
 		entry = new ParticleEntry<>(name, typeFactory);
 	}
@@ -52,7 +50,7 @@ public enum AllParticleTypes {
 
 	@Environment(EnvType.CLIENT)
 	public static void registerFactories() {
-		ParticleEngine particles = Minecraft.getInstance().particleEngine;
+		ParticleManager particles = MinecraftClient.getInstance().particleManager;
 		for (AllParticleTypes particle : values())
 			particle.entry.registerFactory(particles);
 	}
@@ -65,8 +63,8 @@ public enum AllParticleTypes {
 		return entry.name;
 	}
 
-	private static class ParticleEntry<D extends ParticleOptions> {
-		private static final LazyRegistrar<ParticleType<?>> REGISTER = LazyRegistrar.create(BuiltInRegistries.PARTICLE_TYPE, Create.ID);
+	private static class ParticleEntry<D extends ParticleEffect> {
+		private static final LazyRegistrar<ParticleType<?>> REGISTER = LazyRegistrar.create(Registries.PARTICLE_TYPE, Create.ID);
 
 		private final String name;
 		private final Supplier<? extends ICustomParticleData<D>> typeFactory;
@@ -81,7 +79,7 @@ public enum AllParticleTypes {
 		}
 
 		@Environment(EnvType.CLIENT)
-		public void registerFactory(ParticleEngine particles) {
+		public void registerFactory(ParticleManager particles) {
 			typeFactory.get()
 				.register(object, particles);
 		}

@@ -1,13 +1,11 @@
 package com.simibubi.create;
 
 import org.lwjgl.glfw.GLFW;
-
-import com.mojang.blaze3d.platform.InputConstants;
-
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
 
 public enum AllKeys {
 
@@ -17,7 +15,7 @@ public enum AllKeys {
 
 	;
 
-	private KeyMapping keybind;
+	private KeyBinding keybind;
 	private String description;
 	private int key;
 	private boolean modifiable;
@@ -32,7 +30,7 @@ public enum AllKeys {
 		for (AllKeys key : values()) {
 			if (!key.modifiable)
 				continue;
-			key.keybind = new KeyMapping(key.description, key.key, Create.NAME);
+			key.keybind = new KeyBinding(key.description, key.key, Create.NAME);
 			KeyBindingHelper.registerKeyBinding(key.keybind);
 		}
 	}
@@ -40,45 +38,45 @@ public enum AllKeys {
 	// fabric: sometimes after opening the toolbox menu, alt gets stuck as pressed until a screen is opened.
 	// why is this needed? why did this only just now break? Good questions! I wish I knew.
 	public static void fixBinds() {
-		long window = Minecraft.getInstance().getWindow().getWindow();
+		long window = MinecraftClient.getInstance().getWindow().getHandle();
 		for (AllKeys key : values()) {
 			if (key.keybind == null || key.keybind.isUnbound())
 				continue;
-			key.keybind.setDown(InputConstants.isKeyDown(window, key.getBoundCode()));
+			key.keybind.setPressed(InputUtil.isKeyPressed(window, key.getBoundCode()));
 		}
 	}
 
-	public KeyMapping getKeybind() {
+	public KeyBinding getKeybind() {
 		return keybind;
 	}
 
 	public boolean isPressed() {
 		if (!modifiable)
 			return isKeyDown(key);
-		return keybind.isDown();
+		return keybind.isPressed();
 	}
 
 	public String getBoundKey() {
-		return keybind.getTranslatedKeyMessage()
+		return keybind.getBoundKeyLocalizedText()
 			.getString()
 			.toUpperCase();
 	}
 
 	public int getBoundCode() {
 		return KeyBindingHelper.getBoundKeyOf(keybind)
-				.getValue();
+				.getCode();
 	}
 
 	public static boolean isKeyDown(int key) {
-		return InputConstants.isKeyDown(Minecraft.getInstance()
+		return InputUtil.isKeyPressed(MinecraftClient.getInstance()
 			.getWindow()
-			.getWindow(), key);
+			.getHandle(), key);
 	}
 
 	public static boolean isMouseButtonDown(int button) {
-		return GLFW.glfwGetMouseButton(Minecraft.getInstance()
+		return GLFW.glfwGetMouseButton(MinecraftClient.getInstance()
 			.getWindow()
-			.getWindow(), button) == 1;
+			.getHandle(), button) == 1;
 	}
 
 	public static boolean ctrlDown() {

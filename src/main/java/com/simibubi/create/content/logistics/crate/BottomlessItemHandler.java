@@ -12,12 +12,10 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
 import org.jetbrains.annotations.Nullable;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
@@ -47,7 +45,7 @@ public class BottomlessItemHandler extends ItemStackHandler implements SingleSlo
 		if (!resource.matches(stack))
 			return 0;
 		if (!stack.isEmpty())
-			return Math.min(stack.getMaxStackSize(), maxAmount);
+			return Math.min(stack.getMaxCount(), maxAmount);
 		return 0;
 	}
 
@@ -119,7 +117,7 @@ public class BottomlessItemHandler extends ItemStackHandler implements SingleSlo
 
 		@Override
 		@Nullable
-		public CompoundTag save() {
+		public NbtCompound save() {
 			return null;
 		}
 

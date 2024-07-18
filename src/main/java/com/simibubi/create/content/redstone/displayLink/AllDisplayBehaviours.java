@@ -7,7 +7,16 @@ import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.entity.SignBlockEntity;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.Create;
 import com.simibubi.create.compat.Mods;
 import com.simibubi.create.content.redstone.displayLink.source.ComputerDisplaySource;
@@ -23,34 +32,22 @@ import com.simibubi.create.foundation.utility.AttachedRegistry;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
 import com.tterrag.registrate.util.nullness.NonNullConsumer;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.entity.SignBlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-
 public class AllDisplayBehaviours {
-	public static final Map<ResourceLocation, DisplayBehaviour> GATHERER_BEHAVIOURS = new HashMap<>();
+	public static final Map<Identifier, DisplayBehaviour> GATHERER_BEHAVIOURS = new HashMap<>();
 
-	private static final AttachedRegistry<Block, List<DisplaySource>> SOURCES_BY_BLOCK = new AttachedRegistry<>(BuiltInRegistries.BLOCK);
-	private static final AttachedRegistry<BlockEntityType<?>, List<DisplaySource>> SOURCES_BY_BLOCK_ENTITY = new AttachedRegistry<>(BuiltInRegistries.BLOCK_ENTITY_TYPE);
+	private static final AttachedRegistry<Block, List<DisplaySource>> SOURCES_BY_BLOCK = new AttachedRegistry<>(Registries.BLOCK);
+	private static final AttachedRegistry<BlockEntityType<?>, List<DisplaySource>> SOURCES_BY_BLOCK_ENTITY = new AttachedRegistry<>(Registries.BLOCK_ENTITY_TYPE);
 
-	private static final AttachedRegistry<Block, DisplayTarget> TARGETS_BY_BLOCK = new AttachedRegistry<>(BuiltInRegistries.BLOCK);
-	private static final AttachedRegistry<BlockEntityType<?>, DisplayTarget> TARGETS_BY_BLOCK_ENTITY = new AttachedRegistry<>(BuiltInRegistries.BLOCK_ENTITY_TYPE);
+	private static final AttachedRegistry<Block, DisplayTarget> TARGETS_BY_BLOCK = new AttachedRegistry<>(Registries.BLOCK);
+	private static final AttachedRegistry<BlockEntityType<?>, DisplayTarget> TARGETS_BY_BLOCK_ENTITY = new AttachedRegistry<>(Registries.BLOCK_ENTITY_TYPE);
 
-	public static DisplayBehaviour register(ResourceLocation id, DisplayBehaviour behaviour) {
+	public static DisplayBehaviour register(Identifier id, DisplayBehaviour behaviour) {
 		behaviour.id = id;
 		GATHERER_BEHAVIOURS.put(id, behaviour);
 		return behaviour;
 	}
 
-	public static void assignBlock(DisplayBehaviour behaviour, ResourceLocation block) {
+	public static void assignBlock(DisplayBehaviour behaviour, Identifier block) {
 		if (behaviour instanceof DisplaySource source) {
 			List<DisplaySource> sources = SOURCES_BY_BLOCK.get(block);
 			if (sources == null) {
@@ -64,7 +61,7 @@ public class AllDisplayBehaviours {
 		}
 	}
 
-	public static void assignBlockEntity(DisplayBehaviour behaviour, ResourceLocation beType) {
+	public static void assignBlockEntity(DisplayBehaviour behaviour, Identifier beType) {
 		if (behaviour instanceof DisplaySource source) {
 			List<DisplaySource> sources = SOURCES_BY_BLOCK_ENTITY.get(beType);
 			if (sources == null) {
@@ -109,11 +106,11 @@ public class AllDisplayBehaviours {
 	public static <B extends Block> NonNullConsumer<? super B> assignDataBehaviour(DisplayBehaviour behaviour,
 		String... suffix) {
 		return b -> {
-			ResourceLocation registryName = RegisteredObjects.getKeyOrThrow(b);
+			Identifier registryName = RegisteredObjects.getKeyOrThrow(b);
 			String idSuffix = behaviour instanceof DisplaySource ? "_source" : "_target";
 			if (suffix.length > 0)
 				idSuffix += "_" + suffix[0];
-			assignBlock(register(new ResourceLocation(registryName.getNamespace(), registryName.getPath() + idSuffix),
+			assignBlock(register(new Identifier(registryName.getNamespace(), registryName.getPath() + idSuffix),
 				behaviour), registryName);
 		};
 	}
@@ -121,12 +118,12 @@ public class AllDisplayBehaviours {
 	public static <B extends BlockEntityType<?>> NonNullConsumer<? super B> assignDataBehaviourBE(
 		DisplayBehaviour behaviour, String... suffix) {
 		return b -> {
-			ResourceLocation registryName = RegisteredObjects.getKeyOrThrow(b);
+			Identifier registryName = RegisteredObjects.getKeyOrThrow(b);
 			String idSuffix = behaviour instanceof DisplaySource ? "_source" : "_target";
 			if (suffix.length > 0)
 				idSuffix += "_" + suffix[0];
 			assignBlockEntity(
-				register(new ResourceLocation(registryName.getNamespace(), registryName.getPath() + idSuffix),
+				register(new Identifier(registryName.getNamespace(), registryName.getPath() + idSuffix),
 					behaviour),
 				registryName);
 		};
@@ -135,7 +132,7 @@ public class AllDisplayBehaviours {
 	//
 
 	@Nullable
-	public static DisplaySource getSource(ResourceLocation resourceLocation) {
+	public static DisplaySource getSource(Identifier resourceLocation) {
 		DisplayBehaviour available = GATHERER_BEHAVIOURS.getOrDefault(resourceLocation, null);
 		if (available instanceof DisplaySource source)
 			return source;
@@ -143,7 +140,7 @@ public class AllDisplayBehaviours {
 	}
 
 	@Nullable
-	public static DisplayTarget getTarget(ResourceLocation resourceLocation) {
+	public static DisplayTarget getTarget(Identifier resourceLocation) {
 		DisplayBehaviour available = GATHERER_BEHAVIOURS.getOrDefault(resourceLocation, null);
 		if (available instanceof DisplayTarget target)
 			return target;
@@ -196,7 +193,7 @@ public class AllDisplayBehaviours {
 		return targetOf(blockEntity.getType());
 	}
 
-	public static List<DisplaySource> sourcesOf(LevelAccessor level, BlockPos pos) {
+	public static List<DisplaySource> sourcesOf(WorldAccess level, BlockPos pos) {
 		BlockState blockState = level.getBlockState(pos);
 		BlockEntity blockEntity = level.getBlockEntity(pos);
 
@@ -209,7 +206,7 @@ public class AllDisplayBehaviours {
 	}
 
 	@Nullable
-	public static DisplayTarget targetOf(LevelAccessor level, BlockPos pos) {
+	public static DisplayTarget targetOf(WorldAccess level, BlockPos pos) {
 		BlockState blockState = level.getBlockState(pos);
 		BlockEntity blockEntity = level.getBlockEntity(pos);
 

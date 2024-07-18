@@ -16,9 +16,9 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.MutableText;
 
 public class CountedItemStackList {
 
@@ -40,14 +40,14 @@ public class CountedItemStackList {
 		}
 	}
 
-	public Stream<LongAttached<MutableComponent>> getTopNames(int limit) {
+	public Stream<LongAttached<MutableText>> getTopNames(int limit) {
 		return items.values()
 			.stream()
 			.flatMap(Collection::stream)
 			.sorted(LongAttached.comparator())
 			.limit(limit)
 			.map(entry -> LongAttached.with(entry.count(), entry.stack()
-				.getHoverName()
+				.getName()
 				.copy()));
 	}
 

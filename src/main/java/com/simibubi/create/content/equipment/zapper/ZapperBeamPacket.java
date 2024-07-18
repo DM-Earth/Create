@@ -5,30 +5,30 @@ import com.simibubi.create.content.equipment.zapper.ZapperRenderHandler.LaserBea
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.Vec3d;
 
 public class ZapperBeamPacket extends ShootGadgetPacket {
 
-	public Vec3 target;
+	public Vec3d target;
 
-	public ZapperBeamPacket(Vec3 start, Vec3 target, InteractionHand hand, boolean self) {
+	public ZapperBeamPacket(Vec3d start, Vec3d target, Hand hand, boolean self) {
 		super(start, hand, self);
 		this.target = target;
 	}
 
-	public ZapperBeamPacket(FriendlyByteBuf buffer) {
+	public ZapperBeamPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
 	@Override
-	protected void readAdditional(FriendlyByteBuf buffer) {
-		target = new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
+	protected void readAdditional(PacketByteBuf buffer) {
+		target = new Vec3d(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
 	}
 
 	@Override
-	protected void writeAdditional(FriendlyByteBuf buffer) {
+	protected void writeAdditional(PacketByteBuf buffer) {
 		buffer.writeDouble(target.x);
 		buffer.writeDouble(target.y);
 		buffer.writeDouble(target.z);

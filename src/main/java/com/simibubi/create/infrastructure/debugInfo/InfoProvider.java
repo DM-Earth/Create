@@ -3,8 +3,7 @@ package com.simibubi.create.infrastructure.debugInfo;
 import java.util.Objects;
 
 import javax.annotation.Nullable;
-
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.player.PlayerEntity;
 
 /**
  * A supplier of debug information. May be queried on the client or server.
@@ -15,9 +14,9 @@ public interface InfoProvider {
 	 * @param player the player requesting the data. May be null
 	 */
 	@Nullable
-	String getInfo(@Nullable Player player);
+	String getInfo(@Nullable PlayerEntity player);
 
-	default String getInfoSafe(Player player) {
+	default String getInfoSafe(PlayerEntity player) {
 		try {
 			return Objects.toString(getInfo(player));
 		} catch (Throwable t) {

@@ -1,47 +1,45 @@
 package com.simibubi.create.content.equipment.extendoGrip;
 
 import java.util.function.Supplier;
-
+import net.minecraft.entity.Entity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.Vec3d;
 import com.jamieswhiteshirt.reachentityattributes.ReachEntityAttributes;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.simibubi.create.foundation.utility.fabric.ReachUtil;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
-
 public class ExtendoGripInteractionPacket extends SimplePacketBase {
 
-	private InteractionHand interactionHand;
+	private Hand interactionHand;
 	private int target;
-	private Vec3 specificPoint;
+	private Vec3d specificPoint;
 
 	public ExtendoGripInteractionPacket(Entity target) {
 		this(target, null);
 	}
 
-	public ExtendoGripInteractionPacket(Entity target, InteractionHand hand) {
+	public ExtendoGripInteractionPacket(Entity target, Hand hand) {
 		this(target, hand, null);
 	}
 
-	public ExtendoGripInteractionPacket(Entity target, InteractionHand hand, Vec3 specificPoint) {
+	public ExtendoGripInteractionPacket(Entity target, Hand hand, Vec3d specificPoint) {
 		interactionHand = hand;
 		this.specificPoint = specificPoint;
 		this.target = target.getId();
 	}
 
-	public ExtendoGripInteractionPacket(FriendlyByteBuf buffer) {
+	public ExtendoGripInteractionPacket(PacketByteBuf buffer) {
 		target = buffer.readInt();
 		int handId = buffer.readInt();
-		interactionHand = handId == -1 ? null : InteractionHand.values()[handId];
+		interactionHand = handId == -1 ? null : Hand.values()[handId];
 		if (buffer.readBoolean())
-			specificPoint = new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
+			specificPoint = new Vec3d(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(target);
 		buffer.writeInt(interactionHand == null ? -1 : interactionHand.ordinal());
 		buffer.writeBoolean(specificPoint != null);
@@ -55,22 +53,22 @@ public class ExtendoGripInteractionPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer sender = context.getSender();
+			ServerPlayerEntity sender = context.getSender();
 			if (sender == null)
 				return;
-			Entity entityByID = sender.level()
-				.getEntity(target);
+			Entity entityByID = sender.getWorld()
+				.getEntityById(target);
 			if (entityByID != null && ExtendoGripItem.isHoldingExtendoGrip(sender)) {
 				double d = ReachUtil.reach(sender);
-				if (!sender.hasLineOfSight(entityByID))
+				if (!sender.canSee(entityByID))
 					d -= 3;
 				d *= d;
-				if (sender.distanceToSqr(entityByID) > d)
+				if (sender.squaredDistanceTo(entityByID) > d)
 					return;
 				if (interactionHand == null)
 					sender.attack(entityByID);
 				else if (specificPoint == null)
-					sender.interactOn(entityByID, interactionHand);
+					sender.interact(entityByID, interactionHand);
 				else
 					entityByID.interactAt(sender, specificPoint, interactionHand);
 			}

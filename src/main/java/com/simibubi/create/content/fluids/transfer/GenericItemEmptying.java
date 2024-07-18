@@ -16,21 +16,21 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.PotionItem;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.level.Level;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.PotionItem;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.world.World;
 
 public class GenericItemEmptying {
 
-	private static final Container WRAPPER = new ItemStackHandlerContainer(1);
+	private static final Inventory WRAPPER = new ItemStackHandlerContainer(1);
 
-	public static boolean canItemBeEmptied(Level world, ItemStack stack) {
+	public static boolean canItemBeEmptied(World world, ItemStack stack) {
 		if (stack.getItem() instanceof PotionItem)
 			return true;
 
-		WRAPPER.setItem(0, stack);
+		WRAPPER.setStack(0, stack);
 		if (AllRecipeTypes.EMPTYING.find(WRAPPER, world)
 			.isPresent())
 			return true;
@@ -38,20 +38,20 @@ public class GenericItemEmptying {
 		return TransferUtil.getFluidContained(stack).isPresent();
 	}
 
-	public static Pair<FluidStack, ItemStack> emptyItem(Level world, ItemStack stack, boolean simulate) {
+	public static Pair<FluidStack, ItemStack> emptyItem(World world, ItemStack stack, boolean simulate) {
 		FluidStack resultingFluid = FluidStack.EMPTY;
 		ItemStack resultingItem = ItemStack.EMPTY;
 
 		if (stack.getItem() instanceof PotionItem)
 			return PotionFluidHandler.emptyPotion(stack, simulate);
 
-		WRAPPER.setItem(0, stack);
-		Optional<Recipe<Container>> recipe = AllRecipeTypes.EMPTYING.find(WRAPPER, world);
+		WRAPPER.setStack(0, stack);
+		Optional<Recipe<Inventory>> recipe = AllRecipeTypes.EMPTYING.find(WRAPPER, world);
 		if (recipe.isPresent()) {
 			EmptyingRecipe emptyingRecipe = (EmptyingRecipe) recipe.get();
 			List<ItemStack> results = emptyingRecipe.rollResults();
 			if (!simulate)
-				stack.shrink(1);
+				stack.decrement(1);
 			resultingItem = results.isEmpty() ? ItemStack.EMPTY : results.get(0);
 			resultingFluid = emptyingRecipe.getResultingFluid();
 			return Pair.of(resultingFluid, resultingItem);
@@ -67,7 +67,7 @@ public class GenericItemEmptying {
 			resultingFluid = TransferUtil.extractAnyFluid(tank, FluidConstants.BUCKET);
 			resultingItem = ctx.getItemVariant().toStack((int) ctx.getAmount());
 			if (!simulate) {
-				stack.shrink(1);
+				stack.decrement(1);
 				t.commit();
 			}
 

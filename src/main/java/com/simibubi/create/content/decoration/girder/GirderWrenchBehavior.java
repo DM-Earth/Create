@@ -6,7 +6,19 @@ import java.util.List;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.AllBlocks;
@@ -18,34 +30,20 @@ import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Pair;
 import com.simibubi.create.foundation.utility.VecHelper;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
-
 public class GirderWrenchBehavior {
 
 	@Environment(EnvType.CLIENT)
 	public static void tick() {
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null || mc.level == null || !(mc.hitResult instanceof BlockHitResult result))
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc.player == null || mc.world == null || !(mc.crosshairTarget instanceof BlockHitResult result))
 			return;
 
-		ClientLevel world = mc.level;
+		ClientWorld world = mc.world;
 		BlockPos pos = result.getBlockPos();
-		Player player = mc.player;
-		ItemStack heldItem = player.getMainHandItem();
+		PlayerEntity player = mc.player;
+		ItemStack heldItem = player.getMainHandStack();
 
-		if (player.isShiftKeyDown())
+		if (player.isSneaking())
 			return;
 
 		if (!AllBlocks.METAL_GIRDER.has(world.getBlockState(pos)))
@@ -58,53 +56,53 @@ public class GirderWrenchBehavior {
 		if (dirPair == null)
 			return;
 
-		Vec3 center = VecHelper.getCenterOf(pos);
-		Vec3 edge = center.add(Vec3.atLowerCornerOf(dirPair.getFirst()
-			.getNormal())
-			.scale(0.4));
+		Vec3d center = VecHelper.getCenterOf(pos);
+		Vec3d edge = center.add(Vec3d.of(dirPair.getFirst()
+			.getVector())
+			.multiply(0.4));
 		Direction.Axis[] axes = Arrays.stream(Iterate.axes)
 			.filter(axis -> axis != dirPair.getFirst()
 				.getAxis())
 			.toArray(Direction.Axis[]::new);
 
 		double normalMultiplier = dirPair.getSecond() == Action.PAIR ? 4 : 1;
-		Vec3 corner1 = edge
-			.add(Vec3.atLowerCornerOf(Direction.fromAxisAndDirection(axes[0], Direction.AxisDirection.POSITIVE)
-				.getNormal())
-				.scale(0.3))
-			.add(Vec3.atLowerCornerOf(Direction.fromAxisAndDirection(axes[1], Direction.AxisDirection.POSITIVE)
-				.getNormal())
-				.scale(0.3))
-			.add(Vec3.atLowerCornerOf(dirPair.getFirst()
-				.getNormal())
-				.scale(0.1 * normalMultiplier));
+		Vec3d corner1 = edge
+			.add(Vec3d.of(Direction.from(axes[0], Direction.AxisDirection.POSITIVE)
+				.getVector())
+				.multiply(0.3))
+			.add(Vec3d.of(Direction.from(axes[1], Direction.AxisDirection.POSITIVE)
+				.getVector())
+				.multiply(0.3))
+			.add(Vec3d.of(dirPair.getFirst()
+				.getVector())
+				.multiply(0.1 * normalMultiplier));
 
 		normalMultiplier = dirPair.getSecond() == Action.HORIZONTAL ? 9 : 2;
-		Vec3 corner2 = edge
-			.add(Vec3.atLowerCornerOf(Direction.fromAxisAndDirection(axes[0], Direction.AxisDirection.NEGATIVE)
-				.getNormal())
-				.scale(0.3))
-			.add(Vec3.atLowerCornerOf(Direction.fromAxisAndDirection(axes[1], Direction.AxisDirection.NEGATIVE)
-				.getNormal())
-				.scale(0.3))
-			.add(Vec3.atLowerCornerOf(dirPair.getFirst()
+		Vec3d corner2 = edge
+			.add(Vec3d.of(Direction.from(axes[0], Direction.AxisDirection.NEGATIVE)
+				.getVector())
+				.multiply(0.3))
+			.add(Vec3d.of(Direction.from(axes[1], Direction.AxisDirection.NEGATIVE)
+				.getVector())
+				.multiply(0.3))
+			.add(Vec3d.of(dirPair.getFirst()
 				.getOpposite()
-				.getNormal())
-				.scale(0.1 * normalMultiplier));
+				.getVector())
+				.multiply(0.1 * normalMultiplier));
 
-		CreateClient.OUTLINER.showAABB("girderWrench", new AABB(corner1, corner2))
+		CreateClient.OUTLINER.showAABB("girderWrench", new Box(corner1, corner2))
 			.lineWidth(1 / 32f)
 			.colored(new Color(127, 127, 127));
 	}
 
 	@Nullable
-	private static Pair<Direction, Action> getDirectionAndAction(BlockHitResult result, Level world, BlockPos pos) {
+	private static Pair<Direction, Action> getDirectionAndAction(BlockHitResult result, World world, BlockPos pos) {
 		List<Pair<Direction, Action>> validDirections = getValidDirections(world, pos);
 
 		if (validDirections.isEmpty())
 			return null;
 
-		List<Direction> directions = IPlacementHelper.orderedByDistance(pos, result.getLocation(),
+		List<Direction> directions = IPlacementHelper.orderedByDistance(pos, result.getPos(),
 			validDirections.stream()
 				.map(Pair::getFirst)
 				.toList());
@@ -119,7 +117,7 @@ public class GirderWrenchBehavior {
 			.orElseGet(() -> Pair.of(dir, Action.SINGLE));
 	}
 
-	public static List<Pair<Direction, Action>> getValidDirections(BlockGetter level, BlockPos pos) {
+	public static List<Pair<Direction, Action>> getValidDirections(BlockView level, BlockPos pos) {
 		BlockState blockState = level.getBlockState(pos);
 
 		if (!AllBlocks.METAL_GIRDER.has(blockState))
@@ -127,24 +125,24 @@ public class GirderWrenchBehavior {
 
 		return Arrays.stream(Iterate.directions)
 			.<Pair<Direction, Action>>mapMulti((direction, consumer) -> {
-				BlockState other = level.getBlockState(pos.relative(direction));
+				BlockState other = level.getBlockState(pos.offset(direction));
 
-				if (!blockState.getValue(GirderBlock.X) && !blockState.getValue(GirderBlock.Z))
+				if (!blockState.get(GirderBlock.X) && !blockState.get(GirderBlock.Z))
 					return;
 
 				// up and down
 				if (direction.getAxis() == Direction.Axis.Y) {
 					// no other girder in target dir
 					if (!AllBlocks.METAL_GIRDER.has(other)) {
-						if (!blockState.getValue(GirderBlock.X) ^ !blockState.getValue(GirderBlock.Z))
+						if (!blockState.get(GirderBlock.X) ^ !blockState.get(GirderBlock.Z))
 							consumer.accept(Pair.of(direction, Action.SINGLE));
 						return;
 					}
 					// this girder is a pole or cross
-					if (blockState.getValue(GirderBlock.X) == blockState.getValue(GirderBlock.Z))
+					if (blockState.get(GirderBlock.X) == blockState.get(GirderBlock.Z))
 						return;
 					// other girder is a pole or cross
-					if (other.getValue(GirderBlock.X) == other.getValue(GirderBlock.Z))
+					if (other.get(GirderBlock.X) == other.get(GirderBlock.Z))
 						return;
 					// toggle up/down connection for both
 					consumer.accept(Pair.of(direction, Action.PAIR));
@@ -159,31 +157,31 @@ public class GirderWrenchBehavior {
 			.toList();
 	}
 
-	public static boolean handleClick(Level level, BlockPos pos, BlockState state, BlockHitResult result) {
+	public static boolean handleClick(World level, BlockPos pos, BlockState state, BlockHitResult result) {
 		Pair<Direction, Action> dirPair = getDirectionAndAction(result, level, pos);
 		if (dirPair == null)
 			return false;
-		if (level.isClientSide)
+		if (level.isClient)
 			return true;
-		if (!state.getValue(GirderBlock.X) && !state.getValue(GirderBlock.Z))
+		if (!state.get(GirderBlock.X) && !state.get(GirderBlock.Z))
 			return false;
 
 		Direction dir = dirPair.getFirst();
 
-		BlockPos otherPos = pos.relative(dir);
+		BlockPos otherPos = pos.offset(dir);
 		BlockState other = level.getBlockState(otherPos);
 
 		if (dir == Direction.UP) {
-			level.setBlock(pos, postProcess(state.cycle(GirderBlock.TOP)), 2 | 16);
+			level.setBlockState(pos, postProcess(state.cycle(GirderBlock.TOP)), 2 | 16);
 			if (dirPair.getSecond() == Action.PAIR && AllBlocks.METAL_GIRDER.has(other))
-				level.setBlock(otherPos, postProcess(other.cycle(GirderBlock.BOTTOM)), 2 | 16);
+				level.setBlockState(otherPos, postProcess(other.cycle(GirderBlock.BOTTOM)), 2 | 16);
 			return true;
 		}
 
 		if (dir == Direction.DOWN) {
-			level.setBlock(pos, postProcess(state.cycle(GirderBlock.BOTTOM)), 2 | 16);
+			level.setBlockState(pos, postProcess(state.cycle(GirderBlock.BOTTOM)), 2 | 16);
 			if (dirPair.getSecond() == Action.PAIR && AllBlocks.METAL_GIRDER.has(other))
-				level.setBlock(otherPos, postProcess(other.cycle(GirderBlock.TOP)), 2 | 16);
+				level.setBlockState(otherPos, postProcess(other.cycle(GirderBlock.TOP)), 2 | 16);
 			return true;
 		}
 
@@ -198,11 +196,11 @@ public class GirderWrenchBehavior {
 	}
 
 	private static BlockState postProcess(BlockState newState) {
-		if (newState.getValue(GirderBlock.TOP) && newState.getValue(GirderBlock.BOTTOM))
+		if (newState.get(GirderBlock.TOP) && newState.get(GirderBlock.BOTTOM))
 			return newState;
-		if (newState.getValue(GirderBlock.AXIS) != Axis.Y)
+		if (newState.get(GirderBlock.AXIS) != Axis.Y)
 			return newState;
-		return newState.setValue(GirderBlock.AXIS, newState.getValue(GirderBlock.X) ? Axis.X : Axis.Z);
+		return newState.with(GirderBlock.AXIS, newState.get(GirderBlock.X) ? Axis.X : Axis.Z);
 	}
 
 	private enum Action {

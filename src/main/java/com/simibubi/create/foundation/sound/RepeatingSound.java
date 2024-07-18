@@ -1,12 +1,11 @@
 package com.simibubi.create.foundation.sound;
 
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.util.math.Vec3d;
 
 public class RepeatingSound {
 
@@ -29,10 +28,10 @@ public class RepeatingSound {
 		if (AnimationTickHolder.getTicks() % repeatDelay != 0)
 			return;
 
-		ClientLevel world = Minecraft.getInstance().level;
-		Vec3 meanPos = scape.getMeanPos();
+		ClientWorld world = MinecraftClient.getInstance().world;
+		Vec3d meanPos = scape.getMeanPos();
 
-		world.playLocalSound(meanPos.x, meanPos.y, meanPos.z, event, SoundSource.AMBIENT,
+		world.playSound(meanPos.x, meanPos.y, meanPos.z, event, SoundCategory.AMBIENT,
 			scape.getVolume() * relativeVolume, sharedPitch, true);
 	}
 

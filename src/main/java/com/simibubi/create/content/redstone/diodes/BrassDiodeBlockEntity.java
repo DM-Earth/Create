@@ -3,21 +3,19 @@ package com.simibubi.create.content.redstone.diodes;
 import static com.simibubi.create.content.redstone.diodes.BrassDiodeBlock.POWERING;
 
 import java.util.List;
-
+import net.minecraft.block.AbstractRedstoneGateBlock;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import com.simibubi.create.content.equipment.clipboard.ClipboardCloneable;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.DiodeBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public abstract class BrassDiodeBlockEntity extends SmartBlockEntity implements ClipboardCloneable {
 
@@ -40,7 +38,7 @@ public abstract class BrassDiodeBlockEntity extends SmartBlockEntity implements 
 
 	public float getProgress() {
 		int max = Math.max(2, maxState.getValue());
-		return Mth.clamp(state, 0, max) / (float) max;
+		return MathHelper.clamp(state, 0, max) / (float) max;
 	}
 
 	public boolean isIdle() {
@@ -50,8 +48,8 @@ public abstract class BrassDiodeBlockEntity extends SmartBlockEntity implements 
 	@Override
 	public void tick() {
 		super.tick();
-		boolean powered = getBlockState().getValue(DiodeBlock.POWERED);
-		boolean powering = getBlockState().getValue(POWERING);
+		boolean powered = getCachedState().get(AbstractRedstoneGateBlock.POWERED);
+		boolean powering = getCachedState().get(POWERING);
 		boolean atMax = state >= maxState.getValue();
 		boolean atMin = state <= 0;
 		updateState(powered, powering, atMax, atMin);
@@ -60,18 +58,18 @@ public abstract class BrassDiodeBlockEntity extends SmartBlockEntity implements 
 	protected abstract void updateState(boolean powered, boolean powering, boolean atMax, boolean atMin);
 
 	private void onMaxDelayChanged(int newMax) {
-		state = Mth.clamp(state, 0, newMax);
+		state = MathHelper.clamp(state, 0, newMax);
 		sendData();
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		state = compound.getInt("State");
 		super.read(compound, clientPacket);
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putInt("State", state);
 		super.write(compound, clientPacket);
 	}
@@ -90,20 +88,20 @@ public abstract class BrassDiodeBlockEntity extends SmartBlockEntity implements 
 	}
 	
 	@Override
-	public boolean readFromClipboard(CompoundTag tag, Player player, Direction side, boolean simulate) {
+	public boolean readFromClipboard(NbtCompound tag, PlayerEntity player, Direction side, boolean simulate) {
 		if (!tag.contains("Inverted"))
 			return false;
 		if (simulate)
 			return true;
-		BlockState blockState = getBlockState();
-		if (blockState.getValue(BrassDiodeBlock.INVERTED) != tag.getBoolean("Inverted"))
-			level.setBlockAndUpdate(worldPosition, blockState.cycle(BrassDiodeBlock.INVERTED));
+		BlockState blockState = getCachedState();
+		if (blockState.get(BrassDiodeBlock.INVERTED) != tag.getBoolean("Inverted"))
+			world.setBlockState(pos, blockState.cycle(BrassDiodeBlock.INVERTED));
 		return true;
 	}
 	
 	@Override
-	public boolean writeToClipboard(CompoundTag tag, Direction side) {
-		tag.putBoolean("Inverted", getBlockState().getOptionalValue(BrassDiodeBlock.INVERTED)
+	public boolean writeToClipboard(NbtCompound tag, Direction side) {
+		tag.putBoolean("Inverted", getCachedState().getOrEmpty(BrassDiodeBlock.INVERTED)
 			.orElse(false));
 		return true;
 	}

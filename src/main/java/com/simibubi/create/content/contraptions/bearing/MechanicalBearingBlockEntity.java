@@ -1,7 +1,14 @@
 package com.simibubi.create.content.contraptions.bearing;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.state.property.Properties;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.AssemblyException;
@@ -16,15 +23,6 @@ import com.simibubi.create.foundation.item.TooltipHelper;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.ServerSpeedProvider;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 	implements IBearingBlockEntity, IDisplayAssemblyExceptions {
@@ -67,13 +65,13 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 
 	@Override
 	public void remove() {
-		if (!level.isClientSide)
+		if (!world.isClient)
 			disassemble();
 		super.remove();
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putBoolean("Running", running);
 		compound.putFloat("Angle", angle);
 		if (sequencedAngleLimit >= 0)
@@ -83,7 +81,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		if (wasMoved) {
 			super.read(compound, clientPacket);
 			return;
@@ -109,13 +107,13 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 	@Override
 	public float getInterpolatedAngle(float partialTicks) {
 		if (isVirtual())
-			return Mth.lerp(partialTicks + .5f, prevAngle, angle);
+			return MathHelper.lerp(partialTicks + .5f, prevAngle, angle);
 		if (movedContraption == null || movedContraption.isStalled() || !running)
 			partialTicks = 0;
 		float angularSpeed = getAngularSpeed();
 		if (sequencedAngleLimit >= 0)
-			angularSpeed = (float) Mth.clamp(angularSpeed, -sequencedAngleLimit, sequencedAngleLimit);
-		return Mth.lerp(partialTicks, angle, angle + angularSpeed);
+			angularSpeed = (float) MathHelper.clamp(angularSpeed, -sequencedAngleLimit, sequencedAngleLimit);
+		return MathHelper.lerp(partialTicks, angle, angle + angularSpeed);
 	}
 
 	@Override
@@ -130,7 +128,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 				applyRotation();
 			}
 			movedContraption.getContraption()
-				.stop(level);
+				.stop(world);
 		}
 
 		if (!isWindmill() && sequenceContext != null
@@ -142,7 +140,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 		float speed = convertToAngular(isWindmill() ? getGeneratedSpeed() : getSpeed());
 		if (getSpeed() == 0)
 			speed = 0;
-		if (level.isClientSide) {
+		if (world.isClient) {
 			speed *= ServerSpeedProvider.get();
 			speed += clientAngleDiff / 3f;
 		}
@@ -160,18 +158,18 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 
 	@Override
 	public BlockPos getBlockPosition() {
-		return worldPosition;
+		return pos;
 	}
 
 	public void assemble() {
-		if (!(level.getBlockState(worldPosition)
+		if (!(world.getBlockState(pos)
 			.getBlock() instanceof BearingBlock))
 			return;
 
-		Direction direction = getBlockState().getValue(BearingBlock.FACING);
+		Direction direction = getCachedState().get(BearingBlock.FACING);
 		BearingContraption contraption = new BearingContraption(isWindmill(), direction);
 		try {
-			if (!contraption.assemble(level, worldPosition))
+			if (!contraption.assemble(world, pos))
 				return;
 
 			lastException = null;
@@ -186,14 +184,14 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 		if (contraption.getSailBlocks() >= 16 * 8)
 			award(AllAdvancements.WINDMILL_MAXED);
 
-		contraption.removeBlocksFromWorld(level, BlockPos.ZERO);
-		movedContraption = ControlledContraptionEntity.create(level, this, contraption);
-		BlockPos anchor = worldPosition.relative(direction);
-		movedContraption.setPos(anchor.getX(), anchor.getY(), anchor.getZ());
+		contraption.removeBlocksFromWorld(world, BlockPos.ORIGIN);
+		movedContraption = ControlledContraptionEntity.create(world, this, contraption);
+		BlockPos anchor = pos.offset(direction);
+		movedContraption.setPosition(anchor.getX(), anchor.getY(), anchor.getZ());
 		movedContraption.setRotationAxis(direction.getAxis());
-		level.addFreshEntity(movedContraption);
+		world.spawnEntity(movedContraption);
 
-		AllSoundEvents.CONTRAPTION_ASSEMBLE.playOnServer(level, worldPosition);
+		AllSoundEvents.CONTRAPTION_ASSEMBLE.playOnServer(world, pos);
 
 		if (contraption.containsBlockBreakers())
 			award(AllAdvancements.CONTRAPTION_ACTORS);
@@ -213,7 +211,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 			applyRotation();
 		if (movedContraption != null) {
 			movedContraption.disassemble();
-			AllSoundEvents.CONTRAPTION_DISASSEMBLE.playOnServer(level, worldPosition);
+			AllSoundEvents.CONTRAPTION_DISASSEMBLE.playOnServer(world, pos);
 		}
 
 		movedContraption = null;
@@ -228,10 +226,10 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 		super.tick();
 
 		prevAngle = angle;
-		if (level.isClientSide)
+		if (world.isClient)
 			clientAngleDiff /= 2;
 
-		if (!level.isClientSide && assembleNextTick) {
+		if (!world.isClient && assembleNextTick) {
 			assembleNextTick = false;
 			if (running) {
 				boolean canDisassemble = movementMode.get() == RotationMode.ROTATE_PLACE
@@ -241,7 +239,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 					.isEmpty())) {
 					if (movedContraption != null)
 						movedContraption.getContraption()
-							.stop(level);
+							.stop(world);
 					disassemble();
 					return;
 				}
@@ -258,7 +256,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 		if (!(movedContraption != null && movedContraption.isStalled())) {
 			float angularSpeed = getAngularSpeed();
 			if (sequencedAngleLimit >= 0) {
-				angularSpeed = (float) Mth.clamp(angularSpeed, -sequencedAngleLimit, sequencedAngleLimit);
+				angularSpeed = (float) MathHelper.clamp(angularSpeed, -sequencedAngleLimit, sequencedAngleLimit);
 				sequencedAngleLimit = Math.max(0, sequencedAngleLimit - Math.abs(angularSpeed));
 			}
 			float newAngle = angle + angularSpeed;
@@ -275,7 +273,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 	@Override
 	public void lazyTick() {
 		super.lazyTick();
-		if (movedContraption != null && !level.isClientSide)
+		if (movedContraption != null && !world.isClient)
 			sendData();
 	}
 
@@ -283,25 +281,25 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 		if (movedContraption == null)
 			return;
 		movedContraption.setAngle(angle);
-		BlockState blockState = getBlockState();
-		if (blockState.hasProperty(BlockStateProperties.FACING))
-			movedContraption.setRotationAxis(blockState.getValue(BlockStateProperties.FACING)
+		BlockState blockState = getCachedState();
+		if (blockState.contains(Properties.FACING))
+			movedContraption.setRotationAxis(blockState.get(Properties.FACING)
 				.getAxis());
 	}
 
 	@Override
 	public void attach(ControlledContraptionEntity contraption) {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!(contraption.getContraption() instanceof BearingContraption))
 			return;
-		if (!blockState.hasProperty(BearingBlock.FACING))
+		if (!blockState.contains(BearingBlock.FACING))
 			return;
 
 		this.movedContraption = contraption;
-		setChanged();
-		BlockPos anchor = worldPosition.relative(blockState.getValue(BearingBlock.FACING));
-		movedContraption.setPos(anchor.getX(), anchor.getY(), anchor.getZ());
-		if (!level.isClientSide) {
+		markDirty();
+		BlockPos anchor = pos.offset(blockState.get(BearingBlock.FACING));
+		movedContraption.setPosition(anchor.getX(), anchor.getY(), anchor.getZ());
+		if (!world.isClient) {
 			this.running = true;
 			sendData();
 		}
@@ -309,7 +307,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 
 	@Override
 	public void onStall() {
-		if (!level.isClientSide)
+		if (!world.isClient)
 			sendData();
 	}
 
@@ -328,7 +326,7 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 	}
 
 	@Override
-	public boolean addToTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		if (super.addToTooltip(tooltip, isPlayerSneaking))
 			return true;
 		if (isPlayerSneaking)
@@ -337,12 +335,12 @@ public class MechanicalBearingBlockEntity extends GeneratingKineticBlockEntity
 			return false;
 		if (running)
 			return false;
-		BlockState state = getBlockState();
+		BlockState state = getCachedState();
 		if (!(state.getBlock() instanceof BearingBlock))
 			return false;
 
-		BlockState attachedState = level.getBlockState(worldPosition.relative(state.getValue(BearingBlock.FACING)));
-		if (attachedState.canBeReplaced())
+		BlockState attachedState = world.getBlockState(pos.offset(state.get(BearingBlock.FACING)));
+		if (attachedState.isReplaceable())
 			return false;
 		TooltipHelper.addHint(tooltip, "hint.empty_bearing");
 		return true;

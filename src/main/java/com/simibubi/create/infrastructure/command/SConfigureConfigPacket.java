@@ -27,13 +27,13 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 
 public class SConfigureConfigPacket extends SimplePacketBase {
 
@@ -47,15 +47,15 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 		this.value = value;
 	}
 
-	public SConfigureConfigPacket(FriendlyByteBuf buffer) {
-		this.option = buffer.readUtf(32767);
-		this.value = buffer.readUtf(32767);
+	public SConfigureConfigPacket(PacketByteBuf buffer) {
+		this.option = buffer.readString(32767);
+		this.value = buffer.readString(32767);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeUtf(option);
-		buffer.writeUtf(value);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeString(option);
+		buffer.writeString(value);
 	}
 
 	@Override
@@ -77,7 +77,7 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 	}
 
 	private static void trySetConfig(String option, String value) {
-		LocalPlayer player = Minecraft.getInstance().player;
+		ClientPlayerEntity player = MinecraftClient.getInstance().player;
 		if (player == null)
 			return;
 
@@ -85,7 +85,7 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 		try {
 			configPath = ConfigHelper.ConfigPath.parse(option);
 		} catch (IllegalArgumentException e) {
-			player.displayClientMessage(Components.literal(e.getMessage()), false);
+			player.sendMessage(Components.literal(e.getMessage()), false);
 			return;
 		}
 
@@ -96,11 +96,11 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 
 		try {
 			ConfigHelper.setConfigValue(configPath, value);
-			player.displayClientMessage(Components.literal("Great Success!"), false);
+			player.sendMessage(Components.literal("Great Success!"), false);
 		} catch (ConfigHelper.InvalidValueException e) {
-			player.displayClientMessage(Components.literal("Config could not be set the the specified value!"), false);
+			player.sendMessage(Components.literal("Config could not be set the the specified value!"), false);
 		} catch (Exception e) {
-			player.displayClientMessage(Components.literal("Something went wrong while trying to set config value. Check the client logs for more information"), false);
+			player.sendMessage(Components.literal("Something went wrong while trying to set config value. Check the client logs for more information"), false);
 			Create.LOGGER.warn("Exception during client-side config value set:", e);
 		}
 
@@ -139,39 +139,39 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 				return;
 			}
 
-			LocalPlayer player = Minecraft.getInstance().player;
+			ClientPlayerEntity player = MinecraftClient.getInstance().player;
 			ConfigHelper.ConfigPath configPath;
 			try {
 				 configPath = ConfigHelper.ConfigPath.parse(value);
 			} catch (IllegalArgumentException e) {
-				player.displayClientMessage(Components.literal(e.getMessage()), false);
+				player.sendMessage(Components.literal(e.getMessage()), false);
 				return;
 			}
 
 			try {
 				ScreenOpener.open(SubMenuConfigScreen.find(configPath));
 			} catch (Exception e) {
-				player.displayClientMessage(Components.literal("Unable to find the specified config"), false);
+				player.sendMessage(Components.literal("Unable to find the specified config"), false);
 			}
 		}
 
 		@Environment(EnvType.CLIENT)
 		private static void rainbowDebug(String value) {
-			LocalPlayer player = Minecraft.getInstance().player;
+			ClientPlayerEntity player = MinecraftClient.getInstance().player;
 			if (player == null || "".equals(value))
 				return;
 
 			if (value.equals("info")) {
-				Component text = Components.literal("Rainbow Debug Utility is currently: ")
+				Text text = Components.literal("Rainbow Debug Utility is currently: ")
 					.append(boolToText(AllConfigs.client().rainbowDebug.get()));
-				player.displayClientMessage(text, false);
+				player.sendMessage(text, false);
 				return;
 			}
 
 			AllConfigs.client().rainbowDebug.set(Boolean.parseBoolean(value));
-			Component text = boolToText(AllConfigs.client().rainbowDebug.get())
-				.append(Components.literal(" Rainbow Debug Utility").withStyle(ChatFormatting.WHITE));
-			player.displayClientMessage(text, false);
+			Text text = boolToText(AllConfigs.client().rainbowDebug.get())
+				.append(Components.literal(" Rainbow Debug Utility").formatted(Formatting.WHITE));
+			player.sendMessage(text, false);
 		}
 
 		@Environment(EnvType.CLIENT)
@@ -188,7 +188,7 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 		@Environment(EnvType.CLIENT)
 		private static void experimentalLighting(String value) {
 //			ForgeConfig.CLIENT.experimentalForgeLightPipelineEnabled.set(true);
-			Minecraft.getInstance().levelRenderer.allChanged();
+			MinecraftClient.getInstance().worldRenderer.reload();
 		}
 
 		@Environment(EnvType.CLIENT)
@@ -198,7 +198,7 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 				return;
 			}
 
-			ResourceLocation id = new ResourceLocation(value);
+			Identifier id = new Identifier(value);
 			if (!PonderRegistry.ALL.containsKey(id)) {
 				Create.LOGGER.error("Could not find ponder scenes for item: " + id);
 				return;
@@ -211,9 +211,9 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 		@Environment(EnvType.CLIENT)
 		private static void fabulousWarning(String value) {
 			AllConfigs.client().ignoreFabulousWarning.set(true);
-			LocalPlayer player = Minecraft.getInstance().player;
+			ClientPlayerEntity player = MinecraftClient.getInstance().player;
 			if (player != null) {
-				player.displayClientMessage(
+				player.sendMessage(
 					Components.literal("Disabled Fabulous graphics warning"), false);
 			}
 		}
@@ -267,9 +267,9 @@ public class SConfigureConfigPacket extends SimplePacketBase {
 			CameraAngleAnimationService.setAnimationSpeed(speed);
 		}
 
-		private static MutableComponent boolToText(boolean b) {
-			return b ? Components.literal("enabled").withStyle(ChatFormatting.DARK_GREEN)
-				: Components.literal("disabled").withStyle(ChatFormatting.RED);
+		private static MutableText boolToText(boolean b) {
+			return b ? Components.literal("enabled").formatted(Formatting.DARK_GREEN)
+				: Components.literal("disabled").formatted(Formatting.RED);
 		}
 	}
 }

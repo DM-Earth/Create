@@ -5,8 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 
 public class AbstractComputerBehaviour extends BlockEntityBehaviour {
 
@@ -20,13 +19,13 @@ public class AbstractComputerBehaviour extends BlockEntityBehaviour {
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 		hasAttachedComputer = nbt.getBoolean("HasAttachedComputer");
 		super.read(nbt, clientPacket);
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		nbt.putBoolean("HasAttachedComputer", hasAttachedComputer);
 		super.write(nbt, clientPacket);
 	}

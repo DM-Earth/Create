@@ -1,9 +1,8 @@
 package com.simibubi.create.foundation.blockEntity.behaviour;
 
 import java.util.List;
+import net.minecraft.text.Text;
 
-import net.minecraft.network.chat.Component;
-
-public record ValueSettingsBoard(Component title, int maxValue, int milestoneInterval, List<Component> rows,
+public record ValueSettingsBoard(Text title, int maxValue, int milestoneInterval, List<Text> rows,
 	ValueSettingsFormatter formatter) {
 }

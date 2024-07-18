@@ -10,14 +10,12 @@ import com.simibubi.create.foundation.utility.Iterate;
 
 import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
 public class ConnectedGirderModel extends CTModel {
 
@@ -26,7 +24,7 @@ public class ConnectedGirderModel extends CTModel {
 	}
 
 	@Override
-	public void emitBlockQuads(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context) {
+	public void emitBlockQuads(BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context) {
 		ConnectionData data = new ConnectionData();
 		for (Direction d : Iterate.horizontalDirections)
 			data.setConnected(d, GirderBlock.isConnected(blockView, pos, state, d));
@@ -49,11 +47,11 @@ public class ConnectedGirderModel extends CTModel {
 		}
 
 		void setConnected(Direction face, boolean connected) {
-			connectedFaces[face.get2DDataValue()] = connected;
+			connectedFaces[face.getHorizontal()] = connected;
 		}
 
 		boolean isConnected(Direction face) {
-			return connectedFaces[face.get2DDataValue()];
+			return connectedFaces[face.getHorizontal()];
 		}
 	}
 

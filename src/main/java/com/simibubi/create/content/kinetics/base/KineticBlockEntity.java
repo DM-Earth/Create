@@ -1,7 +1,7 @@
 package com.simibubi.create.content.kinetics.base;
 
-import static net.minecraft.ChatFormatting.GOLD;
-import static net.minecraft.ChatFormatting.GRAY;
+import static net.minecraft.util.Formatting.GOLD;
+import static net.minecraft.util.Formatting.GRAY;
 
 import java.util.List;
 
@@ -32,22 +32,22 @@ import io.github.fabricators_of_create.porting_lib.block.CustomRenderBoundingBox
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.resources.language.I18n;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.resource.language.I18n;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 
 public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation, IHaveHoveringInformation, CustomRenderBoundingBoxBlockEntity {
 
@@ -80,7 +80,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 	@Override
 	public void initialize() {
-		if (hasNetwork() && !level.isClientSide) {
+		if (hasNetwork() && !world.isClient) {
 			KineticNetwork network = getOrCreateNetwork();
 			if (!network.initialized)
 				network.initFromTE(capacity, stress, networkSize);
@@ -92,7 +92,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 	@Override
 	public void tick() {
-		if (!level.isClientSide && needsSpeedUpdate())
+		if (!world.isClient && needsSpeedUpdate())
 			attachKinetics();
 
 		super.tick();
@@ -100,7 +100,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 		preventSpeedUpdate = 0;
 
-		if (level.isClientSide) {
+		if (world.isClient) {
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> this.tickAudio());
 			return;
 		}
@@ -127,10 +127,10 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 				return;
 			}
 
-			if (!level.isLoaded(source))
+			if (!world.canSetBlock(source))
 				return;
 
-			BlockEntity blockEntity = level.getBlockEntity(source);
+			BlockEntity blockEntity = world.getBlockEntity(source);
 			KineticBlockEntity sourceBE =
 				blockEntity instanceof KineticBlockEntity ? (KineticBlockEntity) blockEntity : null;
 			if (sourceBE == null || sourceBE.speed == 0) {
@@ -154,7 +154,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 		this.stress = currentStress;
 		this.networkSize = networkSize;
 		boolean overStressed = maxStress < currentStress && StressImpact.isEnabled();
-		setChanged();
+		markDirty();
 
 		if (overStressed != this.overStressed) {
 			float prevSpeed = getSpeed();
@@ -165,7 +165,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 	}
 
 	protected Block getStressConfigKey() {
-		return getBlockState().getBlock();
+		return getCachedState().getBlock();
 	}
 
 	public float calculateStressApplied() {
@@ -185,12 +185,12 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 		boolean directionSwap = !fromOrToZero && Math.signum(previousSpeed) != Math.signum(getSpeed());
 		if (fromOrToZero || directionSwap)
 			flickerTally = getFlickerScore() + 5;
-		setChanged();
+		markDirty();
 	}
 
 	@Override
 	public void remove() {
-		if (!level.isClientSide) {
+		if (!world.isClient) {
 			if (hasNetwork())
 				getOrCreateNetwork().remove(this);
 			detachKinetics();
@@ -199,7 +199,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		compound.putFloat("Speed", speed);
 		if (sequenceContext != null && (!clientPacket || syncSequenceContext()))
 			compound.put("Sequence", sequenceContext.serializeNBT());
@@ -208,10 +208,10 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 			compound.putBoolean("NeedsSpeedUpdate", true);
 
 		if (hasSource())
-			compound.put("Source", NbtUtils.writeBlockPos(source));
+			compound.put("Source", NbtHelper.fromBlockPos(source));
 
 		if (hasNetwork()) {
-			CompoundTag networkTag = new CompoundTag();
+			NbtCompound networkTag = new NbtCompound();
 			networkTag.putLong("Id", this.network);
 			networkTag.putFloat("Stress", stress);
 			networkTag.putFloat("Capacity", capacity);
@@ -233,7 +233,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		boolean overStressedBefore = overStressed;
 		clearKineticInformation();
 
@@ -247,10 +247,10 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 		sequenceContext = SequenceContext.fromNBT(compound.getCompound("Sequence"));
 
 		if (compound.contains("Source"))
-			source = NbtUtils.readBlockPos(compound.getCompound("Source"));
+			source = NbtHelper.toBlockPos(compound.getCompound("Source"));
 
 		if (compound.contains("Network")) {
-			CompoundTag networkTag = compound.getCompound("Network");
+			NbtCompound networkTag = compound.getCompound("Network");
 			network = networkTag.getLong("Id");
 			stress = networkTag.getFloat("Stress");
 			capacity = networkTag.getFloat("Capacity");
@@ -297,10 +297,10 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 	public void setSource(BlockPos source) {
 		this.source = source;
-		if (level == null || level.isClientSide)
+		if (world == null || world.isClient)
 			return;
 
-		BlockEntity blockEntity = level.getBlockEntity(source);
+		BlockEntity blockEntity = world.getBlockEntity(source);
 		if (!(blockEntity instanceof KineticBlockEntity sourceBE)) {
 			removeSource();
 			return;
@@ -332,7 +332,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 			getOrCreateNetwork().remove(this);
 
 		network = networkIn;
-		setChanged();
+		markDirty();
 
 		if (networkIn == null)
 			return;
@@ -353,24 +353,24 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 	public void attachKinetics() {
 		updateSpeed = false;
-		RotationPropagator.handleAdded(level, worldPosition, this);
+		RotationPropagator.handleAdded(world, pos, this);
 	}
 
 	public void detachKinetics() {
-		RotationPropagator.handleRemoved(level, worldPosition, this);
+		RotationPropagator.handleRemoved(world, pos, this);
 	}
 
 	public boolean isSpeedRequirementFulfilled() {
-		BlockState state = getBlockState();
-		if (!(getBlockState().getBlock() instanceof IRotate))
+		BlockState state = getCachedState();
+		if (!(getCachedState().getBlock() instanceof IRotate))
 			return true;
 		IRotate def = (IRotate) state.getBlock();
 		SpeedLevel minimumRequiredSpeedLevel = def.getMinimumRequiredSpeedLevel();
 		return Math.abs(getSpeed()) >= minimumRequiredSpeedLevel.getSpeedValue();
 	}
 
-	public static void switchToBlockState(Level world, BlockPos pos, BlockState state) {
-		if (world.isClientSide)
+	public static void switchToBlockState(World world, BlockPos pos, BlockState state) {
+		if (world.isClient)
 			return;
 
 		BlockEntity blockEntity = world.getBlockEntity(pos);
@@ -380,7 +380,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 		if (currentState == state)
 			return;
 		if (blockEntity == null || !isKinetic) {
-			world.setBlock(pos, state, 3);
+			world.setBlockState(pos, state, 3);
 			return;
 		}
 
@@ -394,22 +394,22 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 			kineticBlockEntity.removeSource();
 		}
 
-		world.setBlock(pos, state, 3);
+		world.setBlockState(pos, state, 3);
 	}
 
 	@Override
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
 
 	@Override
-	public boolean addToTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		boolean notFastEnough = !isSpeedRequirementFulfilled() && getSpeed() != 0;
 
 		if (overStressed && AllConfigs.client().enableOverstressedTooltip.get()) {
 			Lang.translate("gui.stressometer.overstressed")
 				.style(GOLD)
 				.forGoggles(tooltip);
-			Component hint = Lang.translateDirect("gui.contraptions.network_overstressed");
-			List<Component> cutString = TooltipHelper.cutTextComponent(hint, Palette.GRAY_AND_WHITE);
+			Text hint = Lang.translateDirect("gui.contraptions.network_overstressed");
+			List<Text> cutString = TooltipHelper.cutTextComponent(hint, Palette.GRAY_AND_WHITE);
 			for (int i = 0; i < cutString.size(); i++)
 				Lang.builder()
 					.add(cutString.get(i)
@@ -422,10 +422,10 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 			Lang.translate("tooltip.speedRequirement")
 				.style(GOLD)
 				.forGoggles(tooltip);
-			MutableComponent hint =
-				Lang.translateDirect("gui.contraptions.not_fast_enough", I18n.get(getBlockState().getBlock()
-					.getDescriptionId()));
-			List<Component> cutString = TooltipHelper.cutTextComponent(hint, Palette.GRAY_AND_WHITE);
+			MutableText hint =
+				Lang.translateDirect("gui.contraptions.not_fast_enough", I18n.translate(getCachedState().getBlock()
+					.getTranslationKey()));
+			List<Text> cutString = TooltipHelper.cutTextComponent(hint, Palette.GRAY_AND_WHITE);
 			for (int i = 0; i < cutString.size(); i++)
 				Lang.builder()
 					.add(cutString.get(i)
@@ -438,13 +438,13 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		boolean added = false;
 
 		if (!StressImpact.isEnabled())
 			return added;
 		float stressAtBase = calculateStressApplied();
-		if (Mth.equal(stressAtBase, 0))
+		if (MathHelper.approximatelyEquals(stressAtBase, 0))
 			return added;
 
 		Lang.translate("gui.goggles.kinetic_stats")
@@ -456,7 +456,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 	}
 
-	protected void addStressImpactStats(List<Component> tooltip, float stressAtBase) {
+	protected void addStressImpactStats(List<Text> tooltip, float stressAtBase) {
 		Lang.translate("tooltip.stressImpact")
 			.style(GRAY)
 			.forGoggles(tooltip);
@@ -465,10 +465,10 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 
 		Lang.number(stressTotal)
 			.translate("generic.unit.stress")
-			.style(ChatFormatting.AQUA)
+			.style(Formatting.AQUA)
 			.space()
 			.add(Lang.translate("gui.goggles.at_current_speed")
-				.style(ChatFormatting.DARK_GRAY))
+				.style(Formatting.DARK_GRAY))
 			.forGoggles(tooltip, 1);
 	}
 
@@ -492,7 +492,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 	}
 
 	public static float convertToDirection(float axisSpeed, Direction d) {
-		return d.getAxisDirection() == AxisDirection.POSITIVE ? axisSpeed : -axisSpeed;
+		return d.getDirection() == AxisDirection.POSITIVE ? axisSpeed : -axisSpeed;
 	}
 
 	public static float convertToLinear(float speed) {
@@ -544,13 +544,13 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 			return neighbours;
 
 		Axis axis = block.getRotationAxis(state);
-		BlockPos.betweenClosedStream(new BlockPos(-1, -1, -1), new BlockPos(1, 1, 1))
+		BlockPos.stream(new BlockPos(-1, -1, -1), new BlockPos(1, 1, 1))
 			.forEach(offset -> {
 				if (axis.choose(offset.getX(), offset.getY(), offset.getZ()) != 0)
 					return;
-				if (offset.distSqr(BlockPos.ZERO) != 2)
+				if (offset.getSquaredDistance(BlockPos.ORIGIN) != 2)
 					return;
-				neighbours.add(worldPosition.offset(offset));
+				neighbours.add(pos.add(offset));
 			});
 		return neighbours;
 	}
@@ -578,7 +578,7 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 //	@Override
 	public void requestModelDataUpdate() {
 //		super.requestModelDataUpdate();
-		if (!this.remove)
+		if (!this.removed)
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> InstancedRenderDispatcher.enqueueUpdate(this));
 	}
 
@@ -587,14 +587,14 @@ public class KineticBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 		float componentSpeed = Math.abs(getSpeed());
 		if (componentSpeed == 0)
 			return;
-		float pitch = Mth.clamp((componentSpeed / 256f) + .45f, .85f, 1f);
+		float pitch = MathHelper.clamp((componentSpeed / 256f) + .45f, .85f, 1f);
 
 		if (isNoisy())
-			SoundScapes.play(AmbienceGroup.KINETIC, worldPosition, pitch);
+			SoundScapes.play(AmbienceGroup.KINETIC, pos, pitch);
 
-		Block block = getBlockState().getBlock();
+		Block block = getCachedState().getBlock();
 		if (ICogWheel.isSmallCog(block) || ICogWheel.isLargeCog(block) || block instanceof GearboxBlock)
-			SoundScapes.play(AmbienceGroup.COG, worldPosition, pitch);
+			SoundScapes.play(AmbienceGroup.COG, pos, pitch);
 	}
 
 	protected boolean isNoisy() {

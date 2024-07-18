@@ -1,7 +1,11 @@
 package com.simibubi.create.content.redstone.displayLink.source;
 
 import java.util.stream.Stream;
-
+import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.Formatting;
+import net.minecraft.world.World;
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
@@ -11,19 +15,13 @@ import com.simibubi.create.foundation.utility.Lang;
 
 import com.simibubi.create.foundation.utility.LongAttached;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.scores.Objective;
-
 public class ScoreboardDisplaySource extends ValueListDisplaySource {
 
 	@Override
-	protected Stream<LongAttached<MutableComponent>> provideEntries(DisplayLinkContext context, int maxRows) {
-		Level level = context.blockEntity()
-			.getLevel();
-		if (!(level instanceof ServerLevel sLevel))
+	protected Stream<LongAttached<MutableText>> provideEntries(DisplayLinkContext context, int maxRows) {
+		World level = context.blockEntity()
+			.getWorld();
+		if (!(level instanceof ServerWorld sLevel))
 			return Stream.empty();
 
 		String name = context.sourceConfig()
@@ -32,23 +30,23 @@ public class ScoreboardDisplaySource extends ValueListDisplaySource {
 		return showScoreboard(sLevel, name, maxRows);
 	}
 
-	protected Stream<LongAttached<MutableComponent>> showScoreboard(ServerLevel sLevel, String objectiveName,
+	protected Stream<LongAttached<MutableText>> showScoreboard(ServerWorld sLevel, String objectiveName,
 		int maxRows) {
-		Objective objective = sLevel.getScoreboard()
-			.getObjective(objectiveName);
+		ScoreboardObjective objective = sLevel.getScoreboard()
+			.getNullableObjective(objectiveName);
 		if (objective == null)
 			return notFound(objectiveName).stream();
 
 		return sLevel.getScoreboard()
-			.getPlayerScores(objective)
+			.getAllPlayerScores(objective)
 			.stream()
-			.map(score -> LongAttached.with(score.getScore(), Components.literal(score.getOwner())
+			.map(score -> LongAttached.with(score.getScore(), Components.literal(score.getPlayerName())
 				.copy()))
 			.sorted(LongAttached.comparator())
 			.limit(maxRows);
 	}
 
-	private ImmutableList<LongAttached<MutableComponent>> notFound(String objective) {
+	private ImmutableList<LongAttached<MutableText>> notFound(String objective) {
 		return ImmutableList
 			.of(LongAttached.with(404, Lang.translateDirect("display_source.scoreboard.objective_not_found", objective)));
 	}
@@ -62,11 +60,11 @@ public class ScoreboardDisplaySource extends ValueListDisplaySource {
 	public void initConfigurationWidgets(DisplayLinkContext context, ModularGuiLineBuilder builder, boolean isFirstLine) {
 		if (isFirstLine)
 			builder.addTextInput(0, 137, (e, t) -> {
-				e.setValue("");
+				e.setText("");
 				t.withTooltip(ImmutableList.of(Lang.translateDirect("display_source.scoreboard.objective")
-					.withStyle(s -> s.withColor(0x5391E1)),
+					.styled(s -> s.withColor(0x5391E1)),
 					Lang.translateDirect("gui.schedule.lmb_edit")
-						.withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC)));
+						.formatted(Formatting.DARK_GRAY, Formatting.ITALIC)));
 			}, "Objective");
 		else
 			addFullNumberConfig(builder);

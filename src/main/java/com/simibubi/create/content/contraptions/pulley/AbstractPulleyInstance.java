@@ -12,13 +12,12 @@ import com.jozufozu.flywheel.light.LightVolume;
 import com.jozufozu.flywheel.light.TickingLightListener;
 import com.jozufozu.flywheel.util.box.GridAlignedBB;
 import com.jozufozu.flywheel.util.box.ImmutableBox;
-import com.mojang.math.Axis;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.ShaftInstance;
-
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.LightLayer;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
+import net.minecraft.world.LightType;
 
 public abstract class AbstractPulleyInstance<T extends KineticBlockEntity> extends ShaftInstance<T> implements DynamicInstance, TickingLightListener {
 
@@ -29,7 +28,7 @@ public abstract class AbstractPulleyInstance<T extends KineticBlockEntity> exten
 
 	protected float offset;
 	protected final Direction rotatingAbout;
-	protected final Axis rotationAxis;
+	protected final RotationAxis rotationAxis;
 
 	private final GridAlignedBB volume = new GridAlignedBB();
 	private final LightVolume light;
@@ -38,7 +37,7 @@ public abstract class AbstractPulleyInstance<T extends KineticBlockEntity> exten
 		super(dispatcher, blockEntity);
 
 		rotatingAbout = Direction.get(Direction.AxisDirection.POSITIVE, axis);
-		rotationAxis = Axis.of(rotatingAbout.step());
+		rotationAxis = RotationAxis.of(rotatingAbout.getUnitVector());
 
 		coil = getCoilModel().createInstance()
 				.setPosition(getInstancePosition());
@@ -68,7 +67,7 @@ public abstract class AbstractPulleyInstance<T extends KineticBlockEntity> exten
 		magnet.update()
 				.get()
 				.ifPresent(data -> {
-					int i = Math.max(0, Mth.floor(offset));
+					int i = Math.max(0, MathHelper.floor(offset));
 					short packed = light.getPackedLight(pos.getX(), pos.getY() - i, pos.getZ());
 					data.setPosition(getInstancePosition())
 							.nudge(0, -offset, 0)
@@ -146,10 +145,10 @@ public abstract class AbstractPulleyInstance<T extends KineticBlockEntity> exten
 	}
 
 	private boolean updateVolume() {
-		int length = Mth.ceil(offset) + 2;
+		int length = MathHelper.ceil(offset) + 2;
 
 		if (volume.sizeY() < length) {
-			volume.assign(pos.below(length), pos)
+			volume.assign(pos.down(length), pos)
 					.fixMinMax();
 			return true;
 		}
@@ -161,7 +160,7 @@ public abstract class AbstractPulleyInstance<T extends KineticBlockEntity> exten
 	}
 
 	private int getNeededRopeCount() {
-		return Math.max(0, Mth.ceil(offset - 1.25f));
+		return Math.max(0, MathHelper.ceil(offset - 1.25f));
 	}
 
 	private boolean shouldRenderHalfRope() {
@@ -188,7 +187,7 @@ public abstract class AbstractPulleyInstance<T extends KineticBlockEntity> exten
 	}
 
 	@Override
-	public void onLightUpdate(LightLayer type, ImmutableBox changed) {
+	public void onLightUpdate(LightType type, ImmutableBox changed) {
 		super.onLightUpdate(type, changed);
 		light.onLightUpdate(type, changed);
 	}

@@ -3,14 +3,12 @@ package com.simibubi.create.compat.dynamictrees;
 import java.util.function.BiConsumer;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import com.simibubi.create.foundation.utility.AbstractBlockBreakQueue;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 
 // Commented until dynamic trees are updated
 public class DynamicTree extends AbstractBlockBreakQueue {
@@ -27,7 +25,7 @@ public class DynamicTree extends AbstractBlockBreakQueue {
 
 	
 	@Override
-	public void destroyBlocks(Level world, ItemStack toDamage, @Nullable Player playerEntity, BiConsumer<BlockPos, ItemStack> drop) {
+	public void destroyBlocks(World world, ItemStack toDamage, @Nullable PlayerEntity playerEntity, BiConsumer<BlockPos, ItemStack> drop) {
 		/*
 		
 		BranchBlock start = TreeHelper.getBranch(world.getBlockState(startCutPos));

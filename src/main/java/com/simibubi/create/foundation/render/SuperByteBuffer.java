@@ -3,7 +3,17 @@ package com.simibubi.create.foundation.render;
 
 import java.nio.ByteBuffer;
 import java.util.function.IntPredicate;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -18,24 +28,11 @@ import com.jozufozu.flywheel.core.vertex.BlockVertexList;
 import com.jozufozu.flywheel.util.DiffuseLightCalculator;
 import com.jozufozu.flywheel.util.transform.TStack;
 import com.jozufozu.flywheel.util.transform.Transform;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferBuilder.DrawState;
-import com.mojang.blaze3d.vertex.BufferBuilder.RenderedBuffer;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.foundation.block.render.SpriteShiftEntry;
 import com.simibubi.create.foundation.utility.Color;
 
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
 
 public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<SuperByteBuffer> {
 
@@ -43,7 +40,7 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 	private final IntPredicate shadedPredicate;
 
 	// Vertex Position
-	private final PoseStack transforms = new PoseStack();
+	private final MatrixStack transforms = new MatrixStack();
 
 	// Vertex Coloring
 	private boolean shouldColor;
@@ -56,7 +53,7 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 
 	// Vertex Overlay Color
 	private boolean hasOverlay;
-	private int overlay = OverlayTexture.NO_OVERLAY;
+	private int overlay = OverlayTexture.DEFAULT_UV;
 
 	// Vertex Lighting
 	private boolean useWorldLight;
@@ -71,53 +68,53 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 	// Temporary
 	private static final Long2IntMap WORLD_LIGHT_CACHE = new Long2IntOpenHashMap();
 
-	public SuperByteBuffer(ByteBuffer vertexBuffer, BufferBuilder.DrawState drawState, int unshadedStartVertex) {
+	public SuperByteBuffer(ByteBuffer vertexBuffer, BufferBuilder.DrawParameters drawState, int unshadedStartVertex) {
 		int vertexCount = drawState.vertexCount();
-		int stride = drawState.format().getVertexSize();
+		int stride = drawState.format().getVertexSizeByte();
 
 		ShadedVertexList template = new BlockVertexList.Shaded(vertexBuffer, vertexCount, stride, unshadedStartVertex);
 		shadedPredicate = template::isShaded;
 		this.template = template;
 
-		transforms.pushPose();
+		transforms.push();
 	}
 
 	public SuperByteBuffer(ShadeSeparatedBufferedData data) {
 		this(data.vertexBuffer(), data.drawState(), data.unshadedStartVertex());
 	}
 
-	public SuperByteBuffer(ByteBuffer vertexBuffer, BufferBuilder.DrawState drawState) {
+	public SuperByteBuffer(ByteBuffer vertexBuffer, BufferBuilder.DrawParameters drawState) {
 		int vertexCount = drawState.vertexCount();
-		int stride = drawState.format().getVertexSize();
+		int stride = drawState.format().getVertexSizeByte();
 
 		template = new BlockVertexList(vertexBuffer, vertexCount, stride);
 		shadedPredicate = index -> true;
 
-		transforms.pushPose();
+		transforms.push();
 	}
 
-	public void renderInto(PoseStack input, VertexConsumer builder) {
+	public void renderInto(MatrixStack input, VertexConsumer builder) {
 		if (isEmpty())
 			return;
 
-		Matrix4f modelMat = new Matrix4f(input.last()
-				.pose()
+		Matrix4f modelMat = new Matrix4f(input.peek()
+				.getPositionMatrix()
 				);
-		Matrix4f localTransforms = transforms.last()
-				.pose();
+		Matrix4f localTransforms = transforms.peek()
+				.getPositionMatrix();
 		modelMat.mul(localTransforms);
 
 		Matrix3f normalMat;
 		if (fullNormalTransform) {
-			normalMat = new Matrix3f(input.last()
-					.normal()
+			normalMat = new Matrix3f(input.peek()
+					.getNormalMatrix()
 					);
-			Matrix3f localNormalTransforms = transforms.last()
-					.normal();
+			Matrix3f localNormalTransforms = transforms.peek()
+					.getNormalMatrix();
 			normalMat.mul(localNormalTransforms);
 		} else {
-			normalMat = new Matrix3f(transforms.last()
-					.normal()
+			normalMat = new Matrix3f(transforms.peek()
+					.getNormalMatrix()
 					);
 		}
 
@@ -186,11 +183,11 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 			if (spriteShiftFunc != null) {
 				spriteShiftFunc.shift(builder, u, v);
 			} else {
-				builder.uv(u, v);
+				builder.texture(u, v);
 			}
 
 			if (hasOverlay) {
-				builder.overlayCoords(overlay);
+				builder.overlay(overlay);
 			}
 
 			int light;
@@ -201,7 +198,7 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 					lightPos.mul(lightTransform);
 				}
 
-				light = getLight(Minecraft.getInstance().level, lightPos);
+				light = getLight(MinecraftClient.getInstance().world, lightPos);
 				if (hasCustomLight) {
 					light = maxLight(light, packedLightCoords);
 				}
@@ -212,23 +209,23 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 			}
 
 			if (hybridLight) {
-				builder.uv2(maxLight(light, template.getLight(i)));
+				builder.light(maxLight(light, template.getLight(i)));
 			} else {
-				builder.uv2(light);
+				builder.light(light);
 			}
 
 			builder.normal(nx, ny, nz);
 
-			builder.endVertex();
+			builder.next();
 		}
 
 		reset();
 	}
 
 	public SuperByteBuffer reset() {
-		while (!transforms.clear())
-			transforms.popPose();
-		transforms.pushPose();
+		while (!transforms.isEmpty())
+			transforms.pop();
+		transforms.push();
 
 		shouldColor = false;
 		r = 0;
@@ -239,7 +236,7 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 		diffuseCalculator = null;
 		spriteShiftFunc = null;
 		hasOverlay = false;
-		overlay = OverlayTexture.NO_OVERLAY;
+		overlay = OverlayTexture.DEFAULT_UV;
 		useWorldLight = false;
 		lightTransform = null;
 		hasCustomLight = false;
@@ -257,7 +254,7 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 		template.delete();
 	}
 
-	public PoseStack getTransforms() {
+	public MatrixStack getTransforms() {
 		return transforms;
 	}
 
@@ -269,7 +266,7 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 
 	@Override
 	public SuperByteBuffer multiply(Quaternionf quaternion) {
-		transforms.mulPose(quaternion);
+		transforms.multiply(quaternion);
 		return this;
 	}
 
@@ -281,41 +278,41 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 
 	@Override
 	public SuperByteBuffer pushPose() {
-		transforms.pushPose();
+		transforms.push();
 		return this;
 	}
 
 	@Override
 	public SuperByteBuffer popPose() {
-		transforms.popPose();
+		transforms.pop();
 		return this;
 	}
 
 	@Override
 	public SuperByteBuffer mulPose(Matrix4f pose) {
-		transforms.last()
-				.pose()
+		transforms.peek()
+				.getPositionMatrix()
 				.mul(pose);
 		return this;
 	}
 
 	@Override
 	public SuperByteBuffer mulNormal(Matrix3f normal) {
-		transforms.last()
-				.normal()
+		transforms.peek()
+				.getNormalMatrix()
 				.mul(normal);
 		return this;
 	}
 
-	public SuperByteBuffer transform(PoseStack stack) {
-		transforms.last()
-				.pose()
-				.mul(stack.last()
-						.pose());
-		transforms.last()
-				.normal()
-				.mul(stack.last()
-						.normal());
+	public SuperByteBuffer transform(MatrixStack stack) {
+		transforms.peek()
+				.getPositionMatrix()
+				.mul(stack.peek()
+						.getPositionMatrix());
+		transforms.peek()
+				.getNormalMatrix()
+				.mul(stack.peek()
+						.getNormalMatrix());
 		return this;
 	}
 
@@ -370,7 +367,7 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 
 	public SuperByteBuffer shiftUV(SpriteShiftEntry entry) {
 		this.spriteShiftFunc = (builder, u, v) -> {
-			builder.uv(entry.getTargetU(u), entry.getTargetV(v));
+			builder.texture(entry.getTargetU(u), entry.getTargetV(v));
 		};
 		return this;
 	}
@@ -382,14 +379,14 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 	public SuperByteBuffer shiftUVScrolling(SpriteShiftEntry entry, float scrollU, float scrollV) {
 		this.spriteShiftFunc = (builder, u, v) -> {
 			float targetU = u - entry.getOriginal()
-					.getU0() + entry.getTarget()
-					.getU0()
+					.getMinU() + entry.getTarget()
+					.getMinU()
 					+ scrollU;
 			float targetV = v - entry.getOriginal()
-					.getV0() + entry.getTarget()
-					.getV0()
+					.getMinV() + entry.getTarget()
+					.getMinV()
 					+ scrollV;
-			builder.uv(targetU, targetV);
+			builder.texture(targetU, targetV);
 		};
 		return this;
 	}
@@ -397,10 +394,10 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 	public SuperByteBuffer shiftUVtoSheet(SpriteShiftEntry entry, float uTarget, float vTarget, int sheetSize) {
 		this.spriteShiftFunc = (builder, u, v) -> {
 			float targetU = entry.getTarget()
-					.getU((SpriteShiftEntry.getUnInterpolatedU(entry.getOriginal(), u) / sheetSize) + uTarget * 16);
+					.getFrameU((SpriteShiftEntry.getUnInterpolatedU(entry.getOriginal(), u) / sheetSize) + uTarget * 16);
 			float targetV = entry.getTarget()
-					.getV((SpriteShiftEntry.getUnInterpolatedV(entry.getOriginal(), v) / sheetSize) + vTarget * 16);
-			builder.uv(targetU, targetV);
+					.getFrameV((SpriteShiftEntry.getUnInterpolatedV(entry.getOriginal(), v) / sheetSize) + vTarget * 16);
+			builder.texture(targetU, targetV);
 		};
 		return this;
 	}
@@ -466,24 +463,24 @@ public class SuperByteBuffer implements Transform<SuperByteBuffer>, TStack<Super
 	}
 
 	public static int transformColor(byte component, float scale) {
-		return Mth.clamp((int) (Byte.toUnsignedInt(component) * scale), 0, 255);
+		return MathHelper.clamp((int) (Byte.toUnsignedInt(component) * scale), 0, 255);
 	}
 
 	public static int transformColor(int component, float scale) {
-		return Mth.clamp((int) (component * scale), 0, 255);
+		return MathHelper.clamp((int) (component * scale), 0, 255);
 	}
 
 	public static int maxLight(int packedLight1, int packedLight2) {
-		int blockLight1 = LightTexture.block(packedLight1);
-		int skyLight1 = LightTexture.sky(packedLight1);
-		int blockLight2 = LightTexture.block(packedLight2);
-		int skyLight2 = LightTexture.sky(packedLight2);
-		return LightTexture.pack(Math.max(blockLight1, blockLight2), Math.max(skyLight1, skyLight2));
+		int blockLight1 = LightmapTextureManager.getBlockLightCoordinates(packedLight1);
+		int skyLight1 = LightmapTextureManager.getSkyLightCoordinates(packedLight1);
+		int blockLight2 = LightmapTextureManager.getBlockLightCoordinates(packedLight2);
+		int skyLight2 = LightmapTextureManager.getSkyLightCoordinates(packedLight2);
+		return LightmapTextureManager.pack(Math.max(blockLight1, blockLight2), Math.max(skyLight1, skyLight2));
 	}
 
-	private static int getLight(Level world, Vector4f lightPos) {
-		BlockPos pos = BlockPos.containing(lightPos.x(), lightPos.y(), lightPos.z());
-		return WORLD_LIGHT_CACHE.computeIfAbsent(pos.asLong(), $ -> LevelRenderer.getLightColor(world, pos));
+	private static int getLight(World world, Vector4f lightPos) {
+		BlockPos pos = BlockPos.ofFloored(lightPos.x(), lightPos.y(), lightPos.z());
+		return WORLD_LIGHT_CACHE.computeIfAbsent(pos.asLong(), $ -> WorldRenderer.getLightmapCoordinates(world, pos));
 	}
 
 	@FunctionalInterface

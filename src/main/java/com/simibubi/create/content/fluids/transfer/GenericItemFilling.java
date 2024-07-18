@@ -15,13 +15,13 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.potion.PotionUtil;
+import net.minecraft.potion.Potions;
+import net.minecraft.world.World;
 
 public class GenericItemFilling {
 
@@ -52,7 +52,7 @@ public class GenericItemFilling {
 		return true;
 	}
 
-	public static boolean canItemBeFilled(Level world, ItemStack stack) {
+	public static boolean canItemBeFilled(World world, ItemStack stack) {
 		if (stack.getItem() == Items.GLASS_BOTTLE)
 			return true;
 		if (stack.getItem() == Items.MILK_BUCKET)
@@ -66,7 +66,7 @@ public class GenericItemFilling {
 		return tank.supportsInsertion();
 	}
 
-	public static long getRequiredAmountForItem(Level world, ItemStack stack, FluidStack availableFluid) {
+	public static long getRequiredAmountForItem(World world, ItemStack stack, FluidStack availableFluid) {
 		if (stack.getItem() == Items.GLASS_BOTTLE && canFillGlassBottleInternally(availableFluid))
 			return PotionFluidHandler.getRequiredAmountForFilledBottle(stack, availableFluid);
 		if (stack.getItem() == Items.BUCKET && canFillBucketInternally(availableFluid))
@@ -95,11 +95,11 @@ public class GenericItemFilling {
 
 	private static boolean canFillGlassBottleInternally(FluidStack availableFluid) {
 		Fluid fluid = availableFluid.getFluid();
-		if (fluid.isSame(Fluids.WATER))
+		if (fluid.matchesType(Fluids.WATER))
 			return true;
-		if (fluid.isSame(AllFluids.POTION.get()))
+		if (fluid.matchesType(AllFluids.POTION.get()))
 			return true;
-		if (fluid.isSame(AllFluids.TEA.get()))
+		if (fluid.matchesType(AllFluids.TEA.get()))
 			return true;
 		return false;
 	}
@@ -108,7 +108,7 @@ public class GenericItemFilling {
 		return true; // fabric: this is false on forge for reasons I'm not entirely sure of. we need it true here to catch buckets.
 	}
 
-	public static ItemStack fillItem(Level world, long requiredAmount, ItemStack stack, FluidStack availableFluid) {
+	public static ItemStack fillItem(World world, long requiredAmount, ItemStack stack, FluidStack availableFluid) {
 		FluidStack toFill = availableFluid.copy();
 		toFill.setAmount(requiredAmount);
 		availableFluid.shrink(requiredAmount);
@@ -117,12 +117,12 @@ public class GenericItemFilling {
 			ItemStack fillBottle = ItemStack.EMPTY;
 			Fluid fluid = toFill.getFluid();
 			if (FluidHelper.isWater(fluid))
-				fillBottle = PotionUtils.setPotion(new ItemStack(Items.POTION), Potions.WATER);
-			else if (fluid.isSame(AllFluids.TEA.get()))
+				fillBottle = PotionUtil.setPotion(new ItemStack(Items.POTION), Potions.WATER);
+			else if (fluid.matchesType(AllFluids.TEA.get()))
 				fillBottle = AllItems.BUILDERS_TEA.asStack();
 			else
 				fillBottle = PotionFluidHandler.fillBottle(stack, toFill);
-			stack.shrink(1);
+			stack.decrement(1);
 			return fillBottle;
 		}
 
@@ -137,7 +137,7 @@ public class GenericItemFilling {
 			t.commit();
 
 			ItemStack container = ctx.getItemVariant().toStack((int) ctx.getAmount());
-			stack.shrink(1);
+			stack.decrement(1);
 			return container;
 		}
 	}

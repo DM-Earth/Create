@@ -1,7 +1,10 @@
 package com.simibubi.create.content.trains.entity;
 
 import java.util.Map.Entry;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.content.trains.graph.DimensionPalette;
 import com.simibubi.create.content.trains.graph.TrackEdge;
 import com.simibubi.create.content.trains.graph.TrackGraph;
@@ -11,17 +14,12 @@ import com.simibubi.create.content.trains.graph.TrackNodeLocation;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.VecHelper;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
-
 public class TrainMigration {
 
 	Couple<TrackNodeLocation> locations;
 	double positionOnOldEdge;
 	boolean curve;
-	Vec3 fallback;
+	Vec3d fallback;
 
 	public TrainMigration() {}
 
@@ -51,15 +49,15 @@ public class TrainMigration {
 		if (curve)
 			return null;
 
-		Vec3 prevDirection = locations.getSecond()
+		Vec3d prevDirection = locations.getSecond()
 			.getLocation()
 			.subtract(locations.getFirst()
 				.getLocation())
 			.normalize();
 
 		for (TrackNodeLocation loc : graph.getNodes()) {
-			Vec3 nodeVec = loc.getLocation();
-			if (nodeVec.distanceToSqr(fallback) > 32 * 32)
+			Vec3d nodeVec = loc.getLocation();
+			if (nodeVec.squaredDistanceTo(fallback) > 32 * 32)
 				continue;
 
 			TrackNode newNode1 = graph.locateNode(loc);
@@ -70,13 +68,13 @@ public class TrainMigration {
 					continue;
 				TrackNode newNode2 = entry.getKey();
 				float radius = 1 / 64f;
-				Vec3 direction = edge.getDirection(true);
-				if (!Mth.equal(direction.dot(prevDirection), 1))
+				Vec3d direction = edge.getDirection(true);
+				if (!MathHelper.approximatelyEquals(direction.dotProduct(prevDirection), 1))
 					continue;
-				Vec3 intersectSphere = VecHelper.intersectSphere(nodeVec, direction, fallback, radius);
+				Vec3d intersectSphere = VecHelper.intersectSphere(nodeVec, direction, fallback, radius);
 				if (intersectSphere == null)
 					continue;
-				if (!Mth.equal(direction.dot(intersectSphere.subtract(nodeVec)
+				if (!MathHelper.approximatelyEquals(direction.dotProduct(intersectSphere.subtract(nodeVec)
 					.normalize()), 1))
 					continue;
 				double edgeLength = edge.getLength();
@@ -99,8 +97,8 @@ public class TrainMigration {
 		return null;
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag tag = new CompoundTag();
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound tag = new NbtCompound();
 		tag.putBoolean("Curve", curve);
 		tag.put("Fallback", VecHelper.writeNBT(fallback));
 		tag.putDouble("Position", positionOnOldEdge);
@@ -108,13 +106,13 @@ public class TrainMigration {
 		return tag;
 	}
 
-	public static TrainMigration read(CompoundTag tag, DimensionPalette dimensions) {
+	public static TrainMigration read(NbtCompound tag, DimensionPalette dimensions) {
 		TrainMigration trainMigration = new TrainMigration();
 		trainMigration.curve = tag.getBoolean("Curve");
-		trainMigration.fallback = VecHelper.readNBT(tag.getList("Fallback", Tag.TAG_DOUBLE));
+		trainMigration.fallback = VecHelper.readNBT(tag.getList("Fallback", NbtElement.DOUBLE_TYPE));
 		trainMigration.positionOnOldEdge = tag.getDouble("Position");
 		trainMigration.locations =
-			Couple.deserializeEach(tag.getList("Nodes", Tag.TAG_COMPOUND), c -> TrackNodeLocation.read(c, dimensions));
+			Couple.deserializeEach(tag.getList("Nodes", NbtElement.COMPOUND_TYPE), c -> TrackNodeLocation.read(c, dimensions));
 		return trainMigration;
 	}
 

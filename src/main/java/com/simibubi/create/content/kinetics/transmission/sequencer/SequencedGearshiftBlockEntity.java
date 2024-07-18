@@ -2,20 +2,18 @@ package com.simibubi.create.content.kinetics.transmission.sequencer;
 
 import java.util.List;
 import java.util.Vector;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import com.simibubi.create.compat.computercraft.AbstractComputerBehaviour;
 import com.simibubi.create.compat.computercraft.ComputerCraftProxy;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.transmission.SplitShaftBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class SequencedGearshiftBlockEntity extends SplitShaftBlockEntity {
 
@@ -41,14 +39,14 @@ public class SequencedGearshiftBlockEntity extends SplitShaftBlockEntity {
 			return Math.abs(relativeValue * speedAtTarget);
 		}
 
-		public CompoundTag serializeNBT() {
-			CompoundTag nbt = new CompoundTag();
+		public NbtCompound serializeNBT() {
+			NbtCompound nbt = new NbtCompound();
 			NBTHelper.writeEnum(nbt, "Mode", instruction);
 			nbt.putDouble("Value", relativeValue);
 			return nbt;
 		}
 
-		public static SequenceContext fromNBT(CompoundTag nbt) {
+		public static SequenceContext fromNBT(NbtCompound nbt) {
 			if (nbt.isEmpty())
 				return null;
 			return new SequenceContext(NBTHelper.readEnum(nbt, "Mode", SequencerInstructions.class),
@@ -79,7 +77,7 @@ public class SequencedGearshiftBlockEntity extends SplitShaftBlockEntity {
 
 		if (isIdle())
 			return;
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		if (currentInstructionDuration < 0)
 			return;
@@ -124,8 +122,8 @@ public class SequencedGearshiftBlockEntity extends SplitShaftBlockEntity {
 			return;
 		if (isPowered == isRunning)
 			return;
-		if (!level.hasNeighborSignal(worldPosition)) {
-			level.setBlock(worldPosition, getBlockState().setValue(SequencedGearshiftBlock.STATE, 0), 3);
+		if (!world.isReceivingRedstonePower(pos)) {
+			world.setBlockState(pos, getCachedState().with(SequencedGearshiftBlock.STATE, 0), 3);
 			return;
 		}
 		if (getSpeed() == 0)
@@ -160,8 +158,8 @@ public class SequencedGearshiftBlockEntity extends SplitShaftBlockEntity {
 			currentInstructionProgress = 0;
 			sequenceContext = null;
 			timer = 0;
-			if (!level.hasNeighborSignal(worldPosition))
-				level.setBlock(worldPosition, getBlockState().setValue(SequencedGearshiftBlock.STATE, 0), 3);
+			if (!world.isReceivingRedstonePower(pos))
+				world.setBlockState(pos, getCachedState().with(SequencedGearshiftBlock.STATE, 0), 3);
 			else
 				sendData();
 			return;
@@ -174,7 +172,7 @@ public class SequencedGearshiftBlockEntity extends SplitShaftBlockEntity {
 		sequenceContext = SequenceContext.fromGearshift(instruction.instruction, getTheoreticalSpeed() * getModifier(),
 			instruction.value);
 		timer = 0;
-		level.setBlock(worldPosition, getBlockState().setValue(SequencedGearshiftBlock.STATE, instructionIndex + 1), 3);
+		world.setBlockState(pos, getCachedState().with(SequencedGearshiftBlock.STATE, instructionIndex + 1), 3);
 	}
 
 	public Instruction getInstruction(int instructionIndex) {
@@ -186,7 +184,7 @@ public class SequencedGearshiftBlockEntity extends SplitShaftBlockEntity {
 	protected void copySequenceContextFrom(KineticBlockEntity sourceBE) {}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putInt("InstructionIndex", currentInstruction);
 		compound.putInt("InstructionDuration", currentInstructionDuration);
 		compound.putFloat("InstructionProgress", currentInstructionProgress);
@@ -197,13 +195,13 @@ public class SequencedGearshiftBlockEntity extends SplitShaftBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		currentInstruction = compound.getInt("InstructionIndex");
 		currentInstructionDuration = compound.getInt("InstructionDuration");
 		currentInstructionProgress = compound.getFloat("InstructionProgress");
 		poweredPreviously = compound.getBoolean("PrevPowered");
 		timer = compound.getInt("Timer");
-		instructions = Instruction.deserializeAll(compound.getList("Instructions", Tag.TAG_COMPOUND));
+		instructions = Instruction.deserializeAll(compound.getList("Instructions", NbtElement.COMPOUND_TYPE));
 		super.read(compound, clientPacket);
 	}
 

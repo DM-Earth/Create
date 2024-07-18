@@ -3,9 +3,8 @@ package com.simibubi.create.compat.computercraft;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
 import com.simibubi.create.foundation.networking.BlockEntityDataPacket;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
 
 public class AttachedComputerPacket extends BlockEntityDataPacket<SyncedBlockEntity> {
 
@@ -16,13 +15,13 @@ public class AttachedComputerPacket extends BlockEntityDataPacket<SyncedBlockEnt
 		this.hasAttachedComputer = hasAttachedComputer;
 	}
 
-	public AttachedComputerPacket(FriendlyByteBuf buffer) {
+	public AttachedComputerPacket(PacketByteBuf buffer) {
 		super(buffer);
 		this.hasAttachedComputer = buffer.readBoolean();
 	}
 
 	@Override
-	protected void writeData(FriendlyByteBuf buffer) {
+	protected void writeData(PacketByteBuf buffer) {
 		buffer.writeBoolean(hasAttachedComputer);
 	}
 

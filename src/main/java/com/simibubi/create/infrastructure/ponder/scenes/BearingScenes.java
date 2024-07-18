@@ -14,19 +14,18 @@ import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.WallBlock;
-import net.minecraft.world.level.block.state.properties.WallSide;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.WallBlock;
+import net.minecraft.block.enums.WallShape;
+import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
 
 public class BearingScenes {
 
@@ -38,7 +37,7 @@ public class BearingScenes {
 
 		scene.world.showSection(util.select.fromTo(1, 0, 1, 5, 0, 5), Direction.UP);
 		scene.world.setBlock(util.grid.at(2, -1, 0), AllBlocks.SAIL.getDefaultState()
-			.setValue(SailBlock.FACING, Direction.NORTH), false);
+			.with(SailBlock.FACING, Direction.NORTH), false);
 		scene.idle(5);
 		Selection kinetics = util.select.fromTo(3, 1, 1, 4, 1, 4);
 		Selection largeCog = util.select.position(3, 2, 2);
@@ -63,44 +62,44 @@ public class BearingScenes {
 		scene.idle(10);
 		for (Direction d : Iterate.directions)
 			if (d.getAxis() != Axis.Z)
-				scene.world.showSectionAndMerge(util.select.fromTo(anchorPos.relative(d, 1), anchorPos.relative(d, 2)),
+				scene.world.showSectionAndMerge(util.select.fromTo(anchorPos.offset(d, 1), anchorPos.offset(d, 2)),
 					d.getOpposite(), structure);
 		scene.idle(10);
 
-		scene.world.showSectionAndMerge(util.select.fromTo(anchorPos.above()
+		scene.world.showSectionAndMerge(util.select.fromTo(anchorPos.up()
 			.east(),
-			anchorPos.above(3)
+			anchorPos.up(3)
 				.east()),
 			Direction.WEST, structure);
-		scene.world.showSectionAndMerge(util.select.fromTo(anchorPos.below()
+		scene.world.showSectionAndMerge(util.select.fromTo(anchorPos.down()
 			.west(),
-			anchorPos.below(3)
+			anchorPos.down(3)
 				.west()),
 			Direction.EAST, structure);
 		scene.world.showSectionAndMerge(util.select.fromTo(anchorPos.east()
-			.below(),
+			.down(),
 			anchorPos.east(3)
-				.below()),
+				.down()),
 			Direction.UP, structure);
 		scene.world.showSectionAndMerge(util.select.fromTo(anchorPos.west()
-			.above(),
+			.up(),
 			anchorPos.west(3)
-				.above()),
+				.up()),
 			Direction.DOWN, structure);
 
 		scene.idle(5);
 		for (Direction d : Iterate.directions)
 			if (d.getAxis() != Axis.Z)
-				scene.effects.superGlue(anchorPos.relative(d, 1), d.getOpposite(), false);
+				scene.effects.superGlue(anchorPos.offset(d, 1), d.getOpposite(), false);
 		scene.idle(10);
 
-		AABB bb1 = new AABB(util.grid.at(5, 2, 0));
-		AABB bb2 = new AABB(util.grid.at(3, 4, 0));
+		Box bb1 = new Box(util.grid.at(5, 2, 0));
+		Box bb2 = new Box(util.grid.at(3, 4, 0));
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb1, bb1, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb1, bb1.expandTowards(-4, 0, 0), 75);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb1, bb1.stretch(-4, 0, 0), 75);
 		scene.idle(5);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb2, bb2, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb2, bb2.expandTowards(0, -4, 0), 80);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb2, bb2.stretch(0, -4, 0), 80);
 		scene.idle(10);
 		scene.overlay.showControls(new InputWindowElement(util.vector.centerOf(util.grid.at(5, 2, 0)), Pointing.RIGHT)
 			.withItem(AllItems.SUPER_GLUE.asStack()), 40);
@@ -150,7 +149,7 @@ public class BearingScenes {
 			.text("The Amount of Sail Blocks determine its Rotation Speed");
 		scene.idle(90);
 
-		Vec3 surface = util.vector.blockSurface(windmill, Direction.WEST)
+		Vec3d surface = util.vector.blockSurface(windmill, Direction.WEST)
 			.add(0, 0, 2 / 16f);
 		scene.overlay.showControls(new InputWindowElement(surface, Pointing.DOWN).rightClick(), 60);
 		scene.overlay.showFilterSlotInput(surface, Direction.WEST, 50);
@@ -197,7 +196,7 @@ public class BearingScenes {
 		scene.world.showSection(util.select.position(bearingPos), Direction.DOWN);
 		scene.idle(10);
 		ElementLink<WorldSectionElement> contraption =
-			scene.world.showIndependentSection(util.select.position(bearingPos.above()), Direction.DOWN);
+			scene.world.showIndependentSection(util.select.position(bearingPos.up()), Direction.DOWN);
 		scene.idle(10);
 		scene.world.showSectionAndMerge(util.select.fromTo(3, 2, 2, 3, 3, 1), Direction.SOUTH, contraption);
 		scene.world.showSectionAndMerge(util.select.fromTo(3, 2, 4, 3, 3, 5), Direction.NORTH, contraption);
@@ -208,8 +207,8 @@ public class BearingScenes {
 		scene.world.showSectionAndMerge(util.select.position(2, 1, 5), Direction.EAST, contraption);
 		scene.world.showSectionAndMerge(util.select.position(3, 3, 3), Direction.DOWN, contraption);
 		scene.idle(5);
-		scene.effects.superGlue(bearingPos.above(), Direction.SOUTH, true);
-		scene.effects.superGlue(bearingPos.above(), Direction.NORTH, true);
+		scene.effects.superGlue(bearingPos.up(), Direction.SOUTH, true);
+		scene.effects.superGlue(bearingPos.up(), Direction.NORTH, true);
 		scene.idle(5);
 		scene.effects.superGlue(util.grid.at(3, 1, 5), Direction.UP, true);
 		scene.idle(5);
@@ -258,7 +257,7 @@ public class BearingScenes {
 			.add(cog4);
 
 		BlockPos bearingPos = util.grid.at(3, 2, 3);
-		scene.overlay.showSelectionWithText(util.select.position(bearingPos.above()), 60)
+		scene.overlay.showSelectionWithText(util.select.position(bearingPos.up()), 60)
 			.colored(PonderPalette.GREEN)
 			.pointAt(util.vector.blockSurface(bearingPos, Direction.WEST))
 			.placeNearTarget()
@@ -267,7 +266,7 @@ public class BearingScenes {
 		scene.idle(50);
 
 		ElementLink<WorldSectionElement> plank =
-			scene.world.showIndependentSection(util.select.position(bearingPos.above()
+			scene.world.showIndependentSection(util.select.position(bearingPos.up()
 				.east()
 				.north()), Direction.DOWN);
 		scene.world.moveSection(plank, util.vector.of(-1, 0, 1), 0);
@@ -277,12 +276,12 @@ public class BearingScenes {
 		scene.world.setKineticSpeed(cog2, 8);
 		scene.world.setKineticSpeed(cog3, -16);
 		scene.world.setKineticSpeed(cog4, 16);
-		scene.effects.rotationSpeedIndicator(bearingPos.below());
+		scene.effects.rotationSpeedIndicator(bearingPos.down());
 		scene.world.rotateBearing(bearingPos, 360, 37 * 2);
 		scene.world.rotateSection(plank, 0, 360, 0, 37 * 2);
 
 		scene.overlay.showText(80)
-			.pointAt(util.vector.topOf(bearingPos.above()))
+			.pointAt(util.vector.topOf(bearingPos.up()))
 			.placeNearTarget()
 			.attachKeyFrame()
 			.text("Upon receiving Rotational Force, it will assemble it into a Rotating Contraption");
@@ -295,7 +294,7 @@ public class BearingScenes {
 		Selection plank2 = util.select.position(4, 3, 2);
 		ElementLink<WorldSectionElement> contraption = scene.world.showIndependentSection(util.select.layersFrom(3)
 			.substract(plank2), Direction.DOWN);
-		scene.world.replaceBlocks(util.select.fromTo(2, 4, 3, 4, 3, 3), Blocks.OAK_PLANKS.defaultBlockState(), false);
+		scene.world.replaceBlocks(util.select.fromTo(2, 4, 3, 4, 3, 3), Blocks.OAK_PLANKS.getDefaultState(), false);
 		scene.idle(10);
 
 		scene.overlay.showOutline(PonderPalette.GREEN, "glue", util.select.position(2, 4, 3)
@@ -309,7 +308,7 @@ public class BearingScenes {
 		scene.idle(15);
 		scene.effects.superGlue(util.grid.at(4, 3, 2), Direction.SOUTH, true);
 		scene.overlay.showText(120)
-			.pointAt(util.vector.topOf(bearingPos.above()))
+			.pointAt(util.vector.topOf(bearingPos.up()))
 			.placeNearTarget()
 			.attachKeyFrame()
 			.sharedText("movement_anchors");
@@ -320,7 +319,7 @@ public class BearingScenes {
 		scene.world.setKineticSpeed(cog2, 8);
 		scene.world.setKineticSpeed(cog3, -16);
 		scene.world.setKineticSpeed(cog4, 16);
-		scene.effects.rotationSpeedIndicator(bearingPos.below());
+		scene.effects.rotationSpeedIndicator(bearingPos.down());
 		scene.world.rotateBearing(bearingPos, 360 * 2, 37 * 4);
 		scene.world.rotateSection(contraption, 0, 360 * 2, 0, 37 * 4);
 
@@ -370,7 +369,7 @@ public class BearingScenes {
 		scene.world.rotateSection(contraption, 0, 35, 0, 0);
 		scene.world.rotateBearing(bearingPos, 35, 0);
 
-		Vec3 target = util.vector.topOf(bearingPos.below());
+		Vec3d target = util.vector.topOf(bearingPos.down());
 		scene.overlay.showLine(PonderPalette.RED, target.add(-2.5, 0, 3.5), target, 50);
 		scene.overlay.showLine(PonderPalette.GREEN, target.add(0, 0, 4.5), target, 50);
 
@@ -384,7 +383,7 @@ public class BearingScenes {
 			.text("When Stopped, the Bearing will place the structure at the nearest grid-aligned Angle");
 		scene.idle(110);
 
-		Vec3 blockSurface = util.vector.blockSurface(bearingPos, Direction.NORTH)
+		Vec3d blockSurface = util.vector.blockSurface(bearingPos, Direction.NORTH)
 			.add(0, 2 / 16f, 0);
 		scene.overlay.showFilterSlotInput(blockSurface, Direction.NORTH, 60);
 		scene.overlay.showControls(new InputWindowElement(blockSurface, Pointing.DOWN).scroll()
@@ -565,7 +564,7 @@ public class BearingScenes {
 		scene.world.hideIndependentSection(plank, Direction.NORTH);
 		scene.idle(15);
 
-		scene.world.replaceBlocks(util.select.fromTo(3, 3, 1, 3, 4, 2), Blocks.OAK_PLANKS.defaultBlockState(), false);
+		scene.world.replaceBlocks(util.select.fromTo(3, 3, 1, 3, 4, 2), Blocks.OAK_PLANKS.getDefaultState(), false);
 		ElementLink<WorldSectionElement> hourHand =
 			scene.world.showIndependentSection(util.select.fromTo(3, 3, 1, 3, 5, 2), Direction.SOUTH);
 		scene.world.configureCenterOfRotation(hourHand, util.vector.centerOf(bearingPos));
@@ -597,8 +596,8 @@ public class BearingScenes {
 		scene.world.rotateBearing(bearingPos, -120, 0);
 		scene.idle(10);
 
-		scene.world.setBlock(util.grid.at(3, 3, 0), Blocks.STONE_BRICK_WALL.defaultBlockState()
-			.setValue(WallBlock.SOUTH_WALL, WallSide.TALL), false);
+		scene.world.setBlock(util.grid.at(3, 3, 0), Blocks.STONE_BRICK_WALL.getDefaultState()
+			.with(WallBlock.SOUTH_SHAPE, WallShape.TALL), false);
 		ElementLink<WorldSectionElement> minuteHand =
 			scene.world.showIndependentSection(util.select.fromTo(3, 3, 0, 3, 6, 0), Direction.SOUTH);
 		scene.world.configureCenterOfRotation(minuteHand, util.vector.centerOf(bearingPos));
@@ -655,16 +654,16 @@ public class BearingScenes {
 		scene.world.showSection(util.select.position(bearingPos), Direction.DOWN);
 		scene.idle(5);
 		ElementLink<WorldSectionElement> plank =
-			scene.world.showIndependentSection(util.select.position(bearingPos.above()), Direction.DOWN);
+			scene.world.showIndependentSection(util.select.position(bearingPos.up()), Direction.DOWN);
 		scene.idle(10);
 
 		for (int i = 0; i < 3; i++) {
 			for (Direction d : Iterate.horizontalDirections) {
-				BlockPos location = bearingPos.above(i + 1)
-					.relative(d);
+				BlockPos location = bearingPos.up(i + 1)
+					.offset(d);
 				if (frame)
 					scene.world.modifyBlock(location, s -> AllBlocks.SAIL_FRAME.getDefaultState()
-						.setValue(SailBlock.FACING, s.getValue(SailBlock.FACING)), false);
+						.with(SailBlock.FACING, s.get(SailBlock.FACING)), false);
 				scene.world.showSectionAndMerge(util.select.position(location), d.getOpposite(), plank);
 				scene.idle(2);
 			}
@@ -677,7 +676,7 @@ public class BearingScenes {
 			.attachKeyFrame();
 		scene.idle(80);
 
-		scene.overlay.showSelectionWithText(util.select.position(bearingPos.above()), 80)
+		scene.overlay.showSelectionWithText(util.select.position(bearingPos.up()), 80)
 			.colored(PonderPalette.GREEN)
 			.text("They will attach to blocks and each other without the need of Super Glue or Chassis Blocks")
 			.attachKeyFrame()
@@ -700,7 +699,7 @@ public class BearingScenes {
 			scene.idle(7);
 			scene.world.setBlock(util.grid.at(2, 3, 1), AllBlocks.DYED_SAILS.get(DyeColor.BLUE)
 				.getDefaultState()
-				.setValue(SailBlock.FACING, Direction.WEST), false);
+				.with(SailBlock.FACING, Direction.WEST), false);
 			scene.idle(10);
 			scene.overlay.showText(40)
 				.colored(PonderPalette.BLUE)
@@ -713,7 +712,7 @@ public class BearingScenes {
 			scene.idle(7);
 			scene.world.replaceBlocks(util.select.fromTo(2, 2, 1, 2, 4, 1), AllBlocks.DYED_SAILS.get(DyeColor.BLUE)
 				.getDefaultState()
-				.setValue(SailBlock.FACING, Direction.WEST), false);
+				.with(SailBlock.FACING, Direction.WEST), false);
 
 			scene.idle(20);
 			scene.world.rotateBearing(bearingPos, 90, 33);
@@ -727,7 +726,7 @@ public class BearingScenes {
 			scene.overlay.showControls(input, 30);
 			scene.idle(7);
 			scene.world.setBlock(util.grid.at(3, 3, 2), AllBlocks.SAIL_FRAME.getDefaultState()
-				.setValue(SailBlock.FACING, Direction.NORTH), false);
+				.with(SailBlock.FACING, Direction.NORTH), false);
 			scene.idle(10);
 			scene.overlay.showText(40)
 				.text("Right-Click with Shears to turn them back into frames")
@@ -738,7 +737,7 @@ public class BearingScenes {
 			scene.overlay.showControls(input, 30);
 			scene.idle(7);
 			scene.world.replaceBlocks(util.select.fromTo(3, 2, 2, 3, 4, 2), AllBlocks.SAIL_FRAME.getDefaultState()
-				.setValue(SailBlock.FACING, Direction.NORTH), false);
+				.with(SailBlock.FACING, Direction.NORTH), false);
 			scene.idle(20);
 		}
 

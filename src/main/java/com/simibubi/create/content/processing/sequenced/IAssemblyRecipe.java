@@ -8,9 +8,9 @@ import com.simibubi.create.foundation.fluid.FluidIngredient;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.text.Text;
 
 public interface IAssemblyRecipe {
 
@@ -19,9 +19,9 @@ public interface IAssemblyRecipe {
 	}
 
 	@Environment(EnvType.CLIENT)
-	public Component getDescriptionForAssembly();
+	public Text getDescriptionForAssembly();
 
-	public void addRequiredMachines(Set<ItemLike> list);
+	public void addRequiredMachines(Set<ItemConvertible> list);
 
 	public void addAssemblyIngredients(List<Ingredient> list);
 

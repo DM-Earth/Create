@@ -1,30 +1,29 @@
 package com.simibubi.create.foundation.recipe;
 
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.RecipeMatcher;
+import net.minecraft.util.collection.DefaultedList;
 import org.jetbrains.annotations.NotNull;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.entity.player.StackedContents;
-import net.minecraft.world.inventory.TransientCraftingContainer;
-import net.minecraft.world.item.ItemStack;
+public class DummyCraftingContainer extends CraftingInventory {
 
-public class DummyCraftingContainer extends TransientCraftingContainer {
+	private final DefaultedList<ItemStack> inv;
 
-	private final NonNullList<ItemStack> inv;
-
-	public DummyCraftingContainer(NonNullList<ItemStack> stacks) {
+	public DummyCraftingContainer(DefaultedList<ItemStack> stacks) {
 		super(null, 0, 0);
 		this.inv = stacks;
 	}
 
 	@Override
-	public int getContainerSize() {
+	public int size() {
 		return this.inv.size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		for (int slot = 0; slot < this.getContainerSize(); slot++) {
-			if (!this.getItem(slot).isEmpty())
+		for (int slot = 0; slot < this.size(); slot++) {
+			if (!this.getStack(slot).isEmpty())
 				return false;
 		}
 
@@ -32,26 +31,26 @@ public class DummyCraftingContainer extends TransientCraftingContainer {
 	}
 
 	@Override
-	public @NotNull ItemStack getItem(int slot) {
-		return slot >= this.getContainerSize() ? ItemStack.EMPTY : this.inv.get(slot);
+	public @NotNull ItemStack getStack(int slot) {
+		return slot >= this.size() ? ItemStack.EMPTY : this.inv.get(slot);
 	}
 
 	@Override
-	public @NotNull ItemStack removeItemNoUpdate(int slot) {
+	public @NotNull ItemStack removeStack(int slot) {
 		return ItemStack.EMPTY;
 	}
 
 	@Override
-	public @NotNull ItemStack removeItem(int slot, int count) {
+	public @NotNull ItemStack removeStack(int slot, int count) {
 		return ItemStack.EMPTY;
 	}
 
 	@Override
-	public void setItem(int slot, @NotNull ItemStack stack) {}
+	public void setStack(int slot, @NotNull ItemStack stack) {}
 
 	@Override
-	public void clearContent() {}
+	public void clear() {}
 
 	@Override
-	public void fillStackedContents(@NotNull StackedContents helper) {}
+	public void provideRecipeInputs(@NotNull RecipeMatcher helper) {}
 }

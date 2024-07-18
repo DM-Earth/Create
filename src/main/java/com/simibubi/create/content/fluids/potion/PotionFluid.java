@@ -2,18 +2,17 @@ package com.simibubi.create.content.fluids.potion;
 
 import java.util.Collection;
 import java.util.List;
-
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.Potions;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.AllFluids;
 import com.simibubi.create.content.fluids.VirtualFluid;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
 
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.Potions;
 
 public class PotionFluid extends VirtualFluid {
 
@@ -23,17 +22,17 @@ public class PotionFluid extends VirtualFluid {
 
 	public static FluidStack of(long amount, Potion potion) {
 		FluidStack fluidStack = new FluidStack(AllFluids.POTION.get()
-				.getSource(), amount);
+				.getStill(), amount);
 		return addPotionToFluidStack(fluidStack, potion);
 	}
 
-	public static FluidStack withEffects(long amount, Potion potion, List<MobEffectInstance> customEffects) {
+	public static FluidStack withEffects(long amount, Potion potion, List<StatusEffectInstance> customEffects) {
 		FluidStack fluidStack = of(amount, potion);
 		return appendEffects(fluidStack, customEffects);
 	}
 
 	public static FluidStack addPotionToFluidStack(FluidStack fs, Potion potion) {
-		ResourceLocation resourcelocation = RegisteredObjects.getKeyOrThrow(potion);
+		Identifier resourcelocation = RegisteredObjects.getKeyOrThrow(potion);
 		if (potion == Potions.EMPTY) {
 			fs.removeChildTag("Potion");
 			return new FluidStack(fs.getFluid(), fs.getAmount(), fs.getTag());
@@ -43,13 +42,13 @@ public class PotionFluid extends VirtualFluid {
 		return new FluidStack(fs.getFluid(), fs.getAmount(), fs.getTag());
 	}
 
-	public static FluidStack appendEffects(FluidStack fs, Collection<MobEffectInstance> customEffects) {
+	public static FluidStack appendEffects(FluidStack fs, Collection<StatusEffectInstance> customEffects) {
 		if (customEffects.isEmpty())
 			return fs;
-		CompoundTag compoundnbt = fs.getOrCreateTag();
-		ListTag listnbt = compoundnbt.getList("CustomPotionEffects", 9);
-		for (MobEffectInstance effectinstance : customEffects)
-			listnbt.add(effectinstance.save(new CompoundTag()));
+		NbtCompound compoundnbt = fs.getOrCreateTag();
+		NbtList listnbt = compoundnbt.getList("CustomPotionEffects", 9);
+		for (StatusEffectInstance effectinstance : customEffects)
+			listnbt.add(effectinstance.writeNbt(new NbtCompound()));
 		compoundnbt.put("CustomPotionEffects", listnbt);
 		return new FluidStack(fs.getFluid(), fs.getAmount(), fs.getTag());
 	}

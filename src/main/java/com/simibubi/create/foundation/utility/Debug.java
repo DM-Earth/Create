@@ -4,10 +4,10 @@ import com.simibubi.create.Create;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 /** Deprecated so simi doensn't forget to remove debug calls **/
 @Environment(value = EnvType.CLIENT)
@@ -15,21 +15,21 @@ public class Debug {
 
 	@Deprecated
 	public static void debugChat(String message) {
-		if (Minecraft.getInstance().player != null)
-			Minecraft.getInstance().player.displayClientMessage(Components.literal(message), false);
+		if (MinecraftClient.getInstance().player != null)
+			MinecraftClient.getInstance().player.sendMessage(Components.literal(message), false);
 	}
 
 	@Deprecated
 	public static void debugChatAndShowStack(String message, int depth) {
-		if (Minecraft.getInstance().player != null)
-			Minecraft.getInstance().player.displayClientMessage(Components.literal(message).append("@")
+		if (MinecraftClient.getInstance().player != null)
+			MinecraftClient.getInstance().player.sendMessage(Components.literal(message).append("@")
 				.append(debugStack(depth)), false);
 	}
 
 	@Deprecated
 	public static void debugMessage(String message) {
-		if (Minecraft.getInstance().player != null)
-			Minecraft.getInstance().player.displayClientMessage(Components.literal(message), true);
+		if (MinecraftClient.getInstance().player != null)
+			MinecraftClient.getInstance().player.sendMessage(Components.literal(message), true);
 	}
 
 	@Deprecated
@@ -39,26 +39,26 @@ public class Debug {
 
 	@Deprecated
 	public static String getLogicalSide() {
-		return Minecraft.getInstance().level // only called on client, this is safe (but completely redundant)
-			.isClientSide() ? "CL" : "SV";
+		return MinecraftClient.getInstance().world // only called on client, this is safe (but completely redundant)
+			.isClient() ? "CL" : "SV";
 	}
 
 	@Deprecated
-	public static Component debugStack(int depth) {
+	public static Text debugStack(int depth) {
 		StackTraceElement[] stackTraceElements = Thread.currentThread()
 			.getStackTrace();
-		MutableComponent text = Components.literal("[")
-			.append(Components.literal(getLogicalSide()).withStyle(ChatFormatting.GOLD))
+		MutableText text = Components.literal("[")
+			.append(Components.literal(getLogicalSide()).formatted(Formatting.GOLD))
 			.append("] ");
 		for (int i = 1; i < depth + 2 && i < stackTraceElements.length; i++) {
 			StackTraceElement e = stackTraceElements[i];
 			if (e.getClassName()
 				.equals(Debug.class.getName()))
 				continue;
-			text.append(Components.literal(e.getMethodName()).withStyle(ChatFormatting.YELLOW))
+			text.append(Components.literal(e.getMethodName()).formatted(Formatting.YELLOW))
 				.append(", ");
 		}
-		return text.append(Components.literal(" ...").withStyle(ChatFormatting.GRAY));
+		return text.append(Components.literal(" ...").formatted(Formatting.GRAY));
 	}
 
 	@Deprecated

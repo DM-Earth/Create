@@ -7,86 +7,85 @@ import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.gantry.GantryShaftBlock;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 
 public class GantryCarriageBlock extends DirectionalAxisKineticBlock implements IBE<GantryCarriageBlockEntity> {
 
-	public GantryCarriageBlock(Properties properties) {
+	public GantryCarriageBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	public boolean canSurvive(BlockState state, LevelReader world, BlockPos pos) {
-		Direction direction = state.getValue(FACING);
-		BlockState shaft = world.getBlockState(pos.relative(direction.getOpposite()));
-		return AllBlocks.GANTRY_SHAFT.has(shaft) && shaft.getValue(GantryShaftBlock.FACING)
+	public boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		Direction direction = state.get(FACING);
+		BlockState shaft = world.getBlockState(pos.offset(direction.getOpposite()));
+		return AllBlocks.GANTRY_SHAFT.has(shaft) && shaft.get(GantryShaftBlock.FACING)
 			.getAxis() != direction.getAxis();
 	}
 
 	@Override
-	public void updateIndirectNeighbourShapes(BlockState stateIn, LevelAccessor worldIn, BlockPos pos, int flags, int count) {
-		super.updateIndirectNeighbourShapes(stateIn, worldIn, pos, flags, count);
+	public void prepare(BlockState stateIn, WorldAccess worldIn, BlockPos pos, int flags, int count) {
+		super.prepare(stateIn, worldIn, pos, flags, count);
 		withBlockEntityDo(worldIn, pos, GantryCarriageBlockEntity::checkValidGantryShaft);
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
-		super.onPlace(state, worldIn, pos, oldState, isMoving);
+	public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
+		super.onBlockAdded(state, worldIn, pos, oldState, isMoving);
 	}
 
 	@Override
-	protected Direction getFacingForPlacement(BlockPlaceContext context) {
-		return context.getClickedFace();
+	protected Direction getFacingForPlacement(ItemPlacementContext context) {
+		return context.getSide();
 	}
 
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
-		if (!player.mayBuild() || player.isShiftKeyDown())
-			return InteractionResult.PASS;
-		if (player.getItemInHand(handIn)
+		if (!player.canModifyBlocks() || player.isSneaking())
+			return ActionResult.PASS;
+		if (player.getStackInHand(handIn)
 			.isEmpty()) {
 			withBlockEntityDo(worldIn, pos, be -> be.checkValidGantryShaft());
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState stateForPlacement = super.getStateForPlacement(context);
-		Direction opposite = stateForPlacement.getValue(FACING)
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState stateForPlacement = super.getPlacementState(context);
+		Direction opposite = stateForPlacement.get(FACING)
 			.getOpposite();
-		return cycleAxisIfNecessary(stateForPlacement, opposite, context.getLevel()
-			.getBlockState(context.getClickedPos()
-				.relative(opposite)));
+		return cycleAxisIfNecessary(stateForPlacement, opposite, context.getWorld()
+			.getBlockState(context.getBlockPos()
+				.offset(opposite)));
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level world, BlockPos pos, Block p_220069_4_, BlockPos updatePos,
+	public void neighborUpdate(BlockState state, World world, BlockPos pos, Block p_220069_4_, BlockPos updatePos,
 		boolean p_220069_6_) {
-		if (updatePos.equals(pos.relative(state.getValue(FACING)
-			.getOpposite())) && !canSurvive(state, world, pos))
-			world.destroyBlock(pos, true);
+		if (updatePos.equals(pos.offset(state.get(FACING)
+			.getOpposite())) && !canPlaceAt(state, world, pos))
+			world.breakBlock(pos, true);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction direction, BlockState otherState, LevelAccessor world,
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState otherState, WorldAccess world,
 		BlockPos pos, BlockPos p_196271_6_) {
-		if (state.getValue(FACING) != direction.getOpposite())
+		if (state.get(FACING) != direction.getOpposite())
 			return state;
 		return cycleAxisIfNecessary(state, direction, otherState);
 	}
@@ -94,7 +93,7 @@ public class GantryCarriageBlock extends DirectionalAxisKineticBlock implements 
 	protected BlockState cycleAxisIfNecessary(BlockState state, Direction direction, BlockState otherState) {
 		if (!AllBlocks.GANTRY_SHAFT.has(otherState))
 			return state;
-		if (otherState.getValue(GantryShaftBlock.FACING)
+		if (otherState.get(GantryShaftBlock.FACING)
 			.getAxis() == direction.getAxis())
 			return state;
 		if (isValidGantryShaftAxis(state, otherState))
@@ -103,7 +102,7 @@ public class GantryCarriageBlock extends DirectionalAxisKineticBlock implements 
 	}
 
 	public static boolean isValidGantryShaftAxis(BlockState pinionState, BlockState gantryState) {
-		return getValidGantryShaftAxis(pinionState) == gantryState.getValue(GantryShaftBlock.FACING)
+		return getValidGantryShaftAxis(pinionState) == gantryState.get(GantryShaftBlock.FACING)
 			.getAxis();
 	}
 
@@ -112,7 +111,7 @@ public class GantryCarriageBlock extends DirectionalAxisKineticBlock implements 
 			return Axis.Y;
 		IRotate block = (IRotate) state.getBlock();
 		Axis rotationAxis = block.getRotationAxis(state);
-		Axis facingAxis = state.getValue(FACING)
+		Axis facingAxis = state.get(FACING)
 			.getAxis();
 		for (Axis axis : Iterate.axes)
 			if (axis != rotationAxis && axis != facingAxis)
@@ -121,7 +120,7 @@ public class GantryCarriageBlock extends DirectionalAxisKineticBlock implements 
 	}
 
 	public static Axis getValidGantryPinionAxis(BlockState state, Axis shaftAxis) {
-		Axis facingAxis = state.getValue(FACING)
+		Axis facingAxis = state.get(FACING)
 			.getAxis();
 		for (Axis axis : Iterate.axes)
 			if (axis != shaftAxis && axis != facingAxis)

@@ -1,10 +1,8 @@
 package com.simibubi.create.foundation.block.render;
 
 import java.util.Set;
-
+import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
-
-import net.minecraft.core.BlockPos;
 
 public interface BlockDestructionProgressExtension {
 	@Nullable

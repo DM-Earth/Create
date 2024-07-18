@@ -38,31 +38,31 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.Container;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.ClipContext.Block;
-import net.minecraft.world.level.ClipContext.Fluid;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
+import net.minecraft.world.RaycastContext.FluidHandling;
+import net.minecraft.world.RaycastContext.ShapeType;
 
 public class DeployerBlockEntity extends KineticBlockEntity implements SidedStorageBlockEntity {
 
@@ -78,7 +78,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 	protected boolean redstoneLocked;
 	protected UUID owner;
 	private DeployerItemHandler invHandler;
-	private ListTag deferredInventoryList;
+	private NbtList deferredInventoryList;
 
 	private LerpedFloat animatedOffset;
 
@@ -89,7 +89,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		@Override
 		protected List<ItemStack> createSnapshot() {
 			List<ItemStack> stacks = new ArrayList<>();
-			stacks.add(player == null ? ItemStack.EMPTY : player.getMainHandItem());
+			stacks.add(player == null ? ItemStack.EMPTY : player.getMainHandStack());
 			stacks.addAll(overflowItems);
 			return stacks;
 		}
@@ -98,7 +98,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		protected void readSnapshot(List<ItemStack> snapshot) {
 			ItemStack held = snapshot.remove(0);
 			if (player != null)
-				player.setItemInHand(InteractionHand.MAIN_HAND, held);
+				player.setStackInHand(Hand.MAIN_HAND, held);
 			overflowItems = snapshot;
 		}
 	};
@@ -145,29 +145,29 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 	private void initHandler() {
 		if (invHandler != null)
 			return;
-		if (level instanceof ServerLevel sLevel) {
+		if (world instanceof ServerWorld sLevel) {
 			player = new DeployerFakePlayer(sLevel, owner);
 			if (deferredInventoryList != null) {
 				player.getInventory()
-					.load(deferredInventoryList);
+					.readNbt(deferredInventoryList);
 				deferredInventoryList = null;
-				heldItem = player.getMainHandItem();
+				heldItem = player.getMainHandStack();
 				sendData();
 			}
-			Vec3 initialPos = VecHelper.getCenterOf(worldPosition.relative(getBlockState().getValue(FACING)));
-			player.setPos(initialPos.x, initialPos.y, initialPos.z);
+			Vec3d initialPos = VecHelper.getCenterOf(pos.offset(getCachedState().get(FACING)));
+			player.setPosition(initialPos.x, initialPos.y, initialPos.z);
 		}
 		invHandler = this.createHandler();
 	}
 
 	protected void onExtract(ItemStack stack) {
-		player.setItemInHand(InteractionHand.MAIN_HAND, stack.copy());
+		player.setStackInHand(Hand.MAIN_HAND, stack.copy());
 		sendData();
-		setChanged();
+		markDirty();
 	}
 
 	protected int getTimerSpeed() {
-		return (int) (getSpeed() == 0 ? 0 : Mth.clamp(Math.abs(getSpeed() * 2), 8, 512));
+		return (int) (getSpeed() == 0 ? 0 : MathHelper.clamp(Math.abs(getSpeed() * 2), 8, 512));
 	}
 
 	@Override
@@ -180,9 +180,9 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 
 		if (getSpeed() == 0)
 			return;
-		if (!level.isClientSide && player != null && player.blockBreakingProgress != null) {
-			if (level.isEmptyBlock(player.blockBreakingProgress.getKey())) {
-				level.destroyBlockProgress(player.getId(), player.blockBreakingProgress.getKey(), -1);
+		if (!world.isClient && player != null && player.blockBreakingProgress != null) {
+			if (world.isAir(player.blockBreakingProgress.getKey())) {
+				world.setBlockBreakingInfo(player.getId(), player.blockBreakingProgress.getKey(), -1);
 				player.blockBreakingProgress = null;
 			}
 		}
@@ -190,7 +190,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 			timer -= getTimerSpeed();
 			return;
 		}
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
 		// https://github.com/Fabricators-of-Create/Create/issues/1139 | Occurs on forge as well
@@ -199,7 +199,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		if (player == null)
 			return;
 
-		ItemStack stack = player.getMainHandItem();
+		ItemStack stack = player.getMainHandStack();
 		if (state == State.WAITING) {
 			if (!overflowItems.isEmpty()) {
 				timer = getTimerSpeed() * 10;
@@ -207,16 +207,16 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 			}
 
 			boolean changed = false;
-			Inventory inventory = player.getInventory();
-			for (int i = 0; i < inventory.getContainerSize(); i++) {
+			PlayerInventory inventory = player.getInventory();
+			for (int i = 0; i < inventory.size(); i++) {
 				if (overflowItems.size() > 10)
 					break;
-				ItemStack item = inventory.getItem(i);
+				ItemStack item = inventory.getStack(i);
 				if (item.isEmpty())
 					continue;
 				if (item != stack || !filtering.test(item)) {
 					overflowItems.add(item);
-					inventory.setItem(i, ItemStack.EMPTY);
+					inventory.setStack(i, ItemStack.EMPTY);
 					changed = true;
 				}
 			}
@@ -227,9 +227,9 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 				return;
 			}
 
-			Direction facing = getBlockState().getValue(FACING);
+			Direction facing = getCachedState().get(FACING);
 			if (mode == Mode.USE
-				&& !DeployerHandler.shouldActivate(stack, level, worldPosition.relative(facing, 2), facing)) {
+				&& !DeployerHandler.shouldActivate(stack, world, pos.offset(facing, 2), facing)) {
 				timer = getTimerSpeed() * 10;
 				return;
 			}
@@ -266,14 +266,14 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 
 	protected void start() {
 		state = State.EXPANDING;
-		Vec3 movementVector = getMovementVector();
-		Vec3 rayOrigin = VecHelper.getCenterOf(worldPosition)
-			.add(movementVector.scale(3 / 2f));
-		Vec3 rayTarget = VecHelper.getCenterOf(worldPosition)
-			.add(movementVector.scale(5 / 2f));
-		ClipContext rayTraceContext = new ClipContext(rayOrigin, rayTarget, Block.OUTLINE, Fluid.NONE, player);
-		BlockHitResult result = level.clip(rayTraceContext);
-		reach = (float) (.5f + Math.min(result.getLocation()
+		Vec3d movementVector = getMovementVector();
+		Vec3d rayOrigin = VecHelper.getCenterOf(pos)
+			.add(movementVector.multiply(3 / 2f));
+		Vec3d rayTarget = VecHelper.getCenterOf(pos)
+			.add(movementVector.multiply(5 / 2f));
+		RaycastContext rayTraceContext = new RaycastContext(rayOrigin, rayTarget, ShapeType.OUTLINE, FluidHandling.NONE, player);
+		BlockHitResult result = world.raycast(rayTraceContext);
+		reach = (float) (.5f + Math.min(result.getPos()
 			.subtract(rayOrigin)
 			.length(), .75f));
 		timer = 1000;
@@ -285,10 +285,10 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		DeployerBlockEntity partner = null;
 
 		for (i = 2; i < 5; i++) {
-			BlockPos otherDeployer = worldPosition.relative(facing, i);
-			if (!level.isLoaded(otherDeployer))
+			BlockPos otherDeployer = pos.offset(facing, i);
+			if (!world.canSetBlock(otherDeployer))
 				return false;
-			BlockEntity other = level.getBlockEntity(otherDeployer);
+			BlockEntity other = world.getBlockEntity(otherDeployer);
 			if (other instanceof DeployerBlockEntity dpe) {
 				partner = dpe;
 				break;
@@ -298,8 +298,8 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		if (partner == null)
 			return false;
 
-		if (level.getBlockState(partner.getBlockPos())
-			.getValue(FACING)
+		if (world.getBlockState(partner.getPos())
+			.get(FACING)
 			.getOpposite() != facing || partner.mode != Mode.PUNCH)
 			return false;
 		if (partner.getSpeed() == 0)
@@ -320,10 +320,10 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		int i = 0;
 		DeployerBlockEntity deployerBlockEntity = null;
 		for (i = 2; i < 5; i++) {
-			BlockPos pos = worldPosition.relative(getBlockState().getValue(FACING), i);
-			if (!level.isLoaded(pos))
+			BlockPos blockPos = pos.offset(getCachedState().get(FACING), i);
+			if (!world.canSetBlock(blockPos))
 				return;
-			if (level.getBlockEntity(pos) instanceof DeployerBlockEntity dpe) {
+			if (world.getBlockEntity(blockPos) instanceof DeployerBlockEntity dpe) {
 				deployerBlockEntity = dpe;
 				break;
 			}
@@ -343,51 +343,51 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		deployerBlockEntity.sendData();
 		award(AllAdvancements.FIST_BUMP);
 
-		BlockPos soundLocation = BlockPos.containing(Vec3.atCenterOf(worldPosition)
-			.add(Vec3.atCenterOf(deployerBlockEntity.getBlockPos()))
-			.scale(.5f));
-		level.playSound(null, soundLocation, SoundEvents.PLAYER_ATTACK_NODAMAGE, SoundSource.BLOCKS, .75f, .75f);
+		BlockPos soundLocation = BlockPos.ofFloored(Vec3d.ofCenter(pos)
+			.add(Vec3d.ofCenter(deployerBlockEntity.getPos()))
+			.multiply(.5f));
+		world.playSound(null, soundLocation, SoundEvents.ENTITY_PLAYER_ATTACK_NODAMAGE, SoundCategory.BLOCKS, .75f, .75f);
 	}
 
 	protected void activate() {
-		Vec3 movementVector = getMovementVector();
-		Direction direction = getBlockState().getValue(FACING);
-		Vec3 center = VecHelper.getCenterOf(worldPosition);
-		BlockPos clickedPos = worldPosition.relative(direction, 2);
-		player.setXRot(direction == Direction.UP ? -90 : direction == Direction.DOWN ? 90 : 0);
-		player.setYRot(direction.toYRot());
+		Vec3d movementVector = getMovementVector();
+		Direction direction = getCachedState().get(FACING);
+		Vec3d center = VecHelper.getCenterOf(pos);
+		BlockPos clickedPos = pos.offset(direction, 2);
+		player.setPitch(direction == Direction.UP ? -90 : direction == Direction.DOWN ? 90 : 0);
+		player.setYaw(direction.asRotation());
 
 		if (direction == Direction.DOWN
-			&& BlockEntityBehaviour.get(level, clickedPos, TransportedItemStackHandlerBehaviour.TYPE) != null)
+			&& BlockEntityBehaviour.get(world, clickedPos, TransportedItemStackHandlerBehaviour.TYPE) != null)
 			return; // Belt processing handled in BeltDeployerCallbacks
 
 		DeployerHandler.activate(player, center, clickedPos, movementVector, mode);
 		award(AllAdvancements.DEPLOYER);
 
 		if (player != null)
-			heldItem = player.getMainHandItem();
+			heldItem = player.getMainHandStack();
 	}
 
-	protected Vec3 getMovementVector() {
-		if (!AllBlocks.DEPLOYER.has(getBlockState()))
-			return Vec3.ZERO;
-		return Vec3.atLowerCornerOf(getBlockState().getValue(FACING)
-			.getNormal());
+	protected Vec3d getMovementVector() {
+		if (!AllBlocks.DEPLOYER.has(getCachedState()))
+			return Vec3d.ZERO;
+		return Vec3d.of(getCachedState().get(FACING)
+			.getVector());
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		state = NBTHelper.readEnum(compound, "State", State.class);
 		mode = NBTHelper.readEnum(compound, "Mode", Mode.class);
 		timer = compound.getInt("Timer");
 		redstoneLocked = compound.getBoolean("Powered");
 		if (compound.contains("Owner"))
-			owner = compound.getUUID("Owner");
+			owner = compound.getUuid("Owner");
 
-		deferredInventoryList = compound.getList("Inventory", Tag.TAG_COMPOUND);
-		overflowItems = NBTHelper.readItemList(compound.getList("Overflow", Tag.TAG_COMPOUND));
+		deferredInventoryList = compound.getList("Inventory", NbtElement.COMPOUND_TYPE);
+		overflowItems = NBTHelper.readItemList(compound.getList("Overflow", NbtElement.COMPOUND_TYPE));
 		if (compound.contains("HeldItem"))
-			heldItem = ItemStack.of(compound.getCompound("HeldItem"));
+			heldItem = ItemStack.fromNbt(compound.getCompound("HeldItem"));
 		super.read(compound, clientPacket);
 
 		if (!clientPacket)
@@ -395,27 +395,27 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		fistBump = compound.getBoolean("Fistbump");
 		reach = compound.getFloat("Reach");
 		if (compound.contains("Particle")) {
-			ItemStack particleStack = ItemStack.of(compound.getCompound("Particle"));
-			SandPaperItem.spawnParticles(VecHelper.getCenterOf(worldPosition)
-				.add(getMovementVector().scale(reach + 1)), particleStack, this.level);
+			ItemStack particleStack = ItemStack.fromNbt(compound.getCompound("Particle"));
+			SandPaperItem.spawnParticles(VecHelper.getCenterOf(pos)
+				.add(getMovementVector().multiply(reach + 1)), particleStack, this.world);
 		}
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		NBTHelper.writeEnum(compound, "Mode", mode);
 		NBTHelper.writeEnum(compound, "State", state);
 		compound.putInt("Timer", timer);
 		compound.putBoolean("Powered", redstoneLocked);
 		if (owner != null)
-			compound.putUUID("Owner", owner);
+			compound.putUuid("Owner", owner);
 
 		if (player != null) {
-			ListTag invNBT = new ListTag();
+			NbtList invNBT = new NbtList();
 			player.getInventory()
-				.save(invNBT);
+				.writeNbt(invNBT);
 			compound.put("Inventory", invNBT);
-			compound.put("HeldItem", NBTSerializer.serializeNBT(player.getMainHandItem()));
+			compound.put("HeldItem", NBTSerializer.serializeNBT(player.getMainHandStack()));
 			compound.put("Overflow", NBTHelper.writeItemList(overflowItems));
 		} else if (deferredInventoryList != null) {
 			compound.put("Inventory", deferredInventoryList);
@@ -429,7 +429,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 		compound.putFloat("Reach", reach);
 		if (player == null)
 			return;
-		compound.put("HeldItem", NBTSerializer.serializeNBT(player.getMainHandItem()));
+		compound.put("HeldItem", NBTSerializer.serializeNBT(player.getMainHandStack()));
 		if (player.spawnedItemEffects != null) {
 			compound.put("Particle", NBTSerializer.serializeNBT(player.spawnedItemEffects));
 			player.spawnedItemEffects = null;
@@ -437,7 +437,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 	}
 
 	@Override
-	public void writeSafe(CompoundTag tag) {
+	public void writeSafe(NbtCompound tag) {
 		NBTHelper.writeEnum(tag, "Mode", mode);
 		super.writeSafe(tag);
 	}
@@ -447,9 +447,9 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 	}
 
 	public void redstoneUpdate() {
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
-		boolean blockPowered = level.hasNeighborSignal(worldPosition);
+		boolean blockPowered = world.isReceivingRedstonePower(pos);
 		if (blockPowered == redstoneLocked)
 			return;
 		redstoneLocked = blockPowered;
@@ -463,8 +463,8 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return super.createRenderBoundingBox().inflate(3);
+	protected Box createRenderBoundingBox() {
+		return super.createRenderBoundingBox().expand(3);
 	}
 
 	public void discardPlayer() {
@@ -472,7 +472,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 			return;
 		player.getInventory()
 			.dropAll();
-		overflowItems.forEach(itemstack -> player.drop(itemstack, true, false));
+		overflowItems.forEach(itemstack -> player.dropItem(itemstack, true, false));
 		player.discard();
 		player = null;
 	}
@@ -484,7 +484,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 
 	public void changeMode() {
 		mode = mode == Mode.PUNCH ? Mode.USE : Mode.PUNCH;
-		setChanged();
+		markDirty();
 		sendData();
 	}
 
@@ -497,7 +497,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 	}
 
 	@Override
-	public boolean addToTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		if (super.addToTooltip(tooltip, isPlayerSneaking))
 			return true;
 		if (getSpeed() == 0)
@@ -509,22 +509,22 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		Lang.translate("tooltip.deployer.header")
 			.forGoggles(tooltip);
 
 		Lang.translate("tooltip.deployer." + (mode == Mode.USE ? "using" : "punching"))
-			.style(ChatFormatting.YELLOW)
+			.style(Formatting.YELLOW)
 			.forGoggles(tooltip);
 
 		if (!heldItem.isEmpty())
-			Lang.translate("tooltip.deployer.contains", Components.translatable(heldItem.getDescriptionId())
+			Lang.translate("tooltip.deployer.contains", Components.translatable(heldItem.getTranslationKey())
 				.getString(), heldItem.getCount())
-				.style(ChatFormatting.GREEN)
+				.style(Formatting.GREEN)
 				.forGoggles(tooltip);
 
 		float stressAtBase = calculateStressApplied();
-		if (StressImpact.isEnabled() && !Mth.equal(stressAtBase, 0)) {
+		if (StressImpact.isEnabled() && !MathHelper.approximatelyEquals(stressAtBase, 0)) {
 			tooltip.add(Components.immutableEmpty());
 			addStressImpactStats(tooltip, stressAtBase);
 		}
@@ -550,7 +550,7 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 			progress = (timer - partialTicks * timerSpeed) / 1000f;
 		float handLength = handPose == AllPartialModels.DEPLOYER_HAND_POINTING ? 0
 			: handPose == AllPartialModels.DEPLOYER_HAND_HOLDING ? 4 / 16f : 3 / 16f;
-		float distance = Math.min(Mth.clamp(progress, 0, 1) * (reach + handLength), 21 / 16f);
+		float distance = Math.min(MathHelper.clamp(progress, 0, 1) * (reach + handLength), 21 / 16f);
 
 		return distance;
 	}
@@ -563,26 +563,26 @@ public class DeployerBlockEntity extends KineticBlockEntity implements SidedStor
 	SandPaperInv sandpaperInv = new SandPaperInv(ItemStack.EMPTY);
 
 	@Nullable
-	public Recipe<? extends Container> getRecipe(ItemStack stack) {
-		if (player == null || level == null)
+	public Recipe<? extends Inventory> getRecipe(ItemStack stack) {
+		if (player == null || world == null)
 			return null;
 
-		ItemStack heldItemMainhand = player.getMainHandItem();
+		ItemStack heldItemMainhand = player.getMainHandStack();
 		if (heldItemMainhand.getItem() instanceof SandPaperItem) {
-			sandpaperInv.setItem(0, stack);
-			return AllRecipeTypes.SANDPAPER_POLISHING.find(sandpaperInv, level)
+			sandpaperInv.setStack(0, stack);
+			return AllRecipeTypes.SANDPAPER_POLISHING.find(sandpaperInv, world)
 				.orElse(null);
 		}
 
-		recipeInv.setItem(0, stack);
-		recipeInv.setItem(1, heldItemMainhand);
+		recipeInv.setStack(0, stack);
+		recipeInv.setStack(1, heldItemMainhand);
 
 		DeployerRecipeSearchEvent event = new DeployerRecipeSearchEvent(this, recipeInv);
 
-		event.addRecipe(() -> SequencedAssemblyRecipe.getRecipe(level, event.getInventory(),
+		event.addRecipe(() -> SequencedAssemblyRecipe.getRecipe(world, event.getInventory(),
 			AllRecipeTypes.DEPLOYING.getType(), DeployerApplicationRecipe.class), 100);
-		event.addRecipe(() -> AllRecipeTypes.DEPLOYING.find(event.getInventory(), level), 50);
-		event.addRecipe(() -> AllRecipeTypes.ITEM_APPLICATION.find(event.getInventory(), level), 50);
+		event.addRecipe(() -> AllRecipeTypes.DEPLOYING.find(event.getInventory(), world), 50);
+		event.addRecipe(() -> AllRecipeTypes.ITEM_APPLICATION.find(event.getInventory(), world), 50);
 
 		DeployerRecipeSearchEvent.EVENT.invoker().handle(event);
 		return event.getRecipe();

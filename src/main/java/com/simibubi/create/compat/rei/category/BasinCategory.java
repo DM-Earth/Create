@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.mutable.MutableInt;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.compat.rei.display.CreateDisplay;
@@ -24,11 +22,11 @@ import me.shedaniel.math.Point;
 import me.shedaniel.rei.api.client.gui.widgets.Slot;
 import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.common.util.EntryIngredients;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.collection.DefaultedList;
 
 public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
 
@@ -42,10 +40,10 @@ public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
 	@Override
 	public void addWidgets(CreateDisplay<BasinRecipe> display, List<Widget> widgets, Point origin) {
 		BasinRecipe recipe = display.getRecipe();
-		NonNullList<FluidIngredient> fluidIngredients = recipe.getFluidIngredients();
+		DefaultedList<FluidIngredient> fluidIngredients = recipe.getFluidIngredients();
 		List<Pair<Ingredient, MutableInt>> ingredients = ItemHelper.condenseIngredients(recipe.getIngredients());
 		List<ProcessingOutput> itemOutputs = recipe.getRollableResults();
-		NonNullList<FluidStack> fluidOutputs = recipe.getFluidResults();
+		DefaultedList<FluidStack> fluidOutputs = recipe.getFluidResults();
 
 		int size = ingredients.size() + fluidIngredients.size();
 		int xOffset = size < 3 ? (3 - size) * 19 / 2 : 0;
@@ -58,7 +56,7 @@ public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
 			Ingredient ingredient = pair.getFirst();
 			MutableInt amount = pair.getSecond();
 
-			for (ItemStack itemStack : ingredient.getItems()) {
+			for (ItemStack itemStack : ingredient.getMatchingStacks()) {
 				ItemStack stack = itemStack.copy();
 				stack.setCount(amount.getValue());
 				stacks.add(stack);
@@ -119,7 +117,7 @@ public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
 	}
 
 	@Override
-	public void draw(BasinRecipe recipe, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(BasinRecipe recipe, DrawContext graphics, double mouseX, double mouseY) {
 		List<Pair<Ingredient, MutableInt>> actualIngredients = ItemHelper.condenseIngredients(recipe.getIngredients());
 
 		int size = actualIngredients.size() + recipe.getFluidIngredients()
@@ -150,7 +148,7 @@ public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
 
 		AllGuiTextures heatBar = noHeat ? AllGuiTextures.JEI_NO_HEAT_BAR : AllGuiTextures.JEI_HEAT_BAR;
 		heatBar.render(graphics, 4, 80);
-		graphics.drawString(Minecraft.getInstance().font, Lang.translateDirect(requiredHeat.getTranslationKey()), 9,
+		graphics.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, Lang.translateDirect(requiredHeat.getTranslationKey()), 9,
 			86, requiredHeat.getColor());
 	}
 

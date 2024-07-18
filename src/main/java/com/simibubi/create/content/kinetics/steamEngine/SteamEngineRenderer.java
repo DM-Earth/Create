@@ -2,38 +2,37 @@ package com.simibubi.create.content.kinetics.steamEngine;
 
 import com.jozufozu.flywheel.backend.Backend;
 import com.jozufozu.flywheel.core.PartialModel;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
 
 public class SteamEngineRenderer extends SafeBlockEntityRenderer<SteamEngineBlockEntity> {
 
-	public SteamEngineRenderer(BlockEntityRendererProvider.Context context) {}
+	public SteamEngineRenderer(BlockEntityRendererFactory.Context context) {}
 
 	@Override
-	protected void renderSafe(SteamEngineBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(SteamEngineBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
-		if (Backend.canUseInstancing(be.getLevel()))
+		if (Backend.canUseInstancing(be.getWorld()))
 			return;
 
 		Float angle = be.getTargetAngle();
 		if (angle == null)
 			return;
 
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		Direction facing = SteamEngineBlock.getFacing(blockState);
 		Axis facingAxis = facing.getAxis();
 		Axis axis = Axis.Y;
@@ -43,11 +42,11 @@ public class SteamEngineRenderer extends SafeBlockEntityRenderer<SteamEngineBloc
 			axis = KineticBlockEntityRenderer.getRotationAxisOf(shaft);
 
 		boolean roll90 = facingAxis.isHorizontal() && axis == Axis.Y || facingAxis.isVertical() && axis == Axis.Z;
-		float sine = Mth.sin(angle);
-		float sine2 = Mth.sin(angle - Mth.HALF_PI);
+		float sine = MathHelper.sin(angle);
+		float sine2 = MathHelper.sin(angle - MathHelper.HALF_PI);
 		float piston = ((1 - sine) / 4) * 24 / 16f;
 
-		VertexConsumer vb = buffer.getBuffer(RenderType.solid());
+		VertexConsumer vb = buffer.getBuffer(RenderLayer.getSolid());
 
 		transformed(AllPartialModels.ENGINE_PISTON, blockState, facing, roll90)
 			.translate(0, piston, 0)
@@ -68,7 +67,7 @@ public class SteamEngineRenderer extends SafeBlockEntityRenderer<SteamEngineBloc
 		transformed(AllPartialModels.ENGINE_CONNECTOR, blockState, facing, roll90)
 			.translate(0, 2, 0)
 			.centre()
-			.rotateXRadians(-angle + Mth.HALF_PI)
+			.rotateXRadians(-angle + MathHelper.HALF_PI)
 			.unCentre()
 			.light(light)
 			.renderInto(ms, vb);
@@ -84,7 +83,7 @@ public class SteamEngineRenderer extends SafeBlockEntityRenderer<SteamEngineBloc
 	}
 	
 	@Override
-	public int getViewDistance() {
+	public int getRenderDistance() {
 		return 128;
 	}
 

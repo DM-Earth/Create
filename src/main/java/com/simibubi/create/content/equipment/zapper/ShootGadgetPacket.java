@@ -4,33 +4,33 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.Vec3d;
 
 public abstract class ShootGadgetPacket extends SimplePacketBase {
 
-	public Vec3 location;
-	public InteractionHand hand;
+	public Vec3d location;
+	public Hand hand;
 	public boolean self;
 
-	public ShootGadgetPacket(Vec3 location, InteractionHand hand, boolean self) {
+	public ShootGadgetPacket(Vec3d location, Hand hand, boolean self) {
 		this.location = location;
 		this.hand = hand;
 		this.self = self;
 	}
 
-	public ShootGadgetPacket(FriendlyByteBuf buffer) {
-		hand = buffer.readBoolean() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+	public ShootGadgetPacket(PacketByteBuf buffer) {
+		hand = buffer.readBoolean() ? Hand.MAIN_HAND : Hand.OFF_HAND;
 		self = buffer.readBoolean();
-		location = new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
+		location = new Vec3d(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
 		readAdditional(buffer);
 	}
 
-	public final void write(FriendlyByteBuf buffer) {
-		buffer.writeBoolean(hand == InteractionHand.MAIN_HAND);
+	public final void write(PacketByteBuf buffer) {
+		buffer.writeBoolean(hand == Hand.MAIN_HAND);
 		buffer.writeBoolean(self);
 		buffer.writeDouble(location.x);
 		buffer.writeDouble(location.y);
@@ -38,9 +38,9 @@ public abstract class ShootGadgetPacket extends SimplePacketBase {
 		writeAdditional(buffer);
 	}
 
-	protected abstract void readAdditional(FriendlyByteBuf buffer);
+	protected abstract void readAdditional(PacketByteBuf buffer);
 
-	protected abstract void writeAdditional(FriendlyByteBuf buffer);
+	protected abstract void writeAdditional(PacketByteBuf buffer);
 
 	@Environment(EnvType.CLIENT)
 	protected abstract void handleAdditional();
@@ -52,11 +52,11 @@ public abstract class ShootGadgetPacket extends SimplePacketBase {
 	@Environment(EnvType.CLIENT)
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			Entity renderViewEntity = Minecraft.getInstance()
+			Entity renderViewEntity = MinecraftClient.getInstance()
 				.getCameraEntity();
 			if (renderViewEntity == null)
 				return;
-			if (renderViewEntity.position()
+			if (renderViewEntity.getPos()
 				.distanceTo(location) > 100)
 				return;
 

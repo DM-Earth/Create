@@ -12,10 +12,9 @@ import com.simibubi.create.content.contraptions.render.ActorInstance;
 import com.simibubi.create.foundation.render.AllMaterialSpecs;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 
 public class DrillActorInstance extends ActorInstance {
 
@@ -30,7 +29,7 @@ public class DrillActorInstance extends ActorInstance {
 
         BlockState state = context.state;
 
-        facing = state.getValue(DrillBlock.FACING);
+        facing = state.get(DrillBlock.FACING);
 
         Direction.Axis axis = facing.getAxis();
         float eulerX = AngleHelper.verticalAngle(facing);
@@ -39,7 +38,7 @@ public class DrillActorInstance extends ActorInstance {
         if (axis == Direction.Axis.Y)
             eulerY = 0;
         else
-            eulerY = facing.toYRot() + ((axis == Direction.Axis.X) ? 180 : 0);
+            eulerY = facing.asRotation() + ((axis == Direction.Axis.X) ? 180 : 0);
 
         drillHead = material.getModel(AllPartialModels.DRILL_HEAD, state).createInstance();
 
@@ -47,7 +46,7 @@ public class DrillActorInstance extends ActorInstance {
                  .setBlockLight(localBlockLight())
                  .setRotationOffset(0)
                  .setRotationAxis(0, 0, 1)
-                 .setLocalRotation(new Quaternionf().rotationXYZ(eulerX * Mth.DEG_TO_RAD, eulerY * Mth.DEG_TO_RAD, 0))
+                 .setLocalRotation(new Quaternionf().rotationXYZ(eulerX * MathHelper.RADIANS_PER_DEGREE, eulerY * MathHelper.RADIANS_PER_DEGREE, 0))
                  .setSpeed(getSpeed(facing));
     }
 

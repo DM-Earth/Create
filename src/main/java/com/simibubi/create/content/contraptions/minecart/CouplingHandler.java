@@ -5,7 +5,12 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Hand;
+import net.minecraft.world.World;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
@@ -17,18 +22,11 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import io.github.fabricators_of_create.porting_lib.util.LazyOptional;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 
 public class CouplingHandler {
 
 	public static boolean preventEntitiesFromMoutingOccupiedCart(Entity vehicle, Entity passenger) {
-		if (vehicle instanceof AbstractMinecart cart) {
+		if (vehicle instanceof AbstractMinecartEntity cart) {
 			if (passenger instanceof AbstractContraptionEntity)
 				return true;
 			MinecartController controller = cart.create$getController();
@@ -39,7 +37,7 @@ public class CouplingHandler {
 		return true;
 	}
 
-	public static void forEachLoadedCoupling(Level world, Consumer<Couple<MinecartController>> consumer) {
+	public static void forEachLoadedCoupling(World world, Consumer<Couple<MinecartController>> consumer) {
 		if (world == null)
 			return;
 		Set<UUID> cartsWithCoupling = CapabilityMinecartController.loadedMinecartsWithCoupling.get(world);
@@ -59,13 +57,13 @@ public class CouplingHandler {
 		});
 	}
 
-	public static boolean tryToCoupleCarts(@Nullable Player player, Level world, int cartId1, int cartId2) {
-		Entity entity1 = world.getEntity(cartId1);
-		Entity entity2 = world.getEntity(cartId2);
+	public static boolean tryToCoupleCarts(@Nullable PlayerEntity player, World world, int cartId1, int cartId2) {
+		Entity entity1 = world.getEntityById(cartId1);
+		Entity entity2 = world.getEntityById(cartId2);
 
-		if (!(entity1 instanceof AbstractMinecart))
+		if (!(entity1 instanceof AbstractMinecartEntity))
 			return false;
-		if (!(entity2 instanceof AbstractMinecart))
+		if (!(entity2 instanceof AbstractMinecartEntity))
 			return false;
 
 		String tooMany = "two_couplings_max";
@@ -73,8 +71,8 @@ public class CouplingHandler {
 		String noLoops = "no_loops";
 		String tooFar = "too_far";
 
-		int distanceTo = (int) entity1.position()
-			.distanceTo(entity2.position());
+		int distanceTo = (int) entity1.getPos()
+			.distanceTo(entity2.getPos());
 		boolean contraptionCoupling = player == null;
 
 		if (distanceTo < 2) {
@@ -88,10 +86,10 @@ public class CouplingHandler {
 			return false;
 		}
 
-		AbstractMinecart cart1 = (AbstractMinecart) entity1;
-		AbstractMinecart cart2 = (AbstractMinecart) entity2;
-		UUID mainID = cart1.getUUID();
-		UUID connectedID = cart2.getUUID();
+		AbstractMinecartEntity cart1 = (AbstractMinecartEntity) entity1;
+		AbstractMinecartEntity cart2 = (AbstractMinecartEntity) entity2;
+		UUID mainID = cart1.getUuid();
+		UUID connectedID = cart2.getUuid();
 		MinecartController mainController = CapabilityMinecartController.getIfPresent(world, mainID);
 		MinecartController connectedController = CapabilityMinecartController.getIfPresent(world, connectedID);
 
@@ -136,13 +134,13 @@ public class CouplingHandler {
 		}
 
 		if (!contraptionCoupling) {
-			for (InteractionHand hand : InteractionHand.values()) {
+			for (Hand hand : Hand.values()) {
 				if (player.isCreative())
 					break;
-				ItemStack heldItem = player.getItemInHand(hand);
+				ItemStack heldItem = player.getStackInHand(hand);
 				if (!AllItems.MINECART_COUPLING.isIn(heldItem))
 					continue;
-				heldItem.shrink(1);
+				heldItem.decrement(1);
 				break;
 			}
 		}
@@ -159,7 +157,7 @@ public class CouplingHandler {
 	/**
 	 * MinecartController.EMPTY if none connected, null if not yet loaded
 	 */
-	public static MinecartController getNextInCouplingChain(Level world, MinecartController controller,
+	public static MinecartController getNextInCouplingChain(World world, MinecartController controller,
 		boolean forward) {
 		UUID coupledCart = controller.getCoupledCart(forward);
 		if (coupledCart == null)
@@ -167,10 +165,10 @@ public class CouplingHandler {
 		return CapabilityMinecartController.getIfPresent(world, coupledCart);
 	}
 
-	public static void status(Player player, String key) {
+	public static void status(PlayerEntity player, String key) {
 		if (player == null)
 			return;
-		player.displayClientMessage(Lang.translateDirect("minecart_coupling." + key), true);
+		player.sendMessage(Lang.translateDirect("minecart_coupling." + key), true);
 	}
 
 }

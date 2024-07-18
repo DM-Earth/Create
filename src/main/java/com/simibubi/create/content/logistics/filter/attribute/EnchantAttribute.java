@@ -4,17 +4,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.content.logistics.filter.ItemAttribute;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 
 public class EnchantAttribute implements ItemAttribute {
     public static final EnchantAttribute EMPTY = new EnchantAttribute(null);
@@ -27,12 +24,12 @@ public class EnchantAttribute implements ItemAttribute {
 
     @Override
     public boolean appliesTo(ItemStack itemStack) {
-        return EnchantmentHelper.getEnchantments(itemStack).containsKey(enchantment);
+        return EnchantmentHelper.get(itemStack).containsKey(enchantment);
     }
 
     @Override
     public List<ItemAttribute> listAttributesOf(ItemStack itemStack) {
-        return EnchantmentHelper.getEnchantments(itemStack).keySet().stream().map(EnchantAttribute::new).collect(Collectors.toList());
+        return EnchantmentHelper.get(itemStack).keySet().stream().map(EnchantAttribute::new).collect(Collectors.toList());
     }
 
     @Override
@@ -44,22 +41,22 @@ public class EnchantAttribute implements ItemAttribute {
     public Object[] getTranslationParameters() {
         String parameter = "";
         if(enchantment != null)
-            parameter = Components.translatable(enchantment.getDescriptionId()).getString();
+            parameter = Components.translatable(enchantment.getTranslationKey()).getString();
         return new Object[] { parameter };
     }
 
     @Override
-    public void writeNBT(CompoundTag nbt) {
+    public void writeNBT(NbtCompound nbt) {
         if (enchantment == null)
             return;
-        ResourceLocation id = BuiltInRegistries.ENCHANTMENT.getKey(enchantment);
+        Identifier id = Registries.ENCHANTMENT.getId(enchantment);
         if (id == null)
             return;
         nbt.putString("id", id.toString());
     }
 
     @Override
-    public ItemAttribute readNBT(CompoundTag nbt) {
-        return nbt.contains("id") ? new EnchantAttribute(BuiltInRegistries.ENCHANTMENT.get(ResourceLocation.tryParse(nbt.getString("id")))) : EMPTY;
+    public ItemAttribute readNBT(NbtCompound nbt) {
+        return nbt.contains("id") ? new EnchantAttribute(Registries.ENCHANTMENT.get(Identifier.tryParse(nbt.getString("id")))) : EMPTY;
     }
 }

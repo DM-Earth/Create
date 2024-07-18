@@ -1,62 +1,60 @@
 package com.simibubi.create.compat.trinkets;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-
-import com.mojang.math.Axis;
 import com.simibubi.create.AllItems;
 
 import dev.emi.trinkets.api.SlotReference;
 import dev.emi.trinkets.api.TrinketInventory;
 import dev.emi.trinkets.api.TrinketsApi;
 import dev.emi.trinkets.api.client.TrinketRenderer;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.EntityModel;
-import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.block.model.ItemTransforms;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.model.EntityModel;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.RotationAxis;
 
 public class GoggleTrinketRenderer implements TrinketRenderer {
 	@Override
 	public void render(ItemStack stack, SlotReference slotReference, EntityModel<? extends LivingEntity> model,
-					   PoseStack matrices, MultiBufferSource multiBufferSource, int light, LivingEntity entity,
+					   MatrixStack matrices, VertexConsumerProvider multiBufferSource, int light, LivingEntity entity,
 					   float limbAngle, float limbDistance, float tickDelta, float animationProgress,
 					   float headYaw, float headPitch) {
 		if (AllItems.GOGGLES.isIn(stack) &&
-				model instanceof PlayerModel playerModel &&
-				entity instanceof AbstractClientPlayer player) {
+				model instanceof PlayerEntityModel playerModel &&
+				entity instanceof AbstractClientPlayerEntity player) {
 
 			// Translate and rotate with our head
-			matrices.pushPose();
+			matrices.push();
 			TrinketRenderer.followBodyRotations(entity, playerModel);
 			TrinketRenderer.translateToFace(matrices, playerModel, player, headYaw, headPitch);
 
 			// Translate and scale to our head
 			matrices.translate(0, 0, 0.3);
-			matrices.mulPose(Axis.ZP.rotationDegrees(180.0f));
+			matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180.0f));
 			matrices.scale(0.625f, 0.625f, 0.625f);
 
 			if (headOccupied(entity)) {
-				matrices.mulPose(Axis.ZP.rotationDegrees(180.0f));
+				matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180.0f));
 				matrices.translate(0, -0.25, 0);
 			}
 
 			// Render
-			Minecraft mc = Minecraft.getInstance();
+			MinecraftClient mc = MinecraftClient.getInstance();
 			mc.getItemRenderer()
-					.renderStatic(stack, ItemDisplayContext.HEAD, light, OverlayTexture.NO_OVERLAY, matrices,
-							multiBufferSource, mc.level, 0);
-			matrices.popPose();
+					.renderItem(stack, ModelTransformationMode.HEAD, light, OverlayTexture.DEFAULT_UV, matrices,
+							multiBufferSource, mc.world, 0);
+			matrices.pop();
 		}
 	}
 
 	public static boolean headOccupied(LivingEntity entity) {
-		if (!entity.getItemBySlot(EquipmentSlot.HEAD).isEmpty())
+		if (!entity.getEquippedStack(EquipmentSlot.HEAD).isEmpty())
 			return true;
 		return TrinketsApi.getTrinketComponent(entity)
 				.filter(component -> {							 // guaranteed  // may be null

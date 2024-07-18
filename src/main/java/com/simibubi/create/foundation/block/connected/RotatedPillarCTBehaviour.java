@@ -3,14 +3,13 @@ package com.simibubi.create.foundation.block.connected;
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
 import com.simibubi.create.content.decoration.palettes.ConnectedPillarBlock;
 import com.simibubi.create.content.decoration.palettes.LayeredBlock;
-
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.world.BlockRenderView;
 
 public class RotatedPillarCTBehaviour extends HorizontalCTBehaviour {
 
@@ -19,12 +18,12 @@ public class RotatedPillarCTBehaviour extends HorizontalCTBehaviour {
 	}
 
 	@Override
-	public boolean connectsTo(BlockState state, BlockState other, BlockAndTintGetter reader, BlockPos pos,
+	public boolean connectsTo(BlockState state, BlockState other, BlockRenderView reader, BlockPos pos,
 		BlockPos otherPos, Direction face, Direction primaryOffset, Direction secondaryOffset) {
 		if (other.getBlock() != state.getBlock())
 			return false;
-		Axis stateAxis = state.getValue(LayeredBlock.AXIS);
-		if (other.getValue(LayeredBlock.AXIS) != stateAxis)
+		Axis stateAxis = state.get(LayeredBlock.AXIS);
+		if (other.get(LayeredBlock.AXIS) != stateAxis)
 			return false;
 		if (isBeingBlocked(state, reader, pos, otherPos, face))
 			return false;
@@ -45,19 +44,19 @@ public class RotatedPillarCTBehaviour extends HorizontalCTBehaviour {
 	}
 
 	@Override
-	protected boolean isBeingBlocked(BlockState state, BlockAndTintGetter reader, BlockPos pos, BlockPos otherPos,
+	protected boolean isBeingBlocked(BlockState state, BlockRenderView reader, BlockPos pos, BlockPos otherPos,
 		Direction face) {
-		return state.getValue(LayeredBlock.AXIS) == face.getAxis()
+		return state.get(LayeredBlock.AXIS) == face.getAxis()
 			&& super.isBeingBlocked(state, reader, pos, otherPos, face);
 	}
 
 	@Override
 	protected boolean reverseUVs(BlockState state, Direction face) {
-		Axis axis = state.getValue(LayeredBlock.AXIS);
+		Axis axis = state.get(LayeredBlock.AXIS);
 		if (axis == Axis.X)
-			return face.getAxisDirection() == AxisDirection.NEGATIVE && face.getAxis() != Axis.X;
+			return face.getDirection() == AxisDirection.NEGATIVE && face.getAxis() != Axis.X;
 		if (axis == Axis.Z)
-			return face != Direction.NORTH && face.getAxisDirection() != AxisDirection.POSITIVE;
+			return face != Direction.NORTH && face.getDirection() != AxisDirection.POSITIVE;
 		return super.reverseUVs(state, face);
 	}
 
@@ -68,7 +67,7 @@ public class RotatedPillarCTBehaviour extends HorizontalCTBehaviour {
 
 	@Override
 	protected boolean reverseUVsVertically(BlockState state, Direction face) {
-		Axis axis = state.getValue(LayeredBlock.AXIS);
+		Axis axis = state.get(LayeredBlock.AXIS);
 		if (axis == Axis.X && face == Direction.NORTH)
 			return false;
 		if (axis == Axis.Z && face == Direction.WEST)
@@ -77,38 +76,38 @@ public class RotatedPillarCTBehaviour extends HorizontalCTBehaviour {
 	}
 
 	@Override
-	protected Direction getUpDirection(BlockAndTintGetter reader, BlockPos pos, BlockState state, Direction face) {
-		Axis axis = state.getValue(LayeredBlock.AXIS);
+	protected Direction getUpDirection(BlockRenderView reader, BlockPos pos, BlockState state, Direction face) {
+		Axis axis = state.get(LayeredBlock.AXIS);
 		if (axis == Axis.Y)
 			return super.getUpDirection(reader, pos, state, face);
 		boolean alongX = axis == Axis.X;
 		if (face.getAxis()
 			.isVertical() && alongX)
-			return super.getUpDirection(reader, pos, state, face).getClockWise();
+			return super.getUpDirection(reader, pos, state, face).rotateYClockwise();
 		if (face.getAxis() == axis || face.getAxis()
 			.isVertical())
 			return super.getUpDirection(reader, pos, state, face);
-		return Direction.fromAxisAndDirection(axis, alongX ? AxisDirection.POSITIVE : AxisDirection.NEGATIVE);
+		return Direction.from(axis, alongX ? AxisDirection.POSITIVE : AxisDirection.NEGATIVE);
 	}
 
 	@Override
-	protected Direction getRightDirection(BlockAndTintGetter reader, BlockPos pos, BlockState state, Direction face) {
-		Axis axis = state.getValue(LayeredBlock.AXIS);
+	protected Direction getRightDirection(BlockRenderView reader, BlockPos pos, BlockState state, Direction face) {
+		Axis axis = state.get(LayeredBlock.AXIS);
 		if (axis == Axis.Y)
 			return super.getRightDirection(reader, pos, state, face);
 		if (face.getAxis()
 			.isVertical() && axis == Axis.X)
-			return super.getRightDirection(reader, pos, state, face).getClockWise();
+			return super.getRightDirection(reader, pos, state, face).rotateYClockwise();
 		if (face.getAxis() == axis || face.getAxis()
 			.isVertical())
 			return super.getRightDirection(reader, pos, state, face);
-		return Direction.fromAxisAndDirection(Axis.Y, face.getAxisDirection());
+		return Direction.from(Axis.Y, face.getDirection());
 	}
 
 	@Override
-	public CTSpriteShiftEntry getShift(BlockState state, Direction direction, TextureAtlasSprite sprite) {
+	public CTSpriteShiftEntry getShift(BlockState state, Direction direction, Sprite sprite) {
 		return super.getShift(state,
-			direction.getAxis() == state.getValue(LayeredBlock.AXIS) ? Direction.UP : Direction.SOUTH, sprite);
+			direction.getAxis() == state.get(LayeredBlock.AXIS) ? Direction.UP : Direction.SOUTH, sprite);
 	}
 
 }

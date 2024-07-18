@@ -1,10 +1,9 @@
 package com.simibubi.create.content.kinetics.drill;
 
 import com.simibubi.create.content.kinetics.base.BlockBreakingKineticBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
 
 public class DrillBlockEntity extends BlockBreakingKineticBlockEntity {
 
@@ -14,7 +13,7 @@ public class DrillBlockEntity extends BlockBreakingKineticBlockEntity {
 
 	@Override
 	protected BlockPos getBreakingPos() {
-		return getBlockPos().relative(getBlockState().getValue(DrillBlock.FACING));
+		return getPos().offset(getCachedState().get(DrillBlock.FACING));
 	}
 
 }

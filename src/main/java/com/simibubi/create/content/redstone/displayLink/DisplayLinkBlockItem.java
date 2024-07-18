@@ -7,28 +7,28 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import io.github.fabricators_of_create.porting_lib.item.BlockUseBypassingItem;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.World;
 
 public class DisplayLinkBlockItem extends BlockItem implements BlockUseBypassingItem {
 
-	public DisplayLinkBlockItem(Block pBlock, Properties pProperties) {
+	public DisplayLinkBlockItem(Block pBlock, Settings pProperties) {
 		super(pBlock, pProperties);
 	}
 
@@ -45,8 +45,8 @@ public class DisplayLinkBlockItem extends BlockItem implements BlockUseBypassing
 //	}
 
 	@Override
-	public boolean shouldBypass(BlockState state, BlockPos pos, Level level, Player player, InteractionHand hand) {
-		ItemStack usedItem = player.getItemInHand(hand);
+	public boolean shouldBypass(BlockState state, BlockPos pos, World level, PlayerEntity player, Hand hand) {
+		ItemStack usedItem = player.getStackInHand(hand);
 		if (usedItem.getItem() instanceof DisplayLinkBlockItem) {
 			if (!AllBlocks.DISPLAY_LINK.has(state))
 				return true;
@@ -55,79 +55,79 @@ public class DisplayLinkBlockItem extends BlockItem implements BlockUseBypassing
 	}
 
 	@Override
-	public InteractionResult useOn(UseOnContext pContext) {
-		ItemStack stack = pContext.getItemInHand();
-		BlockPos pos = pContext.getClickedPos();
-		Level level = pContext.getLevel();
+	public ActionResult useOnBlock(ItemUsageContext pContext) {
+		ItemStack stack = pContext.getStack();
+		BlockPos pos = pContext.getBlockPos();
+		World level = pContext.getWorld();
 		BlockState state = level.getBlockState(pos);
-		Player player = pContext.getPlayer();
+		PlayerEntity player = pContext.getPlayer();
 
 		if (player == null)
-			return InteractionResult.FAIL;
+			return ActionResult.FAIL;
 
-		if (player.isShiftKeyDown() && stack.hasTag()) {
-			if (level.isClientSide)
-				return InteractionResult.SUCCESS;
-			player.displayClientMessage(Lang.translateDirect("display_link.clear"), true);
-			stack.setTag(null);
-			return InteractionResult.SUCCESS;
+		if (player.isSneaking() && stack.hasNbt()) {
+			if (level.isClient)
+				return ActionResult.SUCCESS;
+			player.sendMessage(Lang.translateDirect("display_link.clear"), true);
+			stack.setNbt(null);
+			return ActionResult.SUCCESS;
 		}
 
-		if (!stack.hasTag()) {
-			if (level.isClientSide)
-				return InteractionResult.SUCCESS;
-			CompoundTag stackTag = stack.getOrCreateTag();
-			stackTag.put("SelectedPos", NbtUtils.writeBlockPos(pos));
-			player.displayClientMessage(Lang.translateDirect("display_link.set"), true);
-			stack.setTag(stackTag);
-			return InteractionResult.SUCCESS;
+		if (!stack.hasNbt()) {
+			if (level.isClient)
+				return ActionResult.SUCCESS;
+			NbtCompound stackTag = stack.getOrCreateNbt();
+			stackTag.put("SelectedPos", NbtHelper.fromBlockPos(pos));
+			player.sendMessage(Lang.translateDirect("display_link.set"), true);
+			stack.setNbt(stackTag);
+			return ActionResult.SUCCESS;
 		}
 
-		CompoundTag tag = stack.getTag();
-		CompoundTag teTag = new CompoundTag();
+		NbtCompound tag = stack.getNbt();
+		NbtCompound teTag = new NbtCompound();
 
-		BlockPos selectedPos = NbtUtils.readBlockPos(tag.getCompound("SelectedPos"));
-		BlockPos placedPos = pos.relative(pContext.getClickedFace(), state.canBeReplaced() ? 0 : 1);
+		BlockPos selectedPos = NbtHelper.toBlockPos(tag.getCompound("SelectedPos"));
+		BlockPos placedPos = pos.offset(pContext.getSide(), state.isReplaceable() ? 0 : 1);
 
-		if (!selectedPos.closerThan(placedPos, AllConfigs.server().logistics.displayLinkRange.get())) {
-			player.displayClientMessage(Lang.translateDirect("display_link.too_far")
-				.withStyle(ChatFormatting.RED), true);
-			return InteractionResult.FAIL;
+		if (!selectedPos.isWithinDistance(placedPos, AllConfigs.server().logistics.displayLinkRange.get())) {
+			player.sendMessage(Lang.translateDirect("display_link.too_far")
+				.formatted(Formatting.RED), true);
+			return ActionResult.FAIL;
 		}
 
-		teTag.put("TargetOffset", NbtUtils.writeBlockPos(selectedPos.subtract(placedPos)));
+		teTag.put("TargetOffset", NbtHelper.fromBlockPos(selectedPos.subtract(placedPos)));
 		tag.put("BlockEntityTag", teTag);
 
-		InteractionResult useOn = super.useOn(pContext);
-		if (level.isClientSide || useOn == InteractionResult.FAIL)
+		ActionResult useOn = super.useOnBlock(pContext);
+		if (level.isClient || useOn == ActionResult.FAIL)
 			return useOn;
 
-		ItemStack itemInHand = player.getItemInHand(pContext.getHand());
+		ItemStack itemInHand = player.getStackInHand(pContext.getHand());
 		if (!itemInHand.isEmpty())
-			itemInHand.setTag(null);
-		player.displayClientMessage(Lang.translateDirect("display_link.success")
-			.withStyle(ChatFormatting.GREEN), true);
+			itemInHand.setNbt(null);
+		player.sendMessage(Lang.translateDirect("display_link.success")
+			.formatted(Formatting.GREEN), true);
 		return useOn;
 	}
 
 	private static BlockPos lastShownPos = null;
-	private static AABB lastShownAABB = null;
+	private static Box lastShownAABB = null;
 
 	@Environment(EnvType.CLIENT)
 	public static void clientTick() {
-		Player player = Minecraft.getInstance().player;
+		PlayerEntity player = MinecraftClient.getInstance().player;
 		if (player == null)
 			return;
-		ItemStack heldItemMainhand = player.getMainHandItem();
+		ItemStack heldItemMainhand = player.getMainHandStack();
 		if (!(heldItemMainhand.getItem() instanceof DisplayLinkBlockItem))
 			return;
-		if (!heldItemMainhand.hasTag())
+		if (!heldItemMainhand.hasNbt())
 			return;
-		CompoundTag stackTag = heldItemMainhand.getOrCreateTag();
+		NbtCompound stackTag = heldItemMainhand.getOrCreateNbt();
 		if (!stackTag.contains("SelectedPos"))
 			return;
 
-		BlockPos selectedPos = NbtUtils.readBlockPos(stackTag.getCompound("SelectedPos"));
+		BlockPos selectedPos = NbtHelper.toBlockPos(stackTag.getCompound("SelectedPos"));
 
 		if (!selectedPos.equals(lastShownPos)) {
 			lastShownAABB = getBounds(selectedPos);
@@ -140,18 +140,18 @@ public class DisplayLinkBlockItem extends BlockItem implements BlockUseBypassing
 	}
 
 	@Environment(EnvType.CLIENT)
-	private static AABB getBounds(BlockPos pos) {
-		Level world = Minecraft.getInstance().level;
+	private static Box getBounds(BlockPos pos) {
+		World world = MinecraftClient.getInstance().world;
 		DisplayTarget target = AllDisplayBehaviours.targetOf(world, pos);
 
 		if (target != null)
 			return target.getMultiblockBounds(world, pos);
 
 		BlockState state = world.getBlockState(pos);
-		VoxelShape shape = state.getShape(world, pos);
-		return shape.isEmpty() ? new AABB(BlockPos.ZERO)
-			: shape.bounds()
-				.move(pos);
+		VoxelShape shape = state.getOutlineShape(world, pos);
+		return shape.isEmpty() ? new Box(BlockPos.ORIGIN)
+			: shape.getBoundingBox()
+				.offset(pos);
 	}
 
 }

@@ -15,19 +15,18 @@ import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.RedStoneWireBlock;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.LeverBlock;
+import net.minecraft.block.RedstoneWireBlock;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class FunnelScenes {
 
@@ -57,7 +56,7 @@ public class FunnelScenes {
 		for (int i = 0; i < 8; i++) {
 			scene.idle(8);
 			scene.world.removeItemsFromBelt(exitBeltPos);
-			scene.world.flapFunnel(exitBeltPos.above(), false);
+			scene.world.flapFunnel(exitBeltPos.up(), false);
 			if (i == 2)
 				scene.rotateCameraY(70);
 			if (i < 6)
@@ -68,13 +67,13 @@ public class FunnelScenes {
 		scene.idle(10);
 
 		Selection outputFunnel = util.select.position(1, 2, 4);
-		scene.world.setBlocks(outputFunnel, Blocks.AIR.defaultBlockState(), false);
+		scene.world.setBlocks(outputFunnel, Blocks.AIR.getDefaultState(), false);
 		scene.world.setBlocks(util.select.fromTo(2, -1, 4, 2, 0, 4), AllBlocks.ANDESITE_CASING.getDefaultState(), true);
 		ElementLink<WorldSectionElement> independentSection =
 			scene.world.showIndependentSection(verticalFunnel, Direction.UP);
 
-		Vec3 topItemSpawn = util.vector.centerOf(2, 6, 4);
-		Vec3 sideItemSpawn = util.vector.centerOf(1, 3, 4)
+		Vec3d topItemSpawn = util.vector.centerOf(2, 6, 4);
+		Vec3d sideItemSpawn = util.vector.centerOf(1, 3, 4)
 			.add(0.15f, -0.45f, 0);
 		ElementLink<EntityElement> lastItemEntity = null;
 
@@ -89,8 +88,8 @@ public class FunnelScenes {
 		scene.world.moveSection(independentSection, util.vector.of(0, 1, 0), 15);
 		scene.idle(10);
 		scene.world.setBlocks(outputFunnel, AllBlocks.ANDESITE_FUNNEL.getDefaultState()
-			.setValue(FunnelBlock.FACING, Direction.WEST)
-			.setValue(FunnelBlock.EXTRACTING, true), false);
+			.with(FunnelBlock.FACING, Direction.WEST)
+			.with(FunnelBlock.EXTRACTING, true), false);
 
 		for (int i = 0; i < 3; i++) {
 			scene.idle(8);
@@ -121,8 +120,8 @@ public class FunnelScenes {
 		scene.idle(15);
 
 		ItemStack itemStack = AllBlocks.BRASS_BLOCK.asStack();
-		Vec3 topCenter = util.vector.centerOf(topFunnel);
-		Vec3 topSide = util.vector.blockSurface(topFunnel, Direction.EAST);
+		Vec3d topCenter = util.vector.centerOf(topFunnel);
+		Vec3d topSide = util.vector.blockSurface(topFunnel, Direction.EAST);
 
 		InputWindowElement controlsSneak = new InputWindowElement(topCenter, Pointing.DOWN).rightClick()
 			.whileSneaking();
@@ -145,7 +144,7 @@ public class FunnelScenes {
 		scene.idle(20);
 
 		// Placing funnels with sneak
-		scene.world.modifyBlock(topFunnel, s -> s.setValue(FunnelBlock.EXTRACTING, false), false);
+		scene.world.modifyBlock(topFunnel, s -> s.with(FunnelBlock.EXTRACTING, false), false);
 		scene.idle(5);
 
 		scene.world.showSection(topFunnelSelection, Direction.DOWN);
@@ -189,8 +188,8 @@ public class FunnelScenes {
 
 		// Side funnel
 		BlockPos sideFunnel = util.grid.at(3, 2, 1);
-		Selection sideFunnelSelection = util.select.fromTo(sideFunnel.below(), sideFunnel);
-		Vec3 sideCenter = util.vector.centerOf(sideFunnel);
+		Selection sideFunnelSelection = util.select.fromTo(sideFunnel.down(), sideFunnel);
+		Vec3d sideCenter = util.vector.centerOf(sideFunnel);
 
 		scene.world.modifyBlock(sideFunnel, s -> s.cycle(FunnelBlock.EXTRACTING), false);
 		scene.world.showSection(sideFunnelSelection, Direction.DOWN);
@@ -213,7 +212,7 @@ public class FunnelScenes {
 		Selection beltFunnelSetup = util.select.fromTo(0, 1, 0, 2, 2, 5);
 		Selection gearshiftAndLever = util.select.fromTo(1, 1, 4, 1, 2, 4);
 		Selection gearshiftedKinetics = util.select.fromTo(1, 1, 2, 2, 1, 4);
-		Vec3 topOfBeltFunnel = util.vector.topOf(2, 2, 2);
+		Vec3d topOfBeltFunnel = util.vector.topOf(2, 2, 2);
 		BlockPos beltPos = util.grid.at(2, 1, 2);
 		BlockPos cogPos = util.grid.at(1, 1, 3);
 
@@ -230,7 +229,7 @@ public class FunnelScenes {
 			scene.effects.rotationDirectionIndicator(cogPos);
 			scene.idle(50);
 
-			scene.world.modifyBlocks(gearshiftAndLever, s -> s.cycle(BlockStateProperties.POWERED), false);
+			scene.world.modifyBlocks(gearshiftAndLever, s -> s.cycle(Properties.POWERED), false);
 			scene.world.modifyKineticSpeed(gearshiftedKinetics, f -> -f);
 			scene.effects.indicateRedstone(util.grid.at(1, 2, 4));
 			scene.effects.rotationDirectionIndicator(cogPos);
@@ -241,7 +240,7 @@ public class FunnelScenes {
 
 			if (i == 0) {
 				scene.idle(50);
-				scene.world.modifyBlocks(gearshiftAndLever, s -> s.cycle(BlockStateProperties.POWERED), false);
+				scene.world.modifyBlocks(gearshiftAndLever, s -> s.cycle(Properties.POWERED), false);
 				scene.world.modifyKineticSpeed(gearshiftedKinetics, f -> -f);
 				scene.effects.indicateRedstone(util.grid.at(1, 2, 4));
 			}
@@ -277,9 +276,9 @@ public class FunnelScenes {
 			.text("Vertical Saws")
 			.colored(PonderPalette.BLUE)
 			.placeNearTarget()
-			.pointAt(util.vector.centerOf(sawFunnel.below()));
+			.pointAt(util.vector.centerOf(sawFunnel.down()));
 		scene.idle(8);
-		scene.world.createItemOnBeltLike(sawFunnel.below(), Direction.SOUTH, new ItemStack(Blocks.OAK_LOG));
+		scene.world.createItemOnBeltLike(sawFunnel.down(), Direction.SOUTH, new ItemStack(Blocks.OAK_LOG));
 		scene.idle(40);
 
 		scene.world.showSection(util.select.position(depotFunnel), Direction.DOWN);
@@ -287,9 +286,9 @@ public class FunnelScenes {
 			.text("Depots")
 			.colored(PonderPalette.BLUE)
 			.placeNearTarget()
-			.pointAt(util.vector.centerOf(depotFunnel.below()));
+			.pointAt(util.vector.centerOf(depotFunnel.down()));
 		scene.idle(8);
-		scene.world.createItemOnBeltLike(depotFunnel.below(), Direction.SOUTH, new ItemStack(Items.GOLDEN_PICKAXE));
+		scene.world.createItemOnBeltLike(depotFunnel.down(), Direction.SOUTH, new ItemStack(Items.GOLDEN_PICKAXE));
 		scene.idle(40);
 
 		scene.world.showSection(util.select.position(drainFunnel), Direction.DOWN);
@@ -297,9 +296,9 @@ public class FunnelScenes {
 			.text("Item Drains")
 			.colored(PonderPalette.BLUE)
 			.placeNearTarget()
-			.pointAt(util.vector.centerOf(drainFunnel.below()));
+			.pointAt(util.vector.centerOf(drainFunnel.down()));
 		scene.idle(8);
-		scene.world.createItemOnBeltLike(drainFunnel.below(), Direction.SOUTH, new ItemStack(Items.WATER_BUCKET));
+		scene.world.createItemOnBeltLike(drainFunnel.down(), Direction.SOUTH, new ItemStack(Items.WATER_BUCKET));
 		scene.idle(40);
 
 		scene.markAsFinished();
@@ -313,15 +312,15 @@ public class FunnelScenes {
 		scene.world.showSection(util.select.layersFrom(1), Direction.DOWN);
 
 		ItemStack itemStack = AllBlocks.BRASS_BLOCK.asStack();
-		Vec3 topItemSpawn = util.vector.centerOf(3, 6, 2);
+		Vec3d topItemSpawn = util.vector.centerOf(3, 6, 2);
 		ElementLink<EntityElement> lastItemEntity = null;
 
 		BlockPos lever = util.grid.at(1, 2, 2);
 		BlockPos redstone = util.grid.at(2, 2, 2);
 		BlockPos funnel = util.grid.at(3, 2, 2);
 
-		AABB redstoneBB = new AABB(funnel).inflate(-1 / 16f, -6 / 16f, -1 / 16f)
-			.move(0, -5 / 16f, 0);
+		Box redstoneBB = new Box(funnel).expand(-1 / 16f, -6 / 16f, -1 / 16f)
+			.offset(0, -5 / 16f, 0);
 
 		for (int i = 0; i < 4; i++) {
 			if (lastItemEntity != null)
@@ -331,7 +330,7 @@ public class FunnelScenes {
 
 			if (i == 3) {
 				scene.world.modifyBlock(lever, s -> s.cycle(LeverBlock.POWERED), false);
-				scene.world.modifyBlock(redstone, s -> s.setValue(RedStoneWireBlock.POWER, 15), false);
+				scene.world.modifyBlock(redstone, s -> s.with(RedstoneWireBlock.POWER, 15), false);
 				scene.world.modifyBlock(funnel, s -> s.cycle(FunnelBlock.POWERED), false);
 				scene.effects.indicateRedstone(lever);
 				scene.idle(4);
@@ -379,19 +378,19 @@ public class FunnelScenes {
 			.pointAt(util.vector.topOf(andesiteFunnel))
 			.placeNearTarget();
 		scene.idle(10);
-		scene.world.createItemOnBeltLike(andesiteFunnel.below()
+		scene.world.createItemOnBeltLike(andesiteFunnel.down()
 			.north(), Direction.SOUTH, itemStack);
 		scene.world.flapFunnel(andesiteFunnel, true);
 		scene.idle(60);
 
-		Vec3 filter = util.vector.topOf(brassFunnel);
+		Vec3d filter = util.vector.topOf(brassFunnel);
 		scene.overlay.showText(60)
 			.text("Brass Funnels can extract up to a full stack.")
 			.attachKeyFrame()
 			.pointAt(filter)
 			.placeNearTarget();
 		scene.idle(10);
-		scene.world.createItemOnBeltLike(brassFunnel.below()
+		scene.world.createItemOnBeltLike(brassFunnel.down()
 			.north(), Direction.SOUTH, ItemHandlerHelper.copyStackWithSize(itemStack, 64));
 		scene.world.flapFunnel(brassFunnel, true);
 		scene.idle(60);
@@ -424,12 +423,12 @@ public class FunnelScenes {
 		for (int i = 0; i < 14; i++) {
 
 			if (i < 12)
-				scene.world.createItemOnBelt(andesiteFunnel.below(), Direction.SOUTH,
+				scene.world.createItemOnBelt(andesiteFunnel.down(), Direction.SOUTH,
 					i % 3 == 0 ? dirt : i % 3 == 1 ? gravel : emerald);
 			scene.idle(10);
 
 			if (i > 0 && (i < 3 || i % 3 == 0)) {
-				scene.world.removeItemsFromBelt(brassFunnel.below());
+				scene.world.removeItemsFromBelt(brassFunnel.down());
 				scene.world.flapFunnel(brassFunnel, false);
 			}
 
@@ -505,7 +504,7 @@ public class FunnelScenes {
 		scene.idle(20);
 
 		Selection belt = util.select.layer(1);
-		scene.world.setBlocks(funnelSelect, Blocks.AIR.defaultBlockState(), false);
+		scene.world.setBlocks(funnelSelect, Blocks.AIR.getDefaultState(), false);
 		scene.world.showSection(belt, Direction.DOWN);
 		scene.world.showSection(util.select.fromTo(0, 2, 2, 4, 2, 2), Direction.DOWN);
 		scene.overlay.showText(120)

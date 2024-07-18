@@ -15,9 +15,8 @@ import com.simibubi.create.content.decoration.palettes.PaletteBlockPattern;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 
 import org.jetbrains.annotations.NotNull;
-
-import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataProvider;
+import net.minecraft.data.DataWriter;
 
 public class GroupProvider implements DataProvider {
 	public static final Set<PaletteBlockPattern> EXTENDABLE_PATTERNS = Set.of(
@@ -35,8 +34,8 @@ public class GroupProvider implements DataProvider {
 
 	@Override
 	@NotNull
-	public CompletableFuture<?> run(@NotNull CachedOutput output) {
-		Path outputDir = out.getOutputFolder()
+	public CompletableFuture<?> run(@NotNull DataWriter output) {
+		Path outputDir = out.getPath()
 				.resolve("staticdata")
 				.resolve("architecture_extensions");
 		List<CompletableFuture<?>> saveFutures = new ArrayList<>();
@@ -44,7 +43,7 @@ public class GroupProvider implements DataProvider {
 		this.groups.forEach(group -> {
 			JsonObject json = group.toJson();
 			Path outputFile = outputDir.resolve(group.name() + ".json");
-			CompletableFuture<?> future = DataProvider.saveStable(output, json, outputFile);
+			CompletableFuture<?> future = DataProvider.writeToPath(output, json, outputFile);
 			saveFutures.add(future);
 		});
 

@@ -21,15 +21,15 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.ticks.TickPriority;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.tick.TickPriority;
 
 public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 
@@ -57,7 +57,7 @@ public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		onWhenAbove = compound.getFloat("OnAbove");
 		offWhenBelow = compound.getFloat("OffBelow");
 		currentLevel = compound.getFloat("Current");
@@ -67,14 +67,14 @@ public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 		super.read(compound, clientPacket);
 	}
 
-	protected void writeCommon(CompoundTag compound) {
+	protected void writeCommon(NbtCompound compound) {
 		compound.putFloat("OnAbove", onWhenAbove);
 		compound.putFloat("OffBelow", offWhenBelow);
 		compound.putBoolean("Inverted", inverted);
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		writeCommon(compound);
 		compound.putFloat("Current", currentLevel);
 		compound.putBoolean("Powered", redstoneState);
@@ -83,7 +83,7 @@ public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	public void writeSafe(CompoundTag compound) {
+	public void writeSafe(NbtCompound compound) {
 		writeCommon(compound);
 		super.writeSafe(compound);
 	}
@@ -103,8 +103,8 @@ public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 		float totalSpace = 0;
 		float prevLevel = currentLevel;
 
-		BlockPos target = worldPosition.relative(ThresholdSwitchBlock.getTargetDirection(getBlockState()));
-		BlockEntity targetBlockEntity = level.getBlockEntity(target);
+		BlockPos target = pos.offset(ThresholdSwitchBlock.getTargetDirection(getCachedState()));
+		BlockEntity targetBlockEntity = world.getBlockEntity(target);
 
 		if (targetBlockEntity instanceof ThresholdSwitchObservable observable) {
 			currentLevel = observable.getPercent() / 100f;
@@ -165,7 +165,7 @@ public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 			// No compatible inventories found
 			if (currentLevel == -1)
 				return;
-			level.setBlock(worldPosition, getBlockState().setValue(ThresholdSwitchBlock.LEVEL, 0), 3);
+			world.setBlockState(pos, getCachedState().with(ThresholdSwitchBlock.LEVEL, 0), 3);
 			currentLevel = -1;
 			redstoneState = false;
 			sendData();
@@ -173,7 +173,7 @@ public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 			return;
 		}
 
-		currentLevel = Mth.clamp(currentLevel, 0, 1);
+		currentLevel = MathHelper.clamp(currentLevel, 0, 1);
 		changed = currentLevel != prevLevel;
 
 		boolean previouslyPowered = redstoneState;
@@ -186,29 +186,29 @@ public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 		int displayLevel = 0;
 		if (currentLevel > 0)
 			displayLevel = (int) (1 + currentLevel * 4);
-		level.setBlock(worldPosition, getBlockState().setValue(ThresholdSwitchBlock.LEVEL, displayLevel),
+		world.setBlockState(pos, getCachedState().with(ThresholdSwitchBlock.LEVEL, displayLevel),
 			update ? 3 : 2);
 
 		if (update)
 			scheduleBlockTick();
 
 		if (changed || update) {
-			DisplayLinkBlock.notifyGatherers(level, worldPosition);
+			DisplayLinkBlock.notifyGatherers(world, pos);
 			notifyUpdate();
 		}
 	}
 
 	protected void scheduleBlockTick() {
-		Block block = getBlockState().getBlock();
-		if (!level.getBlockTicks()
-			.willTickThisTick(worldPosition, block))
-			level.scheduleTick(worldPosition, block, 2, TickPriority.NORMAL);
+		Block block = getCachedState().getBlock();
+		if (!world.getBlockTickScheduler()
+			.isTicking(pos, block))
+			world.scheduleBlockTick(pos, block, 2, TickPriority.NORMAL);
 	}
 
 	@Override
 	public void lazyTick() {
 		super.lazyTick();
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		updateCurrentLevel();
 	}
@@ -244,7 +244,7 @@ public class ThresholdSwitchBlockEntity extends SmartBlockEntity {
 
 	public void updatePowerAfterDelay() {
 		poweredAfterDelay = shouldBePowered();
-		level.blockUpdated(worldPosition, getBlockState().getBlock());
+		world.updateNeighbors(pos, getCachedState().getBlock());
 	}
 
 	public boolean isPowered() {

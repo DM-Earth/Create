@@ -1,7 +1,12 @@
 package com.simibubi.create.content.kinetics.gauge;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import com.simibubi.create.compat.computercraft.AbstractComputerBehaviour;
 import com.simibubi.create.compat.computercraft.ComputerCraftProxy;
 import com.simibubi.create.content.kinetics.base.IRotate.SpeedLevel;
@@ -9,13 +14,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.utility.Color;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class SpeedGaugeBlockEntity extends GaugeBlockEntity {
 
@@ -40,7 +38,7 @@ public class SpeedGaugeBlockEntity extends GaugeBlockEntity {
 		color = Color.mixColors(SpeedLevel.of(speed)
 			.getColor(), 0xffffff, .25f);
 
-		setChanged();
+		markDirty();
 	}
 
 	public static float getDialTarget(float speed) {
@@ -55,19 +53,19 @@ public class SpeedGaugeBlockEntity extends GaugeBlockEntity {
 		if (speed == 0)
 			target = 0;
 		else if (speed < medium)
-			target = Mth.lerp(speed / medium, 0, .45f);
+			target = MathHelper.lerp(speed / medium, 0, .45f);
 		else if (speed < fast)
-			target = Mth.lerp((speed - medium) / (fast - medium), .45f, .75f);
+			target = MathHelper.lerp((speed - medium) / (fast - medium), .45f, .75f);
 		else
-			target = Mth.lerp((speed - fast) / (max - fast), .75f, 1.125f);
+			target = MathHelper.lerp((speed - fast) / (max - fast), .75f, 1.125f);
 		return target;
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		super.addToGoggleTooltip(tooltip, isPlayerSneaking);
 		Lang.translate("gui.speedometer.title")
-			.style(ChatFormatting.GRAY)
+			.style(Formatting.GRAY)
 			.forGoggles(tooltip);
 		SpeedLevel.getFormattedSpeedText(speed, isOverStressed())
 			.forGoggles(tooltip);

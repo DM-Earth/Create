@@ -1,53 +1,52 @@
 package com.simibubi.create.content.kinetics.speedController;
 
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
-
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.World;
 
 public class SpeedControllerRenderer extends SmartBlockEntityRenderer<SpeedControllerBlockEntity> {
 
-	public SpeedControllerRenderer(BlockEntityRendererProvider.Context context) {
+	public SpeedControllerRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	protected void renderSafe(SpeedControllerBlockEntity blockEntity, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, int overlay) {
+	protected void renderSafe(SpeedControllerBlockEntity blockEntity, float partialTicks, MatrixStack ms,
+		VertexConsumerProvider buffer, int light, int overlay) {
 		super.renderSafe(blockEntity, partialTicks, ms, buffer, light, overlay);
 
-		VertexConsumer builder = buffer.getBuffer(RenderType.solid());
-		if (!Backend.canUseInstancing(blockEntity.getLevel())) {
+		VertexConsumer builder = buffer.getBuffer(RenderLayer.getSolid());
+		if (!Backend.canUseInstancing(blockEntity.getWorld())) {
 			KineticBlockEntityRenderer.renderRotatingBuffer(blockEntity, getRotatedModel(blockEntity), ms, builder, light);
 		}
 
 		if (!blockEntity.hasBracket)
 			return;
 
-		BlockPos pos = blockEntity.getBlockPos();
-		Level world = blockEntity.getLevel();
-		BlockState blockState = blockEntity.getBlockState();
-		boolean alongX = blockState.getValue(SpeedControllerBlock.HORIZONTAL_AXIS) == Axis.X;
+		BlockPos pos = blockEntity.getPos();
+		World world = blockEntity.getWorld();
+		BlockState blockState = blockEntity.getCachedState();
+		boolean alongX = blockState.get(SpeedControllerBlock.HORIZONTAL_AXIS) == Axis.X;
 
 		SuperByteBuffer bracket = CachedBufferer.partial(AllPartialModels.SPEED_CONTROLLER_BRACKET, blockState);
 		bracket.translate(0, 1, 0);
 		bracket.rotateCentered(Direction.UP,
 				(float) (alongX ? Math.PI : Math.PI / 2));
-		bracket.light(LevelRenderer.getLightColor(world, pos.above()));
+		bracket.light(WorldRenderer.getLightmapCoordinates(world, pos.up()));
 		bracket.renderInto(ms, builder);
 	}
 

@@ -13,7 +13,7 @@ import com.simibubi.create.content.logistics.flwdata.FlapType;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
 public class AllMaterialSpecs {
@@ -24,9 +24,9 @@ public class AllMaterialSpecs {
 	public static final StructType<FlapData> FLAPS = new FlapType();
 
 	public static class Locations {
-		public static final ResourceLocation ROTATING = Create.asResource("rotating");
-		public static final ResourceLocation BELTS = Create.asResource("belts");
-		public static final ResourceLocation ACTORS = Create.asResource("actors");
-		public static final ResourceLocation FLAPS = Create.asResource("flaps");
+		public static final Identifier ROTATING = Create.asResource("rotating");
+		public static final Identifier BELTS = Create.asResource("belts");
+		public static final Identifier ACTORS = Create.asResource("actors");
+		public static final Identifier FLAPS = Create.asResource("flaps");
 	}
 }

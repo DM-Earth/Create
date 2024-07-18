@@ -16,14 +16,12 @@ import com.simibubi.create.foundation.utility.RegisteredObjects;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-
-import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.DataProvider;
-import net.minecraft.data.PackOutput;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.data.DataWriter;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.Identifier;
 
 public abstract class ProcessingRecipeGen extends CreateRecipeProvider {
 
@@ -54,7 +52,7 @@ public abstract class ProcessingRecipeGen extends CreateRecipeProvider {
 			}
 
 			@Override
-			public CompletableFuture<?> run(CachedOutput dc) {
+			public CompletableFuture<?> run(DataWriter dc) {
 				return CompletableFuture.allOf(GENERATORS.stream()
 					.map(gen -> gen.run(dc))
 					.toArray(CompletableFuture[]::new));
@@ -71,14 +69,14 @@ public abstract class ProcessingRecipeGen extends CreateRecipeProvider {
 	 * as the name of the recipe
 	 */
 	protected <T extends ProcessingRecipe<?>> GeneratedRecipe create(String namespace,
-		Supplier<ItemLike> singleIngredient, UnaryOperator<ProcessingRecipeBuilder<T>> transform) {
+		Supplier<ItemConvertible> singleIngredient, UnaryOperator<ProcessingRecipeBuilder<T>> transform) {
 		ProcessingRecipeSerializer<T> serializer = getSerializer();
 		GeneratedRecipe generatedRecipe = c -> {
-			ItemLike itemLike = singleIngredient.get();
+			ItemConvertible itemLike = singleIngredient.get();
 			transform
 				.apply(new ProcessingRecipeBuilder<>(serializer.getFactory(),
-					new ResourceLocation(namespace, RegisteredObjects.getKeyOrThrow(itemLike.asItem())
-						.getPath())).withItemIngredients(Ingredient.of(itemLike)))
+					new Identifier(namespace, RegisteredObjects.getKeyOrThrow(itemLike.asItem())
+						.getPath())).withItemIngredients(Ingredient.ofItems(itemLike)))
 				.build(c);
 		};
 		all.add(generatedRecipe);
@@ -89,12 +87,12 @@ public abstract class ProcessingRecipeGen extends CreateRecipeProvider {
 	 * Create a processing recipe with a single itemstack ingredient, using its id
 	 * as the name of the recipe
 	 */
-	<T extends ProcessingRecipe<?>> GeneratedRecipe create(Supplier<ItemLike> singleIngredient,
+	<T extends ProcessingRecipe<?>> GeneratedRecipe create(Supplier<ItemConvertible> singleIngredient,
 		UnaryOperator<ProcessingRecipeBuilder<T>> transform) {
 		return create(Create.ID, singleIngredient, transform);
 	}
 
-	protected <T extends ProcessingRecipe<?>> GeneratedRecipe createWithDeferredId(Supplier<ResourceLocation> name,
+	protected <T extends ProcessingRecipe<?>> GeneratedRecipe createWithDeferredId(Supplier<Identifier> name,
 		UnaryOperator<ProcessingRecipeBuilder<T>> transform) {
 		ProcessingRecipeSerializer<T> serializer = getSerializer();
 		GeneratedRecipe generatedRecipe =
@@ -108,7 +106,7 @@ public abstract class ProcessingRecipeGen extends CreateRecipeProvider {
 	 * Create a new processing recipe, with recipe definitions provided by the
 	 * function
 	 */
-	protected <T extends ProcessingRecipe<?>> GeneratedRecipe create(ResourceLocation name,
+	protected <T extends ProcessingRecipe<?>> GeneratedRecipe create(Identifier name,
 		UnaryOperator<ProcessingRecipeBuilder<T>> transform) {
 		return createWithDeferredId(() -> name, transform);
 	}
@@ -128,9 +126,9 @@ public abstract class ProcessingRecipeGen extends CreateRecipeProvider {
 		return getRecipeType().getSerializer();
 	}
 
-	protected Supplier<ResourceLocation> idWithSuffix(Supplier<ItemLike> item, String suffix) {
+	protected Supplier<Identifier> idWithSuffix(Supplier<ItemConvertible> item, String suffix) {
 		return () -> {
-			ResourceLocation registryName = RegisteredObjects.getKeyOrThrow(item.get()
+			Identifier registryName = RegisteredObjects.getKeyOrThrow(item.get()
 				.asItem());
 			return Create.asResource(registryName.getPath() + suffix);
 		};

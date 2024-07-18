@@ -11,56 +11,55 @@ import com.simibubi.create.content.kinetics.base.RotatedPillarKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
 
 import net.fabricmc.fabric.api.block.BlockPickInteractionAware;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.phys.HitResult;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.loot.context.LootContextParameterSet;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldView;
 
 public class GearboxBlock extends RotatedPillarKineticBlock implements IBE<GearboxBlockEntity>, BlockPickInteractionAware {
 
-	public GearboxBlock(Properties properties) {
+	public GearboxBlock(Settings properties) {
 		super(properties);
 	}
 
 	@SuppressWarnings("deprecation")
 	@Override
-	public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
-		if (state.getValue(AXIS).isVertical())
-			return super.getDrops(state, builder);
+	public List<ItemStack> getDroppedStacks(BlockState state, LootContextParameterSet.Builder builder) {
+		if (state.get(AXIS).isVertical())
+			return super.getDroppedStacks(state, builder);
 		return Arrays.asList(new ItemStack(AllItems.VERTICAL_GEARBOX.get()));
 	}
 
 	@Override
-	public ItemStack getPickedStack(BlockState state, BlockGetter view, BlockPos pos, @Nullable Player player, @Nullable HitResult result) {
-		if (state.getValue(AXIS).isVertical())
-			return super.getCloneItemStack(view, pos, state);
+	public ItemStack getPickedStack(BlockState state, BlockView view, BlockPos pos, @Nullable PlayerEntity player, @Nullable HitResult result) {
+		if (state.get(AXIS).isVertical())
+			return super.getPickStack(view, pos, state);
 		return new ItemStack(AllItems.VERTICAL_GEARBOX.get());
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		return defaultBlockState().setValue(AXIS, Axis.Y);
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		return getDefaultState().with(AXIS, Axis.Y);
 	}
 
 	// IRotate:
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return face.getAxis() != state.getValue(AXIS);
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		return face.getAxis() != state.get(AXIS);
 	}
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(AXIS);
+		return state.get(AXIS);
 	}
 
 	@Override

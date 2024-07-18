@@ -7,25 +7,24 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public abstract class ArmInteractionPointType {
 
-	private static final Map<ResourceLocation, ArmInteractionPointType> TYPES = new HashMap<>();
+	private static final Map<Identifier, ArmInteractionPointType> TYPES = new HashMap<>();
 	private static final List<ArmInteractionPointType> SORTED_TYPES = new ArrayList<>();
 
-	protected final ResourceLocation id;
+	protected final Identifier id;
 
-	public ArmInteractionPointType(ResourceLocation id) {
+	public ArmInteractionPointType(Identifier id) {
 		this.id = id;
 	}
 
 	public static void register(ArmInteractionPointType type) {
-		ResourceLocation id = type.getId();
+		Identifier id = type.getId();
 		if (TYPES.containsKey(id))
 			throw new IllegalArgumentException("Tried to override ArmInteractionPointType registration for id '" + id + "'. This is not supported!");
 		TYPES.put(id, type);
@@ -34,7 +33,7 @@ public abstract class ArmInteractionPointType {
 	}
 
 	@Nullable
-	public static ArmInteractionPointType get(ResourceLocation id) {
+	public static ArmInteractionPointType get(Identifier id) {
 		return TYPES.get(id);
 	}
 
@@ -43,21 +42,21 @@ public abstract class ArmInteractionPointType {
 	}
 
 	@Nullable
-	public static ArmInteractionPointType getPrimaryType(Level level, BlockPos pos, BlockState state) {
+	public static ArmInteractionPointType getPrimaryType(World level, BlockPos pos, BlockState state) {
 		for (ArmInteractionPointType type : SORTED_TYPES)
 			if (type.canCreatePoint(level, pos, state))
 				return type;
 		return null;
 	}
 
-	public final ResourceLocation getId() {
+	public final Identifier getId() {
 		return id;
 	}
 
-	public abstract boolean canCreatePoint(Level level, BlockPos pos, BlockState state);
+	public abstract boolean canCreatePoint(World level, BlockPos pos, BlockState state);
 
 	@Nullable
-	public abstract ArmInteractionPoint createPoint(Level level, BlockPos pos, BlockState state);
+	public abstract ArmInteractionPoint createPoint(World level, BlockPos pos, BlockState state);
 
 	public int getPriority() {
 		return 0;

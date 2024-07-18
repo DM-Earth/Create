@@ -1,7 +1,7 @@
 package com.simibubi.create.foundation.gui.widget;
 
 import java.util.function.Function;
-
+import net.minecraft.client.gui.DrawContext;
 import com.simibubi.create.foundation.gui.Theme;
 import com.simibubi.create.foundation.gui.Theme.Key;
 import com.simibubi.create.foundation.gui.UIRenderHelper;
@@ -10,8 +10,6 @@ import com.simibubi.create.foundation.gui.element.DelegatedStencilElement;
 import com.simibubi.create.foundation.utility.Color;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
-
-import net.minecraft.client.gui.GuiGraphics;
 
 public class BoxWidget extends ElementWidget {
 
@@ -98,14 +96,14 @@ public class BoxWidget extends ElementWidget {
 	}
 
 	@Override
-	protected void beforeRender(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void beforeRender(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		super.beforeRender(graphics, mouseX, mouseY, partialTicks);
 
-		if (isHovered != wasHovered) {
+		if (hovered != wasHovered) {
 			startGradientAnimation(
 					getColorForState(true),
 					getColorForState(false),
-					isHovered
+					hovered
 			);
 		}
 
@@ -121,7 +119,7 @@ public class BoxWidget extends ElementWidget {
 	}
 
 	@Override
-	public void doRender(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	public void doRender(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		float fadeValue = fade.getValue(partialTicks);
 		if (fadeValue < .1f)
 			return;
@@ -135,7 +133,7 @@ public class BoxWidget extends ElementWidget {
 
 		super.doRender(graphics, mouseX, mouseY, partialTicks);
 
-		wasHovered = isHovered;
+		wasHovered = hovered;
 	}
 
 	@Override
@@ -196,7 +194,7 @@ public class BoxWidget extends ElementWidget {
 		if (!active)
 			return Theme.p(getDisabledTheme()).get(first);
 
-		if (isHovered) {
+		if (hovered) {
 			if (first)
 				return customBorderTop != null ? customBorderTop.darker() : Theme.c(getHoverTheme(), true);
 			else

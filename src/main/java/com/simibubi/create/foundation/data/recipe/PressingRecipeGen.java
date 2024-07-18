@@ -5,9 +5,8 @@ import com.simibubi.create.AllRecipeTypes;
 
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
-
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.Ingredient;
 
 public class PressingRecipeGen extends ProcessingRecipeGen {
 
@@ -15,7 +14,7 @@ public class PressingRecipeGen extends ProcessingRecipeGen {
 
 	SUGAR_CANE = create(() -> Items.SUGAR_CANE, b -> b.output(Items.PAPER)),
 
-		PATH = create("path", b -> b.require(Ingredient.of(Items.GRASS_BLOCK, Items.DIRT))
+		PATH = create("path", b -> b.require(Ingredient.ofItems(Items.GRASS_BLOCK, Items.DIRT))
 			.output(Items.DIRT_PATH)),
 
 		IRON = create("iron_ingot", b -> b.require(I.iron())

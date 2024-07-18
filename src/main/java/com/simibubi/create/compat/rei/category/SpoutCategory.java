@@ -35,13 +35,12 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.PotionItem;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.item.PotionItem;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 public class SpoutCategory extends CreateRecipeCategory<FillingRecipe> {
 
@@ -62,7 +61,7 @@ public class SpoutCategory extends CreateRecipeCategory<FillingRecipe> {
 			ItemStack stack = entryStack.getValue();
 			if (stack.getItem() instanceof PotionItem) {
 				FluidStack fluidFromPotionItem = PotionFluidHandler.getFluidFromPotionItem(stack);
-				Ingredient bottle = Ingredient.of(Items.GLASS_BOTTLE);
+				Ingredient bottle = Ingredient.ofItems(Items.GLASS_BOTTLE);
 				consumer.accept(new ProcessingRecipeBuilder<>(FillingRecipe::new, Create.asResource("potions"))
 					.withItemIngredients(bottle)
 					.withFluidIngredients(FluidIngredient.fromFluidStack(fluidFromPotionItem))
@@ -86,16 +85,16 @@ public class SpoutCategory extends CreateRecipeCategory<FillingRecipe> {
 						t.commit();
 					}
 						ItemStack container = ctx.getItemVariant().toStack(ItemHelper.truncateLong(ctx.getAmount()));
-						if (ItemStack.isSameItem(container, copy))
+						if (ItemStack.areItemsEqual(container, copy))
 							return;
 						if (container.isEmpty())
 							return;
 
-						Ingredient bucket = Ingredient.of(stack);
-						ResourceLocation itemName = BuiltInRegistries.ITEM
-								.getKey(stack.getItem());
-						ResourceLocation fluidName = BuiltInRegistries.FLUID
-								.getKey(fluidCopy.getFluid());
+						Ingredient bucket = Ingredient.ofStacks(stack);
+						Identifier itemName = Registries.ITEM
+								.getId(stack.getItem());
+						Identifier fluidName = Registries.FLUID
+								.getId(fluidCopy.getFluid());
 						consumer.accept(new ProcessingRecipeBuilder<>(FillingRecipe::new,
 								Create.asResource("fill_" + itemName.getNamespace() + "_" + itemName.getPath()
 										+ "_with_" + fluidName.getNamespace() + "_" + fluidName.getPath()))

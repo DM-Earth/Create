@@ -13,32 +13,30 @@ import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BambooBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.CactusBlock;
+import net.minecraft.block.ChorusFlowerBlock;
+import net.minecraft.block.ChorusPlantBlock;
+import net.minecraft.block.KelpBlock;
+import net.minecraft.block.KelpPlantBlock;
+import net.minecraft.block.LeavesBlock;
+import net.minecraft.block.SugarCaneBlock;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.state.property.IntProperty;
+import net.minecraft.state.property.Property;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 import com.simibubi.create.AllTags;
 import com.simibubi.create.AllTags.AllBlockTags;
 import com.simibubi.create.compat.Mods;
 import com.simibubi.create.compat.dynamictrees.DynamicTree;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BambooStalkBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.CactusBlock;
-import net.minecraft.world.level.block.ChorusFlowerBlock;
-import net.minecraft.world.level.block.ChorusPlantBlock;
-import net.minecraft.world.level.block.KelpBlock;
-import net.minecraft.world.level.block.KelpPlantBlock;
-import net.minecraft.world.level.block.LeavesBlock;
-import net.minecraft.world.level.block.SugarCaneBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.minecraft.world.level.block.state.properties.Property;
 
 public class TreeCutter {
 
@@ -65,7 +63,7 @@ public class TreeCutter {
 	 * @return null if not found or not fully cut
 	 */
 	@Nonnull
-	public static Tree findTree(@Nullable BlockGetter reader, BlockPos pos) {
+	public static Tree findTree(@Nullable BlockView reader, BlockPos pos) {
 		if (reader == null)
 			return NO_TREE;
 
@@ -76,11 +74,11 @@ public class TreeCutter {
 		List<BlockPos> frontier = new LinkedList<>();
 
 		// Bamboo, Sugar Cane, Cactus
-		BlockState stateAbove = reader.getBlockState(pos.above());
+		BlockState stateAbove = reader.getBlockState(pos.up());
 		if (isVerticalPlant(stateAbove)) {
-			logs.add(pos.above());
+			logs.add(pos.up());
 			for (int i = 1; i < 256; i++) {
-				BlockPos current = pos.above(i);
+				BlockPos current = pos.up(i);
 				if (!isVerticalPlant(reader.getBlockState(current)))
 					break;
 				logs.add(current);
@@ -91,13 +89,13 @@ public class TreeCutter {
 
 		// Chorus
 		if (isChorus(stateAbove)) {
-			frontier.add(pos.above());
+			frontier.add(pos.up());
 			while (!frontier.isEmpty()) {
 				BlockPos current = frontier.remove(0);
 				visited.add(current);
 				logs.add(current);
 				for (Direction direction : Iterate.directions) {
-					BlockPos offset = current.relative(direction);
+					BlockPos offset = current.offset(direction);
 					if (visited.contains(offset))
 						continue;
 					if (!isChorus(reader.getBlockState(offset)))
@@ -114,7 +112,7 @@ public class TreeCutter {
 			return NO_TREE;
 
 		visited.add(pos);
-		BlockPos.betweenClosedStream(pos.offset(-1, 0, -1), pos.offset(1, 1, 1))
+		BlockPos.stream(pos.add(-1, 0, -1), pos.add(1, 1, 1))
 			.forEach(p -> frontier.add(new BlockPos(p)));
 
 		// Find all logs & roots
@@ -167,7 +165,7 @@ public class TreeCutter {
 			forNeighbours(prevPos, visited, SearchDirection.BOTH, currentPos -> {
 				BlockState state = reader.getBlockState(currentPos);
 				BlockPos subtract = currentPos.subtract(pos);
-				BlockPos currentPosImmutable = currentPos.immutable();
+				BlockPos currentPosImmutable = currentPos.toImmutable();
 
 				if (AllBlockTags.TREE_ATTACHMENTS.matches(state)) {
 					attachments.add(currentPosImmutable);
@@ -195,13 +193,13 @@ public class TreeCutter {
 	}
 
 	private static int getLeafDistance(BlockState state) {
-		IntegerProperty distanceProperty = LeavesBlock.DISTANCE;
-		for (Property<?> property : state.getValues()
+		IntProperty distanceProperty = LeavesBlock.DISTANCE;
+		for (Property<?> property : state.getEntries()
 			.keySet())
-			if (property instanceof IntegerProperty ip && property.getName()
+			if (property instanceof IntProperty ip && property.getName()
 				.equals("distance"))
 				distanceProperty = ip;
-		return state.getValue(distanceProperty);
+		return state.get(distanceProperty);
 	}
 
 	public static boolean isChorus(BlockState stateAbove) {
@@ -210,7 +208,7 @@ public class TreeCutter {
 
 	public static boolean isVerticalPlant(BlockState stateAbove) {
 		Block block = stateAbove.getBlock();
-		if (block instanceof BambooStalkBlock)
+		if (block instanceof BambooBlock)
 			return true;
 		if (block instanceof CactusBlock)
 			return true;
@@ -229,16 +227,16 @@ public class TreeCutter {
 	 * @param pos
 	 * @return
 	 */
-	private static boolean validateCut(BlockGetter reader, BlockPos pos) {
+	private static boolean validateCut(BlockView reader, BlockPos pos) {
 		Set<BlockPos> visited = new HashSet<>();
 		List<BlockPos> frontier = new LinkedList<>();
 		frontier.add(pos);
-		frontier.add(pos.above());
+		frontier.add(pos.up());
 		int posY = pos.getY();
 
 		while (!frontier.isEmpty()) {
 			BlockPos currentPos = frontier.remove(0);
-			BlockPos belowPos = currentPos.below();
+			BlockPos belowPos = currentPos.down();
 
 			visited.add(currentPos);
 			boolean lowerLayer = currentPos.getY() == posY;
@@ -256,7 +254,7 @@ public class TreeCutter {
 					continue;
 				if (direction == Direction.UP && !lowerLayer)
 					continue;
-				BlockPos offset = currentPos.relative(direction);
+				BlockPos offset = currentPos.offset(direction);
 				if (visited.contains(offset))
 					continue;
 				frontier.add(offset);
@@ -281,34 +279,34 @@ public class TreeCutter {
 
 	private static void forNeighbours(BlockPos pos, Set<BlockPos> visited, SearchDirection direction,
 		Consumer<BlockPos> acceptor) {
-		BlockPos.betweenClosedStream(pos.offset(-1, direction.minY, -1), pos.offset(1, direction.maxY, 1))
+		BlockPos.stream(pos.add(-1, direction.minY, -1), pos.add(1, direction.maxY, 1))
 			.filter(((Predicate<BlockPos>) visited::contains).negate())
 			.forEach(acceptor);
 	}
 
 	public static boolean isRoot(BlockState state) {
-		return state.is(Blocks.MANGROVE_ROOTS);
+		return state.isOf(Blocks.MANGROVE_ROOTS);
 	}
 
 	public static boolean isLog(BlockState state) {
-		return state.is(BlockTags.LOGS) || AllTags.AllBlockTags.SLIMY_LOGS.matches(state)
-			|| state.is(Blocks.MUSHROOM_STEM);
+		return state.isIn(BlockTags.LOGS) || AllTags.AllBlockTags.SLIMY_LOGS.matches(state)
+			|| state.isOf(Blocks.MUSHROOM_STEM);
 	}
 
 	private static int nonDecayingLeafDistance(BlockState state) {
-		if (state.is(Blocks.RED_MUSHROOM_BLOCK))
+		if (state.isOf(Blocks.RED_MUSHROOM_BLOCK))
 			return 2;
-		if (state.is(Blocks.BROWN_MUSHROOM_BLOCK))
+		if (state.isOf(Blocks.BROWN_MUSHROOM_BLOCK))
 			return 3;
-		if (state.is(BlockTags.WART_BLOCKS) || state.is(Blocks.WEEPING_VINES) || state.is(Blocks.WEEPING_VINES_PLANT))
+		if (state.isIn(BlockTags.WART_BLOCKS) || state.isOf(Blocks.WEEPING_VINES) || state.isOf(Blocks.WEEPING_VINES_PLANT))
 			return 3;
 		return -1;
 	}
 
 	private static boolean isLeaf(BlockState state) {
-		for (Property<?> property : state.getValues()
+		for (Property<?> property : state.getEntries()
 			.keySet())
-			if (property instanceof IntegerProperty && property.getName()
+			if (property instanceof IntProperty && property.getName()
 				.equals("distance"))
 				return true;
 		return false;
@@ -326,7 +324,7 @@ public class TreeCutter {
 		}
 
 		@Override
-		public void destroyBlocks(Level world, ItemStack toDamage, @Nullable Player playerEntity,
+		public void destroyBlocks(World world, ItemStack toDamage, @Nullable PlayerEntity playerEntity,
 			BiConsumer<BlockPos, ItemStack> drop) {
 			attachments.forEach(makeCallbackFor(world, 1 / 32f, toDamage, playerEntity, drop));
 			logs.forEach(makeCallbackFor(world, 1 / 2f, toDamage, playerEntity, drop));

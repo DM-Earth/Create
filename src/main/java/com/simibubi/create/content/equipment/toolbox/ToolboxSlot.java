@@ -13,8 +13,8 @@ public class ToolboxSlot extends SlotItemHandler {
 	}
 
 	@Override
-	public boolean isActive() {
-		return !toolboxMenu.renderPass && super.isActive();
+	public boolean isEnabled() {
+		return !toolboxMenu.renderPass && super.isEnabled();
 	}
 
 }

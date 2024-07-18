@@ -1,23 +1,21 @@
 package com.simibubi.create.compat.rei.category.animations;
 
 import java.util.List;
-
-import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.math.Axis;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.DiffuseLighting;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.VertexConsumerProvider.Immediate;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.foundation.fluid.FluidRenderer;
 import com.simibubi.create.foundation.gui.UIRenderHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
-import net.minecraft.util.Mth;
 
 public class AnimatedSpout extends AnimatedKinetics {
 
@@ -29,12 +27,12 @@ public class AnimatedSpout extends AnimatedKinetics {
 	}
 
 	@Override
-	public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
-		PoseStack matrixStack = graphics.pose();
-		matrixStack.pushPose();
+	public void draw(DrawContext graphics, int xOffset, int yOffset) {
+		MatrixStack matrixStack = graphics.getMatrices();
+		matrixStack.push();
 		matrixStack.translate(xOffset, yOffset, 100);
-		matrixStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
-		matrixStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 		int scale = 20;
 
 		blockElement(AllBlocks.SPOUT.getDefaultState())
@@ -42,10 +40,10 @@ public class AnimatedSpout extends AnimatedKinetics {
 			.render(graphics);
 
 		float cycle = (AnimationTickHolder.getRenderTime() - offset * 8) % 30;
-		float squeeze = cycle < 20 ? Mth.sin((float) (cycle / 20f * Math.PI)) : 0;
+		float squeeze = cycle < 20 ? MathHelper.sin((float) (cycle / 20f * Math.PI)) : 0;
 		squeeze *= 20;
 
-		matrixStack.pushPose();
+		matrixStack.push();
 
 		blockElement(AllPartialModels.SPOUT_TOP)
 			.scale(scale)
@@ -60,7 +58,7 @@ public class AnimatedSpout extends AnimatedKinetics {
 			.render(graphics);
 		matrixStack.translate(0, -3 * squeeze / 32f, 0);
 
-		matrixStack.popPose();
+		matrixStack.pop();
 
 		blockElement(AllBlocks.DEPOT.getDefaultState())
 			.atLocal(0, 2, 0)
@@ -68,15 +66,15 @@ public class AnimatedSpout extends AnimatedKinetics {
 			.render(graphics);
 
 		AnimatedKinetics.DEFAULT_LIGHTING.applyLighting();
-		BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance()
-			.getBuilder());
-		matrixStack.pushPose();
+		Immediate buffer = VertexConsumerProvider.immediate(Tessellator.getInstance()
+			.getBuffer());
+		matrixStack.push();
 		UIRenderHelper.flipForGuiRender(matrixStack);
 		matrixStack.scale(16, 16, 16);
 		float from = 3f / 16f;
 		float to = 17f / 16f;
-		FluidRenderer.renderFluidBox(fluids.get(0), from, from, from, to, to, to, buffer, matrixStack, LightTexture.FULL_BRIGHT, false);
-		matrixStack.popPose();
+		FluidRenderer.renderFluidBox(fluids.get(0), from, from, from, to, to, to, buffer, matrixStack, LightmapTextureManager.MAX_LIGHT_COORDINATE, false);
+		matrixStack.pop();
 
 		float width = 1 / 128f * squeeze;
 		matrixStack.translate(scale / 2f, scale * 1.5f, scale / 2f);
@@ -85,12 +83,12 @@ public class AnimatedSpout extends AnimatedKinetics {
 		matrixStack.translate(-0.5f, 0, -0.5f);
 		from = -width / 2 + 0.5f;
 		to = width / 2 + 0.5f;
-		FluidRenderer.renderFluidBox(fluids.get(0), from, 0, from, to, 2, to, buffer, matrixStack, LightTexture.FULL_BRIGHT,
+		FluidRenderer.renderFluidBox(fluids.get(0), from, 0, from, to, 2, to, buffer, matrixStack, LightmapTextureManager.MAX_LIGHT_COORDINATE,
 			false);
-		buffer.endBatch();
-		Lighting.setupFor3DItems();
+		buffer.draw();
+		DiffuseLighting.enableGuiDepthLighting();
 
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 }

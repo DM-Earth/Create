@@ -4,43 +4,42 @@ import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldView;
 
 public class ElevatorPulleyBlock extends HorizontalKineticBlock implements IBE<ElevatorPulleyBlockEntity> {
 
-	public ElevatorPulleyBlock(Properties properties) {
+	public ElevatorPulleyBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
-		if (!player.mayBuild())
-			return InteractionResult.FAIL;
-		if (player.isShiftKeyDown())
-			return InteractionResult.FAIL;
-		if (!player.getItemInHand(handIn)
+		if (!player.canModifyBlocks())
+			return ActionResult.FAIL;
+		if (player.isSneaking())
+			return ActionResult.FAIL;
+		if (!player.getStackInHand(handIn)
 			.isEmpty())
-			return InteractionResult.PASS;
-		if (worldIn.isClientSide)
-			return InteractionResult.SUCCESS;
+			return ActionResult.PASS;
+		if (worldIn.isClient)
+			return ActionResult.SUCCESS;
 		return onBlockEntityUse(worldIn, pos, be -> {
 			be.clicked();
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		});
 	}
 
@@ -51,18 +50,18 @@ public class ElevatorPulleyBlock extends HorizontalKineticBlock implements IBE<E
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(HORIZONTAL_FACING)
-			.getClockWise()
+		return state.get(HORIZONTAL_FACING)
+			.rotateYClockwise()
 			.getAxis();
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return AllShapes.ELEVATOR_PULLEY.get(state.getValue(HORIZONTAL_FACING));
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return AllShapes.ELEVATOR_PULLEY.get(state.get(HORIZONTAL_FACING));
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
 		return getRotationAxis(state) == face.getAxis();
 	}
 

@@ -16,14 +16,13 @@ import io.github.fabricators_of_create.porting_lib.util.FluidUnit;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.world.level.material.Fluid;
+import net.minecraft.client.gui.tooltip.TooltipComponent;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.registry.Registries;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.OrderedText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public class CreateSlotWidget extends SlotWidget {
 	public CreateSlotWidget(EmiIngredient stack, int x, int y) {
@@ -31,8 +30,8 @@ public class CreateSlotWidget extends SlotWidget {
 	}
 
 	@Override
-	public List<ClientTooltipComponent> getTooltip(int mouseX, int mouseY) {
-		List<ClientTooltipComponent> tooltip = super.getTooltip(mouseX, mouseY);
+	public List<TooltipComponent> getTooltip(int mouseX, int mouseY) {
+		List<TooltipComponent> tooltip = super.getTooltip(mouseX, mouseY);
 		if (stack instanceof EmiStack emiStack && emiStack.getKey() instanceof Fluid fluid) {
 			// add custom fluid tooltip
 			FluidVariant variant = FluidVariant.of(fluid, emiStack.getNbt());
@@ -42,19 +41,19 @@ public class CreateSlotWidget extends SlotWidget {
 		return tooltip;
 	}
 
-	private void addCreateAmount(List<ClientTooltipComponent> tooltip, FluidVariant fluid) {
+	private void addCreateAmount(List<TooltipComponent> tooltip, FluidVariant fluid) {
 		FluidUnit unit = AllConfigs.client().fluidUnitType.get();
 		String amount = FluidTextUtil.getUnicodeMillibuckets(stack.getAmount(), unit, AllConfigs.client().simplifyFluidUnit.get());
 
-		Component amountComponent = Component.literal(" " + amount)
+		Text amountComponent = Text.literal(" " + amount)
 				.append(Lang.translateDirect(unit.getTranslationKey()))
-				.withStyle(ChatFormatting.GOLD);
+				.formatted(Formatting.GOLD);
 
-		MutableComponent fluidName = FluidVariantAttributes.getName(fluid)
+		MutableText fluidName = FluidVariantAttributes.getName(fluid)
 				.copy()
 				.append(amountComponent);
 
-		ClientTooltipComponent component = toTooltip(fluidName);
+		TooltipComponent component = toTooltip(fluidName);
 
 		if (tooltip.isEmpty()) {
 			tooltip.add(component);
@@ -63,17 +62,17 @@ public class CreateSlotWidget extends SlotWidget {
 		}
 	}
 
-	private void removeEmiAmount(List<ClientTooltipComponent> tooltip, FluidVariant entry) {
+	private void removeEmiAmount(List<TooltipComponent> tooltip, FluidVariant entry) {
 		Fluid fluid = entry.getFluid();
-		String namespace = BuiltInRegistries.FLUID.getKey(fluid).getNamespace();
+		String namespace = Registries.FLUID.getId(fluid).getNamespace();
 		String modName = FabricLoader.getInstance().getModContainer(namespace).map(c -> c.getMetadata().getName()).orElse(null);
 		if (modName == null)
 			return;
 		int indexOfModName = -1;
 		for (int i = 0; i < tooltip.size(); i++) {
-			ClientTooltipComponent component = tooltip.get(i);
+			TooltipComponent component = tooltip.get(i);
 			if (component instanceof ClientTextTooltipAccessor text) {
-				FormattedCharSequence contents = text.create$text();
+				OrderedText contents = text.create$text();
 				StringBuilder string = new StringBuilder();
 				contents.accept((what, style, c) -> {
 					string.append((char) c);
@@ -94,7 +93,7 @@ public class CreateSlotWidget extends SlotWidget {
 		}
 	}
 
-	private static ClientTooltipComponent toTooltip(Component component) {
-		return ClientTooltipComponent.create(component.getVisualOrderText());
+	private static TooltipComponent toTooltip(Text component) {
+		return TooltipComponent.of(component.asOrderedText());
 	}
 }

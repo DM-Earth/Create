@@ -1,14 +1,12 @@
 package com.simibubi.create.content.equipment.armor;
 
 import com.simibubi.create.AllTags.AllItemTags;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.ArmorMaterials;
-import net.minecraft.world.item.ItemStack;
-
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ArmorItem;
+import net.minecraft.item.ArmorMaterials;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 import org.jetbrains.annotations.NotNull;
 
 public final class NetheriteDivingHandler {
@@ -46,7 +44,7 @@ public final class NetheriteDivingHandler {
 	}
 	
 	public static boolean isNetheriteBacktank(ItemStack stack) {
-		return stack.is(AllItemTags.PRESSURIZED_AIR_SOURCES.tag) && isNetheriteArmor(stack);
+		return stack.isIn(AllItemTags.PRESSURIZED_AIR_SOURCES.tag) && isNetheriteArmor(stack);
 	}
 	
 	public static boolean isNetheriteArmor(ItemStack stack) {
@@ -54,13 +52,13 @@ public final class NetheriteDivingHandler {
 	}
 
 	public static void setBit(LivingEntity entity, EquipmentSlot slot) {
-		CompoundTag nbt = entity.getCustomData();
+		NbtCompound nbt = entity.getCustomData();
 		byte bits = nbt.getByte(NETHERITE_DIVING_BITS_KEY);
 		if ((bits & 0b1111) == 0b1111) {
 			return;
 		}
 
-		bits |= 1 << slot.getIndex();
+		bits |= 1 << slot.getEntitySlotId();
 		nbt.putByte(NETHERITE_DIVING_BITS_KEY, bits);
 
 		if ((bits & 0b1111) == 0b1111) {
@@ -69,14 +67,14 @@ public final class NetheriteDivingHandler {
 	}
 
 	public static void clearBit(LivingEntity entity, EquipmentSlot slot) {
-		CompoundTag nbt = entity.getCustomData();
+		NbtCompound nbt = entity.getCustomData();
 		if (!nbt.contains(NETHERITE_DIVING_BITS_KEY)) {
 			return;
 		}
 
 		byte bits = nbt.getByte(NETHERITE_DIVING_BITS_KEY);
 		boolean prevFullSet = (bits & 0b1111) == 0b1111;
-		bits &= ~(1 << slot.getIndex());
+		bits &= ~(1 << slot.getEntitySlotId());
 		nbt.putByte(NETHERITE_DIVING_BITS_KEY, bits);
 
 		if (prevFullSet) {

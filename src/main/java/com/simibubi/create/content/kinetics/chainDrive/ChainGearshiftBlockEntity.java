@@ -1,11 +1,10 @@
 package com.simibubi.create.content.kinetics.chainDrive;
 
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
 
 public class ChainGearshiftBlockEntity extends KineticBlockEntity {
 
@@ -19,13 +18,13 @@ public class ChainGearshiftBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putInt("Signal", signal);
 		super.write(compound, clientPacket);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		signal = compound.getInt("Signal");
 		super.read(compound, clientPacket);
 	}
@@ -35,9 +34,9 @@ public class ChainGearshiftBlockEntity extends KineticBlockEntity {
 	}
 
 	public void neighbourChanged() {
-		if (!hasLevel())
+		if (!hasWorld())
 			return;
-		int power = level.getBestNeighborSignal(worldPosition);
+		int power = world.getReceivedRedstonePower(pos);
 		if (power != signal) 
 			signalChanged = true;
 	}
@@ -51,11 +50,11 @@ public class ChainGearshiftBlockEntity extends KineticBlockEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		if (signalChanged) {
 			signalChanged = false;
-			analogSignalChanged(level.getBestNeighborSignal(worldPosition));
+			analogSignalChanged(world.getReceivedRedstonePower(pos));
 		}
 	}
 

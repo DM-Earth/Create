@@ -6,7 +6,7 @@ import static com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessing
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
+import net.minecraft.item.ItemStack;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.kinetics.belt.BeltHelper;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult;
@@ -14,8 +14,6 @@ import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackH
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour.TransportedResult;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.content.kinetics.press.PressingBehaviour.Mode;
-
-import net.minecraft.world.item.ItemStack;
 
 public class BeltPressingCallbacks {
 
@@ -68,7 +66,7 @@ public class BeltPressingCallbacks {
 
 		} else {
 			TransportedItemStack left = transported.copy();
-			left.stack.shrink(1);
+			left.stack.decrement(1);
 
 			if (collect.isEmpty())
 				handler.handleProcessingOnItem(transported, TransportedResult.convertTo(left));

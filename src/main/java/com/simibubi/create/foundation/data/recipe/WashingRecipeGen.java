@@ -18,14 +18,14 @@ import com.tterrag.registrate.util.entry.ItemEntry;
 
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.util.Identifier;
 
 public class WashingRecipeGen extends ProcessingRecipeGen {
 
@@ -90,7 +90,7 @@ public class WashingRecipeGen extends ProcessingRecipeGen {
 		return create(() -> block, b -> b.output(result));
 	}
 
-	public GeneratedRecipe crushedOre(ItemEntry<Item> crushed, Supplier<ItemLike> nugget, Supplier<ItemLike> secondary,
+	public GeneratedRecipe crushedOre(ItemEntry<Item> crushed, Supplier<ItemConvertible> nugget, Supplier<ItemConvertible> secondary,
 		float secondaryChance) {
 		return create(crushed::get, b -> b.output(nugget.get(), 9)
 			.output(secondaryChance, secondary.get(), 1));
@@ -99,10 +99,10 @@ public class WashingRecipeGen extends ProcessingRecipeGen {
 	public GeneratedRecipe moddedCrushedOre(ItemEntry<? extends Item> crushed, CompatMetals metal) {
 		String metalName = metal.getName();
 		for (Mods mod : metal.getMods()) {
-			ResourceLocation nugget = mod.nuggetOf(metalName);
+			Identifier nugget = mod.nuggetOf(metalName);
 			create(mod.getId() + "/" + crushed.getId()
 				.getPath(),
-				b -> b.withItemIngredients(Ingredient.of(crushed::get))
+				b -> b.withItemIngredients(Ingredient.ofItems(crushed::get))
 					.output(1, nugget, 9)
 					.whenModLoaded(mod.getId()));
 		}

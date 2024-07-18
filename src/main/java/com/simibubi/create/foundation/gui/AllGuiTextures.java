@@ -7,8 +7,8 @@ import com.simibubi.create.foundation.utility.Color;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.Identifier;
 
 public enum AllGuiTextures implements ScreenElement {
 
@@ -197,7 +197,7 @@ public enum AllGuiTextures implements ScreenElement {
 
 	public static final int FONT_COLOR = 0x575F7A;
 
-	public final ResourceLocation location;
+	public final Identifier location;
 	public int width, height;
 	public int startX, startY;
 
@@ -214,7 +214,7 @@ public enum AllGuiTextures implements ScreenElement {
 	}
 
 	private AllGuiTextures(String namespace, String location, int startX, int startY, int width, int height) {
-		this.location = new ResourceLocation(namespace, "textures/gui/" + location + ".png");
+		this.location = new Identifier(namespace, "textures/gui/" + location + ".png");
 		this.width = width;
 		this.height = height;
 		this.startX = startX;
@@ -227,12 +227,12 @@ public enum AllGuiTextures implements ScreenElement {
 	}
 
 	@Environment(EnvType.CLIENT)
-	public void render(GuiGraphics graphics, int x, int y) {
-		graphics.blit(location, x, y, startX, startY, width, height);
+	public void render(DrawContext graphics, int x, int y) {
+		graphics.drawTexture(location, x, y, startX, startY, width, height);
 	}
 
 	@Environment(EnvType.CLIENT)
-	public void render(GuiGraphics graphics, int x, int y, Color c) {
+	public void render(DrawContext graphics, int x, int y, Color c) {
 		bind();
 		UIRenderHelper.drawColoredTexture(graphics, c, x, y, startX, startY, width, height);
 	}

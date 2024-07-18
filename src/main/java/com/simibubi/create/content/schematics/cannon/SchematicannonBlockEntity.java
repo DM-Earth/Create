@@ -40,35 +40,35 @@ import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.ResourceAmount;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.piston.PistonHeadBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BedPart;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.PistonHeadBlock;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.enums.BedPart;
+import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.state.property.Properties;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.world.World;
 
-public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuProvider, CustomRenderBoundingBoxBlockEntity {
+public class SchematicannonBlockEntity extends SmartBlockEntity implements NamedScreenHandlerFactory, CustomRenderBoundingBoxBlockEntity {
 
 	public static final int NEIGHBOUR_CHECKING = 100;
 	public static final int MAX_ANCHOR_DISTANCE = 256;
@@ -115,8 +115,8 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 	// fabric: transfer
 	private final Map<Direction, StorageProvider<ItemVariant>> storages = new HashMap<>();
 
-	public SchematicannonBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
+	public SchematicannonBlockEntity(BlockEntityType<?> type, BlockPos blockPos, BlockState state) {
+		super(type, blockPos, state);
 		setLazyTickRate(30);
 		flyingBlocks = new LinkedList<>();
 		inventory = new SchematicannonInventory(this);
@@ -128,11 +128,11 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 	}
 
 	@Override
-	public void setLevel(Level level) {
-		super.setLevel(level);
+	public void setWorld(World level) {
+		super.setWorld(level);
 		for (Direction direction : Iterate.directions) {
-			BlockPos pos = worldPosition.relative(direction);
-			StorageProvider<ItemVariant> provider = StorageProvider.createForItems(level, pos);
+			BlockPos blockPos = pos.offset(direction);
+			StorageProvider<ItemVariant> provider = StorageProvider.createForItems(level, blockPos);
 			storages.put(direction, provider);
 		}
 	}
@@ -142,18 +142,18 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		hasCreativeCrate = false;
 
 		for (Direction facing : Iterate.directions) {
-			BlockPos pos = worldPosition.relative(facing);
+			BlockPos blockPos = pos.offset(facing);
 
-			if (!level.isLoaded(pos))
+			if (!world.canSetBlock(blockPos))
 				continue;
 
-			if (AllBlocks.CREATIVE_CRATE.has(level.getBlockState(pos)))
+			if (AllBlocks.CREATIVE_CRATE.has(world.getBlockState(blockPos)))
 				hasCreativeCrate = true;
 		}
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		if (!clientPacket) {
 			inventory.deserializeNBT(compound.getCompound("Inventory"));
 		}
@@ -170,10 +170,10 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 
 		missingItem = null;
 		if (compound.contains("MissingItem"))
-			missingItem = ItemStack.of(compound.getCompound("MissingItem"));
+			missingItem = ItemStack.fromNbt(compound.getCompound("MissingItem"));
 
 		// Settings
-		CompoundTag options = compound.getCompound("Options");
+		NbtCompound options = compound.getCompound("Options");
 		replaceMode = options.getInt("ReplaceMode");
 		skipMissing = options.getBoolean("SkipMissing");
 		replaceBlockEntities = options.getBoolean("ReplaceTileEntities");
@@ -189,20 +189,20 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		super.read(compound, clientPacket);
 	}
 
-	protected void readFlyingBlocks(CompoundTag compound) {
-		ListTag tagBlocks = compound.getList("FlyingBlocks", 10);
+	protected void readFlyingBlocks(NbtCompound compound) {
+		NbtList tagBlocks = compound.getList("FlyingBlocks", 10);
 		if (tagBlocks.isEmpty())
 			flyingBlocks.clear();
 
 		boolean pastDead = false;
 
 		for (int i = 0; i < tagBlocks.size(); i++) {
-			CompoundTag c = tagBlocks.getCompound(i);
+			NbtCompound c = tagBlocks.getCompound(i);
 			LaunchedItem launched = LaunchedItem.fromNBT(c, blockHolderGetter());
 			BlockPos readBlockPos = launched.target;
 
 			// Always write to Server block entity
-			if (level == null || !level.isClientSide) {
+			if (world == null || !world.isClient) {
 				flyingBlocks.add(launched);
 				continue;
 			}
@@ -225,7 +225,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		if (!clientPacket) {
 			compound.put("Inventory", inventory.serializeNBT());
 			if (state == State.RUNNING) {
@@ -246,18 +246,18 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 			compound.put("MissingItem", NBTSerializer.serializeNBT(missingItem));
 
 		// Settings
-		CompoundTag options = new CompoundTag();
+		NbtCompound options = new NbtCompound();
 		options.putInt("ReplaceMode", replaceMode);
 		options.putBoolean("SkipMissing", skipMissing);
 		options.putBoolean("ReplaceTileEntities", replaceBlockEntities);
 		compound.put("Options", options);
 
 		// Printer & Flying Blocks
-		CompoundTag printerData = new CompoundTag();
+		NbtCompound printerData = new NbtCompound();
 		printer.write(printerData);
 		compound.put("Printer", printerData);
 
-		ListTag tagFlyingBlocks = new ListTag();
+		NbtList tagFlyingBlocks = new NbtList();
 		for (LaunchedItem b : flyingBlocks)
 			tagFlyingBlocks.add(b.serializeNBT());
 		compound.put("FlyingBlocks", tagFlyingBlocks);
@@ -280,7 +280,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		previousTarget = printer.getCurrentTarget();
 		tickFlyingBlocks();
 
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
 		// Update Fuel and Paper
@@ -301,7 +301,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		// Update Client block entity
 		if (sendUpdate) {
 			sendUpdate = false;
-			level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 6);
+			world.updateListeners(pos, getCachedState(), getCachedState(), 6);
 		}
 	}
 
@@ -369,7 +369,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		}
 
 		// Check block
-		if (!getLevel().isLoaded(printer.getCurrentTarget())) {
+		if (!getWorld().canSetBlock(printer.getCurrentTarget())) {
 			positionNotLoaded = true;
 			statusMsg = "targetNotLoaded";
 			state = State.PAUSED;
@@ -383,7 +383,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 
 		// Get item requirement
 		ItemRequirement requirement = printer.getCurrentRequirement();
-		if (requirement.isInvalid() || !printer.shouldPlaceCurrent(level, this::shouldPlace)) {
+		if (requirement.isInvalid() || !printer.shouldPlaceCurrent(world, this::shouldPlace)) {
 			sendUpdate = !statusMsg.equals("searching");
 			statusMsg = "searching";
 			blockSkipped = true;
@@ -441,14 +441,14 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 	}
 
 	protected void initializePrinter(ItemStack blueprint) {
-		if (!blueprint.hasTag()) {
+		if (!blueprint.hasNbt()) {
 			state = State.STOPPED;
 			statusMsg = "schematicInvalid";
 			sendUpdate = true;
 			return;
 		}
 
-		if (!blueprint.getTag()
+		if (!blueprint.getNbt()
 				.getBoolean("Deployed")) {
 			state = State.STOPPED;
 			statusMsg = "schematicNotPlaced";
@@ -457,7 +457,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		}
 
 		// Load blocks into reader
-		printer.loadSchematic(blueprint, level, true);
+		printer.loadSchematic(blueprint, world, true);
 
 		if (printer.isErrored()) {
 			state = State.STOPPED;
@@ -480,7 +480,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		}
 
 		if (!printer.getAnchor()
-				.closerThan(getBlockPos(), MAX_ANCHOR_DISTANCE)) {
+				.isWithinDistance(getPos(), MAX_ANCHOR_DISTANCE)) {
 			state = State.STOPPED;
 			statusMsg = "targetOutsideRange";
 			printer.resetSchematic();
@@ -496,7 +496,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 	}
 
 	protected ItemStack getItemForBlock(BlockState blockState) {
-		Item item = BlockItem.BY_BLOCK.getOrDefault(blockState.getBlock(), Items.AIR);
+		Item item = BlockItem.BLOCK_ITEMS.getOrDefault(blockState.getBlock(), Items.AIR);
 		return item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
 	}
 
@@ -510,7 +510,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		// Find and apply damage
 		// fabric - can't modify directly, extract and re-insert
 		if (usage == ItemUseType.DAMAGE) {
-			if (!stack.isDamageableItem())
+			if (!stack.isDamageable())
 				return false;
 
 			for (Entry<Direction, StorageProvider<ItemVariant>> entry : storages.entrySet()) {
@@ -523,8 +523,8 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 						continue; // failed, skip
 					ItemVariant variant = resource.resource();
 					ItemStack newStack = variant.toStack();
-					newStack.setDamageValue(newStack.getDamageValue() + 1);
-					if (stack.getDamageValue() < stack.getMaxDamage()) {
+					newStack.setDamage(newStack.getDamage() + 1);
+					if (stack.getDamage() < stack.getMaxDamage()) {
 						// stack not broken, re-insert
 						ItemVariant newVariant = ItemVariant.of(newStack);
 						long inserted = storage.insert(newVariant, 1, t);
@@ -569,7 +569,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 		state = State.STOPPED;
 		statusMsg = "finished";
 		resetPrinter();
-		AllSoundEvents.SCHEMATICANNON_FINISH.playOnServer(level, worldPosition);
+		AllSoundEvents.SCHEMATICANNON_FINISH.playOnServer(world, pos);
 		sendUpdate = true;
 	}
 
@@ -584,7 +584,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 
 	protected boolean shouldPlace(BlockPos pos, BlockState state, BlockEntity be, BlockState toReplace,
 								  BlockState toReplaceOther, boolean isNormalCube) {
-		if (pos.closerThan(getBlockPos(), 2f))
+		if (pos.isWithinDistance(getPos(), 2f))
 			return false;
 		if (!replaceBlockEntities
 				&& (toReplace.hasBlockEntity() || (toReplaceOther != null && toReplaceOther.hasBlockEntity())))
@@ -599,11 +599,11 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 			return true;
 		if (replaceMode == 2 && !placingAir)
 			return true;
-		if (replaceMode == 1 && (isNormalCube || (!toReplace.isRedstoneConductor(level, pos)
-				&& (toReplaceOther == null || !toReplaceOther.isRedstoneConductor(level, pos)))) && !placingAir)
+		if (replaceMode == 1 && (isNormalCube || (!toReplace.isSolidBlock(world, pos)
+				&& (toReplaceOther == null || !toReplaceOther.isSolidBlock(world, pos)))) && !placingAir)
 			return true;
-		if (replaceMode == 0 && !toReplace.isRedstoneConductor(level, pos)
-				&& (toReplaceOther == null || !toReplaceOther.isRedstoneConductor(level, pos)) && !placingAir)
+		if (replaceMode == 0 && !toReplace.isSolidBlock(world, pos)
+				&& (toReplaceOther == null || !toReplaceOther.isSolidBlock(world, pos)) && !placingAir)
 			return true;
 
 		return false;
@@ -621,16 +621,16 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 			return false;
 
 		// Block doesn't need to be placed twice (Doors, beds, double plants)
-		if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
-				&& state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER)
+		if (state.contains(Properties.DOUBLE_BLOCK_HALF)
+				&& state.get(Properties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER)
 			return true;
-		if (state.hasProperty(BlockStateProperties.BED_PART)
-				&& state.getValue(BlockStateProperties.BED_PART) == BedPart.HEAD)
+		if (state.contains(Properties.BED_PART)
+				&& state.get(Properties.BED_PART) == BedPart.HEAD)
 			return true;
 		if (state.getBlock() instanceof PistonHeadBlock)
 			return true;
 		if (AllBlocks.BELT.has(state))
-			return state.getValue(BeltBlock.PART) == BeltPart.MIDDLE;
+			return state.get(BeltBlock.PART) == BeltPart.MIDDLE;
 
 		return false;
 	}
@@ -638,7 +638,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 	protected void tickFlyingBlocks() {
 		List<LaunchedItem> toRemove = new LinkedList<>();
 		for (LaunchedItem b : flyingBlocks)
-			if (b.update(level))
+			if (b.update(world))
 				toRemove.add(b);
 		flyingBlocks.removeAll(toRemove);
 	}
@@ -653,7 +653,7 @@ public class SchematicannonBlockEntity extends SmartBlockEntity implements MenuP
 			return;
 
 		inventory.getStackInSlot(4)
-				.shrink(1);
+				.decrement(1);
 		fuelLevel += getFuelAddedByGunPowder();
 		if (statusMsg.equals("noGunpowder")) {
 			if (blocksPlaced > 0)
@@ -717,15 +717,15 @@ if (printer.isErrored())
 	}
 
 	public static BlockState stripBeltIfNotLast(BlockState blockState) {
-		BeltPart part = blockState.getValue(BeltBlock.PART);
+		BeltPart part = blockState.get(BeltBlock.PART);
 		if (part == BeltPart.MIDDLE)
-			return Blocks.AIR.defaultBlockState();
+			return Blocks.AIR.getDefaultState();
 
 		// is highest belt?
 		boolean isLastSegment = false;
-		Direction facing = blockState.getValue(BeltBlock.HORIZONTAL_FACING);
-		BeltSlope slope = blockState.getValue(BeltBlock.SLOPE);
-		boolean positive = facing.getAxisDirection() == AxisDirection.POSITIVE;
+		Direction facing = blockState.get(BeltBlock.HORIZONTAL_FACING);
+		BeltSlope slope = blockState.get(BeltBlock.SLOPE);
+		boolean positive = facing.getDirection() == AxisDirection.POSITIVE;
 		boolean start = part == BeltPart.START;
 		boolean end = part == BeltPart.END;
 
@@ -743,8 +743,8 @@ if (printer.isErrored())
 			return blockState;
 
 		return AllBlocks.SHAFT.getDefaultState()
-				.setValue(AbstractSimpleShaftBlock.AXIS, slope == BeltSlope.SIDEWAYS ? Axis.Y
-						:facing.getClockWise()
+				.with(AbstractSimpleShaftBlock.AXIS, slope == BeltSlope.SIDEWAYS ? Axis.Y
+						:facing.rotateYClockwise()
 								.getAxis());
 	}
 
@@ -756,63 +756,63 @@ if (printer.isErrored())
 				Arrays.fill(casings, CasingType.NONE);
 				BlockPos currentPos = target;
 				for (int i = 0; i < bbe.beltLength; i++) {
-					BlockState currentState = bbe.getLevel()
+					BlockState currentState = bbe.getWorld()
 						.getBlockState(currentPos);
 					if (!(currentState.getBlock() instanceof BeltBlock))
 						break;
-					if (!(bbe.getLevel()
+					if (!(bbe.getWorld()
 						.getBlockEntity(currentPos) instanceof BeltBlockEntity beltAtSegment))
 						break;
 					casings[i] = beltAtSegment.casing;
 					currentPos = BeltBlock.nextSegmentPosition(currentState, currentPos,
-						blockState.getValue(BeltBlock.PART) != BeltPart.END);
+						blockState.get(BeltBlock.PART) != BeltPart.END);
 				}
 				launchBelt(target, blockState, bbe.beltLength, casings);
-			} else if (blockState != Blocks.AIR.defaultBlockState())
+			} else if (blockState != Blocks.AIR.getDefaultState())
 				launchBlock(target, icon, blockState, null);
 			return;
 		}
 
-		CompoundTag data = BlockHelper.prepareBlockEntityData(blockState, blockEntity);
+		NbtCompound data = BlockHelper.prepareBlockEntityData(blockState, blockEntity);
 		launchBlock(target, icon, blockState, data);
 	}
 
 	protected void launchBelt(BlockPos target, BlockState state, int length, CasingType[] casings) {
 		blocksPlaced++;
 		ItemStack connector = AllItems.BELT_CONNECTOR.asStack();
-		flyingBlocks.add(new LaunchedItem.ForBelt(this.getBlockPos(), target, connector, state, casings));
+		flyingBlocks.add(new LaunchedItem.ForBelt(this.getPos(), target, connector, state, casings));
 		playFiringSound();
 	}
 
-	protected void launchBlock(BlockPos target, ItemStack stack, BlockState state, @Nullable CompoundTag data) {
+	protected void launchBlock(BlockPos target, ItemStack stack, BlockState state, @Nullable NbtCompound data) {
 		if (!state.isAir())
 			blocksPlaced++;
-		flyingBlocks.add(new LaunchedItem.ForBlockState(this.getBlockPos(), target, stack, state, data));
+		flyingBlocks.add(new LaunchedItem.ForBlockState(this.getPos(), target, stack, state, data));
 		playFiringSound();
 	}
 
 	protected void launchEntity(BlockPos target, ItemStack stack, Entity entity) {
 		blocksPlaced++;
-		flyingBlocks.add(new LaunchedItem.ForEntity(this.getBlockPos(), target, stack, entity));
+		flyingBlocks.add(new LaunchedItem.ForEntity(this.getPos(), target, stack, entity));
 		playFiringSound();
 	}
 
 	public void playFiringSound() {
-		AllSoundEvents.SCHEMATICANNON_LAUNCH_BLOCK.playOnServer(level, worldPosition);
+		AllSoundEvents.SCHEMATICANNON_LAUNCH_BLOCK.playOnServer(world, pos);
 	}
 
-	public void sendToMenu(FriendlyByteBuf buffer) {
-		buffer.writeBlockPos(getBlockPos());
-		buffer.writeNbt(getUpdateTag());
+	public void sendToMenu(PacketByteBuf buffer) {
+		buffer.writeBlockPos(getPos());
+		buffer.writeNbt(toInitialChunkDataNbt());
 	}
 
 	@Override
-	public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
+	public ScreenHandler createMenu(int id, PlayerInventory inv, PlayerEntity player) {
 		return SchematicannonMenu.create(id, inv, this);
 	}
 
 	@Override
-	public Component getDisplayName() {
+	public Text getDisplayName() {
 		return Lang.translateDirect("gui.schematicannon.title");
 	}
 
@@ -823,7 +823,7 @@ if (printer.isErrored())
 
 		if (printer.isLoaded() && !printer.isErrored()) {
 			blocksToPlace = blocksPlaced;
-			blocksToPlace += printer.markAllBlockRequirements(checklist, level, this::shouldPlace);
+			blocksToPlace += printer.markAllBlockRequirements(checklist, world, this::shouldPlace);
 			printer.markAllEntityRequirements(checklist);
 		}
 
@@ -851,7 +851,7 @@ if (printer.isErrored())
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public AABB getRenderBoundingBox() {
+	public Box getRenderBoundingBox() {
 		return INFINITE_EXTENT_AABB;
 	}
 

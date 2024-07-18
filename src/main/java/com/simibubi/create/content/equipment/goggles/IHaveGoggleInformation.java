@@ -14,8 +14,8 @@ import io.github.fabricators_of_create.porting_lib.util.FluidUnit;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 /*
  * Implement this Interface in the BlockEntity class that wants to add info to the screen
@@ -31,7 +31,7 @@ public interface IHaveGoggleInformation {
 	 * Use Lang.[...].forGoggles(list)
 	 */
 	@Deprecated
-	Component componentSpacing = Components.literal(spacing);
+	Text componentSpacing = Components.literal(spacing);
 
 	/**
 	 * this method will be called when looking at a BlockEntity that implemented this
@@ -40,11 +40,11 @@ public interface IHaveGoggleInformation {
 	 * @return {@code true} if the tooltip creation was successful and should be
 	 * displayed, or {@code false} if the overlay should not be displayed
 	 */
-	default boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	default boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		return false;
 	}
 
-	default boolean containedFluidTooltip(List<Component> tooltip, boolean isPlayerSneaking, Storage<FluidVariant> handler) {
+	default boolean containedFluidTooltip(List<Text> tooltip, boolean isPlayerSneaking, Storage<FluidVariant> handler) {
 		if (handler == null)
 			return false;
 		FluidUnit unit = AllConfigs.client().fluidUnitType.get();
@@ -66,18 +66,18 @@ public interface IHaveGoggleInformation {
 				continue;
 
 			Lang.fluidName(fluidStack)
-					.style(ChatFormatting.GRAY)
+					.style(Formatting.GRAY)
 					.forGoggles(tooltip, 1);
 
 			String amount = FluidTextUtil.getUnicodeMillibuckets(fluidStack.getAmount(), unit, simplify);
 			Lang.builder()
 					.add(Lang.text(amount)
 							.add(mb)
-							.style(ChatFormatting.GOLD))
-					.text(ChatFormatting.GRAY, " / ")
+							.style(Formatting.GOLD))
+					.text(Formatting.GRAY, " / ")
 					.add(Lang.text(FluidTextUtil.getUnicodeMillibuckets(view.getCapacity(), unit, simplify))
 							.add(mb)
-							.style(ChatFormatting.DARK_GRAY))
+							.style(Formatting.DARK_GRAY))
 					.forGoggles(tooltip, 1);
 
 			isEmpty = false;
@@ -95,8 +95,8 @@ public interface IHaveGoggleInformation {
 		Lang.translate("gui.goggles.fluid_container.capacity")
 				.add(Lang.text(FluidTextUtil.getUnicodeMillibuckets(firstCapacity, unit, simplify))
 						.add(mb)
-						.style(ChatFormatting.GOLD))
-				.style(ChatFormatting.GRAY)
+						.style(Formatting.GOLD))
+				.style(Formatting.GRAY)
 				.forGoggles(tooltip, 1);
 
 		return true;

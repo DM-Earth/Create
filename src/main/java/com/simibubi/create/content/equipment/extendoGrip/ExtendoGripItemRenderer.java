@@ -2,19 +2,18 @@ package com.simibubi.create.content.equipment.extendoGrip;
 
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class ExtendoGripItemRenderer extends CustomRenderedItemModelRenderer {
 
@@ -24,23 +23,23 @@ public class ExtendoGripItemRenderer extends CustomRenderedItemModelRenderer {
 	protected static final PartialModel THIN_LONG = new PartialModel(Create.asResource("item/extendo_grip/thin_long"));
 	protected static final PartialModel WIDE_LONG = new PartialModel(Create.asResource("item/extendo_grip/wide_long"));
 
-	private static final Vec3 ROTATION_OFFSET = new Vec3(0, 1 / 2f, 1 / 2f);
-	private static final Vec3 COG_ROTATION_OFFSET = new Vec3(0, 1 / 16f, 0);
+	private static final Vec3d ROTATION_OFFSET = new Vec3d(0, 1 / 2f, 1 / 2f);
+	private static final Vec3d COG_ROTATION_OFFSET = new Vec3d(0, 1 / 16f, 0);
 
 	@Override
-	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ItemDisplayContext transformType,
-		PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
+	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ModelTransformationMode transformType,
+		MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay) {
 		TransformStack stacker = TransformStack.cast(ms);
 		float animation = 0.25f;
-		boolean leftHand = transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
-		boolean rightHand = transformType == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND;
+		boolean leftHand = transformType == ModelTransformationMode.FIRST_PERSON_LEFT_HAND;
+		boolean rightHand = transformType == ModelTransformationMode.FIRST_PERSON_RIGHT_HAND;
 		if (leftHand || rightHand)
-			animation = Mth.lerp(AnimationTickHolder.getPartialTicks(),
+			animation = MathHelper.lerp(AnimationTickHolder.getPartialTicks(),
 										ExtendoGripRenderHandler.lastMainHandAnimation,
 										ExtendoGripRenderHandler.mainHandAnimation);
 
 		animation = animation * animation * animation;
-		float extensionAngle = Mth.lerp(animation, 24f, 156f);
+		float extensionAngle = MathHelper.lerp(animation, 24f, 156f);
 		float halfAngle = extensionAngle / 2;
 		float oppositeAngle = 180 - extensionAngle;
 
@@ -48,10 +47,10 @@ public class ExtendoGripItemRenderer extends CustomRenderedItemModelRenderer {
 		renderer.renderSolid(model.getOriginalModel(), light);
 
 		// bits
-		ms.pushPose();
+		ms.push();
 		ms.translate(0, 1 / 16f, -7 / 16f);
 		ms.scale(1, 1, 1 + animation);
-		ms.pushPose();
+		ms.push();
 		stacker.rotateX(-halfAngle)
 			.translate(ROTATION_OFFSET);
 		renderer.renderSolid(THIN_SHORT.get(), light);
@@ -70,8 +69,8 @@ public class ExtendoGripItemRenderer extends CustomRenderedItemModelRenderer {
 		renderer.renderSolid(THIN_SHORT.get(), light);
 		stacker.translateBack(ROTATION_OFFSET);
 
-		ms.popPose();
-		ms.pushPose();
+		ms.pop();
+		ms.push();
 
 		stacker.rotateX(-180 + halfAngle)
 			.translate(ROTATION_OFFSET);
@@ -99,12 +98,12 @@ public class ExtendoGripItemRenderer extends CustomRenderedItemModelRenderer {
 		ms.scale(1, 1, 1 / (1 + animation));
 		renderer.renderSolid((leftHand || rightHand) ? ExtendoGripRenderHandler.pose.get()
 			: AllPartialModels.DEPLOYER_HAND_POINTING.get(), light);
-		ms.popPose();
+		ms.pop();
 
-		ms.popPose();
+		ms.pop();
 
 		// cog
-		ms.pushPose();
+		ms.push();
 		float angle = AnimationTickHolder.getRenderTime() * -2;
 		if (leftHand || rightHand)
 			angle += 360 * animation;
@@ -113,7 +112,7 @@ public class ExtendoGripItemRenderer extends CustomRenderedItemModelRenderer {
 			.rotateZ(angle)
 			.translateBack(COG_ROTATION_OFFSET);
 		renderer.renderSolid(COG.get(), light);
-		ms.popPose();
+		ms.pop();
 	}
 
 }

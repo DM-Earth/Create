@@ -4,54 +4,53 @@ import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldView;
 
 public class CuckooClockBlock extends HorizontalKineticBlock implements IBE<CuckooClockBlockEntity> {
 
 	private boolean mysterious;
 
-	public static CuckooClockBlock regular(Properties properties) {
+	public static CuckooClockBlock regular(Settings properties) {
 		return new CuckooClockBlock(false, properties);
 	}
 	
-	public static CuckooClockBlock mysterious(Properties properties) {
+	public static CuckooClockBlock mysterious(Settings properties) {
 		return new CuckooClockBlock(true, properties);
 	}
 	
-	protected CuckooClockBlock(boolean mysterious, Properties properties) {
+	protected CuckooClockBlock(boolean mysterious, Settings properties) {
 		super(properties);
 		this.mysterious = mysterious;
 	}
 	
 	@Override
-	public VoxelShape getShape(BlockState p_220053_1_, BlockGetter p_220053_2_, BlockPos p_220053_3_,
-		CollisionContext p_220053_4_) {
+	public VoxelShape getOutlineShape(BlockState p_220053_1_, BlockView p_220053_2_, BlockPos p_220053_3_,
+		ShapeContext p_220053_4_) {
 		return AllShapes.CUCKOO_CLOCK;
 	}
 	
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
+	public BlockState getPlacementState(ItemPlacementContext context) {
 		Direction preferred = getPreferredHorizontalFacing(context);
 		if (preferred != null)
-			return defaultBlockState().setValue(HORIZONTAL_FACING, preferred.getOpposite());
-		return this.defaultBlockState().setValue(HORIZONTAL_FACING, context.getHorizontalDirection().getOpposite());
+			return getDefaultState().with(HORIZONTAL_FACING, preferred.getOpposite());
+		return this.getDefaultState().with(HORIZONTAL_FACING, context.getHorizontalPlayerFacing().getOpposite());
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return face == state.getValue(HORIZONTAL_FACING).getOpposite();
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		return face == state.get(HORIZONTAL_FACING).getOpposite();
 	}
 
 	public static boolean containsSurprise(BlockState state) {
@@ -61,11 +60,11 @@ public class CuckooClockBlock extends HorizontalKineticBlock implements IBE<Cuck
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(HORIZONTAL_FACING).getAxis();
+		return state.get(HORIZONTAL_FACING).getAxis();
 	}
 	
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

@@ -17,49 +17,48 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
-import net.minecraft.ChatFormatting;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Tuple;
-import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffectUtil;
-import net.minecraft.world.entity.ai.attributes.Attribute;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.entity.attribute.EntityAttribute;
+import net.minecraft.entity.attribute.EntityAttributeModifier;
+import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffectUtil;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.PotionUtil;
+import net.minecraft.potion.Potions;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public class PotionFluidHandler {
 
 	public static Pair<FluidStack, ItemStack> emptyPotion(ItemStack stack, boolean simulate) {
 		FluidStack fluid = getFluidFromPotionItem(stack);
 		if (!simulate)
-			stack.shrink(1);
+			stack.decrement(1);
 		return Pair.of(fluid, new ItemStack(Items.GLASS_BOTTLE));
 	}
 
 	public static FluidIngredient potionIngredient(Potion potion, long amount) {
 		return FluidIngredient.fromFluidStack(FluidHelper.copyStackWithAmount(PotionFluidHandler
-			.getFluidFromPotionItem(PotionUtils.setPotion(new ItemStack(Items.POTION), potion)), amount));
+			.getFluidFromPotionItem(PotionUtil.setPotion(new ItemStack(Items.POTION), potion)), amount));
 	}
 
 	public static FluidStack getFluidFromPotionItem(ItemStack stack) {
-		Potion potion = PotionUtils.getPotion(stack);
-		List<MobEffectInstance> list = PotionUtils.getCustomEffects(stack);
+		Potion potion = PotionUtil.getPotion(stack);
+		List<StatusEffectInstance> list = PotionUtil.getCustomPotionEffects(stack);
 		BottleType bottleTypeFromItem = bottleTypeFromItem(stack.getItem());
 		if (potion == Potions.EMPTY)
 			return FluidStack.EMPTY;
 		if (potion == Potions.WATER && list.isEmpty() && bottleTypeFromItem == BottleType.REGULAR)
 			return new FluidStack(Fluids.WATER, FluidConstants.BOTTLE);
 		FluidStack fluid = PotionFluid.withEffects(FluidConstants.BOTTLE, potion, list);
-		CompoundTag tagInfo = fluid.getTag();
+		NbtCompound tagInfo = fluid.getTag();
 		NBTHelper.writeEnum(tagInfo, "Bottle", bottleTypeFromItem);
 		FluidVariant variant = FluidVariant.of(fluid.getFluid(), tagInfo);
 		return new FluidStack(variant, fluid.getAmount(), tagInfo);
@@ -81,7 +80,7 @@ public class PotionFluidHandler {
 		return BottleType.REGULAR;
 	}
 
-	public static ItemLike itemFromBottleType(BottleType type) {
+	public static ItemConvertible itemFromBottleType(BottleType type) {
 		switch (type) {
 		case LINGERING:
 			return Items.LINGERING_POTION;
@@ -98,38 +97,38 @@ public class PotionFluidHandler {
 	}
 
 	public static ItemStack fillBottle(ItemStack stack, FluidStack availableFluid) {
-		CompoundTag tag = availableFluid.getOrCreateTag();
+		NbtCompound tag = availableFluid.getOrCreateTag();
 		ItemStack potionStack = new ItemStack(itemFromBottleType(NBTHelper.readEnum(tag, "Bottle", BottleType.class)));
-		PotionUtils.setPotion(potionStack, PotionUtils.getPotion(tag));
-		PotionUtils.setCustomEffects(potionStack, PotionUtils.getCustomEffects(tag));
+		PotionUtil.setPotion(potionStack, PotionUtil.getPotion(tag));
+		PotionUtil.setCustomPotionEffects(potionStack, PotionUtil.getCustomPotionEffects(tag));
 		return potionStack;
 	}
 
 	// Modified version of PotionUtils#addPotionTooltip
 	@Environment(EnvType.CLIENT)
-	public static void addPotionTooltip(FluidStack fs, List<Component> tooltip, float p_185182_2_) {
+	public static void addPotionTooltip(FluidStack fs, List<Text> tooltip, float p_185182_2_) {
 		addPotionTooltip(fs.getType(), tooltip, p_185182_2_);
 	}
 
 	@Environment(EnvType.CLIENT)
-	public static void addPotionTooltip(FluidVariant fs, List<Component> tooltip, float p_185182_2_) {
-		List<MobEffectInstance> list = PotionUtils.getAllEffects(fs.getNbt());
-		List<Tuple<String, AttributeModifier>> list1 = Lists.newArrayList();
+	public static void addPotionTooltip(FluidVariant fs, List<Text> tooltip, float p_185182_2_) {
+		List<StatusEffectInstance> list = PotionUtil.getPotionEffects(fs.getNbt());
+		List<net.minecraft.util.Pair<String, EntityAttributeModifier>> list1 = Lists.newArrayList();
 		if (list.isEmpty()) {
-			tooltip.add((Components.translatable("effect.none")).withStyle(ChatFormatting.GRAY));
+			tooltip.add((Components.translatable("effect.none")).formatted(Formatting.GRAY));
 		} else {
-			for (MobEffectInstance effectinstance : list) {
-				MutableComponent textcomponent = Components.translatable(effectinstance.getDescriptionId());
-				MobEffect effect = effectinstance.getEffect();
-				Map<Attribute, AttributeModifier> map = effect.getAttributeModifiers();
+			for (StatusEffectInstance effectinstance : list) {
+				MutableText textcomponent = Components.translatable(effectinstance.getTranslationKey());
+				StatusEffect effect = effectinstance.getEffectType();
+				Map<EntityAttribute, EntityAttributeModifier> map = effect.getAttributeModifiers();
 				if (!map.isEmpty()) {
-					for (Entry<Attribute, AttributeModifier> entry : map.entrySet()) {
-						AttributeModifier attributemodifier = entry.getValue();
-						AttributeModifier attributemodifier1 = new AttributeModifier(attributemodifier.getName(),
-							effect.getAttributeModifierValue(effectinstance.getAmplifier(), attributemodifier),
+					for (Entry<EntityAttribute, EntityAttributeModifier> entry : map.entrySet()) {
+						EntityAttributeModifier attributemodifier = entry.getValue();
+						EntityAttributeModifier attributemodifier1 = new EntityAttributeModifier(attributemodifier.getName(),
+							effect.adjustModifierAmount(effectinstance.getAmplifier(), attributemodifier),
 							attributemodifier.getOperation());
-						list1.add(new Tuple<>(
-							entry.getKey().getDescriptionId(),
+						list1.add(new net.minecraft.util.Pair<>(
+							entry.getKey().getTranslationKey(),
 							attributemodifier1));
 					}
 				}
@@ -141,45 +140,45 @@ public class PotionFluidHandler {
 
 				if (effectinstance.getDuration() > 20) {
 					textcomponent.append(" (")
-						.append(MobEffectUtil.formatDuration(effectinstance, p_185182_2_))
+						.append(StatusEffectUtil.getDurationText(effectinstance, p_185182_2_))
 						.append(")");
 				}
 
-				tooltip.add(textcomponent.withStyle(effect.getCategory()
-					.getTooltipFormatting()));
+				tooltip.add(textcomponent.formatted(effect.getCategory()
+					.getFormatting()));
 			}
 		}
 
 		if (!list1.isEmpty()) {
 			tooltip.add(Components.immutableEmpty());
-			tooltip.add((Components.translatable("potion.whenDrank")).withStyle(ChatFormatting.DARK_PURPLE));
+			tooltip.add((Components.translatable("potion.whenDrank")).formatted(Formatting.DARK_PURPLE));
 
-			for (Tuple<String, AttributeModifier> tuple : list1) {
-				AttributeModifier attributemodifier2 = tuple.getB();
-				double d0 = attributemodifier2.getAmount();
+			for (net.minecraft.util.Pair<String, EntityAttributeModifier> tuple : list1) {
+				EntityAttributeModifier attributemodifier2 = tuple.getRight();
+				double d0 = attributemodifier2.getValue();
 				double d1;
-				if (attributemodifier2.getOperation() != AttributeModifier.Operation.MULTIPLY_BASE
-					&& attributemodifier2.getOperation() != AttributeModifier.Operation.MULTIPLY_TOTAL) {
-					d1 = attributemodifier2.getAmount();
+				if (attributemodifier2.getOperation() != EntityAttributeModifier.Operation.MULTIPLY_BASE
+					&& attributemodifier2.getOperation() != EntityAttributeModifier.Operation.MULTIPLY_TOTAL) {
+					d1 = attributemodifier2.getValue();
 				} else {
-					d1 = attributemodifier2.getAmount() * 100.0D;
+					d1 = attributemodifier2.getValue() * 100.0D;
 				}
 
 				if (d0 > 0.0D) {
 					tooltip.add((Components.translatable(
 						"attribute.modifier.plus." + attributemodifier2.getOperation()
-							.toValue(),
-						ItemStack.ATTRIBUTE_MODIFIER_FORMAT.format(d1),
-						Components.translatable(tuple.getA())))
-							.withStyle(ChatFormatting.BLUE));
+							.getId(),
+						ItemStack.MODIFIER_FORMAT.format(d1),
+						Components.translatable(tuple.getLeft())))
+							.formatted(Formatting.BLUE));
 				} else if (d0 < 0.0D) {
 					d1 = d1 * -1.0D;
 					tooltip.add((Components.translatable(
 						"attribute.modifier.take." + attributemodifier2.getOperation()
-							.toValue(),
-						ItemStack.ATTRIBUTE_MODIFIER_FORMAT.format(d1),
-						Components.translatable(tuple.getA())))
-							.withStyle(ChatFormatting.RED));
+							.getId(),
+						ItemStack.MODIFIER_FORMAT.format(d1),
+						Components.translatable(tuple.getLeft())))
+							.formatted(Formatting.RED));
 				}
 			}
 		}

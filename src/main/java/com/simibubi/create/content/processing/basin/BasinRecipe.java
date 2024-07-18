@@ -29,13 +29,13 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.world.World;
 
 public class BasinRecipe extends ProcessingRecipe<SmartInventory> {
 
@@ -44,8 +44,8 @@ public class BasinRecipe extends ProcessingRecipe<SmartInventory> {
 		if (filter == null)
 			return false;
 
-		boolean filterTest = filter.test(recipe.getResultItem(basin.getLevel()
-			.registryAccess()));
+		boolean filterTest = filter.test(recipe.getOutput(basin.getWorld()
+			.getRegistryManager()));
 		if (recipe instanceof BasinRecipe) {
 			BasinRecipe basinRecipe = (BasinRecipe) recipe;
 			if (basinRecipe.getRollableResults()
@@ -74,9 +74,9 @@ public class BasinRecipe extends ProcessingRecipe<SmartInventory> {
 		if (availableItems == null || availableFluids == null)
 			return false;
 
-		HeatLevel heat = BasinBlockEntity.getHeatLevelOf(basin.getLevel()
-			.getBlockState(basin.getBlockPos()
-				.below(1)));
+		HeatLevel heat = BasinBlockEntity.getHeatLevelOf(basin.getWorld()
+			.getBlockState(basin.getPos()
+				.down(1)));
 		if (isBasinRecipe && !((BasinRecipe) recipe).getRequiredHeat()
 			.testBlazeBurner(heat))
 			return false;
@@ -89,7 +89,7 @@ public class BasinRecipe extends ProcessingRecipe<SmartInventory> {
 			isBasinRecipe ? ((BasinRecipe) recipe).getFluidIngredients() : Collections.emptyList();
 
 		// fabric: track consumed items to get remainders later
-		NonNullList<ItemStack> consumedItems = NonNullList.create();
+		DefaultedList<ItemStack> consumedItems = DefaultedList.of();
 
 		try (Transaction t = TransferUtil.getTransaction()) {
 			Ingredients: for (Ingredient ingredient : ingredients) {
@@ -99,7 +99,7 @@ public class BasinRecipe extends ProcessingRecipe<SmartInventory> {
 					if (!ingredient.test(stack)) continue;
 					// Catalyst items are never consumed
 					ItemStack remainder = stack.getRecipeRemainder();
-					if (!remainder.isEmpty() && ItemStack.isSameItem(remainder, stack))
+					if (!remainder.isEmpty() && ItemStack.areItemsEqual(remainder, stack))
 						continue Ingredients;
 					long extracted = view.extract(var, 1, t);
 					if (extracted == 0) continue;
@@ -140,13 +140,13 @@ public class BasinRecipe extends ProcessingRecipe<SmartInventory> {
 			if (recipe instanceof BasinRecipe basinRecipe) {
 				recipeOutputItems.addAll(basinRecipe.rollResults());
 				recipeOutputFluids.addAll(basinRecipe.getFluidResults());
-				recipeOutputItems.addAll(basinRecipe.getRemainingItems(basin.getInputInventory()));
+				recipeOutputItems.addAll(basinRecipe.getRemainder(basin.getInputInventory()));
 			} else {
-				recipeOutputItems.add(recipe.getResultItem(basin.getLevel()
-						.registryAccess()));
+				recipeOutputItems.add(recipe.getOutput(basin.getWorld()
+						.getRegistryManager()));
 
 				if (recipe instanceof CraftingRecipe craftingRecipe) {
-					recipeOutputItems.addAll(craftingRecipe.getRemainingItems(new DummyCraftingContainer(consumedItems)));
+					recipeOutputItems.addAll(craftingRecipe.getRemainder(new DummyCraftingContainer(consumedItems)));
 				}
 			}
 
@@ -165,7 +165,7 @@ public class BasinRecipe extends ProcessingRecipe<SmartInventory> {
 	public static BasinRecipe convertShapeless(Recipe<?> recipe) {
 		BasinRecipe basinRecipe =
 			new ProcessingRecipeBuilder<>(BasinRecipe::new, recipe.getId()).withItemIngredients(recipe.getIngredients())
-				.withSingleItemOutput(recipe.getResultItem(Minecraft.getInstance().level.registryAccess()))
+				.withSingleItemOutput(recipe.getOutput(MinecraftClient.getInstance().world.getRegistryManager()))
 				.build();
 		return basinRecipe;
 	}
@@ -209,7 +209,7 @@ public class BasinRecipe extends ProcessingRecipe<SmartInventory> {
 	}
 
 	@Override
-	public boolean matches(SmartInventory inv, @Nonnull Level worldIn) {
+	public boolean matches(SmartInventory inv, @Nonnull World worldIn) {
 		return false;
 	}
 

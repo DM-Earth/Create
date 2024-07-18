@@ -6,21 +6,20 @@ import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
-
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.Mth;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
 
 public class PulleyRenderer extends AbstractPulleyRenderer<PulleyBlockEntity> {
 
-	public PulleyRenderer(BlockEntityRendererProvider.Context context) {
+	public PulleyRenderer(BlockEntityRendererFactory.Context context) {
 		super(context, AllPartialModels.ROPE_HALF, AllPartialModels.ROPE_HALF_MAGNET);
 	}
 
 	@Override
 	protected Axis getShaftAxis(PulleyBlockEntity be) {
-		return be.getBlockState()
-			.getValue(PulleyBlock.HORIZONTAL_AXIS);
+		return be.getCachedState()
+			.get(PulleyBlock.HORIZONTAL_AXIS);
 	}
 
 	@Override
@@ -58,7 +57,7 @@ public class PulleyRenderer extends AbstractPulleyRenderer<PulleyBlockEntity> {
 		AbstractContraptionEntity attachedContraption = blockEntity.getAttachedContraption();
 		if (attachedContraption != null) {
 			PulleyContraption c = (PulleyContraption) attachedContraption.getContraption();
-			double entityPos = Mth.lerp(partialTicks, attachedContraption.yOld, attachedContraption.getY());
+			double entityPos = MathHelper.lerp(partialTicks, attachedContraption.lastRenderY, attachedContraption.getY());
 			offset = (float) -(entityPos - c.anchor.getY() - c.getInitialOffset());
 		}
 
@@ -66,7 +65,7 @@ public class PulleyRenderer extends AbstractPulleyRenderer<PulleyBlockEntity> {
 	}
 	
 	@Override
-	public int getViewDistance() {
+	public int getRenderDistance() {
 		return 128;
 	}
 	

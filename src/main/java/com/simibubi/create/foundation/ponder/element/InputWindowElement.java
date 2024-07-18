@@ -1,7 +1,6 @@
 package com.simibubi.create.foundation.ponder.element;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.gui.AllIcons;
@@ -11,21 +10,21 @@ import com.simibubi.create.foundation.ponder.PonderPalette;
 import com.simibubi.create.foundation.ponder.PonderScene;
 import com.simibubi.create.foundation.ponder.ui.PonderUI;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec2;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec2f;
+import net.minecraft.util.math.Vec3d;
 
 public class InputWindowElement extends AnimatedOverlayElement {
 
 	private Pointing direction;
-	ResourceLocation key;
+	Identifier key;
 	AllIcons icon;
 	ItemStack item = ItemStack.EMPTY;
-	private Vec3 sceneSpace;
+	private Vec3d sceneSpace;
 
 	public InputWindowElement clone() {
 		InputWindowElement inputWindowElement = new InputWindowElement(sceneSpace, direction);
@@ -35,7 +34,7 @@ public class InputWindowElement extends AnimatedOverlayElement {
 		return inputWindowElement;
 	}
 
-	public InputWindowElement(Vec3 sceneSpace, Pointing direction) {
+	public InputWindowElement(Vec3d sceneSpace, Pointing direction) {
 		this.sceneSpace = sceneSpace;
 		this.direction = direction;
 	}
@@ -81,8 +80,8 @@ public class InputWindowElement extends AnimatedOverlayElement {
 	}
 
 	@Override
-	protected void render(PonderScene scene, PonderUI screen, GuiGraphics graphics, float partialTicks, float fade) {
-		Font font = screen.getFontRenderer();
+	protected void render(PonderScene scene, PonderUI screen, DrawContext graphics, float partialTicks, float fade) {
+		TextRenderer font = screen.getFontRenderer();
 		int width = 0;
 		int height = 0;
 
@@ -99,7 +98,7 @@ public class InputWindowElement extends AnimatedOverlayElement {
 
 		if (fade < 1 / 16f)
 			return;
-		Vec2 sceneToScreen = scene.getTransform()
+		Vec2f sceneToScreen = scene.getTransform()
 			.sceneToScreen(sceneSpace, partialTicks);
 
 		if (hasIcon) {
@@ -108,7 +107,7 @@ public class InputWindowElement extends AnimatedOverlayElement {
 		}
 
 		if (hasText) {
-			keyWidth = font.width(text);
+			keyWidth = font.getWidth(text);
 			width += keyWidth;
 		}
 
@@ -117,8 +116,8 @@ public class InputWindowElement extends AnimatedOverlayElement {
 			height = 24;
 		}
 
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(sceneToScreen.x + xFade, sceneToScreen.y + yFade, 400);
 
 		PonderUI.renderSpeechBox(graphics, 0, 0, width, height, false, direction, true);
@@ -126,15 +125,15 @@ public class InputWindowElement extends AnimatedOverlayElement {
 		ms.translate(0, 0, 100);
 
 		if (hasText)
-			graphics.drawString(font, text, 2, (int) ((height - font.lineHeight) / 2f + 2),
+			graphics.drawText(font, text, 2, (int) ((height - font.fontHeight) / 2f + 2),
 				PonderPalette.WHITE.getColorObject().scaleAlpha(fade).getRGB(), false);
 
 		if (hasIcon) {
-			ms.pushPose();
+			ms.push();
 			ms.translate(keyWidth, 0, 0);
 			ms.scale(1.5f, 1.5f, 1.5f);
 			icon.render(graphics, 0, 0);
-			ms.popPose();
+			ms.pop();
 		}
 
 		if (hasItem) {
@@ -145,7 +144,7 @@ public class InputWindowElement extends AnimatedOverlayElement {
 			RenderSystem.disableDepthTest();
 		}
 
-		ms.popPose();
+		ms.pop();
 	}
 
 }

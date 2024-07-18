@@ -15,13 +15,13 @@ import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
 import net.fabricmc.fabric.api.rendering.data.v1.RenderAttachedBlockView;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
 public class PipeAttachmentModel extends ForwardingBakedModel {
 
@@ -35,7 +35,7 @@ public class PipeAttachmentModel extends ForwardingBakedModel {
 	}
 
 	@Override
-	public void emitBlockQuads(BlockAndTintGetter world, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context) {
+	public void emitBlockQuads(BlockRenderView world, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context) {
 		PipeModelData data = new PipeModelData();
 		BracketedBlockEntityBehaviour bracket = BlockEntityBehaviour.get(world, pos, BracketedBlockEntityBehaviour.TYPE);
 
@@ -69,7 +69,7 @@ public class PipeAttachmentModel extends ForwardingBakedModel {
 //		return set;
 //	}
 
-	private void addQuads(BlockAndTintGetter world, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context,
+	private void addQuads(BlockRenderView world, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context,
 		PipeModelData pipeData) {
 		BakedModel bracket = pipeData.getBracket();
 		if (bracket != null)
@@ -100,9 +100,9 @@ public class PipeAttachmentModel extends ForwardingBakedModel {
 
 		public void putBracket(BlockState state) {
 			if (state != null) {
-				this.bracket = Minecraft.getInstance()
-					.getBlockRenderer()
-					.getBlockModel(state);
+				this.bracket = MinecraftClient.getInstance()
+					.getBlockRenderManager()
+					.getModel(state);
 			}
 		}
 
@@ -111,11 +111,11 @@ public class PipeAttachmentModel extends ForwardingBakedModel {
 		}
 
 		public void putAttachment(Direction face, AttachmentTypes rim) {
-			attachments[face.get3DDataValue()] = rim;
+			attachments[face.getId()] = rim;
 		}
 
 		public AttachmentTypes getAttachment(Direction face) {
-			return attachments[face.get3DDataValue()];
+			return attachments[face.getId()];
 		}
 
 		public void setEncased(boolean encased) {

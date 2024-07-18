@@ -32,50 +32,48 @@ import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTab.DisplayItemsGenerator;
-import net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters;
-import net.minecraft.world.item.CreativeModeTab.Output;
-import net.minecraft.world.item.CreativeModeTab.TabVisibility;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Block;
-
+import net.minecraft.block.Block;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.item.ItemRenderer;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemGroup.DisplayContext;
+import net.minecraft.item.ItemGroup.Entries;
+import net.minecraft.item.ItemGroup.EntryCollector;
+import net.minecraft.item.ItemGroup.StackVisibility;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Identifier;
 import org.apache.commons.lang3.mutable.MutableObject;
 
 public class AllCreativeModeTabs {
 
 	public static final TabInfo BASE_CREATIVE_TAB = register("base",
 		() -> FabricItemGroup.builder()
-			.title(Components.translatable("itemGroup.create.base"))
+			.displayName(Components.translatable("itemGroup.create.base"))
 			.icon(() -> AllBlocks.COGWHEEL.asStack())
-			.displayItems(new RegistrateDisplayItemsGenerator(true, () -> AllCreativeModeTabs.BASE_CREATIVE_TAB))
+			.entries(new RegistrateDisplayItemsGenerator(true, () -> AllCreativeModeTabs.BASE_CREATIVE_TAB))
 			.build());
 
 	public static final TabInfo PALETTES_CREATIVE_TAB = register("palettes",
 		() -> FabricItemGroup.builder()
-			.title(Components.translatable("itemGroup.create.palettes"))
+			.displayName(Components.translatable("itemGroup.create.palettes"))
 			.icon(() -> AllPaletteBlocks.ORNATE_IRON_WINDOW.asStack())
-			.displayItems(new RegistrateDisplayItemsGenerator(false, () -> AllCreativeModeTabs.PALETTES_CREATIVE_TAB))
+			.entries(new RegistrateDisplayItemsGenerator(false, () -> AllCreativeModeTabs.PALETTES_CREATIVE_TAB))
 			.build());
 
-	private static TabInfo register(String name, Supplier<CreativeModeTab> supplier) {
-		ResourceLocation id = Create.asResource(name);
-		ResourceKey<CreativeModeTab> key = ResourceKey.create(Registries.CREATIVE_MODE_TAB, id);
-		CreativeModeTab tab = supplier.get();
-		Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, key, tab);
+	private static TabInfo register(String name, Supplier<ItemGroup> supplier) {
+		Identifier id = Create.asResource(name);
+		RegistryKey<ItemGroup> key = RegistryKey.of(RegistryKeys.ITEM_GROUP, id);
+		ItemGroup tab = supplier.get();
+		Registry.register(Registries.ITEM_GROUP, key, tab);
 		return new TabInfo(key, tab);
 	}
 
@@ -83,17 +81,17 @@ public class AllCreativeModeTabs {
 		// fabric: just load the class
 	}
 
-	private static class RegistrateDisplayItemsGenerator implements DisplayItemsGenerator {
+	private static class RegistrateDisplayItemsGenerator implements EntryCollector {
 		private static final Predicate<Item> IS_ITEM_3D_PREDICATE;
 
 		static {
 			MutableObject<Predicate<Item>> isItem3d = new MutableObject<>(item -> false);
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> {
 				isItem3d.setValue(item -> {
-					ItemRenderer itemRenderer = Minecraft.getInstance()
+					ItemRenderer itemRenderer = MinecraftClient.getInstance()
 						.getItemRenderer();
 					BakedModel model = itemRenderer.getModel(new ItemStack(item), null, null, 0);
-					return model.isGui3d();
+					return model.hasDepth();
 				});
 			});
 			IS_ITEM_3D_PREDICATE = isItem3d.getValue();
@@ -102,10 +100,10 @@ public class AllCreativeModeTabs {
 		@Environment(EnvType.CLIENT)
 		private static Predicate<Item> makeClient3dItemPredicate() {
 			return item -> {
-				ItemRenderer itemRenderer = Minecraft.getInstance()
+				ItemRenderer itemRenderer = MinecraftClient.getInstance()
 					.getItemRenderer();
 				BakedModel model = itemRenderer.getModel(new ItemStack(item), null, null, 0);
-				return model.isGui3d();
+				return model.hasDepth();
 			};
 		}
 
@@ -202,12 +200,12 @@ public class AllCreativeModeTabs {
 			Map<ItemProviderEntry<?>, Function<Item, ItemStack>> simpleFactories = Map.of(
 					AllItems.COPPER_BACKTANK, item -> {
 						ItemStack stack = new ItemStack(item);
-						stack.getOrCreateTag().putInt("Air", BacktankUtil.maxAirWithoutEnchants());
+						stack.getOrCreateNbt().putInt("Air", BacktankUtil.maxAirWithoutEnchants());
 						return stack;
 					},
 					AllItems.NETHERITE_BACKTANK, item -> {
 						ItemStack stack = new ItemStack(item);
-						stack.getOrCreateTag().putInt("Air", BacktankUtil.maxAirWithoutEnchants());
+						stack.getOrCreateNbt().putInt("Air", BacktankUtil.maxAirWithoutEnchants());
 						return stack;
 					}
 			);
@@ -225,11 +223,11 @@ public class AllCreativeModeTabs {
 			};
 		}
 
-		private static Function<Item, TabVisibility> makeVisibilityFunc() {
-			Map<Item, TabVisibility> visibilities = new Reference2ObjectOpenHashMap<>();
+		private static Function<Item, StackVisibility> makeVisibilityFunc() {
+			Map<Item, StackVisibility> visibilities = new Reference2ObjectOpenHashMap<>();
 
-			Map<ItemProviderEntry<?>, TabVisibility> simpleVisibilities = Map.of(
-					AllItems.BLAZE_CAKE_BASE, TabVisibility.SEARCH_TAB_ONLY
+			Map<ItemProviderEntry<?>, StackVisibility> simpleVisibilities = Map.of(
+					AllItems.BLAZE_CAKE_BASE, StackVisibility.SEARCH_TAB_ONLY
 			);
 
 			simpleVisibilities.forEach((entry, factory) -> {
@@ -237,38 +235,38 @@ public class AllCreativeModeTabs {
 			});
 
 			for (BlockEntry<ValveHandleBlock> entry : AllBlocks.DYED_VALVE_HANDLES) {
-				visibilities.put(entry.asItem(), TabVisibility.SEARCH_TAB_ONLY);
+				visibilities.put(entry.asItem(), StackVisibility.SEARCH_TAB_ONLY);
 			}
 
 			for (BlockEntry<SeatBlock> entry : AllBlocks.SEATS) {
 				SeatBlock block = entry.get();
 				if (block.getColor() != DyeColor.RED) {
-					visibilities.put(entry.asItem(), TabVisibility.SEARCH_TAB_ONLY);
+					visibilities.put(entry.asItem(), StackVisibility.SEARCH_TAB_ONLY);
 				}
 			}
 
 			for (BlockEntry<ToolboxBlock> entry : AllBlocks.TOOLBOXES) {
 				ToolboxBlock block = entry.get();
 				if (block.getColor() != DyeColor.BROWN) {
-					visibilities.put(entry.asItem(), TabVisibility.SEARCH_TAB_ONLY);
+					visibilities.put(entry.asItem(), StackVisibility.SEARCH_TAB_ONLY);
 				}
 			}
 
 			return item -> {
-				TabVisibility visibility = visibilities.get(item);
+				StackVisibility visibility = visibilities.get(item);
 				if (visibility != null) {
 					return visibility;
 				}
-				return TabVisibility.PARENT_AND_SEARCH_TABS;
+				return StackVisibility.PARENT_AND_SEARCH_TABS;
 			};
 		}
 
 		@Override
-		public void accept(ItemDisplayParameters parameters, Output output) {
+		public void accept(DisplayContext parameters, Entries output) {
 			Predicate<Item> exclusionPredicate = makeExclusionPredicate();
 			List<ItemOrdering> orderings = makeOrderings();
 			Function<Item, ItemStack> stackFunc = makeStackFunc();
-			Function<Item, TabVisibility> visibilityFunc = makeVisibilityFunc();
+			Function<Item, StackVisibility> visibilityFunc = makeVisibilityFunc();
 
 			List<Item> items = new LinkedList<>();
 			if (addItems) {
@@ -285,7 +283,7 @@ public class AllCreativeModeTabs {
 
 		private List<Item> collectBlocks(Predicate<Item> exclusionPredicate) {
 			List<Item> items = new ReferenceArrayList<>();
-			for (RegistryEntry<Block> entry : Create.REGISTRATE.getAll(Registries.BLOCK)) {
+			for (RegistryEntry<Block> entry : Create.REGISTRATE.getAll(RegistryKeys.BLOCK)) {
 				if (!CreateRegistrate.isInCreativeTab(entry, tabFilter.get().key()))
 					continue;
 				Item item = entry.get()
@@ -301,7 +299,7 @@ public class AllCreativeModeTabs {
 
 		private List<Item> collectItems(Predicate<Item> exclusionPredicate) {
 			List<Item> items = new ReferenceArrayList<>();
-			for (RegistryEntry<Item> entry : Create.REGISTRATE.getAll(Registries.ITEM)) {
+			for (RegistryEntry<Item> entry : Create.REGISTRATE.getAll(RegistryKeys.ITEM)) {
 				if (!CreateRegistrate.isInCreativeTab(entry, tabFilter.get().key()))
 					continue;
 				Item item = entry.get();
@@ -334,9 +332,9 @@ public class AllCreativeModeTabs {
 			}
 		}
 
-		private static void outputAll(Output output, List<Item> items, Function<Item, ItemStack> stackFunc, Function<Item, TabVisibility> visibilityFunc) {
+		private static void outputAll(Entries output, List<Item> items, Function<Item, ItemStack> stackFunc, Function<Item, StackVisibility> visibilityFunc) {
 			for (Item item : items) {
-				output.accept(stackFunc.apply(item), visibilityFunc.apply(item));
+				output.add(stackFunc.apply(item), visibilityFunc.apply(item));
 			}
 		}
 
@@ -356,6 +354,6 @@ public class AllCreativeModeTabs {
 		}
 	}
 
-	public record TabInfo(ResourceKey<CreativeModeTab> key, CreativeModeTab tab) {
+	public record TabInfo(RegistryKey<ItemGroup> key, ItemGroup tab) {
 	}
 }

@@ -2,24 +2,23 @@ package com.simibubi.create.foundation.gui.menu;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
 
 public abstract class GhostItemMenu<T> extends MenuBase<T> implements IClearableMenu {
 
 	public ItemStackHandler ghostInventory;
 
-	protected GhostItemMenu(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	protected GhostItemMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id, inv, extraData);
 	}
 
-	protected GhostItemMenu(MenuType<?> type, int id, Inventory inv, T contentHolder) {
+	protected GhostItemMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, T contentHolder) {
 		super(type, id, inv, contentHolder);
 	}
 
@@ -39,34 +38,34 @@ public abstract class GhostItemMenu<T> extends MenuBase<T> implements IClearable
 	}
 
 	@Override
-	public boolean canTakeItemForPickAll(ItemStack stack, Slot slotIn) {
-		return slotIn.container == playerInventory;
+	public boolean canInsertIntoSlot(ItemStack stack, Slot slotIn) {
+		return slotIn.inventory == playerInventory;
 	}
 
 	@Override
-	public boolean canDragTo(Slot slotIn) {
+	public boolean canInsertIntoSlot(Slot slotIn) {
 		if (allowRepeats())
 			return true;
-		return slotIn.container == playerInventory;
+		return slotIn.inventory == playerInventory;
 	}
 
 	@Override
-	public void clicked(int slotId, int dragType, ClickType clickTypeIn, Player player) {
+	public void onSlotClick(int slotId, int dragType, SlotActionType clickTypeIn, PlayerEntity player) {
 		if (slotId < 36) {
-			super.clicked(slotId, dragType, clickTypeIn, player);
+			super.onSlotClick(slotId, dragType, clickTypeIn, player);
 			return;
 		}
-		if (clickTypeIn == ClickType.THROW)
+		if (clickTypeIn == SlotActionType.THROW)
 			return;
 
-		ItemStack held = getCarried();
+		ItemStack held = getCursorStack();
 		int slot = slotId - 36;
-		if (clickTypeIn == ClickType.CLONE) {
+		if (clickTypeIn == SlotActionType.CLONE) {
 			if (player.isCreative() && held.isEmpty()) {
 				ItemStack stackInSlot = ghostInventory.getStackInSlot(slot)
 						.copy();
-				stackInSlot.setCount(stackInSlot.getMaxStackSize());
-				setCarried(stackInSlot);
+				stackInSlot.setCount(stackInSlot.getMaxCount());
+				setCursorStack(stackInSlot);
 				return;
 			}
 			return;
@@ -80,13 +79,13 @@ public abstract class GhostItemMenu<T> extends MenuBase<T> implements IClearable
 			insert.setCount(1);
 		}
 		ghostInventory.setStackInSlot(slot, insert);
-		getSlot(slotId).setChanged();
+		getSlot(slotId).markDirty();
 	}
 
 	@Override
-	public ItemStack quickMoveStack(Player playerIn, int index) {
+	public ItemStack quickMove(PlayerEntity playerIn, int index) {
 		if (index < 36) {
-			ItemStack stackToInsert = playerInventory.getItem(index);
+			ItemStack stackToInsert = playerInventory.getStack(index);
 			for (int i = 0; i < ghostInventory.getSlotCount(); i++) {
 				ItemStack stack = ghostInventory.getStackInSlot(i);
 				if (!allowRepeats() && ItemHandlerHelper.canItemStacksStack(stack, stackToInsert))
@@ -95,13 +94,13 @@ public abstract class GhostItemMenu<T> extends MenuBase<T> implements IClearable
 					ItemStack copy = stackToInsert.copy();
 					copy.setCount(1);
 					ghostInventory.setStackInSlot(i, copy);
-					getSlot(i + 36).setChanged();
+					getSlot(i + 36).markDirty();
 					break;
 				}
 			}
 		} else {
 			ghostInventory.setStackInSlot(index - 36, ItemStack.EMPTY);
-			getSlot(index).setChanged();
+			getSlot(index).markDirty();
 		}
 		return ItemStack.EMPTY;
 	}

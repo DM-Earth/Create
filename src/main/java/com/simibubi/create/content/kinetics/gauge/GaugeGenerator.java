@@ -3,9 +3,8 @@ package com.simibubi.create.content.kinetics.gauge;
 import com.simibubi.create.foundation.data.DirectionalAxisBlockStateGen;
 import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
-
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 
 public class GaugeGenerator extends DirectionalAxisBlockStateGen {
 

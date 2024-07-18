@@ -5,18 +5,17 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
 
 public abstract class DirectionalAxisBlockStateGen extends SpecialBlockStateGen {
 
 	@Override
 	protected int getXRotation(BlockState state) {
-		Direction direction = state.getValue(GaugeBlock.FACING);
-		boolean alongFirst = state.getValue(GaugeBlock.AXIS_ALONG_FIRST_COORDINATE);
+		Direction direction = state.get(GaugeBlock.FACING);
+		boolean alongFirst = state.get(GaugeBlock.AXIS_ALONG_FIRST_COORDINATE);
 
 		if (direction == Direction.DOWN)
 			return 180;
@@ -30,8 +29,8 @@ public abstract class DirectionalAxisBlockStateGen extends SpecialBlockStateGen 
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		Direction direction = state.getValue(GaugeBlock.FACING);
-		boolean alongFirst = state.getValue(GaugeBlock.AXIS_ALONG_FIRST_COORDINATE);
+		Direction direction = state.get(GaugeBlock.FACING);
+		boolean alongFirst = state.get(GaugeBlock.AXIS_ALONG_FIRST_COORDINATE);
 
 		if (direction.getAxis()
 			.isVertical())
@@ -46,7 +45,7 @@ public abstract class DirectionalAxisBlockStateGen extends SpecialBlockStateGen 
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> ctx, RegistrateBlockstateProvider prov,
 												BlockState state) {
-		boolean vertical = state.getValue(GaugeBlock.FACING)
+		boolean vertical = state.get(GaugeBlock.FACING)
 			.getAxis()
 			.isVertical();
 		String partial = vertical ? "" : "_wall";

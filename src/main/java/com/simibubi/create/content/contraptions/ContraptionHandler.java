@@ -6,18 +6,17 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import com.simibubi.create.foundation.utility.VecHelper;
 import com.simibubi.create.foundation.utility.WorldAttached;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
 public class ContraptionHandler {
 
@@ -31,7 +30,7 @@ public class ContraptionHandler {
 		queuedAdditions = new WorldAttached<>($ -> ObjectLists.synchronize(new ObjectArrayList<>()));
 	}
 
-	public static void tick(Level world) {
+	public static void tick(World world) {
 		Map<Integer, WeakReference<AbstractContraptionEntity>> map = loadedContraptions.get(world);
 		List<AbstractContraptionEntity> queued = queuedAdditions.get(world);
 
@@ -56,23 +55,23 @@ public class ContraptionHandler {
 		}
 	}
 
-	public static void addSpawnedContraptionsToCollisionList(Entity entity, Level world) {
+	public static void addSpawnedContraptionsToCollisionList(Entity entity, World world) {
 		if (entity instanceof AbstractContraptionEntity)
 			queuedAdditions.get(world)
 				.add((AbstractContraptionEntity) entity);
 	}
 
-	public static void entitiesWhoJustDismountedGetSentToTheRightLocation(LivingEntity entityLiving, Level world) {
-		if (!world.isClientSide)
+	public static void entitiesWhoJustDismountedGetSentToTheRightLocation(LivingEntity entityLiving, World world) {
+		if (!world.isClient)
 			return;
 
-		CompoundTag data = entityLiving.getCustomData();
+		NbtCompound data = entityLiving.getCustomData();
 		if (!data.contains("ContraptionDismountLocation"))
 			return;
 
-		Vec3 position = VecHelper.readNBT(data.getList("ContraptionDismountLocation", Tag.TAG_DOUBLE));
+		Vec3d position = VecHelper.readNBT(data.getList("ContraptionDismountLocation", NbtElement.DOUBLE_TYPE));
 		if (entityLiving.getVehicle() == null)
-			entityLiving.absMoveTo(position.x, position.y, position.z, entityLiving.getYRot(), entityLiving.getXRot());
+			entityLiving.updatePositionAndAngles(position.x, position.y, position.z, entityLiving.getYaw(), entityLiving.getPitch());
 		data.remove("ContraptionDismountLocation");
 		entityLiving.setOnGround(false);
 	}

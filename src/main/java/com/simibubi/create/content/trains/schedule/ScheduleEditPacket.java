@@ -2,11 +2,10 @@ package com.simibubi.create.content.trains.schedule;
 
 import com.simibubi.create.AllItems;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class ScheduleEditPacket extends SimplePacketBase {
 
@@ -16,33 +15,33 @@ public class ScheduleEditPacket extends SimplePacketBase {
 		this.schedule = schedule;
 	}
 
-	public ScheduleEditPacket(FriendlyByteBuf buffer) {
+	public ScheduleEditPacket(PacketByteBuf buffer) {
 		schedule = Schedule.fromTag(buffer.readNbt());
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeNbt(schedule.write());
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer sender = context.getSender();
-			ItemStack mainHandItem = sender.getMainHandItem();
+			ServerPlayerEntity sender = context.getSender();
+			ItemStack mainHandItem = sender.getMainHandStack();
 			if (!AllItems.SCHEDULE.isIn(mainHandItem))
 				return;
 			
-			CompoundTag tag = mainHandItem.getOrCreateTag();
+			NbtCompound tag = mainHandItem.getOrCreateNbt();
 			if (schedule.entries.isEmpty()) {
 				tag.remove("Schedule");
 				if (tag.isEmpty())
-					mainHandItem.setTag(null);
+					mainHandItem.setNbt(null);
 			} else
 				tag.put("Schedule", schedule.write());
 			
-			sender.getCooldowns()
-				.addCooldown(mainHandItem.getItem(), 5);
+			sender.getItemCooldownManager()
+				.set(mainHandItem.getItem(), 5);
 		});
 		return true;
 	}

@@ -5,7 +5,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldAccess;
 import com.google.common.base.Objects;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.graph.DimensionPalette;
@@ -18,14 +24,6 @@ import com.simibubi.create.content.trains.signal.SignalBlockEntity.SignalState;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
 
 public class SignalBoundary extends TrackEdgePoint {
 
@@ -82,7 +80,7 @@ public class SignalBoundary extends TrackEdgePoint {
 	}
 
 	@Override
-	public void invalidate(LevelAccessor level) {
+	public void invalidate(WorldAccess level) {
 		blockEntities.forEach(s -> s.keySet()
 			.forEach(p -> invalidateAt(level, p)));
 		groups.forEach(uuid -> {
@@ -100,16 +98,16 @@ public class SignalBoundary extends TrackEdgePoint {
 	public void blockEntityAdded(BlockEntity blockEntity, boolean front) {
 		Map<BlockPos, Boolean> blockEntitiesOnSide = blockEntities.get(front);
 		if (blockEntitiesOnSide.isEmpty())
-			blockEntity.getBlockState()
-				.getOptionalValue(SignalBlock.TYPE)
+			blockEntity.getCachedState()
+				.getOrEmpty(SignalBlock.TYPE)
 				.ifPresent(type -> types.set(front, type));
-		blockEntitiesOnSide.put(blockEntity.getBlockPos(), blockEntity instanceof SignalBlockEntity ste && ste.getReportedPower());
+		blockEntitiesOnSide.put(blockEntity.getPos(), blockEntity instanceof SignalBlockEntity ste && ste.getReportedPower());
 	}
 
 	public void updateBlockEntityPower(SignalBlockEntity blockEntity) {
 		for (boolean front : Iterate.trueAndFalse)
 			blockEntities.get(front)
-				.computeIfPresent(blockEntity.getBlockPos(), (p, c) -> blockEntity.getReportedPower());
+				.computeIfPresent(blockEntity.getPos(), (p, c) -> blockEntity.getReportedPower());
 	}
 
 	@Override
@@ -259,7 +257,7 @@ public class SignalBoundary extends TrackEdgePoint {
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean migration, DimensionPalette dimensions) {
+	public void read(NbtCompound nbt, boolean migration, DimensionPalette dimensions) {
 		super.read(nbt, migration, dimensions);
 
 		if (migration)
@@ -271,13 +269,13 @@ public class SignalBoundary extends TrackEdgePoint {
 		for (int i = 1; i <= 2; i++)
 			if (nbt.contains("Tiles" + i)) {
 				boolean first = i == 1;
-				NBTHelper.iterateCompoundList(nbt.getList("Tiles" + i, Tag.TAG_COMPOUND), c -> blockEntities.get(first)
-					.put(NbtUtils.readBlockPos(c), c.getBoolean("Power")));
+				NBTHelper.iterateCompoundList(nbt.getList("Tiles" + i, NbtElement.COMPOUND_TYPE), c -> blockEntities.get(first)
+					.put(NbtHelper.toBlockPos(c), c.getBoolean("Power")));
 			}
 
 		for (int i = 1; i <= 2; i++)
 			if (nbt.contains("Group" + i))
-				groups.set(i == 1, nbt.getUUID("Group" + i));
+				groups.set(i == 1, nbt.getUuid("Group" + i));
 		for (int i = 1; i <= 2; i++)
 			sidesToUpdate.set(i == 1, nbt.contains("Update" + i));
 		for (int i = 1; i <= 2; i++)
@@ -287,29 +285,29 @@ public class SignalBoundary extends TrackEdgePoint {
 	}
 
 	@Override
-	public void read(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+	public void read(PacketByteBuf buffer, DimensionPalette dimensions) {
 		super.read(buffer, dimensions);
 		for (int i = 1; i <= 2; i++) {
 			if (buffer.readBoolean())
-				groups.set(i == 1, buffer.readUUID());
+				groups.set(i == 1, buffer.readUuid());
 		}
 	}
 
 	@Override
-	public void write(CompoundTag nbt, DimensionPalette dimensions) {
+	public void write(NbtCompound nbt, DimensionPalette dimensions) {
 		super.write(nbt, dimensions);
 		for (int i = 1; i <= 2; i++)
 			if (!blockEntities.get(i == 1)
 				.isEmpty())
 				nbt.put("Tiles" + i, NBTHelper.writeCompoundList(blockEntities.get(i == 1)
 					.entrySet(), e -> {
-						CompoundTag c = NbtUtils.writeBlockPos(e.getKey());
+						NbtCompound c = NbtHelper.fromBlockPos(e.getKey());
 						c.putBoolean("Power", e.getValue());
 						return c;
 					}));
 		for (int i = 1; i <= 2; i++)
 			if (groups.get(i == 1) != null)
-				nbt.putUUID("Group" + i, groups.get(i == 1));
+				nbt.putUuid("Group" + i, groups.get(i == 1));
 		for (int i = 1; i <= 2; i++)
 			if (sidesToUpdate.get(i == 1))
 				nbt.putBoolean("Update" + i, true);
@@ -320,13 +318,13 @@ public class SignalBoundary extends TrackEdgePoint {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+	public void write(PacketByteBuf buffer, DimensionPalette dimensions) {
 		super.write(buffer, dimensions);
 		for (int i = 1; i <= 2; i++) {
 			boolean hasGroup = groups.get(i == 1) != null;
 			buffer.writeBoolean(hasGroup);
 			if (hasGroup)
-				buffer.writeUUID(groups.get(i == 1));
+				buffer.writeUuid(groups.get(i == 1));
 		}
 	}
 

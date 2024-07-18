@@ -2,7 +2,20 @@ package com.simibubi.create.content.contraptions.mounted;
 
 import java.util.List;
 import java.util.UUID;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.enums.RailShape;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.entity.vehicle.FurnaceMinecartEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.contraptions.AssemblyException;
 import com.simibubi.create.content.contraptions.IDisplayAssemblyExceptions;
@@ -27,28 +40,13 @@ import io.github.fabricators_of_create.porting_lib.util.LazyOptional;
 import io.github.fabricators_of_create.porting_lib.util.MinecartAndRailUtil;
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Vec3i;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.entity.vehicle.MinecartFurnace;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.RailShape;
-import net.minecraft.world.phys.Vec3;
-
 public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDisplayAssemblyExceptions {
 	private static final int assemblyCooldown = 8;
 
 	protected ScrollOptionBehaviour<CartMovementMode> movementMode;
 	private int ticksSinceMinecartUpdate;
 	protected AssemblyException lastException;
-	protected AbstractMinecart cartToAssemble;
+	protected AbstractMinecartEntity cartToAssemble;
 
 	public CartAssemblerBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
@@ -66,7 +64,7 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 		cartToAssemble = null;
 	}
 
-	public void tryAssemble(AbstractMinecart cart) {
+	public void tryAssemble(AbstractMinecartEntity cart) {
 		if (cart == null)
 			return;
 
@@ -74,48 +72,48 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 			return;
 		resetTicksSinceMinecartUpdate();
 
-		BlockState state = level.getBlockState(worldPosition);
+		BlockState state = world.getBlockState(pos);
 		if (!AllBlocks.CART_ASSEMBLER.has(state))
 			return;
 		CartAssemblerBlock block = (CartAssemblerBlock) state.getBlock();
 
 		CartAssemblerBlock.CartAssemblerAction action = CartAssemblerBlock.getActionForCart(state, cart);
 		if (action.shouldAssemble())
-			assemble(level, worldPosition, cart);
+			assemble(world, pos, cart);
 		if (action.shouldDisassemble())
-			disassemble(level, worldPosition, cart);
+			disassemble(world, pos, cart);
 		if (action == CartAssemblerBlock.CartAssemblerAction.ASSEMBLE_ACCELERATE) {
-			if (cart.getDeltaMovement()
+			if (cart.getVelocity()
 				.length() > 1 / 128f) {
-				Direction facing = cart.getMotionDirection();
-				RailShape railShape = state.getValue(CartAssemblerBlock.RAIL_SHAPE);
+				Direction facing = cart.getMovementDirection();
+				RailShape railShape = state.get(CartAssemblerBlock.RAIL_SHAPE);
 				for (Direction d : Iterate.directionsInAxis(railShape == RailShape.EAST_WEST ? Axis.X : Axis.Z))
-					if (level.getBlockState(worldPosition.relative(d))
-						.isRedstoneConductor(level, worldPosition.relative(d)))
+					if (world.getBlockState(pos.offset(d))
+						.isSolidBlock(world, pos.offset(d)))
 						facing = d.getOpposite();
 
 				float speed = 0.4f;//block.getRailMaxSpeed(state, level, worldPosition, cart);
-				cart.setDeltaMovement(facing.getStepX() * speed, facing.getStepY() * speed, facing.getStepZ() * speed);
+				cart.setVelocity(facing.getOffsetX() * speed, facing.getOffsetY() * speed, facing.getOffsetZ() * speed);
 			}
 		}
 		if (action == CartAssemblerBlock.CartAssemblerAction.ASSEMBLE_ACCELERATE_DIRECTIONAL) {
 			Vec3i accelerationVector =
 				ControllerRailBlock.getAccelerationVector(AllBlocks.CONTROLLER_RAIL.getDefaultState()
-					.setValue(ControllerRailBlock.SHAPE, state.getValue(CartAssemblerBlock.RAIL_SHAPE))
-					.setValue(ControllerRailBlock.BACKWARDS, state.getValue(CartAssemblerBlock.BACKWARDS)));
+					.with(ControllerRailBlock.SHAPE, state.get(CartAssemblerBlock.RAIL_SHAPE))
+					.with(ControllerRailBlock.BACKWARDS, state.get(CartAssemblerBlock.BACKWARDS)));
 			float speed = 0.4f;//block.getRailMaxSpeed(state, level, worldPosition, cart);
-			cart.setDeltaMovement(Vec3.atLowerCornerOf(accelerationVector)
-				.scale(speed));
+			cart.setVelocity(Vec3d.of(accelerationVector)
+				.multiply(speed));
 		}
 		if (action == CartAssemblerBlock.CartAssemblerAction.DISASSEMBLE_BRAKE) {
-			Vec3 diff = VecHelper.getCenterOf(worldPosition)
-				.subtract(cart.position());
-			cart.setDeltaMovement(diff.x / 16f, 0, diff.z / 16f);
+			Vec3d diff = VecHelper.getCenterOf(pos)
+				.subtract(cart.getPos());
+			cart.setVelocity(diff.x / 16f, 0, diff.z / 16f);
 		}
 	}
 
-	protected void assemble(Level world, BlockPos pos, AbstractMinecart cart) {
-		if (!cart.getPassengers()
+	protected void assemble(World world, BlockPos pos, AbstractMinecartEntity cart) {
+		if (!cart.getPassengerList()
 			.isEmpty())
 			return;
 
@@ -139,34 +137,34 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 		}
 
 		boolean couplingFound = contraption.connectedCart != null;
-		Direction initialOrientation = CartAssemblerBlock.getHorizontalDirection(getBlockState());
+		Direction initialOrientation = CartAssemblerBlock.getHorizontalDirection(getCachedState());
 
 		if (couplingFound) {
-			cart.setPos(pos.getX() + .5f, pos.getY(), pos.getZ() + .5f);
+			cart.setPosition(pos.getX() + .5f, pos.getY(), pos.getZ() + .5f);
 			if (!CouplingHandler.tryToCoupleCarts(null, world, cart.getId(),
 				contraption.connectedCart.getId()))
 				return;
 		}
 
-		contraption.removeBlocksFromWorld(world, BlockPos.ZERO);
+		contraption.removeBlocksFromWorld(world, BlockPos.ORIGIN);
 		contraption.startMoving(world);
 		contraption.expandBoundsAroundAxis(Axis.Y);
 
 		if (couplingFound) {
-			Vec3 diff = contraption.connectedCart.position()
-				.subtract(cart.position());
-			initialOrientation = Direction.fromYRot(Mth.atan2(diff.z, diff.x) * 180 / Math.PI);
+			Vec3d diff = contraption.connectedCart.getPos()
+				.subtract(cart.getPos());
+			initialOrientation = Direction.fromRotation(MathHelper.atan2(diff.z, diff.x) * 180 / Math.PI);
 		}
 
 		OrientedContraptionEntity entity = OrientedContraptionEntity.create(world, contraption, initialOrientation);
 		if (couplingFound)
-			entity.setCouplingId(cart.getUUID());
-		entity.setPos(pos.getX() + .5, pos.getY(), pos.getZ() + .5);
-		world.addFreshEntity(entity);
+			entity.setCouplingId(cart.getUuid());
+		entity.setPosition(pos.getX() + .5, pos.getY(), pos.getZ() + .5);
+		world.spawnEntity(entity);
 		entity.startRiding(cart);
 
-		if (cart instanceof MinecartFurnace) {
-			CompoundTag nbt = NBTSerializer.serializeNBTCompound(cart);
+		if (cart instanceof FurnaceMinecartEntity) {
+			NbtCompound nbt = NBTSerializer.serializeNBTCompound(cart);
 			nbt.putDouble("PushZ", 0);
 			nbt.putDouble("PushX", 0);
 			NBTSerializer.deserializeNBT(cart, nbt);
@@ -176,11 +174,11 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 			award(AllAdvancements.CONTRAPTION_ACTORS);
 	}
 
-	protected void disassemble(Level world, BlockPos pos, AbstractMinecart cart) {
-		if (cart.getPassengers()
+	protected void disassemble(World world, BlockPos pos, AbstractMinecartEntity cart) {
+		if (cart.getPassengerList()
 			.isEmpty())
 			return;
-		Entity entity = cart.getPassengers()
+		Entity entity = cart.getPassengerList()
 			.get(0);
 		if (!(entity instanceof OrientedContraptionEntity))
 			return;
@@ -188,8 +186,8 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 		UUID couplingId = contraption.getCouplingId();
 
 		if (couplingId == null) {
-			contraption.yaw = CartAssemblerBlock.getHorizontalDirection(getBlockState())
-				.toYRot();
+			contraption.yaw = CartAssemblerBlock.getHorizontalDirection(getCachedState())
+				.asRotation();
 			disassembleCart(cart);
 			return;
 		}
@@ -204,7 +202,7 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 			if (minecartController.cart() == cart)
 				continue;
 			BlockPos otherPos = minecartController.cart()
-				.blockPosition();
+				.getBlockPos();
 			BlockState blockState = world.getBlockState(otherPos);
 			if (!AllBlocks.CART_ASSEMBLER.has(blockState))
 				return;
@@ -219,12 +217,12 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 		disassembleCart(cart);
 	}
 
-	protected void disassembleCart(AbstractMinecart cart) {
-		cart.ejectPassengers();
-		if (cart instanceof MinecartFurnace) {
-			CompoundTag nbt = NBTSerializer.serializeNBTCompound(cart);
-			nbt.putDouble("PushZ", cart.getDeltaMovement().x);
-			nbt.putDouble("PushX", cart.getDeltaMovement().z);
+	protected void disassembleCart(AbstractMinecartEntity cart) {
+		cart.removeAllPassengers();
+		if (cart instanceof FurnaceMinecartEntity) {
+			NbtCompound nbt = NBTSerializer.serializeNBTCompound(cart);
+			nbt.putDouble("PushZ", cart.getVelocity().x);
+			nbt.putDouble("PushX", cart.getVelocity().z);
 			NBTSerializer.deserializeNBT(cart, nbt);
 		}
 	}
@@ -238,13 +236,13 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		AssemblyException.write(compound, lastException);
 		super.write(compound, clientPacket);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		lastException = AssemblyException.read(compound);
 		super.read(compound, clientPacket);
 	}
@@ -265,15 +263,15 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 				if (d.getAxis()
 					.isVertical())
 					return false;
-				if (!state.hasProperty(CartAssemblerBlock.RAIL_SHAPE))
+				if (!state.contains(CartAssemblerBlock.RAIL_SHAPE))
 					return false;
-				RailShape railShape = state.getValue(CartAssemblerBlock.RAIL_SHAPE);
+				RailShape railShape = state.get(CartAssemblerBlock.RAIL_SHAPE);
 				return (d.getAxis() == Axis.X) == (railShape == RailShape.NORTH_SOUTH);
 			});
 		}
 
 		@Override
-		protected Vec3 getSouthLocation() {
+		protected Vec3d getSouthLocation() {
 			return VecHelper.voxelSpace(8, 7, 17.5);
 		}
 
@@ -310,7 +308,7 @@ public class CartAssemblerBlockEntity extends SmartBlockEntity implements IDispl
 		ticksSinceMinecartUpdate = 0;
 	}
 
-	public void assembleNextTick(AbstractMinecart cart) {
+	public void assembleNextTick(AbstractMinecartEntity cart) {
 		if (cartToAssemble == null)
 			cartToAssemble = cart;
 	}

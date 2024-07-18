@@ -7,16 +7,16 @@ import com.simibubi.create.foundation.block.render.SpriteShiftEntry;
 import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.inventory.InventoryMenu;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.screen.PlayerScreenHandler;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
 public class CopycatBarsModel extends CopycatModel {
 
@@ -30,14 +30,14 @@ public class CopycatBarsModel extends CopycatModel {
 	}
 
 	@Override
-	protected void emitBlockQuadsInner(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context, BlockState material, CullFaceRemovalData cullFaceRemovalData, OcclusionData occlusionData) {
+	protected void emitBlockQuadsInner(BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context, BlockState material, CullFaceRemovalData cullFaceRemovalData, OcclusionData occlusionData) {
 		BakedModel model = getModelOf(material);
-		TextureAtlasSprite mainTargetSprite = model.getParticleIcon();
+		Sprite mainTargetSprite = model.getParticleSprite();
 
-		boolean vertical = state.getValue(CopycatPanelBlock.FACING)
+		boolean vertical = state.get(CopycatPanelBlock.FACING)
 			.getAxis() == Axis.Y;
 
-		SpriteFinder spriteFinder = SpriteFinder.get(Minecraft.getInstance().getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS));
+		SpriteFinder spriteFinder = SpriteFinder.get(MinecraftClient.getInstance().getBakedModelManager().getAtlas(PlayerScreenHandler.BLOCK_ATLAS_TEXTURE));
 
 		// This is very cursed
 		SpriteAndBool altTargetSpriteHolder = new SpriteAndBool(mainTargetSprite, true);
@@ -50,10 +50,10 @@ public class CopycatBarsModel extends CopycatModel {
 		});
 		((FabricBakedModel) model).emitBlockQuads(blockView, material, pos, randomSupplier, context);
 		context.popTransform();
-		TextureAtlasSprite altTargetSprite = altTargetSpriteHolder.sprite;
+		Sprite altTargetSprite = altTargetSpriteHolder.sprite;
 
 		context.pushTransform(quad -> {
-			TextureAtlasSprite targetSprite;
+			Sprite targetSprite;
 			Direction cullFace = quad.cullFace();
 			if (cullFace != null && (vertical || cullFace.getAxis() == Axis.Y)) {
 				targetSprite = altTargetSprite;
@@ -61,10 +61,10 @@ public class CopycatBarsModel extends CopycatModel {
 				targetSprite = mainTargetSprite;
 			}
 
-			TextureAtlasSprite original = spriteFinder.find(quad, 0);
+			Sprite original = spriteFinder.find(quad, 0);
 			for (int vertex = 0; vertex < 4; vertex++) {
-				float u = targetSprite.getU(SpriteShiftEntry.getUnInterpolatedU(original, quad.spriteU(vertex, 0)));
-				float v = targetSprite.getV(SpriteShiftEntry.getUnInterpolatedV(original, quad.spriteV(vertex, 0)));
+				float u = targetSprite.getFrameU(SpriteShiftEntry.getUnInterpolatedU(original, quad.spriteU(vertex, 0)));
+				float v = targetSprite.getFrameV(SpriteShiftEntry.getUnInterpolatedV(original, quad.spriteV(vertex, 0)));
 				quad.sprite(vertex, 0, u, v);
 			}
 			return true;
@@ -74,10 +74,10 @@ public class CopycatBarsModel extends CopycatModel {
 	}
 
 	private static class SpriteAndBool {
-		public TextureAtlasSprite sprite;
+		public Sprite sprite;
 		public boolean bool;
 
-		public SpriteAndBool(TextureAtlasSprite sprite, boolean bool) {
+		public SpriteAndBool(Sprite sprite, boolean bool) {
 			this.sprite = sprite;
 			this.bool = bool;
 		}

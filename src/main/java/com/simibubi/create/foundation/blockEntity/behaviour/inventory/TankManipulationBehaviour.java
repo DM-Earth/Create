@@ -18,8 +18,8 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class TankManipulationBehaviour extends CapManipulationBehaviourBase<FluidVariant, TankManipulationBehaviour> {
 
@@ -81,7 +81,7 @@ public class TankManipulationBehaviour extends CapManipulationBehaviourBase<Flui
 	}
 
 	public static class UnsidedFluidStorageProvider extends UnsidedStorageProvider<FluidVariant> {
-		protected UnsidedFluidStorageProvider(Level level, BlockPos pos) {
+		protected UnsidedFluidStorageProvider(World level, BlockPos pos) {
 			super(FluidStorage.SIDED, level, pos);
 		}
 

@@ -96,11 +96,11 @@ import com.simibubi.create.infrastructure.debugInfo.ServerDebugInfoPacket;
 
 import me.pepperbell.simplenetworking.S2CPacket;
 import me.pepperbell.simplenetworking.SimpleChannel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public enum AllPackets {
 
@@ -211,14 +211,14 @@ public enum AllPackets {
 	CARRIAGE_DATA_UPDATE(CarriageDataUpdatePacket.class, CarriageDataUpdatePacket::new, PLAY_TO_CLIENT)
 	;
 
-	public static final ResourceLocation CHANNEL_NAME = Create.asResource("main");
+	public static final Identifier CHANNEL_NAME = Create.asResource("main");
 	public static final int NETWORK_VERSION = 3;
 	public static final String NETWORK_VERSION_STR = String.valueOf(NETWORK_VERSION);
 	private static SimpleChannel channel;
 
 	private PacketType<?> packetType;
 
-	<T extends SimplePacketBase> AllPackets(Class<T> type, Function<FriendlyByteBuf, T> factory,
+	<T extends SimplePacketBase> AllPackets(Class<T> type, Function<PacketByteBuf, T> factory,
 		NetworkDirection direction) {
 		packetType = new PacketType<>(type, factory, direction);
 	}
@@ -233,18 +233,18 @@ public enum AllPackets {
 		return channel;
 	}
 
-	public static void sendToNear(Level world, BlockPos pos, int range, Object message) {
-		getChannel().sendToClientsAround((S2CPacket) message, (ServerLevel) world, pos, range);
+	public static void sendToNear(World world, BlockPos pos, int range, Object message) {
+		getChannel().sendToClientsAround((S2CPacket) message, (ServerWorld) world, pos, range);
 	}
 
 	private static class PacketType<T extends SimplePacketBase> {
 		private static int index = 0;
 
-		private Function<FriendlyByteBuf, T> decoder;
+		private Function<PacketByteBuf, T> decoder;
 		private Class<T> type;
 		private NetworkDirection direction;
 
-		private PacketType(Class<T> type, Function<FriendlyByteBuf, T> factory, NetworkDirection direction) {
+		private PacketType(Class<T> type, Function<PacketByteBuf, T> factory, NetworkDirection direction) {
 			decoder = factory;
 			this.type = type;
 			this.direction = direction;

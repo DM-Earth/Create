@@ -1,7 +1,13 @@
 package com.simibubi.create.content.kinetics.gauge;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,14 +23,6 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.LangBuilder;
 
 import io.github.fabricators_of_create.porting_lib.util.LazyOptional;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class StressGaugeBlockEntity extends GaugeBlockEntity {
 
@@ -66,7 +64,7 @@ public class StressGaugeBlockEntity extends GaugeBlockEntity {
 		}
 
 		sendData();
-		setChanged();
+		markDirty();
 	}
 
 	@Override
@@ -74,7 +72,7 @@ public class StressGaugeBlockEntity extends GaugeBlockEntity {
 		super.onSpeedChanged(prevSpeed);
 		if (getSpeed() == 0) {
 			dialTarget = 0;
-			setChanged();
+			markDirty();
 			return;
 		}
 
@@ -82,7 +80,7 @@ public class StressGaugeBlockEntity extends GaugeBlockEntity {
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		if (!StressImpact.isEnabled())
 			return false;
 
@@ -92,19 +90,19 @@ public class StressGaugeBlockEntity extends GaugeBlockEntity {
 		double stressFraction = getNetworkStress() / (capacity == 0 ? 1 : capacity);
 
 		Lang.translate("gui.stressometer.title")
-			.style(ChatFormatting.GRAY)
+			.style(Formatting.GRAY)
 			.forGoggles(tooltip);
 
 		if (getTheoreticalSpeed() == 0)
 			Lang.text(TooltipHelper.makeProgressBar(3, 0))
 				.translate("gui.stressometer.no_rotation")
-				.style(ChatFormatting.DARK_GRAY)
+				.style(Formatting.DARK_GRAY)
 				.forGoggles(tooltip);
 		else {
 			StressImpact.getFormattedStressText(stressFraction)
 				.forGoggles(tooltip);
 			Lang.translate("gui.stressometer.capacity")
-				.style(ChatFormatting.GRAY)
+				.style(Formatting.GRAY)
 				.forGoggles(tooltip);
 
 			double remainingCapacity = capacity - getNetworkStress();
@@ -116,24 +114,24 @@ public class StressGaugeBlockEntity extends GaugeBlockEntity {
 					.getRelativeColor());
 
 			if (remainingCapacity != capacity)
-				stressTip.text(ChatFormatting.GRAY, " / ")
+				stressTip.text(Formatting.GRAY, " / ")
 					.add(Lang.number(capacity)
 						.add(su)
-						.style(ChatFormatting.DARK_GRAY));
+						.style(Formatting.DARK_GRAY));
 
 			stressTip.forGoggles(tooltip, 1);
 		}
 
-		if (!worldPosition.equals(lastSent))
-			AllPackets.getChannel().sendToServer(new GaugeObservedPacket(lastSent = worldPosition));
+		if (!pos.equals(lastSent))
+			AllPackets.getChannel().sendToServer(new GaugeObservedPacket(lastSent = pos));
 
 		return true;
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
-		if (clientPacket && worldPosition != null && worldPosition.equals(lastSent))
+		if (clientPacket && pos != null && pos.equals(lastSent))
 			lastSent = null;
 	}
 
@@ -147,7 +145,7 @@ public class StressGaugeBlockEntity extends GaugeBlockEntity {
 
 	public void onObserved() {
 		award(AllAdvancements.STRESSOMETER);
-		if (Mth.equal(dialTarget, 1))
+		if (MathHelper.approximatelyEquals(dialTarget, 1))
 			award(AllAdvancements.STRESSOMETER_MAXED);
 	}
 }

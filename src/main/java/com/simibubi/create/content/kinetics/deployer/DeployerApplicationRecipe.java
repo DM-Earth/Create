@@ -15,13 +15,13 @@ import com.simibubi.create.foundation.utility.Lang;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 public class DeployerApplicationRecipe extends ItemApplicationRecipe implements IAssemblyRecipe {
 
@@ -36,13 +36,13 @@ public class DeployerApplicationRecipe extends ItemApplicationRecipe implements 
 
 	public static DeployerApplicationRecipe convert(Recipe<?> sandpaperRecipe) {
 		return new ProcessingRecipeBuilder<>(DeployerApplicationRecipe::new,
-			new ResourceLocation(sandpaperRecipe.getId()
+			new Identifier(sandpaperRecipe.getId()
 				.getNamespace(),
 				sandpaperRecipe.getId()
 					.getPath() + "_using_deployer")).require(sandpaperRecipe.getIngredients()
 						.get(0))
 						.require(AllItemTags.SANDPAPER.tag)
-						.output(sandpaperRecipe.getResultItem(Minecraft.getInstance().level.registryAccess()))
+						.output(sandpaperRecipe.getOutput(MinecraftClient.getInstance().world.getRegistryManager()))
 						.build();
 	}
 
@@ -53,17 +53,17 @@ public class DeployerApplicationRecipe extends ItemApplicationRecipe implements 
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public Component getDescriptionForAssembly() {
+	public Text getDescriptionForAssembly() {
 		ItemStack[] matchingStacks = ingredients.get(1)
-			.getItems();
+			.getMatchingStacks();
 		if (matchingStacks.length == 0)
 			return Components.literal("Invalid");
 		return Lang.translateDirect("recipe.assembly.deploying_item",
-			Components.translatable(matchingStacks[0].getDescriptionId()).getString());
+			Components.translatable(matchingStacks[0].getTranslationKey()).getString());
 	}
 
 	@Override
-	public void addRequiredMachines(Set<ItemLike> list) {
+	public void addRequiredMachines(Set<ItemConvertible> list) {
 		list.add(AllBlocks.DEPLOYER.get());
 	}
 

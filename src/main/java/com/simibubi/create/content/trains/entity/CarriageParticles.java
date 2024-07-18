@@ -5,13 +5,12 @@ import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.VecHelper;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
 
 public class CarriageParticles {
 
@@ -31,16 +30,16 @@ public class CarriageParticles {
 	}
 
 	public void tick(DimensionalCarriageEntity dce) {
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 		Entity camEntity = mc.cameraEntity;
 		if (camEntity == null)
 			return;
-		Vec3 leadingAnchor = dce.leadingAnchor();
-		if (leadingAnchor == null || !leadingAnchor.closerThan(camEntity.position(), 64))
+		Vec3d leadingAnchor = dce.leadingAnchor();
+		if (leadingAnchor == null || !leadingAnchor.isInRange(camEntity.getPos(), 64))
 			return;
 
-		RandomSource r = entity.level().random;
-		Vec3 contraptionMotion = entity.position()
+		Random r = entity.getWorld().random;
+		Vec3d contraptionMotion = entity.getPos()
 			.subtract(entity.getPrevPositionVec());
 		double length = contraptionMotion.length();
 		if (arrived && length > 0.01f)
@@ -63,10 +62,10 @@ public class CarriageParticles {
 		brakes.tickChaser();
 		prevMotion = length;
 
-		Level level = entity.level();
-		Vec3 position = entity.getPosition(0);
-		float viewYRot = entity.getViewYRot(0);
-		float viewXRot = entity.getViewXRot(0);
+		World level = entity.getWorld();
+		Vec3d position = entity.getLerpedPos(0);
+		float viewYRot = entity.getYaw(0);
+		float viewXRot = entity.getPitch(0);
 		int bogeySpacing = entity.getCarriage().bogeySpacing;
 
 		for (CarriageBogey bogey : entity.getCarriage().bogeys) {
@@ -87,8 +86,8 @@ public class CarriageParticles {
 					if (r.nextFloat() > cutoff && (spark || r.nextInt(4) == 0))
 						continue;
 
-					Vec3 v = Vec3.ZERO.add(j * 1.15, spark ? -.6f : .32, i);
-					Vec3 m = Vec3.ZERO.add(j * (spark ? .5 : .25), spark ? .49 : -.29, 0);
+					Vec3d v = Vec3d.ZERO.add(j * 1.15, spark ? -.6f : .32, i);
+					Vec3d m = Vec3d.ZERO.add(j * (spark ? .5 : .25), spark ? .49 : -.29, 0);
 
 					m = VecHelper.rotate(m, bogey.pitch.getValue(0), Axis.X);
 					m = VecHelper.rotate(m, bogey.yaw.getValue(0), Axis.Y);
@@ -106,7 +105,7 @@ public class CarriageParticles {
 					v = VecHelper.rotate(v, viewYRot + 90, Axis.Y);
 					v = v.add(position);
 
-					m = m.add(contraptionMotion.scale(.75f));
+					m = m.add(contraptionMotion.multiply(.75f));
 
 					level.addParticle(spark ? bogey.getStyle().contactParticle : bogey.getStyle().smokeParticle, v.x, v.y, v.z, m.x, m.y, m.z);
 				}

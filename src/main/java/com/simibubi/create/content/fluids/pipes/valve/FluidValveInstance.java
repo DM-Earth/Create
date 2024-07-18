@@ -9,9 +9,8 @@ import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.content.kinetics.base.ShaftInstance;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 
 public class FluidValveInstance extends ShaftInstance<FluidValveBlockEntity> implements DynamicInstance {
 
@@ -25,7 +24,7 @@ public class FluidValveInstance extends ShaftInstance<FluidValveBlockEntity> imp
     public FluidValveInstance(MaterialManager dispatcher, FluidValveBlockEntity blockEntity) {
         super(dispatcher, blockEntity);
 
-        Direction facing = blockState.getValue(FluidValveBlock.FACING);
+        Direction facing = blockState.get(FluidValveBlock.FACING);
 
         yRot = AngleHelper.horizontalAngle(facing);
         xRot = facing == Direction.UP ? 0 : facing == Direction.DOWN ? 180 : 90;
@@ -54,7 +53,7 @@ public class FluidValveInstance extends ShaftInstance<FluidValveBlockEntity> imp
 
 	private void transformPointer() {
 		float value = blockEntity.pointer.getValue(AnimationTickHolder.getPartialTicks());
-		float pointerRotation = Mth.lerp(value, 0, -90);
+		float pointerRotation = MathHelper.lerp(value, 0, -90);
 		settled = (value == 0 || value == 1) && blockEntity.pointer.settled();
 
         pointer.loadIdentity()

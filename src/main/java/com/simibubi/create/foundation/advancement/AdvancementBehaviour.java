@@ -9,14 +9,14 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
 import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 
 public class AdvancementBehaviour extends BlockEntityBehaviour {
 
@@ -41,12 +41,12 @@ public class AdvancementBehaviour extends BlockEntityBehaviour {
 	}
 
 	public void setPlayer(UUID id) {
-		Player player = getWorld().getPlayerByUUID(id);
+		PlayerEntity player = getWorld().getPlayerByUuid(id);
 		if (player == null)
 			return;
 		playerId = id;
 		removeAwarded();
-		blockEntity.setChanged();
+		blockEntity.markDirty();
 	}
 
 	@Override
@@ -56,56 +56,56 @@ public class AdvancementBehaviour extends BlockEntityBehaviour {
 	}
 
 	private void removeAwarded() {
-		Player player = getPlayer();
+		PlayerEntity player = getPlayer();
 		if (player == null)
 			return;
 		advancements.removeIf(c -> c.isAlreadyAwardedTo(player));
 		if (advancements.isEmpty()) {
 			playerId = null;
-			blockEntity.setChanged();
+			blockEntity.markDirty();
 		}
 	}
 
 	public void awardPlayerIfNear(CreateAdvancement advancement, int maxDistance) {
-		Player player = getPlayer();
+		PlayerEntity player = getPlayer();
 		if (player == null)
 			return;
-		if (player.distanceToSqr(Vec3.atCenterOf(getPos())) > maxDistance * maxDistance)
+		if (player.squaredDistanceTo(Vec3d.ofCenter(getPos())) > maxDistance * maxDistance)
 			return;
 		award(advancement, player);
 	}
 
 	public void awardPlayer(CreateAdvancement advancement) {
-		Player player = getPlayer();
+		PlayerEntity player = getPlayer();
 		if (player == null)
 			return;
 		award(advancement, player);
 	}
 
-	private void award(CreateAdvancement advancement, Player player) {
+	private void award(CreateAdvancement advancement, PlayerEntity player) {
 		if (advancements.contains(advancement))
 			advancement.awardTo(player);
 		removeAwarded();
 	}
 
-	private Player getPlayer() {
+	private PlayerEntity getPlayer() {
 		if (playerId == null)
 			return null;
-		return getWorld().getPlayerByUUID(playerId);
+		return getWorld().getPlayerByUuid(playerId);
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		super.write(nbt, clientPacket);
 		if (playerId != null)
-			nbt.putUUID("Owner", playerId);
+			nbt.putUuid("Owner", playerId);
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 		super.read(nbt, clientPacket);
 		if (nbt.contains("Owner"))
-			playerId = nbt.getUUID("Owner");
+			playerId = nbt.getUuid("Owner");
 	}
 
 	@Override
@@ -113,18 +113,18 @@ public class AdvancementBehaviour extends BlockEntityBehaviour {
 		return TYPE;
 	}
 
-	public static void tryAward(BlockGetter reader, BlockPos pos, CreateAdvancement advancement) {
+	public static void tryAward(BlockView reader, BlockPos pos, CreateAdvancement advancement) {
 		AdvancementBehaviour behaviour = BlockEntityBehaviour.get(reader, pos, AdvancementBehaviour.TYPE);
 		if (behaviour != null)
 			behaviour.awardPlayer(advancement);
 	}
 
-	public static void setPlacedBy(Level worldIn, BlockPos pos, LivingEntity placer) {
+	public static void setPlacedBy(World worldIn, BlockPos pos, LivingEntity placer) {
 		AdvancementBehaviour behaviour = BlockEntityBehaviour.get(worldIn, pos, TYPE);
 		if (behaviour == null)
 			return;
-		if (placer instanceof ServerPlayer player && !(player instanceof FakePlayer))
-			behaviour.setPlayer(placer.getUUID());
+		if (placer instanceof ServerPlayerEntity player && !(player instanceof FakePlayer))
+			behaviour.setPlayer(placer.getUuid());
 	}
 
 }

@@ -2,8 +2,19 @@ package com.simibubi.create.content.redstone.link;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import com.mojang.datafixers.util.Pair;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
@@ -16,42 +27,29 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
-
 public class LinkRenderer {
 
 	public static void tick() {
-		Minecraft mc = Minecraft.getInstance();
-		HitResult target = mc.hitResult;
+		MinecraftClient mc = MinecraftClient.getInstance();
+		HitResult target = mc.crosshairTarget;
 		if (target == null || !(target instanceof BlockHitResult))
 			return;
 
 		BlockHitResult result = (BlockHitResult) target;
-		ClientLevel world = mc.level;
+		ClientWorld world = mc.world;
 		BlockPos pos = result.getBlockPos();
 
 		LinkBehaviour behaviour = BlockEntityBehaviour.get(world, pos, LinkBehaviour.TYPE);
 		if (behaviour == null)
 			return;
 
-		Component freq1 = Lang.translateDirect("logistics.firstFrequency");
-		Component freq2 = Lang.translateDirect("logistics.secondFrequency");
+		Text freq1 = Lang.translateDirect("logistics.firstFrequency");
+		Text freq2 = Lang.translateDirect("logistics.secondFrequency");
 
 		for (boolean first : Iterate.trueAndFalse) {
-			AABB bb = new AABB(Vec3.ZERO, Vec3.ZERO).inflate(.25f);
-			Component label = first ? freq1 : freq2;
-			boolean hit = behaviour.testHit(first, target.getLocation());
+			Box bb = new Box(Vec3d.ZERO, Vec3d.ZERO).expand(.25f);
+			Text label = first ? freq1 : freq2;
+			boolean hit = behaviour.testHit(first, target.getPos());
 			ValueBoxTransform transform = first ? behaviour.firstSlot : behaviour.secondSlot;
 
 			ValueBox box = new ValueBox(label, bb, pos).passive(!hit);
@@ -64,12 +62,12 @@ public class LinkRenderer {
 				box.wideOutline();
 
 			CreateClient.OUTLINER.showValueBox(Pair.of(Boolean.valueOf(first), pos), box.transform(transform))
-				.highlightFace(result.getDirection());
+				.highlightFace(result.getSide());
 
 			if (!hit)
 				continue;
 
-			List<MutableComponent> tip = new ArrayList<>();
+			List<MutableText> tip = new ArrayList<>();
 			tip.add(label.copy());
 			tip.add(
 				Lang.translateDirect(empty ? "logistics.filter.click_to_set" : "logistics.filter.click_to_replace"));
@@ -77,16 +75,16 @@ public class LinkRenderer {
 		}
 	}
 
-	public static void renderOnBlockEntity(SmartBlockEntity be, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, int overlay) {
+	public static void renderOnBlockEntity(SmartBlockEntity be, float partialTicks, MatrixStack ms,
+		VertexConsumerProvider buffer, int light, int overlay) {
 
 		if (be == null || be.isRemoved())
 			return;
 
-		Entity cameraEntity = Minecraft.getInstance().cameraEntity;
+		Entity cameraEntity = MinecraftClient.getInstance().cameraEntity;
 		float max = AllConfigs.client().filterItemRenderDistance.getF();
-		if (!be.isVirtual() && cameraEntity != null && cameraEntity.position()
-			.distanceToSqr(VecHelper.getCenterOf(be.getBlockPos())) > (max * max))
+		if (!be.isVirtual() && cameraEntity != null && cameraEntity.getPos()
+			.squaredDistanceTo(VecHelper.getCenterOf(be.getPos())) > (max * max))
 			return;
 
 		LinkBehaviour behaviour = be.getBehaviour(LinkBehaviour.TYPE);
@@ -97,10 +95,10 @@ public class LinkRenderer {
 			ValueBoxTransform transform = first ? behaviour.firstSlot : behaviour.secondSlot;
 			ItemStack stack = first ? behaviour.frequencyFirst.getStack() : behaviour.frequencyLast.getStack();
 
-			ms.pushPose();
-			transform.transform(be.getBlockState(), ms);
+			ms.push();
+			transform.transform(be.getCachedState(), ms);
 			ValueBoxRenderer.renderItemIntoValueBox(stack, ms, buffer, light, overlay);
-			ms.popPose();
+			ms.pop();
 		}
 
 	}

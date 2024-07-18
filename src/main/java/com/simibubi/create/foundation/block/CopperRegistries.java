@@ -6,7 +6,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 
 import net.fabricmc.fabric.api.registry.OxidizableBlocksRegistry;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
 
 public class CopperRegistries {
 	private static final BiMap<Supplier<Block>, Supplier<Block>> WEATHERING = HashBiMap.create();

@@ -2,8 +2,7 @@ package com.simibubi.create.content.redstone.link;
 
 import com.simibubi.create.content.redstone.link.RedstoneLinkNetworkHandler.Frequency;
 import com.simibubi.create.foundation.utility.Couple;
-
-import net.minecraft.core.BlockPos;
+import net.minecraft.util.math.BlockPos;
 
 public interface IRedstoneLinkable {
 

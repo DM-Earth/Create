@@ -1,8 +1,6 @@
 package com.simibubi.create.compat.rei.category;
 
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.compat.rei.display.CreateDisplay;
 import com.simibubi.create.content.equipment.sandPaper.SandPaperPolishingRecipe;
@@ -15,11 +13,11 @@ import me.shedaniel.math.Point;
 import me.shedaniel.rei.api.client.gui.widgets.Slot;
 import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.common.util.EntryIngredients;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.NonNullList;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.collection.DefaultedList;
 
 public class PolishingCategory extends CreateRecipeCategory<SandPaperPolishingRecipe> {
 
@@ -45,20 +43,20 @@ public class PolishingCategory extends CreateRecipeCategory<SandPaperPolishingRe
 	}
 
 	@Override
-	public void draw(SandPaperPolishingRecipe recipe, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(SandPaperPolishingRecipe recipe, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SLOT.render(graphics, 26, 28);
 		getRenderedSlot(recipe, 0).render(graphics, 131, 28);
 		AllGuiTextures.JEI_SHADOW.render(graphics, 61, 21);
 		AllGuiTextures.JEI_LONG_ARROW.render(graphics, 52, 32);
 
-		NonNullList<Ingredient> ingredients = recipe.getIngredients();
+		DefaultedList<Ingredient> ingredients = recipe.getIngredients();
 		ItemStack[] matchingStacks = ingredients.get(0)
-			.getItems();
+			.getMatchingStacks();
 		if (matchingStacks.length == 0)
 			return;
 
 
-		CompoundTag tag = renderedSandpaper.getOrCreateTag();
+		NbtCompound tag = renderedSandpaper.getOrCreateNbt();
 		tag.put("Polishing", NBTSerializer.serializeNBT(matchingStacks[0]));
 		tag.putBoolean("JEI", true);
 		GuiGameElement.of(renderedSandpaper)

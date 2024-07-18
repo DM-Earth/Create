@@ -3,7 +3,35 @@ package com.simibubi.create.content.kinetics.gantry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.EnumProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.state.property.Property;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.StringIdentifiable;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllShapes;
@@ -17,93 +45,63 @@ import com.simibubi.create.foundation.placement.PoleHelper;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Lang;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-
 public class GantryShaftBlock extends DirectionalKineticBlock implements IBE<GantryShaftBlockEntity> {
 
-	public static final Property<Part> PART = EnumProperty.create("part", Part.class);
-	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+	public static final Property<Part> PART = EnumProperty.of("part", Part.class);
+	public static final BooleanProperty POWERED = Properties.POWERED;
 
 	private static final int placementHelperId = PlacementHelpers.register(new PlacementHelper());
 
-	public enum Part implements StringRepresentable {
+	public enum Part implements StringIdentifiable {
 		START, MIDDLE, END, SINGLE;
 
 		@Override
-		public String getSerializedName() {
+		public String asString() {
 			return Lang.asId(name());
 		}
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(PART, POWERED));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(PART, POWERED));
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult ray) {
-		ItemStack heldItem = player.getItemInHand(hand);
+		ItemStack heldItem = player.getStackInHand(hand);
 
 		IPlacementHelper placementHelper = PlacementHelpers.get(placementHelperId);
 		if (!placementHelper.matchesItem(heldItem))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
 		return placementHelper.getOffset(player, world, state, pos, ray)
 			.placeInWorld(world, ((BlockItem) heldItem.getItem()), player, hand, ray);
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter p_220053_2_, BlockPos p_220053_3_,
-		CollisionContext p_220053_4_) {
-		return AllShapes.EIGHT_VOXEL_POLE.get(state.getValue(FACING)
+	public VoxelShape getOutlineShape(BlockState state, BlockView p_220053_2_, BlockPos p_220053_3_,
+		ShapeContext p_220053_4_) {
+		return AllShapes.EIGHT_VOXEL_POLE.get(state.get(FACING)
 			.getAxis());
 	}
 
 	@Override
-	public RenderShape getRenderShape(BlockState state) {
-		return RenderShape.ENTITYBLOCK_ANIMATED;
+	public BlockRenderType getRenderType(BlockState state) {
+		return BlockRenderType.ENTITYBLOCK_ANIMATED;
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction direction, BlockState neighbour, LevelAccessor world,
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState neighbour, WorldAccess world,
 		BlockPos pos, BlockPos neighbourPos) {
-		Direction facing = state.getValue(FACING);
+		Direction facing = state.get(FACING);
 		Axis axis = facing.getAxis();
 		if (direction.getAxis() != axis)
 			return state;
-		boolean connect = AllBlocks.GANTRY_SHAFT.has(neighbour) && neighbour.getValue(FACING) == facing;
+		boolean connect = AllBlocks.GANTRY_SHAFT.has(neighbour) && neighbour.get(FACING) == facing;
 
-		Part part = state.getValue(PART);
-		if (direction.getAxisDirection() == facing.getAxisDirection()) {
+		Part part = state.get(PART);
+		if (direction.getDirection() == facing.getDirection()) {
 			if (connect) {
 				if (part == Part.END)
 					part = Part.MIDDLE;
@@ -129,56 +127,56 @@ public class GantryShaftBlock extends DirectionalKineticBlock implements IBE<Gan
 			}
 		}
 
-		return state.setValue(PART, part);
+		return state.with(PART, part);
 	}
 
-	public GantryShaftBlock(Properties properties) {
+	public GantryShaftBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(POWERED, false)
-			.setValue(PART, Part.SINGLE));
+		setDefaultState(getDefaultState().with(POWERED, false)
+			.with(PART, Part.SINGLE));
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState state = super.getStateForPlacement(context);
-		BlockPos pos = context.getClickedPos();
-		Level world = context.getLevel();
-		Direction face = context.getClickedFace();
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState state = super.getPlacementState(context);
+		BlockPos pos = context.getBlockPos();
+		World world = context.getWorld();
+		Direction face = context.getSide();
 
-		BlockState neighbour = world.getBlockState(pos.relative(state.getValue(FACING)
+		BlockState neighbour = world.getBlockState(pos.offset(state.get(FACING)
 			.getOpposite()));
 
 		BlockState clickedState =
-			AllBlocks.GANTRY_SHAFT.has(neighbour) ? neighbour : world.getBlockState(pos.relative(face.getOpposite()));
+			AllBlocks.GANTRY_SHAFT.has(neighbour) ? neighbour : world.getBlockState(pos.offset(face.getOpposite()));
 
-		if (AllBlocks.GANTRY_SHAFT.has(clickedState) && clickedState.getValue(FACING)
-			.getAxis() == state.getValue(FACING)
+		if (AllBlocks.GANTRY_SHAFT.has(clickedState) && clickedState.get(FACING)
+			.getAxis() == state.get(FACING)
 				.getAxis()) {
-			Direction facing = clickedState.getValue(FACING);
-			state = state.setValue(FACING, context.getPlayer() == null || !context.getPlayer()
-				.isShiftKeyDown() ? facing : facing.getOpposite());
+			Direction facing = clickedState.get(FACING);
+			state = state.with(FACING, context.getPlayer() == null || !context.getPlayer()
+				.isSneaking() ? facing : facing.getOpposite());
 		}
 
-		return state.setValue(POWERED, shouldBePowered(state, world, pos));
+		return state.with(POWERED, shouldBePowered(state, world, pos));
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		InteractionResult onWrenched = super.onWrenched(state, context);
-		if (onWrenched.consumesAction()) {
-			BlockPos pos = context.getClickedPos();
-			Level world = context.getLevel();
-			neighborChanged(world.getBlockState(pos), world, pos, state.getBlock(), pos, false);
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		ActionResult onWrenched = super.onWrenched(state, context);
+		if (onWrenched.isAccepted()) {
+			BlockPos pos = context.getBlockPos();
+			World world = context.getWorld();
+			neighborUpdate(world.getBlockState(pos), world, pos, state.getBlock(), pos, false);
 		}
 		return onWrenched;
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
-		super.onPlace(state, worldIn, pos, oldState, isMoving);
+	public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
+		super.onBlockAdded(state, worldIn, pos, oldState, isMoving);
 
-		if (!worldIn.isClientSide() && oldState.is(AllBlocks.GANTRY_SHAFT.get())) {
-			Part oldPart = oldState.getValue(PART), part = state.getValue(PART);
+		if (!worldIn.isClient() && oldState.isOf(AllBlocks.GANTRY_SHAFT.get())) {
+			Part oldPart = oldState.get(PART), part = state.get(PART);
 			if ((oldPart != Part.MIDDLE && part == Part.MIDDLE) || (oldPart == Part.SINGLE && part != Part.SINGLE)) {
 				BlockEntity be = worldIn.getBlockEntity(pos);
 				if (be instanceof GantryShaftBlockEntity)
@@ -188,15 +186,15 @@ public class GantryShaftBlock extends DirectionalKineticBlock implements IBE<Gan
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block p_220069_4_, BlockPos p_220069_5_,
+	public void neighborUpdate(BlockState state, World worldIn, BlockPos pos, Block p_220069_4_, BlockPos p_220069_5_,
 		boolean p_220069_6_) {
-		if (worldIn.isClientSide)
+		if (worldIn.isClient)
 			return;
-		boolean previouslyPowered = state.getValue(POWERED);
-		boolean shouldPower = worldIn.hasNeighborSignal(pos); // shouldBePowered(state, worldIn, pos);
+		boolean previouslyPowered = state.get(POWERED);
+		boolean shouldPower = worldIn.isReceivingRedstonePower(pos); // shouldBePowered(state, worldIn, pos);
 
 		if (!previouslyPowered && !shouldPower && shouldBePowered(state, worldIn, pos)) {
-			worldIn.setBlock(pos, state.setValue(POWERED, true), 3);
+			worldIn.setBlockState(pos, state.with(POWERED, true), 3);
 			return;
 		}
 
@@ -205,24 +203,24 @@ public class GantryShaftBlock extends DirectionalKineticBlock implements IBE<Gan
 
 		// Collect affected gantry shafts
 		List<BlockPos> toUpdate = new ArrayList<>();
-		Direction facing = state.getValue(FACING);
+		Direction facing = state.get(FACING);
 		Axis axis = facing.getAxis();
 		for (Direction d : Iterate.directionsInAxis(axis)) {
-			BlockPos currentPos = pos.relative(d);
+			BlockPos currentPos = pos.offset(d);
 			while (true) {
-				if (!worldIn.isLoaded(currentPos))
+				if (!worldIn.canSetBlock(currentPos))
 					break;
 				BlockState currentState = worldIn.getBlockState(currentPos);
 				if (!(currentState.getBlock() instanceof GantryShaftBlock))
 					break;
-				if (currentState.getValue(FACING) != facing)
+				if (currentState.get(FACING) != facing)
 					break;
-				if (!shouldPower && currentState.getValue(POWERED) && worldIn.hasNeighborSignal(currentPos))
+				if (!shouldPower && currentState.get(POWERED) && worldIn.isReceivingRedstonePower(currentPos))
 					return;
-				if (currentState.getValue(POWERED) == shouldPower)
+				if (currentState.get(POWERED) == shouldPower)
 					break;
 				toUpdate.add(currentPos);
-				currentPos = currentPos.relative(d);
+				currentPos = currentPos.offset(d);
 			}
 		}
 
@@ -233,45 +231,45 @@ public class GantryShaftBlock extends DirectionalKineticBlock implements IBE<Gan
 			if (be instanceof KineticBlockEntity)
 				((KineticBlockEntity) be).detachKinetics();
 			if (blockState.getBlock() instanceof GantryShaftBlock)
-				worldIn.setBlock(blockPos, blockState.setValue(POWERED, shouldPower), 2);
+				worldIn.setBlockState(blockPos, blockState.with(POWERED, shouldPower), 2);
 		}
 	}
 
-	protected boolean shouldBePowered(BlockState state, Level worldIn, BlockPos pos) {
-		boolean shouldPower = worldIn.hasNeighborSignal(pos);
+	protected boolean shouldBePowered(BlockState state, World worldIn, BlockPos pos) {
+		boolean shouldPower = worldIn.isReceivingRedstonePower(pos);
 
-		Direction facing = state.getValue(FACING);
+		Direction facing = state.get(FACING);
 		for (Direction d : Iterate.directionsInAxis(facing.getAxis())) {
-			BlockPos neighbourPos = pos.relative(d);
-			if (!worldIn.isLoaded(neighbourPos))
+			BlockPos neighbourPos = pos.offset(d);
+			if (!worldIn.canSetBlock(neighbourPos))
 				continue;
 			BlockState neighbourState = worldIn.getBlockState(neighbourPos);
 			if (!(neighbourState.getBlock() instanceof GantryShaftBlock))
 				continue;
-			if (neighbourState.getValue(FACING) != facing)
+			if (neighbourState.get(FACING) != facing)
 				continue;
-			shouldPower |= neighbourState.getValue(POWERED);
+			shouldPower |= neighbourState.get(POWERED);
 		}
 
 		return shouldPower;
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return face.getAxis() == state.getValue(FACING)
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		return face.getAxis() == state.get(FACING)
 			.getAxis();
 	}
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(FACING)
+		return state.get(FACING)
 			.getAxis();
 	}
 
 	@Override
 	protected boolean areStatesKineticallyEquivalent(BlockState oldState, BlockState newState) {
 		return super.areStatesKineticallyEquivalent(oldState, newState)
-			&& oldState.getValue(POWERED) == newState.getValue(POWERED);
+			&& oldState.get(POWERED) == newState.get(POWERED);
 	}
 
 	@Override
@@ -285,14 +283,14 @@ public class GantryShaftBlock extends DirectionalKineticBlock implements IBE<Gan
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 
 	public static class PlacementHelper extends PoleHelper<Direction> {
 
 		public PlacementHelper() {
-			super(AllBlocks.GANTRY_SHAFT::has, s -> s.getValue(FACING)
+			super(AllBlocks.GANTRY_SHAFT::has, s -> s.get(FACING)
 				.getAxis(), FACING);
 		}
 
@@ -302,11 +300,11 @@ public class GantryShaftBlock extends DirectionalKineticBlock implements IBE<Gan
 		}
 
 		@Override
-		public PlacementOffset getOffset(Player player, Level world, BlockState state, BlockPos pos,
+		public PlacementOffset getOffset(PlayerEntity player, World world, BlockState state, BlockPos pos,
 			BlockHitResult ray) {
 			PlacementOffset offset = super.getOffset(player, world, state, pos, ray);
 			offset.withTransform(offset.getTransform()
-				.andThen(s -> s.setValue(POWERED, state.getValue(POWERED))));
+				.andThen(s -> s.with(POWERED, state.get(POWERED))));
 			return offset;
 		}
 	}

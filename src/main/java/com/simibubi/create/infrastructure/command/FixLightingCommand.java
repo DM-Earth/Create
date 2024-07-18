@@ -3,22 +3,21 @@ package com.simibubi.create.infrastructure.command;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class FixLightingCommand {
 
-	static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("fixLighting")
-			.requires(cs -> cs.hasPermission(0))
+	static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("fixLighting")
+			.requires(cs -> cs.hasPermissionLevel(0))
 			.executes(ctx -> {
 				AllPackets.getChannel().sendToClient(new SConfigureConfigPacket(SConfigureConfigPacket.Actions.fixLighting.name(), String.valueOf(true)),
-						(ServerPlayer) ctx.getSource().getEntity());
+						(ServerPlayerEntity) ctx.getSource().getEntity());
 
 				ctx.getSource()
-					.sendSuccess(() -> 
+					.sendFeedback(() -> 
 						Components.literal("Forge's experimental block rendering pipeline is now enabled."), true);
 
 				return 1;

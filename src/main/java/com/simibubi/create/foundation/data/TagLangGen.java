@@ -6,8 +6,7 @@ import com.simibubi.create.Create;
 import com.tterrag.registrate.fabric.BaseLangProvider;
 import com.tterrag.registrate.providers.ProviderType;
 import com.tterrag.registrate.providers.RegistrateLangProvider;
-
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 /**
  * fabric: creates translations for item tags. These are mostly just for EMI.
@@ -105,7 +104,7 @@ public class TagLangGen {
 
 	public record TagLangHelper(String namespace, BaseLangProvider prov) {
 		public TagLangHelper auto(String path) {
-			ResourceLocation id = new ResourceLocation(namespace, path);
+			Identifier id = new Identifier(namespace, path);
 			String key = key(id);
 			String name = translate(id);
 			prov.add(key, name);
@@ -113,14 +112,14 @@ public class TagLangGen {
 		}
 
 		public TagLangHelper put(String path, String translated) {
-			ResourceLocation id = new ResourceLocation(namespace, path);
+			Identifier id = new Identifier(namespace, path);
 			String key = key(id);
 			prov.add(key, translated);
 			return this;
 		}
 
 		public TagLangHelper plural(String path) {
-			ResourceLocation id = new ResourceLocation(namespace, path);
+			Identifier id = new Identifier(namespace, path);
 			String key = key(id);
 			String name = translate(id) + 's';
 			prov.add(key, name);
@@ -143,7 +142,7 @@ public class TagLangGen {
 	// prefix
 	public record SubDirHelper(TagLangHelper parent, String dir) {
 		public SubDirHelper put(String path, String translated) {
-			ResourceLocation id = tagId(path);
+			Identifier id = tagId(path);
 			parent.prov.add(key(id), translated);
 			return this;
 		}
@@ -153,7 +152,7 @@ public class TagLangGen {
 		}
 
 		public SubDirHelper ignoreDir(String path) {
-			ResourceLocation id = new ResourceLocation(parent.namespace, path);
+			Identifier id = new Identifier(parent.namespace, path);
 			return put(path, translate(id));
 		}
 
@@ -162,20 +161,20 @@ public class TagLangGen {
 		}
 
 		public SubDirHelper autoRoot() {
-			ResourceLocation id = new ResourceLocation(parent.namespace, dir);
+			Identifier id = new Identifier(parent.namespace, dir);
 			parent.prov.add(key(id), translate(id));
 			return this;
 		}
 
-		public ResourceLocation tagId(String path) {
-			return new ResourceLocation(parent.namespace, dir + '/' + path);
+		public Identifier tagId(String path) {
+			return new Identifier(parent.namespace, dir + '/' + path);
 		}
 	}
 
 	// suffix
 	public record CategoryHelper(TagLangHelper parent, String category, boolean suffix) {
 		public CategoryHelper put(String path, String translated) {
-			ResourceLocation id = tagId(path);
+			Identifier id = tagId(path);
 			parent.prov.add(key(id), translated);
 			return this;
 		}
@@ -189,26 +188,26 @@ public class TagLangGen {
 		}
 
 		public CategoryHelper autoRoot() {
-			ResourceLocation id = new ResourceLocation(parent.namespace, category);
+			Identifier id = new Identifier(parent.namespace, category);
 			parent.prov.add(key(id), translate(id));
 			return this;
 		}
 
-		public ResourceLocation tagId(String name) {
+		public Identifier tagId(String name) {
 			String path = suffix ? name + '_' + category : category + '_' + name;
-			return new ResourceLocation(parent.namespace, path);
+			return new Identifier(parent.namespace, path);
 		}
 	}
 
 	// automagical utils
 
-	public static String key(ResourceLocation tagId) {
+	public static String key(Identifier tagId) {
 		String namespace = tagId.getNamespace();
 		String path = tagId.getPath().replace('/', '.');
 		return "tag." + namespace + '.' + path;
 	}
 
-	public static String translate(ResourceLocation tagId) {
+	public static String translate(Identifier tagId) {
 		String path = tagId.getPath();
 		String[] split = path.split("/");
 		switch (split.length) {

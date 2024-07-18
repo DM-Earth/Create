@@ -1,36 +1,34 @@
 package com.simibubi.create.content.kinetics.fan.processing;
 
 import java.util.List;
-
+import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
-
 public interface FanProcessingType {
-	boolean isValidAt(Level level, BlockPos pos);
+	boolean isValidAt(World level, BlockPos pos);
 
 	int getPriority();
 
-	boolean canProcess(ItemStack stack, Level level);
+	boolean canProcess(ItemStack stack, World level);
 
 	@Nullable
-	List<ItemStack> process(ItemStack stack, Level level);
+	List<ItemStack> process(ItemStack stack, World level);
 
-	void spawnProcessingParticles(Level level, Vec3 pos);
+	void spawnProcessingParticles(World level, Vec3d pos);
 
-	void morphAirFlow(AirFlowParticleAccess particleAccess, RandomSource random);
+	void morphAirFlow(AirFlowParticleAccess particleAccess, Random random);
 
-	void affectEntity(Entity entity, Level level);
+	void affectEntity(Entity entity, World level);
 
 	static FanProcessingType parse(String str) {
-		ResourceLocation id = ResourceLocation.tryParse(str);
+		Identifier id = Identifier.tryParse(str);
 		if (id == null) {
 			return AllFanProcessingTypes.NONE;
 		}
@@ -41,7 +39,7 @@ public interface FanProcessingType {
 		return type;
 	}
 
-	static FanProcessingType getAt(Level level, BlockPos pos) {
+	static FanProcessingType getAt(World level, BlockPos pos) {
 		for (FanProcessingType type : FanProcessingTypeRegistry.getSortedTypesView()) {
 			if (type.isValidAt(level, pos)) {
 				return type;
@@ -55,6 +53,6 @@ public interface FanProcessingType {
 
 		void setAlpha(float alpha);
 
-		void spawnExtraParticle(ParticleOptions options, float speedMultiplier);
+		void spawnExtraParticle(ParticleEffect options, float speedMultiplier);
 	}
 }

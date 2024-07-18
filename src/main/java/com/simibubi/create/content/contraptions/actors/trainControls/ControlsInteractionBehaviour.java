@@ -9,20 +9,19 @@ import com.simibubi.create.content.contraptions.behaviour.MovingInteractionBehav
 
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.tterrag.registrate.fabric.EnvExecutor;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
 import net.fabricmc.api.EnvType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
 
 public class ControlsInteractionBehaviour extends MovingInteractionBehaviour {
 
 	@Override
-	public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos,
+	public boolean handlePlayerInteraction(PlayerEntity player, Hand activeHand, BlockPos localPos,
 		AbstractContraptionEntity contraptionEntity) {
 		if (AdventureUtil.isAdventure(player))
 			return false;
-		if (AllItems.WRENCH.isIn(player.getItemInHand(activeHand)))
+		if (AllItems.WRENCH.isIn(player.getStackInHand(activeHand)))
 			return false;
 
 		UUID currentlyControlling = contraptionEntity.getControllingPlayer()
@@ -30,15 +29,15 @@ public class ControlsInteractionBehaviour extends MovingInteractionBehaviour {
 
 		if (currentlyControlling != null) {
 			contraptionEntity.stopControlling(localPos);
-			if (Objects.equal(currentlyControlling, player.getUUID()))
+			if (Objects.equal(currentlyControlling, player.getUuid()))
 				return true;
 		}
 
 		if (!contraptionEntity.startControlling(localPos, player))
 			return false;
 
-		contraptionEntity.setControllingPlayer(player.getUUID());
-		if (player.level().isClientSide)
+		contraptionEntity.setControllingPlayer(player.getUuid());
+		if (player.getWorld().isClient)
 			EnvExecutor.runWhenOn(EnvType.CLIENT,
 				() -> () -> ControlsHandler.startControlling(contraptionEntity, localPos));
 		return true;

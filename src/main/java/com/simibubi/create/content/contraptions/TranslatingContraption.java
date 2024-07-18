@@ -3,18 +3,17 @@ package com.simibubi.create.content.contraptions;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public abstract class TranslatingContraption extends Contraption {
 
 	protected Set<BlockPos> cachedColliders;
 	protected Direction cachedColliderDirection;
 
-	public Set<BlockPos> getOrCreateColliders(Level world, Direction movementDirection) {
+	public Set<BlockPos> getOrCreateColliders(World world, Direction movementDirection) {
 		if (getBlocks() == null)
 			return Collections.emptySet();
 		if (cachedColliders == null || cachedColliderDirection != movementDirection) {
@@ -24,10 +23,10 @@ public abstract class TranslatingContraption extends Contraption {
 		return cachedColliders;
 	}
 
-	public Set<BlockPos> createColliders(Level world, Direction movementDirection) {
+	public Set<BlockPos> createColliders(World world, Direction movementDirection) {
 		Set<BlockPos> colliders = new HashSet<>();
 		for (StructureBlockInfo info : getBlocks().values()) {
-			BlockPos offsetPos = info.pos().relative(movementDirection);
+			BlockPos offsetPos = info.pos().offset(movementDirection);
 			if (info.state().getCollisionShape(world, offsetPos)
 				.isEmpty())
 				continue;
@@ -41,7 +40,7 @@ public abstract class TranslatingContraption extends Contraption {
 	}
 
 	@Override
-	public void removeBlocksFromWorld(Level world, BlockPos offset) {
+	public void removeBlocksFromWorld(World world, BlockPos offset) {
 		int count = blocks.size();
 		super.removeBlocksFromWorld(world, offset);
 		if (count != blocks.size()) {

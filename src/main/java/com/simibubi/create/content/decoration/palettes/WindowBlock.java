@@ -2,16 +2,14 @@ package com.simibubi.create.content.decoration.palettes;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.Direction;
 
 public class WindowBlock extends ConnectedGlassBlock {
 
 	protected final boolean translucent;
 
-	public WindowBlock(Properties p_i48392_1_, boolean translucent) {
+	public WindowBlock(Settings p_i48392_1_, boolean translucent) {
 		super(p_i48392_1_);
 		this.translucent = translucent;
 	}
@@ -22,7 +20,7 @@ public class WindowBlock extends ConnectedGlassBlock {
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public boolean skipRendering(BlockState state, BlockState adjacentBlockState, Direction side) {
+	public boolean isSideInvisible(BlockState state, BlockState adjacentBlockState, Direction side) {
 		if (state.getBlock() == adjacentBlockState.getBlock()) {
 			return true;
 		}
@@ -30,7 +28,7 @@ public class WindowBlock extends ConnectedGlassBlock {
 				&& adjacentBlockState.getBlock() instanceof ConnectedGlassBlock) {
 			return !windowBlock.isTranslucent() && side.getAxis().isHorizontal();
 		}
-		return super.skipRendering(state, adjacentBlockState, side);
+		return super.isSideInvisible(state, adjacentBlockState, side);
 	}
 
 }

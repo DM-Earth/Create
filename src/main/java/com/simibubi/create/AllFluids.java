@@ -1,9 +1,9 @@
 package com.simibubi.create;
 
 import static com.simibubi.create.Create.REGISTRATE;
-import static net.minecraft.world.item.Items.BUCKET;
-import static net.minecraft.world.item.Items.GLASS_BOTTLE;
-import static net.minecraft.world.item.Items.HONEY_BOTTLE;
+import static net.minecraft.item.Items.BUCKET;
+import static net.minecraft.item.Items.GLASS_BOTTLE;
+import static net.minecraft.item.Items.HONEY_BOTTLE;
 
 import java.util.List;
 
@@ -33,22 +33,21 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributeHandler;
 import net.fabricmc.fabric.api.transfer.v1.fluid.base.EmptyItemFluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.base.FullItemFluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.potion.PotionUtil;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.FluidTags;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.BlockRenderView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 @SuppressWarnings("UnstableApiUsage")
 public class AllFluids {
@@ -72,8 +71,8 @@ public class AllFluids {
 			.lang("Builder's Tea")
 			.tag(AllTags.forgeFluidTag("tea"))
 			.fluidAttributes(() -> new CreateAttributeHandler("fluid.create.tea"))
-			.onRegisterAfter(Registries.ITEM, tea -> {
-				Fluid still = tea.getSource();
+			.onRegisterAfter(RegistryKeys.ITEM, tea -> {
+				Fluid still = tea.getStill();
 				FluidStorage.combinedItemApiProvider(AllItems.BUILDERS_TEA.get()).register(context ->
 						new FullItemFluidStorage(context, bottle -> ItemVariant.of(GLASS_BOTTLE), FluidVariant.of(still), FluidConstants.BOTTLE));
 				FluidStorage.combinedItemApiProvider(GLASS_BOTTLE).register(context ->
@@ -94,16 +93,16 @@ public class AllFluids {
 					.bucket()
 					.tag(AllTags.forgeItemTag("honey_buckets"))
 					.build()
-					.onRegisterAfter(Registries.ITEM, honey -> {
-						Fluid source = honey.getSource();
+					.onRegisterAfter(RegistryKeys.ITEM, honey -> {
+						Fluid source = honey.getStill();
 						FluidStorage.combinedItemApiProvider(HONEY_BOTTLE).register(context ->
 								new FullItemFluidStorage(context, bottle -> ItemVariant.of(GLASS_BOTTLE), FluidVariant.of(source), HONEY_BOTTLE_AMOUNT));
 						FluidStorage.combinedItemApiProvider(GLASS_BOTTLE).register(context ->
 								new EmptyItemFluidStorage(context, bottle -> ItemVariant.of(HONEY_BOTTLE), source, HONEY_BOTTLE_AMOUNT));
-						FluidStorage.combinedItemApiProvider(source.getBucket()).register(context ->
+						FluidStorage.combinedItemApiProvider(source.getBucketItem()).register(context ->
 								new FullItemFluidStorage(context, bucket -> ItemVariant.of(BUCKET), FluidVariant.of(source), FluidConstants.BUCKET));
 						FluidStorage.combinedItemApiProvider(BUCKET).register(context ->
-								new EmptyItemFluidStorage(context, bucket -> ItemVariant.of(source.getBucket()), source, FluidConstants.BUCKET));
+								new EmptyItemFluidStorage(context, bucket -> ItemVariant.of(source.getBucketItem()), source, FluidConstants.BUCKET));
 					})
 					.register();
 
@@ -116,13 +115,13 @@ public class AllFluids {
 							.flowSpeed(3)
 							.blastResistance(100f))
 					.fluidAttributes(() -> new CreateAttributeHandler("block.create.chocolate", 1500, 1400))
-					.onRegisterAfter(Registries.ITEM, chocolate -> {
-						Fluid source = chocolate.getSource();
+					.onRegisterAfter(RegistryKeys.ITEM, chocolate -> {
+						Fluid source = chocolate.getStill();
 						// transfer values
-						FluidStorage.combinedItemApiProvider(source.getBucket()).register(context ->
+						FluidStorage.combinedItemApiProvider(source.getBucketItem()).register(context ->
 								new FullItemFluidStorage(context, bucket -> ItemVariant.of(BUCKET), FluidVariant.of(source), FluidConstants.BUCKET));
 						FluidStorage.combinedItemApiProvider(BUCKET).register(context ->
-								new EmptyItemFluidStorage(context, bucket -> ItemVariant.of(source.getBucket()), source, FluidConstants.BUCKET));
+								new EmptyItemFluidStorage(context, bucket -> ItemVariant.of(source.getBucketItem()), source, FluidConstants.BUCKET));
 					})
 					.register();
 
@@ -138,7 +137,7 @@ public class AllFluids {
 		PotionFluidVariantRenderHandler handler = new PotionFluidVariantRenderHandler();
 		PotionFluid potionFluid = AllFluids.POTION.get();
 		FluidVariantRendering.register(potionFluid.getFlowing(), handler);
-		FluidVariantRendering.register(potionFluid.getSource(), handler);
+		FluidVariantRendering.register(potionFluid.getStill(), handler);
 	}
 
 	public static void registerFluidInteractions() {
@@ -146,16 +145,16 @@ public class AllFluids {
 		FluidPlaceBlockCallback.EVENT.register(AllFluids::whenFluidsMeet);
 	}
 
-	public static BlockState whenFluidsMeet(LevelAccessor world, BlockPos pos, BlockState blockState) {
+	public static BlockState whenFluidsMeet(WorldAccess world, BlockPos pos, BlockState blockState) {
 		FluidState fluidState = blockState.getFluidState();
 
-		if (fluidState.isSource() && FluidHelper.isLava(fluidState.getType()))
+		if (fluidState.isStill() && FluidHelper.isLava(fluidState.getFluid()))
 			return null;
 
 		for (Direction direction : Iterate.directions) {
 			FluidState metFluidState =
-					fluidState.isSource() ? fluidState : world.getFluidState(pos.relative(direction));
-			if (!metFluidState.is(FluidTags.WATER))
+					fluidState.isStill() ? fluidState : world.getFluidState(pos.offset(direction));
+			if (!metFluidState.isIn(FluidTags.WATER))
 				continue;
 			BlockState lavaInteraction = AllFluids.getLavaInteraction(metFluidState);
 			if (lavaInteraction == null)
@@ -167,15 +166,15 @@ public class AllFluids {
 
 	@Nullable
 	public static BlockState getLavaInteraction(FluidState fluidState) {
-		Fluid fluid = fluidState.getType();
-		if (fluid.isSame(HONEY.get()))
+		Fluid fluid = fluidState.getFluid();
+		if (fluid.matchesType(HONEY.get()))
 			return AllPaletteStoneTypes.LIMESTONE.getBaseBlock()
 					.get()
-					.defaultBlockState();
-		if (fluid.isSame(CHOCOLATE.get()))
+					.getDefaultState();
+		if (fluid.matchesType(CHOCOLATE.get()))
 			return AllPaletteStoneTypes.SCORIA.getBaseBlock()
 					.get()
-					.defaultBlockState();
+					.getDefaultState();
 		return null;
 	}
 
@@ -199,37 +198,37 @@ public class AllFluids {
 	@Environment(EnvType.CLIENT)
 	public static class PotionFluidVariantRenderHandler implements FluidVariantRenderHandler {
 		@Override
-		public int getColor(FluidVariant fluidVariant, @Nullable BlockAndTintGetter view, @Nullable BlockPos pos) {
-			return PotionUtils.getColor(PotionUtils.getAllEffects(fluidVariant.getNbt())) | 0xff000000;
+		public int getColor(FluidVariant fluidVariant, @Nullable BlockRenderView view, @Nullable BlockPos pos) {
+			return PotionUtil.getColor(PotionUtil.getPotionEffects(fluidVariant.getNbt())) | 0xff000000;
 		}
 
 		@Override
-		public void appendTooltip(FluidVariant fluidVariant, List<Component> tooltip, TooltipFlag tooltipContext) {
+		public void appendTooltip(FluidVariant fluidVariant, List<Text> tooltip, TooltipContext tooltipContext) {
 			PotionFluidHandler.addPotionTooltip(fluidVariant, tooltip, 1);
 		}
 	}
 
 	private static class PotionFluidVariantAttributeHandler implements FluidVariantAttributeHandler {
 		@Override
-		public Component getName(FluidVariant fluidVariant) {
-			return Component.translatable(getTranslationKey(fluidVariant));
+		public Text getName(FluidVariant fluidVariant) {
+			return Text.translatable(getTranslationKey(fluidVariant));
 		}
 
 		public String getTranslationKey(FluidVariant stack) {
-			CompoundTag tag = stack.getNbt();
+			NbtCompound tag = stack.getNbt();
 			if (tag == null)
 				return "create.potion.invalid";
-			ItemLike itemFromBottleType =
+			ItemConvertible itemFromBottleType =
 					PotionFluidHandler.itemFromBottleType(NBTHelper.readEnum(tag, "Bottle", BottleType.class));
-			return PotionUtils.getPotion(tag)
-					.getName(itemFromBottleType.asItem()
-							.getDescriptionId() + ".effect.");
+			return PotionUtil.getPotion(tag)
+					.finishTranslationKey(itemFromBottleType.asItem()
+							.getTranslationKey() + ".effect.");
 		}
 	}
 
-	private record CreateAttributeHandler(Component name, int viscosity, boolean lighterThanAir) implements FluidVariantAttributeHandler {
+	private record CreateAttributeHandler(Text name, int viscosity, boolean lighterThanAir) implements FluidVariantAttributeHandler {
 		private CreateAttributeHandler(String key, int viscosity, int density) {
-			this(Component.translatable(key), viscosity, density <= 0);
+			this(Text.translatable(key), viscosity, density <= 0);
 		}
 
 		public CreateAttributeHandler(String key) {
@@ -237,12 +236,12 @@ public class AllFluids {
 		}
 
 		@Override
-		public Component getName(FluidVariant fluidVariant) {
+		public Text getName(FluidVariant fluidVariant) {
 			return name.copy();
 		}
 
 		@Override
-		public int getViscosity(FluidVariant variant, @Nullable Level world) {
+		public int getViscosity(FluidVariant variant, @Nullable World world) {
 			return viscosity;
 		}
 

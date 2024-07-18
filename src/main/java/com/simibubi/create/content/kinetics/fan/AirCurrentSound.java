@@ -1,20 +1,20 @@
 package com.simibubi.create.content.kinetics.fan;
 
-import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
+import net.minecraft.client.sound.MovingSoundInstance;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
 
-public class AirCurrentSound extends AbstractTickableSoundInstance {
+public class AirCurrentSound extends MovingSoundInstance {
 
 	private float pitch;
 
 	protected AirCurrentSound(SoundEvent p_i46532_1_, float pitch) {
-		super(p_i46532_1_, SoundSource.BLOCKS, SoundInstance.createUnseededRandom());
+		super(p_i46532_1_, SoundCategory.BLOCKS, SoundInstance.createRandom());
 		this.pitch = pitch;
 		volume = 0.01f;
-		looping = true;
-		delay = 0;
+		repeat = true;
+		repeatDelay = 0;
 		relative = true;
 	}
 
@@ -43,7 +43,7 @@ public class AirCurrentSound extends AbstractTickableSoundInstance {
 	}
 
 	public void stopSound() {
-		stop();
+		setDone();
 	}
 
 }

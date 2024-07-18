@@ -8,8 +8,7 @@ import com.jozufozu.flywheel.core.layout.BufferLayout;
 import com.jozufozu.flywheel.core.model.ModelTransformer;
 import com.simibubi.create.foundation.render.AllInstanceFormats;
 import com.simibubi.create.foundation.render.AllProgramSpecs;
-
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 public class ActorType implements Instanced<ActorData>, Batched<ActorData> {
 	@Override
@@ -28,7 +27,7 @@ public class ActorType implements Instanced<ActorData>, Batched<ActorData> {
 	}
 
 	@Override
-	public ResourceLocation getProgramSpec() {
+	public Identifier getProgramSpec() {
 		return AllProgramSpecs.ACTOR;
 	}
 

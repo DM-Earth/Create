@@ -1,19 +1,18 @@
 package com.simibubi.create.content.redstone.nixieTube;
 
 import javax.annotation.Nullable;
+import net.minecraft.block.AbstractBlock;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.HorizontalFacingBlock;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.state.property.EnumProperty;
+import net.minecraft.util.StringIdentifiable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
-import net.minecraft.core.Direction;
-import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.phys.Vec3;
+public class DoubleFaceAttachedBlock extends HorizontalFacingBlock {
 
-public class DoubleFaceAttachedBlock extends HorizontalDirectionalBlock {
-
-	public enum DoubleAttachFace implements StringRepresentable {
+	public enum DoubleAttachFace implements StringIdentifiable {
 		FLOOR("floor"), WALL("wall"), WALL_REVERSED("wall_reversed"), CEILING("ceiling");
 
 		private final String name;
@@ -22,7 +21,7 @@ public class DoubleFaceAttachedBlock extends HorizontalDirectionalBlock {
 			this.name = p_61311_;
 		}
 
-		public String getSerializedName() {
+		public String asString() {
 			return this.name;
 		}
 
@@ -32,36 +31,36 @@ public class DoubleFaceAttachedBlock extends HorizontalDirectionalBlock {
 	}
 
 	public static final EnumProperty<DoubleAttachFace> FACE =
-		EnumProperty.create("double_face", DoubleAttachFace.class);
+		EnumProperty.of("double_face", DoubleAttachFace.class);
 
-	public DoubleFaceAttachedBlock(BlockBehaviour.Properties p_53182_) {
+	public DoubleFaceAttachedBlock(AbstractBlock.Settings p_53182_) {
 		super(p_53182_);
 	}
 
 	@Nullable
-	public BlockState getStateForPlacement(BlockPlaceContext pContext) {
-		for (Direction direction : pContext.getNearestLookingDirections()) {
+	public BlockState getPlacementState(ItemPlacementContext pContext) {
+		for (Direction direction : pContext.getPlacementDirections()) {
 			BlockState blockstate;
 			if (direction.getAxis() == Direction.Axis.Y) {
-				blockstate = this.defaultBlockState()
-					.setValue(FACE, direction == Direction.UP ? DoubleAttachFace.CEILING : DoubleAttachFace.FLOOR)
-					.setValue(FACING, pContext.getHorizontalDirection());
+				blockstate = this.getDefaultState()
+					.with(FACE, direction == Direction.UP ? DoubleAttachFace.CEILING : DoubleAttachFace.FLOOR)
+					.with(FACING, pContext.getHorizontalPlayerFacing());
 			} else {
-				Vec3 n = Vec3.atLowerCornerOf(direction.getClockWise()
-					.getNormal());
+				Vec3d n = Vec3d.of(direction.rotateYClockwise()
+					.getVector());
 				DoubleAttachFace face = DoubleAttachFace.WALL;
 				if (pContext.getPlayer() != null) {
-					Vec3 lookAngle = pContext.getPlayer()
-						.getLookAngle();
-					if (lookAngle.dot(n) < 0)
+					Vec3d lookAngle = pContext.getPlayer()
+						.getRotationVector();
+					if (lookAngle.dotProduct(n) < 0)
 						face = DoubleAttachFace.WALL_REVERSED;
 				}
-				blockstate = this.defaultBlockState()
-					.setValue(FACE, face)
-					.setValue(FACING, direction.getOpposite());
+				blockstate = this.getDefaultState()
+					.with(FACE, face)
+					.with(FACING, direction.getOpposite());
 			}
 
-			if (blockstate.canSurvive(pContext.getLevel(), pContext.getClickedPos())) {
+			if (blockstate.canPlaceAt(pContext.getWorld(), pContext.getBlockPos())) {
 				return blockstate;
 			}
 		}
@@ -70,13 +69,13 @@ public class DoubleFaceAttachedBlock extends HorizontalDirectionalBlock {
 	}
 
 	protected static Direction getConnectedDirection(BlockState pState) {
-		switch ((DoubleAttachFace) pState.getValue(FACE)) {
+		switch ((DoubleAttachFace) pState.get(FACE)) {
 		case CEILING:
 			return Direction.DOWN;
 		case FLOOR:
 			return Direction.UP;
 		default:
-			return pState.getValue(FACING);
+			return pState.get(FACING);
 		}
 	}
 }

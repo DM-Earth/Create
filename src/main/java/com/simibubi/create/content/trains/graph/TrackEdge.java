@@ -5,18 +5,16 @@ import java.util.Collection;
 import java.util.Collections;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.content.trains.track.BezierConnection;
 import com.simibubi.create.content.trains.track.TrackMaterial;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 public class TrackEdge {
 
@@ -56,17 +54,17 @@ public class TrackEdge {
 		return turn;
 	}
 
-	public Vec3 getDirection(boolean fromFirst) {
+	public Vec3d getDirection(boolean fromFirst) {
 		return getPosition(null, fromFirst ? 0.25f : 1).subtract(getPosition(null, fromFirst ? 0 : 0.75f))
 			.normalize();
 	}
 
-	public Vec3 getDirectionAt(double t) {
+	public Vec3d getDirectionAt(double t) {
 		double length = getLength();
 		double step = .5f / length;
 		t /= length;
-		Vec3 ahead = getPosition(null, Math.min(1, t + step));
-		Vec3 behind = getPosition(null, Math.max(0, t - step));
+		Vec3d ahead = getPosition(null, Math.min(1, t + step));
+		Vec3d behind = getPosition(null, Math.max(0, t - step));
 		return ahead.subtract(behind)
 			.normalize();
 	}
@@ -74,8 +72,8 @@ public class TrackEdge {
 	public boolean canTravelTo(TrackEdge other) {
 		if (isInterDimensional() || other.isInterDimensional())
 			return true;
-		Vec3 newDirection = other.getDirection(true);
-		return getDirection(false).dot(newDirection) > 7 / 8f;
+		Vec3d newDirection = other.getDirection(true);
+		return getDirection(false).dotProduct(newDirection) > 7 / 8f;
 	}
 
 	public double getLength() {
@@ -92,22 +90,22 @@ public class TrackEdge {
 		return !tooFar && isTurn() ? turn.incrementT(currentT, distance) : currentT + distance;
 	}
 
-	public Vec3 getPosition(@Nullable TrackGraph trackGraph, double t) {
+	public Vec3d getPosition(@Nullable TrackGraph trackGraph, double t) {
 		if (isTurn())
-			return turn.getPosition(Mth.clamp(t, 0, 1));
+			return turn.getPosition(MathHelper.clamp(t, 0, 1));
 		if (trackGraph != null && (node1.location.yOffsetPixels != 0 || node2.location.yOffsetPixels != 0)) {
-			Vec3 positionSmoothed = getPositionSmoothed(trackGraph, t);
+			Vec3d positionSmoothed = getPositionSmoothed(trackGraph, t);
 			if (positionSmoothed != null)
 				return positionSmoothed;
 		}
 		return VecHelper.lerp((float) t, node1.location.getLocation(), node2.location.getLocation());
 	}
 
-	public Vec3 getNormal(@Nullable TrackGraph trackGraph, double t) {
+	public Vec3d getNormal(@Nullable TrackGraph trackGraph, double t) {
 		if (isTurn())
-			return turn.getNormal(Mth.clamp(t, 0, 1));
+			return turn.getNormal(MathHelper.clamp(t, 0, 1));
 		if (trackGraph != null && (node1.location.yOffsetPixels != 0 || node2.location.yOffsetPixels != 0)) {
-			Vec3 normalSmoothed = getNormalSmoothed(trackGraph, t);
+			Vec3d normalSmoothed = getNormalSmoothed(trackGraph, t);
 			if (normalSmoothed != null)
 				return normalSmoothed;
 		}
@@ -115,9 +113,9 @@ public class TrackEdge {
 	}
 
 	@Nullable
-	public Vec3 getPositionSmoothed(TrackGraph trackGraph, double t) {
-		Vec3 node1Location = null;
-		Vec3 node2Location = null;
+	public Vec3d getPositionSmoothed(TrackGraph trackGraph, double t) {
+		Vec3d node1Location = null;
+		Vec3d node2Location = null;
 		for (TrackEdge trackEdge : trackGraph.getConnectionsFrom(node1)
 			.values())
 			if (trackEdge.isTurn())
@@ -132,9 +130,9 @@ public class TrackEdge {
 	}
 
 	@Nullable
-	public Vec3 getNormalSmoothed(TrackGraph trackGraph, double t) {
-		Vec3 node1Normal = null;
-		Vec3 node2Normal = null;
+	public Vec3d getNormalSmoothed(TrackGraph trackGraph, double t) {
+		Vec3d node1Normal = null;
+		Vec3d node2Normal = null;
 		for (TrackEdge trackEdge : trackGraph.getConnectionsFrom(node1)
 			.values())
 			if (trackEdge.isTurn())
@@ -150,10 +148,10 @@ public class TrackEdge {
 
 	public Collection<double[]> getIntersection(TrackNode node1, TrackNode node2, TrackEdge other, TrackNode other1,
 		TrackNode other2) {
-		Vec3 v1 = node1.location.getLocation();
-		Vec3 v2 = node2.location.getLocation();
-		Vec3 w1 = other1.location.getLocation();
-		Vec3 w2 = other2.location.getLocation();
+		Vec3d v1 = node1.location.getLocation();
+		Vec3d v2 = node2.location.getLocation();
+		Vec3d w1 = other1.location.getLocation();
+		Vec3d w2 = other2.location.getLocation();
 
 		if (isInterDimensional() || other.isInterDimensional())
 			return Collections.emptyList();
@@ -169,14 +167,14 @@ public class TrackEdge {
 				.toList();
 		}
 
-		AABB bb = turn.getBounds();
+		Box bb = turn.getBounds();
 
 		if (!other.isTurn()) {
 			if (!bb.intersects(w1, w2))
 				return Collections.emptyList();
 
-			Vec3 seg1 = v1;
-			Vec3 seg2 = null;
+			Vec3d seg1 = v1;
+			Vec3d seg2 = null;
 			double t = 0;
 
 			Collection<double[]> intersections = new ArrayList<>();
@@ -198,8 +196,8 @@ public class TrackEdge {
 		if (!bb.intersects(other.turn.getBounds()))
 			return Collections.emptyList();
 
-		Vec3 seg1 = v1;
-		Vec3 seg2 = null;
+		Vec3d seg1 = v1;
+		Vec3d seg2 = null;
 		double t = 0;
 
 		Collection<double[]> intersections = new ArrayList<>();
@@ -208,8 +206,8 @@ public class TrackEdge {
 			t += .5;
 			seg2 = getPosition(null, t / getLength());
 
-			Vec3 otherSeg1 = w1;
-			Vec3 otherSeg2 = null;
+			Vec3d otherSeg1 = w1;
+			Vec3d otherSeg2 = null;
 			double u = 0;
 
 			for (int j = 0; j < other.turn.getSegmentCount(); j++) {
@@ -234,17 +232,17 @@ public class TrackEdge {
 		return intersections;
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag baseCompound = isTurn() ? turn.write(BlockPos.ZERO) : new CompoundTag();
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound baseCompound = isTurn() ? turn.write(BlockPos.ORIGIN) : new NbtCompound();
 		baseCompound.put("Signals", edgeData.write(dimensions));
 		baseCompound.putString("Material", getTrackMaterial().id.toString());
 		return baseCompound;
 	}
 
-	public static TrackEdge read(TrackNode node1, TrackNode node2, CompoundTag tag, TrackGraph graph,
+	public static TrackEdge read(TrackNode node1, TrackNode node2, NbtCompound tag, TrackGraph graph,
 		DimensionPalette dimensions) {
 		TrackEdge trackEdge =
-			new TrackEdge(node1, node2, tag.contains("Positions") ? new BezierConnection(tag, BlockPos.ZERO) : null,
+			new TrackEdge(node1, node2, tag.contains("Positions") ? new BezierConnection(tag, BlockPos.ORIGIN) : null,
 					TrackMaterial.deserialize(tag.getString("Material")));
 		trackEdge.edgeData = EdgeData.read(tag.getCompound("Signals"), trackEdge, graph, dimensions);
 		return trackEdge;

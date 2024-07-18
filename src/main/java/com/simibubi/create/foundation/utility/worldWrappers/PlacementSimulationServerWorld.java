@@ -2,17 +2,16 @@ package com.simibubi.create.foundation.utility.worldWrappers;
 
 import java.util.HashMap;
 import java.util.function.Predicate;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 
 public class PlacementSimulationServerWorld extends WrappedServerWorld {
 	public HashMap<BlockPos, BlockState> blocksAdded;
 
-	public PlacementSimulationServerWorld(ServerLevel wrapped) {
+	public PlacementSimulationServerWorld(ServerWorld wrapped) {
 		super(wrapped);
 		blocksAdded = new HashMap<>();
 	}
@@ -22,23 +21,23 @@ public class PlacementSimulationServerWorld extends WrappedServerWorld {
 	}
 
 	@Override
-	public boolean setBlock(BlockPos pos, BlockState newState, int flags) {
-		blocksAdded.put(pos.immutable(), newState);
+	public boolean setBlockState(BlockPos pos, BlockState newState, int flags) {
+		blocksAdded.put(pos.toImmutable(), newState);
 		return true;
 	}
 
 	@Override
-	public boolean setBlockAndUpdate(BlockPos pos, BlockState state) {
-		return setBlock(pos, state, 0);
+	public boolean setBlockState(BlockPos pos, BlockState state) {
+		return setBlockState(pos, state, 0);
 	}
 
 	@Override
-	public boolean isStateAtPosition(BlockPos pos, Predicate<BlockState> condition) {
+	public boolean testBlockState(BlockPos pos, Predicate<BlockState> condition) {
 		return condition.test(getBlockState(pos));
 	}
 
 	@Override
-	public boolean isLoaded(BlockPos pos) {
+	public boolean canSetBlock(BlockPos pos) {
 		return true;
 	}
 
@@ -46,7 +45,7 @@ public class PlacementSimulationServerWorld extends WrappedServerWorld {
 	public BlockState getBlockState(BlockPos pos) {
 		if (blocksAdded.containsKey(pos))
 			return blocksAdded.get(pos);
-		return Blocks.AIR.defaultBlockState();
+		return Blocks.AIR.getDefaultState();
 	}
 @Override
 	public FluidState getFluidState(BlockPos pos) {

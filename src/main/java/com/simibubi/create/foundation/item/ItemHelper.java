@@ -17,29 +17,29 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.NonNullList;
-import net.minecraft.util.Mth;
-import net.minecraft.world.Containers;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.Level;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.ItemScatterer;
+import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 
 public class ItemHelper {
 
 	public static boolean sameItem(ItemStack stack, ItemStack otherStack) {
-		return !otherStack.isEmpty() && stack.is(otherStack.getItem());
+		return !otherStack.isEmpty() && stack.isOf(otherStack.getItem());
 	}
 
 	public static Predicate<ItemStack> sameItemPredicate(ItemStack stack) {
 		return s -> sameItem(stack, s);
 	}
 
-	public static void dropContents(Level world, BlockPos pos, Storage<ItemVariant> inv) {
+	public static void dropContents(World world, BlockPos pos, Storage<ItemVariant> inv) {
 		try (Transaction t = TransferUtil.getTransaction()) {
 			for (StorageView<ItemVariant> view : inv.nonEmptyViews()) {
 				ItemStack stack = view.getResource().toStack((int) view.getAmount());
-				Containers.dropItemStack(world, pos.getX(), pos.getY(), pos.getZ(), stack);
+				ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), stack);
 			}
 		}
 	}
@@ -49,8 +49,8 @@ public class ItemHelper {
 		ItemStack result = out.copy();
 		result.setCount(in.getCount() * out.getCount());
 
-		while (result.getCount() > result.getMaxStackSize()) {
-			stacks.add(result.split(result.getMaxStackSize()));
+		while (result.getCount() > result.getMaxCount()) {
+			stacks.add(result.split(result.getMaxCount()));
 		}
 
 		stacks.add(result);
@@ -61,9 +61,9 @@ public class ItemHelper {
 		for (ItemStack s : stacks) {
 			if (!ItemHandlerHelper.canItemStacksStack(stack, s))
 				continue;
-			int transferred = Math.min(s.getMaxStackSize() - s.getCount(), stack.getCount());
-			s.grow(transferred);
-			stack.shrink(transferred);
+			int transferred = Math.min(s.getMaxCount() - s.getCount(), stack.getCount());
+			s.increment(transferred);
+			stack.decrement(transferred);
 		}
 		if (stack.getCount() > 0)
 			stacks.add(stack);
@@ -96,7 +96,7 @@ public class ItemHelper {
 				}
 				totalSlots++;
 				if (!view.isResourceBlank()) {
-					f += (float) view.getAmount() / (float) Math.min(slotLimit, view.getResource().getItem().getMaxStackSize());
+					f += (float) view.getAmount() / (float) Math.min(slotLimit, view.getResource().getItem().getMaxCount());
 					++i;
 				}
 			}
@@ -106,16 +106,16 @@ public class ItemHelper {
 			return 0;
 
 		f = f / totalSlots;
-		return Mth.floor(f * 14.0F) + (i > 0 ? 1 : 0);
+		return MathHelper.floor(f * 14.0F) + (i > 0 ? 1 : 0);
 	}
 
-	public static List<Pair<Ingredient, MutableInt>> condenseIngredients(NonNullList<Ingredient> recipeIngredients) {
+	public static List<Pair<Ingredient, MutableInt>> condenseIngredients(DefaultedList<Ingredient> recipeIngredients) {
 		List<Pair<Ingredient, MutableInt>> actualIngredients = new ArrayList<>();
 		Ingredients: for (Ingredient igd : recipeIngredients) {
 			for (Pair<Ingredient, MutableInt> pair : actualIngredients) {
 				ItemStack[] stacks1 = pair.getFirst()
-					.getItems();
-				ItemStack[] stacks2 = igd.getItems();
+					.getMatchingStacks();
+				ItemStack[] stacks2 = igd.getMatchingStacks();
 				if (stacks1.length != stacks2.length)
 					continue;
 				for (int i = 0; i <= stacks1.length; i++) {
@@ -124,7 +124,7 @@ public class ItemHelper {
 							.increment();
 						continue Ingredients;
 					}
-					if (!ItemStack.matches(stacks1[i], stacks2[i]))
+					if (!ItemStack.areEqual(stacks1[i], stacks2[i]))
 						break;
 				}
 			}
@@ -136,20 +136,20 @@ public class ItemHelper {
 	public static boolean matchIngredients(Ingredient i1, Ingredient i2) {
 		if (i1 == i2)
 			return true;
-		ItemStack[] stacks1 = i1.getItems();
-		ItemStack[] stacks2 = i2.getItems();
+		ItemStack[] stacks1 = i1.getMatchingStacks();
+		ItemStack[] stacks2 = i2.getMatchingStacks();
 		if (stacks1 == stacks2)
 			return true;
 		if (stacks1.length == stacks2.length) {
 			for (int i = 0; i < stacks1.length; i++)
-				if (!ItemStack.isSameItem(stacks1[i], stacks2[i]))
+				if (!ItemStack.areItemsEqual(stacks1[i], stacks2[i]))
 					return false;
 			return true;
 		}
 		return false;
 	}
 
-	public static boolean matchAllIngredients(NonNullList<Ingredient> ingredients) {
+	public static boolean matchAllIngredients(DefaultedList<Ingredient> ingredients) {
 		if (ingredients.size() <= 1)
 			return true;
 		Ingredient firstIngredient = ingredients.get(0);
@@ -181,7 +181,7 @@ public class ItemHelper {
 			try (Transaction t = TransferUtil.getTransaction()) {
 				for (StorageView<ItemVariant> view : inv.nonEmptyViews()) {
 					ItemVariant contained = view.getResource();
-					int maxStackSize = contained.getItem().getMaxStackSize();
+					int maxStackSize = contained.getItem().getMaxCount();
 					// amount stored, amount needed, or max size, whichever is lowest.
 					int amountToExtractFromThisSlot = Math.min(truncateLong(view.getAmount()), Math.min(amount - extracted, maxStackSize));
 					if (!test.test(contained.toStack(amountToExtractFromThisSlot)))
@@ -270,7 +270,7 @@ public class ItemHelper {
 					if (extracting.isEmpty())
 						extracting = stack.copy();
 					else
-						extracting.grow(stack.getCount());
+						extracting.increment(stack.getCount());
 
 					if (extracting.getCount() >= maxExtractionCount)
 						break;
@@ -283,7 +283,7 @@ public class ItemHelper {
 	}
 
 	public static boolean canItemStackAmountsStack(ItemStack a, ItemStack b) {
-		return ItemHandlerHelper.canItemStacksStack(a, b) && a.getCount() + b.getCount() <= a.getMaxStackSize();
+		return ItemHandlerHelper.canItemStacksStack(a, b) && a.getCount() + b.getCount() <= a.getMaxCount();
 	}
 
 	public static int truncateLong(long l) {

@@ -19,20 +19,20 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.ChatFormatting;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 
 public class ItemThresholdCondition extends CargoThresholdCondition {
 
 	private FilterItemStack stack = FilterItemStack.empty();
 
 	@Override
-	protected Component getUnit() {
+	protected Text getUnit() {
 		return Components.literal(inStacks() ? "\u25A4" : "");
 	}
 
@@ -42,7 +42,7 @@ public class ItemThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	protected boolean test(Level level, Train train, CompoundTag context) {
+	protected boolean test(World level, Train train, NbtCompound context) {
 		Ops operator = getOperator();
 		long target = getThreshold();
 		boolean stacks = inStacks();
@@ -57,7 +57,7 @@ public class ItemThresholdCondition extends CargoThresholdCondition {
 						continue;
 
 					if (stacks)
-						foundItems += view.getAmount() == variant.getItem().getMaxStackSize() ? 1 : 0;
+						foundItems += view.getAmount() == variant.getItem().getMaxCount() ? 1 : 0;
 					else
 						foundItems += view.getAmount();
 				}
@@ -69,20 +69,20 @@ public class ItemThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	protected void writeAdditional(CompoundTag tag) {
+	protected void writeAdditional(NbtCompound tag) {
 		super.writeAdditional(tag);
 		tag.put("Item", stack.serializeNBT());
 	}
 
 	@Override
-	protected void readAdditional(CompoundTag tag) {
+	protected void readAdditional(NbtCompound tag) {
 		super.readAdditional(tag);
 		if (tag.contains("Item"))
 			stack = FilterItemStack.of(tag.getCompound("Item"));
 	}
 
 	@Override
-	public boolean tickCompletion(Level level, Train train, CompoundTag context) {
+	public boolean tickCompletion(World level, Train train, NbtCompound context) {
 		return super.tickCompletion(level, train, context);
 	}
 
@@ -97,7 +97,7 @@ public class ItemThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	public List<Component> getTitleAs(String type) {
+	public List<Text> getTitleAs(String type) {
 		return ImmutableList.of(
 			Lang.translateDirect("schedule.condition.threshold.train_holds",
 				Lang.translateDirect("schedule.condition.threshold." + Lang.asId(getOperator().name()))),
@@ -106,8 +106,8 @@ public class ItemThresholdCondition extends CargoThresholdCondition {
 				stack.isEmpty() ? Lang.translateDirect("schedule.condition.threshold.anything")
 					: stack.isFilterItem() ? Lang.translateDirect("schedule.condition.threshold.matching_content")
 						: stack.item()
-							.getHoverName())
-				.withStyle(ChatFormatting.DARK_AQUA));
+							.getName())
+				.formatted(Formatting.DARK_AQUA));
 	}
 
 	private boolean inStacks() {
@@ -115,7 +115,7 @@ public class ItemThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return Create.asResource("item_threshold");
 	}
 
@@ -131,7 +131,7 @@ public class ItemThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	public MutableComponent getWaitingStatus(Level level, Train train, CompoundTag tag) {
+	public MutableText getWaitingStatus(World level, Train train, NbtCompound tag) {
 		long lastDisplaySnapshot = getLastDisplaySnapshot(tag);
 		if (lastDisplaySnapshot == -1)
 			return Components.empty();

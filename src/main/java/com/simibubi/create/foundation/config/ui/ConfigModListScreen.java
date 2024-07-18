@@ -11,8 +11,6 @@ import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.access
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.AbstractWidgetAccessor;
 
 import org.lwjgl.glfw.GLFW;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.config.ui.compat.flywheel.FlwConfigScreen;
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.gui.ScreenOpener;
@@ -23,8 +21,8 @@ import com.simibubi.create.foundation.item.TooltipHelper;
 import com.simibubi.create.foundation.item.TooltipHelper.Palette;
 
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
 
 public class ConfigModListScreen extends ConfigScreen {
 
@@ -43,9 +41,9 @@ public class ConfigModListScreen extends ConfigScreen {
 
 		int listWidth = Math.min(width - 80, 300);
 
-		list = new ConfigScreenList(minecraft, listWidth, height - 60, 15, height - 45, 40);
+		list = new ConfigScreenList(client, listWidth, height - 60, 15, height - 45, 40);
 		list.setLeftPos(this.width / 2 - ((AbstractSelectionListAccessor) list).port_lib$getWidth() / 2);
-		addRenderableWidget(list);
+		addDrawableChild(list);
 
 		allEntries = new ArrayList<>();
 		FabricLoader.getInstance().getAllMods().forEach(container -> allEntries.add(new ModEntry(container.getMetadata().getId(), this)));
@@ -66,13 +64,13 @@ public class ConfigModListScreen extends ConfigScreen {
 				.withElementRenderer(BoxWidget.gradientFactory.apply(goBack)));
 		goBack.getToolTip()
 				.add(Components.literal("Go Back"));
-		addRenderableWidget(goBack);
+		addDrawableChild(goBack);
 
-		search = new HintableTextFieldWidget(font, width / 2 - listWidth / 2, height - 35, listWidth, 20);
-		search.setResponder(this::updateFilter);
+		search = new HintableTextFieldWidget(textRenderer, width / 2 - listWidth / 2, height - 35, listWidth, 20);
+		search.setChangedListener(this::updateFilter);
 		search.setHint("Search...");
-		search.moveCursorToStart();
-		addRenderableWidget(search);
+		search.setCursorToStart();
+		addDrawableChild(search);
 	}
 
 	@Override
@@ -94,9 +92,9 @@ public class ConfigModListScreen extends ConfigScreen {
 
 		list.setScrollAmount(list.getScrollAmount());
 		if (list.children().size() > 0) {
-			this.search.setTextColor(Theme.i(Theme.Key.TEXT));
+			this.search.setEditableColor(Theme.i(Theme.Key.TEXT));
 		} else {
-			this.search.setTextColor(Theme.i(Theme.Key.BUTTON_FAIL));
+			this.search.setEditableColor(Theme.i(Theme.Key.BUTTON_FAIL));
 		}
 	}
 
@@ -139,7 +137,7 @@ public class ConfigModListScreen extends ConfigScreen {
 		}
 
 		@Override
-		public void render(GuiGraphics graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
+		public void render(DrawContext graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
 			super.render(graphics, index, y, x, width, height, mouseX, mouseY, p_230432_9_, partialTicks);
 
 			button.setX(x + width - 108);

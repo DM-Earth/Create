@@ -6,27 +6,26 @@ import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
 import com.jozufozu.flywheel.core.PartialModel;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.BlockState;
+import net.minecraft.text.Text;
+import net.minecraft.util.StringIdentifiable;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 public class EmptyMirror extends SymmetryMirror {
 
-	public static enum Align implements StringRepresentable {
+	public static enum Align implements StringIdentifiable {
 		None("none");
 
 		private final String name;
 		private Align(String name) { this.name = name; }
-		@Override public String getSerializedName() { return name; }
+		@Override public String asString() { return name; }
 		@Override public String toString() { return name; }
 	}
 
-	public EmptyMirror(Vec3 pos) {
+	public EmptyMirror(Vec3d pos) {
 		super(pos);
 		orientation = Align.None;
 	}
@@ -58,7 +57,7 @@ public class EmptyMirror extends SymmetryMirror {
 	}
 
 	@Override
-	public List<Component> getAlignToolTips() {
+	public List<Text> getAlignToolTips() {
 		return ImmutableList.of();
 	}
 

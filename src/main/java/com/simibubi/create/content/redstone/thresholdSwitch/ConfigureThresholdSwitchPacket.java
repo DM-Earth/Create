@@ -1,9 +1,8 @@
 package com.simibubi.create.content.redstone.thresholdSwitch;
 
 import com.simibubi.create.foundation.networking.BlockEntityConfigurationPacket;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
 
 public class ConfigureThresholdSwitchPacket extends BlockEntityConfigurationPacket<ThresholdSwitchBlockEntity> {
 
@@ -18,19 +17,19 @@ public class ConfigureThresholdSwitchPacket extends BlockEntityConfigurationPack
 		this.invert = invert;
 	}
 	
-	public ConfigureThresholdSwitchPacket(FriendlyByteBuf buffer) {
+	public ConfigureThresholdSwitchPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 	
 	@Override
-	protected void readSettings(FriendlyByteBuf buffer) {
+	protected void readSettings(PacketByteBuf buffer) {
 		offBelow = buffer.readFloat();
 		onAbove = buffer.readFloat();
 		invert = buffer.readBoolean();
 	}
 
 	@Override
-	protected void writeSettings(FriendlyByteBuf buffer) {
+	protected void writeSettings(PacketByteBuf buffer) {
 		buffer.writeFloat(offBelow);
 		buffer.writeFloat(onAbove);
 		buffer.writeBoolean(invert);

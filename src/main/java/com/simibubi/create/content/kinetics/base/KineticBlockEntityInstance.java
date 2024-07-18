@@ -8,10 +8,9 @@ import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
 import com.simibubi.create.content.kinetics.simpleRelays.ShaftBlock;
 import com.simibubi.create.foundation.render.AllMaterialSpecs;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
 
 public abstract class KineticBlockEntityInstance<T extends KineticBlockEntity> extends BlockEntityInstance<T> {
 
@@ -92,6 +91,6 @@ public abstract class KineticBlockEntityInstance<T extends KineticBlockEntity> e
 
 	public static BlockState shaft(Direction.Axis axis) {
 		return AllBlocks.SHAFT.getDefaultState()
-			.setValue(ShaftBlock.AXIS, axis);
+			.with(ShaftBlock.AXIS, axis);
 	}
 }

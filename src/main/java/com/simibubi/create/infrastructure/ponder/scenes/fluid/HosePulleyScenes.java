@@ -18,12 +18,12 @@ import io.github.fabricators_of_create.porting_lib.transfer.TransferUtil;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class HosePulleyScenes {
 
@@ -46,12 +46,12 @@ public class HosePulleyScenes {
 		scene.world.moveSection(hoselink, util.vector.of(0, -1, 0), 0);
 		scene.idle(10);
 
-		Vec3 shaftInput = util.vector.blockSurface(hosePos.below(), Direction.WEST);
+		Vec3d shaftInput = util.vector.blockSurface(hosePos.down(), Direction.WEST);
 		scene.overlay.showText(70)
 			.text("Hose Pulleys can be used to fill or drain large bodies of Fluid")
 			.attachKeyFrame()
 			.placeNearTarget()
-			.pointAt(util.vector.topOf(hosePos.below()));
+			.pointAt(util.vector.topOf(hosePos.down()));
 		scene.idle(80);
 
 		scene.overlay.showText(80)
@@ -73,7 +73,7 @@ public class HosePulleyScenes {
 			.text("The Pulley retracts while the input rotation is inverted")
 			.attachKeyFrame()
 			.placeNearTarget()
-			.pointAt(util.vector.centerOf(hosePos.below(3)));
+			.pointAt(util.vector.centerOf(hosePos.down(3)));
 		scene.idle(30);
 
 		scene.world.setKineticSpeed(kinetics, -32);
@@ -87,7 +87,7 @@ public class HosePulleyScenes {
 			.text("On the opposite side, pipes can be connected")
 			.attachKeyFrame()
 			.placeNearTarget()
-			.pointAt(util.vector.blockSurface(hosePos.below(), Direction.EAST));
+			.pointAt(util.vector.blockSurface(hosePos.down(), Direction.EAST));
 		scene.idle(70);
 
 		scene.rotateCameraY(-70);
@@ -118,7 +118,7 @@ public class HosePulleyScenes {
 		}
 
 		for (BlockPos blockPos : blocks) {
-			scene.world.setBlock(blockPos, Blocks.WATER.defaultBlockState(), false);
+			scene.world.setBlock(blockPos, Blocks.WATER.getDefaultState(), false);
 			scene.idle(3);
 		}
 
@@ -126,7 +126,7 @@ public class HosePulleyScenes {
 				TransferUtil.insert(be.getFluidStorage(null), FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET * 10));
 
 		scene.idle(20);
-		scene.world.modifyBlock(util.grid.at(3, 2, 1), s -> s.setValue(PumpBlock.FACING, Direction.DOWN), true);
+		scene.world.modifyBlock(util.grid.at(3, 2, 1), s -> s.with(PumpBlock.FACING, Direction.DOWN), true);
 		scene.world.propagatePipeChange(util.grid.at(3, 2, 1));
 		scene.idle(20);
 		scene.world.setKineticSpeed(kinetics, 32);
@@ -178,7 +178,7 @@ public class HosePulleyScenes {
 		}
 
 		for (BlockPos blockPos : blocks)
-			scene.world.setBlock(blockPos, Blocks.WATER.defaultBlockState(), false);
+			scene.world.setBlock(blockPos, Blocks.WATER.getDefaultState(), false);
 		scene.idle(5);
 
 		Selection water = util.select.fromTo(2, 1, 0, 0, 4, 2);
@@ -199,15 +199,15 @@ public class HosePulleyScenes {
 		scene.world.showSectionAndMerge(crank, Direction.EAST, hoselink);
 		scene.idle(20);
 
-		scene.overlay.showSelectionWithText(util.select.position(hosePos.below()), 50)
+		scene.overlay.showSelectionWithText(util.select.position(hosePos.down()), 50)
 			.text("While fully retracted, the Hose Pulley cannot operate")
 			.placeNearTarget()
 			.colored(PonderPalette.RED)
 			.attachKeyFrame()
-			.pointAt(util.vector.blockSurface(hosePos.below(), Direction.UP));
+			.pointAt(util.vector.blockSurface(hosePos.down(), Direction.UP));
 		scene.idle(55);
 
-		scene.world.modifyBlock(util.grid.at(3, 2, 1), s -> s.setValue(PumpBlock.FACING, Direction.DOWN), false);
+		scene.world.modifyBlock(util.grid.at(3, 2, 1), s -> s.with(PumpBlock.FACING, Direction.DOWN), false);
 		Selection kinetics = util.select.fromTo(1, 6, 1, 0, 6, 1);
 		scene.world.setKineticSpeed(kinetics, 32);
 		scene.idle(50);
@@ -217,7 +217,7 @@ public class HosePulleyScenes {
 			.text("Draining runs from top to bottom")
 			.attachKeyFrame()
 			.placeNearTarget()
-			.pointAt(util.vector.centerOf(hosePos.below(3)));
+			.pointAt(util.vector.centerOf(hosePos.down(3)));
 		scene.idle(10);
 
 		scene.world.showSectionAndMerge(cogs, Direction.NORTH, hoselink);
@@ -226,12 +226,12 @@ public class HosePulleyScenes {
 			be -> TransferUtil.insert(be.getFluidStorage(null), FluidVariant.of(Fluids.WATER), FluidConstants.BUCKET));
 		scene.world.propagatePipeChange(util.grid.at(3, 2, 1));
 
-		Vec3 surface = util.vector.topOf(1, 3, 1)
+		Vec3d surface = util.vector.topOf(1, 3, 1)
 			.subtract(0, 2 / 8f, 0);
-		AABB bb = new AABB(surface, surface).inflate(1.5, 0, 1.5);
+		Box bb = new Box(surface, surface).expand(1.5, 0, 1.5);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.MEDIUM, bb, bb, 3);
 		scene.idle(3);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.MEDIUM, bb, bb.expandTowards(0, -2, 0), 70);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.MEDIUM, bb, bb.stretch(0, -2, 0), 70);
 		scene.idle(20);
 
 		Collections.reverse(blocks);
@@ -243,7 +243,7 @@ public class HosePulleyScenes {
 			scene.idle(3);
 		}
 
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.WHITE, bb, bb.move(0, -2, 0), 60);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.WHITE, bb, bb.offset(0, -2, 0), 60);
 		scene.overlay.showText(60)
 			.text("The surface level will end up just below where the hose ends")
 			.attachKeyFrame()
@@ -259,7 +259,7 @@ public class HosePulleyScenes {
 		scene.world.showSection(water, Direction.UP);
 		scene.idle(15);
 		scene.world.setKineticSpeed(kinetics, -32);
-		scene.world.modifyBlock(util.grid.at(3, 2, 1), s -> s.setValue(PumpBlock.FACING, Direction.UP), true);
+		scene.world.modifyBlock(util.grid.at(3, 2, 1), s -> s.with(PumpBlock.FACING, Direction.UP), true);
 		scene.world.propagatePipeChange(util.grid.at(3, 2, 1));
 		scene.idle(16);
 		scene.world.setKineticSpeed(kinetics, 0);
@@ -268,22 +268,22 @@ public class HosePulleyScenes {
 			.text("Filling runs from bottom to top")
 			.attachKeyFrame()
 			.placeNearTarget()
-			.pointAt(util.vector.centerOf(hosePos.below(3)));
+			.pointAt(util.vector.centerOf(hosePos.down(3)));
 		scene.idle(10);
 
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.MEDIUM, bb, bb.move(0, -3 + 2 / 8f, 0), 3);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.MEDIUM, bb, bb.offset(0, -3 + 2 / 8f, 0), 3);
 		scene.idle(3);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.MEDIUM, bb, bb.expandTowards(0, -3 + 2 / 8f, 0), 120);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.MEDIUM, bb, bb.stretch(0, -3 + 2 / 8f, 0), 120);
 		scene.idle(20);
 
-		scene.world.setBlock(util.grid.at(1, 3, 1), Blocks.WATER.defaultBlockState(), false);
+		scene.world.setBlock(util.grid.at(1, 3, 1), Blocks.WATER.getDefaultState(), false);
 		scene.idle(3);
-		scene.world.setBlock(util.grid.at(1, 2, 1), Blocks.WATER.defaultBlockState(), false);
+		scene.world.setBlock(util.grid.at(1, 2, 1), Blocks.WATER.getDefaultState(), false);
 		scene.idle(3);
 
 		Collections.reverse(blocks);
 		for (BlockPos blockPos : blocks) {
-			scene.world.setBlock(blockPos, Blocks.WATER.defaultBlockState(), false);
+			scene.world.setBlock(blockPos, Blocks.WATER.getDefaultState(), false);
 			scene.idle(3);
 		}
 
@@ -326,7 +326,7 @@ public class HosePulleyScenes {
 		scene.world.setKineticSpeed(hose, 32);
 		scene.idle(10);
 
-		Vec3 entryPoint = util.vector.topOf(1, 0, 2);
+		Vec3d entryPoint = util.vector.topOf(1, 0, 2);
 		scene.overlay.showText(60)
 			.text("When deploying the Hose Pulley into a large enough ocean...")
 			.attachKeyFrame()
@@ -337,7 +337,7 @@ public class HosePulleyScenes {
 		scene.world.modifyBlockEntity(util.grid.at(1, 3, 2), HosePulleyBlockEntity.class,
 			be -> TransferUtil.insertFluid(be.getFluidStorage(null), new FluidStack(Fluids.WATER, FluidConstants.BUCKET)));
 		scene.world.setKineticSpeed(hose, 0);
-		scene.world.modifyBlock(pumpPos, s -> s.setValue(PumpBlock.FACING, Direction.DOWN), true);
+		scene.world.modifyBlock(pumpPos, s -> s.with(PumpBlock.FACING, Direction.DOWN), true);
 		scene.world.propagatePipeChange(pumpPos);
 		scene.idle(30);
 

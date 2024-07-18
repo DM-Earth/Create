@@ -3,9 +3,23 @@ package com.simibubi.create.content.equipment.goggles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import com.mojang.blaze3d.platform.Window;
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.Window;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.StringVisitable;
+import net.minecraft.text.Text;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.GameMode;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.CreateClient;
@@ -27,21 +41,6 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 import com.simibubi.create.infrastructure.config.CClient;
 
 import io.github.fabricators_of_create.porting_lib.util.client.ScreenUtils;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 
 public class GoggleOverlayRenderer {
 
@@ -50,12 +49,12 @@ public class GoggleOverlayRenderer {
 	public static int hoverTicks = 0;
 	public static BlockPos lastHovered = null;
 
-	public static void renderOverlay(GuiGraphics graphics, float partialTicks, Window window) {
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.options.hideGui || mc.gameMode.getPlayerMode() == GameType.SPECTATOR)
+	public static void renderOverlay(DrawContext graphics, float partialTicks, Window window) {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc.options.hudHidden || mc.interactionManager.getCurrentGameMode() == GameMode.SPECTATOR)
 			return;
 
-		HitResult objectMouseOver = mc.hitResult;
+		HitResult objectMouseOver = mc.crosshairTarget;
 		if (!(objectMouseOver instanceof BlockHitResult)) {
 			lastHovered = null;
 			hoverTicks = 0;
@@ -71,7 +70,7 @@ public class GoggleOverlayRenderer {
 		}
 
 		BlockHitResult result = (BlockHitResult) objectMouseOver;
-		ClientLevel world = mc.level;
+		ClientWorld world = mc.world;
 		BlockPos pos = result.getBlockPos();
 
 		int prevHoverTicks = hoverTicks;
@@ -89,18 +88,18 @@ public class GoggleOverlayRenderer {
 		boolean goggleAddedInformation = false;
 		boolean hoverAddedInformation = false;
 
-		List<Component> tooltip = new ArrayList<>();
+		List<Text> tooltip = new ArrayList<>();
 
 		if (hasGoggleInformation && wearingGoggles) {
 			IHaveGoggleInformation gte = (IHaveGoggleInformation) be;
-			goggleAddedInformation = gte.addToGoggleTooltip(tooltip, mc.player.isShiftKeyDown());
+			goggleAddedInformation = gte.addToGoggleTooltip(tooltip, mc.player.isSneaking());
 		}
 
 		if (hasHoveringInformation) {
 			if (!tooltip.isEmpty())
 				tooltip.add(Components.immutableEmpty());
 			IHaveHoveringInformation hte = (IHaveHoveringInformation) be;
-			hoverAddedInformation = hte.addToTooltip(tooltip, mc.player.isShiftKeyDown());
+			hoverAddedInformation = hte.addToTooltip(tooltip, mc.player.isSneaking());
 
 			if (goggleAddedInformation && !hoverAddedInformation)
 				tooltip.remove(tooltip.size() - 1);
@@ -116,7 +115,7 @@ public class GoggleOverlayRenderer {
 
 		if (!hasHoveringInformation)
 			if (hasHoveringInformation =
-				hoverAddedInformation = TrainRelocator.addToTooltip(tooltip, mc.player.isShiftKeyDown()))
+				hoverAddedInformation = TrainRelocator.addToTooltip(tooltip, mc.player.isSneaking()))
 				hoverTicks = prevHoverTicks + 1;
 
 		// break early if goggle or hover returned false when present
@@ -128,7 +127,7 @@ public class GoggleOverlayRenderer {
 		// check for piston poles if goggles are worn
 		BlockState state = world.getBlockState(pos);
 		if (wearingGoggles && AllBlocks.PISTON_EXTENSION_POLE.has(state)) {
-			Direction[] directions = Iterate.directionsInAxis(state.getValue(PistonExtensionPoleBlock.FACING)
+			Direction[] directions = Iterate.directionsInAxis(state.get(PistonExtensionPoleBlock.FACING)
 				.getAxis());
 			int poles = 1;
 			boolean pistonFound = false;
@@ -136,7 +135,7 @@ public class GoggleOverlayRenderer {
 				int attachedPoles = PistonExtensionPoleBlock.PlacementHelper.get()
 					.attachedPoles(world, pos, dir);
 				poles += attachedPoles;
-				pistonFound |= world.getBlockState(pos.relative(dir, attachedPoles + 1))
+				pistonFound |= world.getBlockState(pos.offset(dir, attachedPoles + 1))
 					.getBlock() instanceof MechanicalPistonBlock;
 			}
 
@@ -147,7 +146,7 @@ public class GoggleOverlayRenderer {
 			if (!tooltip.isEmpty())
 				tooltip.add(Components.immutableEmpty());
 
-			tooltip.add(IHaveGoggleInformation.componentSpacing.plainCopy()
+			tooltip.add(IHaveGoggleInformation.componentSpacing.copyContentOnly()
 				.append(Lang.translateDirect("gui.goggles.pole_length"))
 				.append(Components.literal(" " + poles)));
 		}
@@ -157,12 +156,12 @@ public class GoggleOverlayRenderer {
 			return;
 		}
 
-		PoseStack poseStack = graphics.pose();
-		poseStack.pushPose();
+		MatrixStack poseStack = graphics.getMatrices();
+		poseStack.push();
 
 		int tooltipTextWidth = 0;
-		for (FormattedText textLine : tooltip) {
-			int textLineWidth = mc.font.width(textLine);
+		for (StringVisitable textLine : tooltip) {
+			int textLineWidth = mc.textRenderer.getWidth(textLine);
 			if (textLineWidth > tooltipTextWidth)
 				tooltipTextWidth = textLineWidth;
 		}
@@ -174,13 +173,13 @@ public class GoggleOverlayRenderer {
 		}
 
 		CClient cfg = AllConfigs.client();
-		int posX = mc.getWindow().getGuiScaledWidth() / 2 + cfg.overlayOffsetX.get();
-		int posY = mc.getWindow().getGuiScaledHeight() / 2 + cfg.overlayOffsetY.get();
+		int posX = mc.getWindow().getScaledWidth() / 2 + cfg.overlayOffsetX.get();
+		int posY = mc.getWindow().getScaledHeight() / 2 + cfg.overlayOffsetY.get();
 
-		posX = Math.min(posX, mc.getWindow().getGuiScaledWidth() - tooltipTextWidth - 20);
-		posY = Math.min(posY, mc.getWindow().getGuiScaledHeight() - tooltipHeight - 20);
+		posX = Math.min(posX, mc.getWindow().getScaledWidth() - tooltipTextWidth - 20);
+		posY = Math.min(posY, mc.getWindow().getScaledHeight() - tooltipHeight - 20);
 
-		float fade = Mth.clamp((hoverTicks + partialTicks) / 24f, 0, 1);
+		float fade = MathHelper.clamp((hoverTicks + partialTicks) / 24f, 0, 1);
 		Boolean useCustom = cfg.overlayCustomColor.get();
 		Color colorBackground = useCustom ? new Color(cfg.overlayBackgroundColor.get())
 			: Theme.c(Theme.Key.VANILLA_TOOLTIP_BACKGROUND)
@@ -199,17 +198,17 @@ public class GoggleOverlayRenderer {
 			colorBorderBot.scaleAlpha(fade);
 		}
 
-		RemovedGuiUtils.drawHoveringText(graphics, tooltip, posX, posY, mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), -1, colorBackground.getRGB(),
-			colorBorderTop.getRGB(), colorBorderBot.getRGB(), mc.font);
+		RemovedGuiUtils.drawHoveringText(graphics, tooltip, posX, posY, mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight(), -1, colorBackground.getRGB(),
+			colorBorderTop.getRGB(), colorBorderBot.getRGB(), mc.textRenderer);
 
 		ItemStack item = AllItems.GOGGLES.asStack();
 		GuiGameElement.of(item)
 			.at(posX + 10, posY - 16, 450)
 			.render(graphics);
-		poseStack.popPose();
+		poseStack.pop();
 	}
 
-	public static BlockPos proxiedOverlayPosition(Level level, BlockPos pos) {
+	public static BlockPos proxiedOverlayPosition(World level, BlockPos pos) {
 		BlockState targetedState = level.getBlockState(pos);
 		if (targetedState.getBlock() instanceof IProxyHoveringInformation proxy)
 			return proxy.getInformationSource(level, pos, targetedState);

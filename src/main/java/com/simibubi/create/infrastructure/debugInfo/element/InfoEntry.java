@@ -3,14 +3,12 @@ package com.simibubi.create.infrastructure.debugInfo.element;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.network.PacketByteBuf;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.infrastructure.debugInfo.DebugInformation;
 import com.simibubi.create.infrastructure.debugInfo.InfoProvider;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Player;
 
 public record InfoEntry(String name, InfoProvider provider) implements InfoElement {
 	public InfoEntry(String name, String info) {
@@ -18,14 +16,14 @@ public record InfoEntry(String name, InfoProvider provider) implements InfoEleme
 	}
 
 	@Override
-	public void write(Player player, FriendlyByteBuf buffer) {
+	public void write(PlayerEntity player, PacketByteBuf buffer) {
 		buffer.writeBoolean(false);
-		buffer.writeUtf(name);
-		buffer.writeUtf(provider.getInfoSafe(player));
+		buffer.writeString(name);
+		buffer.writeString(provider.getInfoSafe(player));
 	}
 
 	@Override
-	public void print(int depth, @Nullable Player player, Consumer<String> lineConsumer) {
+	public void print(int depth, @Nullable PlayerEntity player, Consumer<String> lineConsumer) {
 		String value = provider.getInfoSafe(player);
 		String indent = DebugInformation.getIndent(depth);
 		if (value.contains("\n")) {
@@ -44,9 +42,9 @@ public record InfoEntry(String name, InfoProvider provider) implements InfoEleme
 
 	}
 
-	public static InfoEntry read(FriendlyByteBuf buffer) {
-		String name = buffer.readUtf();
-		String value = buffer.readUtf();
+	public static InfoEntry read(PacketByteBuf buffer) {
+		String name = buffer.readString();
+		String value = buffer.readString();
 		return new InfoEntry(name, value);
 	}
 }

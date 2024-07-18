@@ -1,8 +1,7 @@
 package com.simibubi.create;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 public enum AllSpecialTextures {
 
@@ -17,7 +16,7 @@ public enum AllSpecialTextures {
 	;
 
 	public static final String ASSET_PATH = "textures/special/";
-	private ResourceLocation location;
+	private Identifier location;
 
 	private AllSpecialTextures(String filename) {
 		location = Create.asResource(ASSET_PATH + filename);
@@ -27,7 +26,7 @@ public enum AllSpecialTextures {
 		RenderSystem.setShaderTexture(0, location);
 	}
 
-	public ResourceLocation getLocation() {
+	public Identifier getLocation() {
 		return location;
 	}
 

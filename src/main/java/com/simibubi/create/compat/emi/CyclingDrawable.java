@@ -1,13 +1,12 @@
 package com.simibubi.create.compat.emi;
 
 import dev.emi.emi.api.widget.DrawableWidget.DrawableWidgetConsumer;
-import net.minecraft.client.gui.GuiGraphics;
-
 import java.util.List;
+import net.minecraft.client.gui.DrawContext;
 
 public record CyclingDrawable(List<? extends DrawableWidgetConsumer> children) implements DrawableWidgetConsumer {
 	@Override
-	public void render(GuiGraphics guiGraphics, int x, int y, float delta) {
+	public void render(DrawContext guiGraphics, int x, int y, float delta) {
 		this.choose().render(guiGraphics, x, y, delta);
 	}
 

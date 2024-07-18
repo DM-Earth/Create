@@ -5,7 +5,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.PatternSyntaxException;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.trains.display.GlobalTrainDisplayData.TrainDeparturePrediction;
 import com.simibubi.create.content.trains.entity.Carriage;
@@ -22,13 +27,6 @@ import com.simibubi.create.content.trains.schedule.destination.ScheduleInstructi
 import com.simibubi.create.content.trains.station.GlobalStation;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 
 public class ScheduleRuntime {
 
@@ -51,7 +49,7 @@ public class ScheduleRuntime {
 	static final int INTERVAL = 40;
 	int cooldown;
 	List<Integer> conditionProgress;
-	List<CompoundTag> conditionContext;
+	List<NbtCompound> conditionContext;
 	String currentTitle;
 
 	int ticksInTransit;
@@ -85,7 +83,7 @@ public class ScheduleRuntime {
 		List<List<ScheduleWaitCondition>> conditions = schedule.entries.get(currentEntry).conditions;
 		for (int i = 0; i < conditions.size(); i++) {
 			conditionProgress.add(0);
-			conditionContext.add(new CompoundTag());
+			conditionContext.add(new NbtCompound());
 		}
 	}
 
@@ -96,7 +94,7 @@ public class ScheduleRuntime {
 		cooldown = 0;
 	}
 
-	public void tick(Level level) {
+	public void tick(World level) {
 		if (schedule == null)
 			return;
 		if (paused)
@@ -141,7 +139,7 @@ public class ScheduleRuntime {
 		}
 	}
 
-	public void tickConditions(Level level) {
+	public void tickConditions(World level) {
 		List<List<ScheduleWaitCondition>> conditions = schedule.entries.get(currentEntry).conditions;
 		for (int i = 0; i < conditions.size(); i++) {
 			List<ScheduleWaitCondition> list = conditions.get(i);
@@ -153,12 +151,12 @@ public class ScheduleRuntime {
 				return;
 			}
 
-			CompoundTag tag = conditionContext.get(i);
+			NbtCompound tag = conditionContext.get(i);
 			ScheduleWaitCondition condition = list.get(progress);
 			int prevVersion = tag.getInt("StatusVersion");
 
 			if (condition.tickCompletion(level, train, tag)) {
-				conditionContext.set(i, new CompoundTag());
+				conditionContext.set(i, new NbtCompound());
 				conditionProgress.set(i, progress + 1);
 				displayLinkUpdateRequested |= i == 0;
 			}
@@ -227,7 +225,7 @@ public class ScheduleRuntime {
 	public void setSchedule(Schedule schedule, boolean auto) {
 		reset();
 		this.schedule = schedule;
-		currentEntry = Mth.clamp(schedule.savedProgress, 0, schedule.entries.size() - 1);
+		currentEntry = MathHelper.clamp(schedule.savedProgress, 0, schedule.entries.size() - 1);
 		paused = false;
 		isAutoSchedule = auto;
 		train.status.newSchedule();
@@ -285,7 +283,7 @@ public class ScheduleRuntime {
 				if (predictionTicks.size() > current && train.navigation.distanceStartedAt != 0) {
 					float predictedTime = predictionTicks.get(current);
 					if (predictedTime > 0) {
-						predictedTime *= Mth
+						predictedTime *= MathHelper
 							.clamp(train.navigation.distanceToDestination / train.navigation.distanceStartedAt, 0, 1);
 						timeRemaining = (timeRemaining + (int) predictedTime) / 2;
 					}
@@ -404,8 +402,8 @@ public class ScheduleRuntime {
 		return new TrainDeparturePrediction(train, time, Components.literal(text), destination);
 	}
 
-	public CompoundTag write() {
-		CompoundTag tag = new CompoundTag();
+	public NbtCompound write() {
+		NbtCompound tag = new NbtCompound();
 		tag.putInt("CurrentEntry", currentEntry);
 		tag.putBoolean("AutoSchedule", isAutoSchedule);
 		tag.putBoolean("Paused", paused);
@@ -414,12 +412,12 @@ public class ScheduleRuntime {
 			tag.put("Schedule", schedule.write());
 		NBTHelper.writeEnum(tag, "State", state);
 		tag.putIntArray("ConditionProgress", conditionProgress);
-		tag.put("ConditionContext", NBTHelper.writeCompoundList(conditionContext, CompoundTag::copy));
+		tag.put("ConditionContext", NBTHelper.writeCompoundList(conditionContext, NbtCompound::copy));
 		tag.putIntArray("TransitTimes", predictionTicks);
 		return tag;
 	}
 
-	public void read(CompoundTag tag) {
+	public void read(NbtCompound tag) {
 		reset();
 		paused = tag.getBoolean("Paused");
 		completed = tag.getBoolean("Completed");
@@ -430,7 +428,7 @@ public class ScheduleRuntime {
 		state = NBTHelper.readEnum(tag, "State", State.class);
 		for (int i : tag.getIntArray("ConditionProgress"))
 			conditionProgress.add(i);
-		NBTHelper.iterateCompoundList(tag.getList("ConditionContext", Tag.TAG_COMPOUND), conditionContext::add);
+		NBTHelper.iterateCompoundList(tag.getList("ConditionContext", NbtElement.COMPOUND_TYPE), conditionContext::add);
 
 		int[] readTransits = tag.getIntArray("TransitTimes");
 		if (schedule != null) {
@@ -445,7 +443,7 @@ public class ScheduleRuntime {
 		if (schedule == null)
 			return ItemStack.EMPTY;
 		ItemStack stack = AllItems.SCHEDULE.asStack();
-		CompoundTag nbt = stack.getOrCreateTag();
+		NbtCompound nbt = stack.getOrCreateNbt();
 		schedule.savedProgress = currentEntry;
 		nbt.put("Schedule", schedule.write());
 		stack = isAutoSchedule ? ItemStack.EMPTY : stack;
@@ -457,7 +455,7 @@ public class ScheduleRuntime {
 		schedule = present ? new Schedule() : null;
 	}
 
-	public MutableComponent getWaitingStatus(Level level) {
+	public MutableText getWaitingStatus(World level) {
 		List<List<ScheduleWaitCondition>> conditions = schedule.entries.get(currentEntry).conditions;
 		if (conditions.isEmpty() || conditionProgress.isEmpty() || conditionContext.isEmpty())
 			return Components.empty();
@@ -467,7 +465,7 @@ public class ScheduleRuntime {
 		if (progress >= list.size())
 			return Components.empty();
 
-		CompoundTag tag = conditionContext.get(0);
+		NbtCompound tag = conditionContext.get(0);
 		ScheduleWaitCondition condition = list.get(progress);
 		return condition.getWaitingStatus(level, train, tag);
 	}

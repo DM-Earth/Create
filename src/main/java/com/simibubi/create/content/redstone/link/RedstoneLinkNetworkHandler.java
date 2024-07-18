@@ -7,20 +7,18 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.WorldHelper;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.LevelAccessor;
-
 public class RedstoneLinkNetworkHandler {
 
-	static final Map<LevelAccessor, Map<Couple<Frequency>, Set<IRedstoneLinkable>>> connections =
+	static final Map<WorldAccess, Map<Couple<Frequency>, Set<IRedstoneLinkable>>> connections =
 			new IdentityHashMap<>();
 
 	public final AtomicInteger globalPowerVersion = new AtomicInteger();
@@ -35,7 +33,7 @@ public class RedstoneLinkNetworkHandler {
 		public static Frequency of(ItemStack stack) {
 			if (stack.isEmpty())
 				return EMPTY;
-			if (!stack.hasTag())
+			if (!stack.hasNbt())
 				return simpleFrequencies.computeIfAbsent(stack.getItem(), $ -> new Frequency(stack));
 			return new Frequency(stack);
 		}
@@ -43,7 +41,7 @@ public class RedstoneLinkNetworkHandler {
 		private Frequency(ItemStack stack) {
 			this.stack = stack;
 			item = stack.getItem();
-			CompoundTag displayTag = stack.getTagElement("display");
+			NbtCompound displayTag = stack.getSubNbt("display");
 			color = displayTag != null && displayTag.contains("color") ? displayTag.getInt("color") : -1;
 		}
 
@@ -66,17 +64,17 @@ public class RedstoneLinkNetworkHandler {
 
 	}
 
-	public void onLoadWorld(LevelAccessor world) {
+	public void onLoadWorld(WorldAccess world) {
 		connections.put(world, new HashMap<>());
 		Create.LOGGER.debug("Prepared Redstone Network Space for " + WorldHelper.getDimensionID(world));
 	}
 
-	public void onUnloadWorld(LevelAccessor world) {
+	public void onUnloadWorld(WorldAccess world) {
 		connections.remove(world);
 		Create.LOGGER.debug("Removed Redstone Network Space for " + WorldHelper.getDimensionID(world));
 	}
 
-	public Set<IRedstoneLinkable> getNetworkOf(LevelAccessor world, IRedstoneLinkable actor) {
+	public Set<IRedstoneLinkable> getNetworkOf(WorldAccess world, IRedstoneLinkable actor) {
 		Map<Couple<Frequency>, Set<IRedstoneLinkable>> networksInWorld = networksIn(world);
 		Couple<Frequency> key = actor.getNetworkKey();
 		if (!networksInWorld.containsKey(key))
@@ -84,12 +82,12 @@ public class RedstoneLinkNetworkHandler {
 		return networksInWorld.get(key);
 	}
 
-	public void addToNetwork(LevelAccessor world, IRedstoneLinkable actor) {
+	public void addToNetwork(WorldAccess world, IRedstoneLinkable actor) {
 		getNetworkOf(world, actor).add(actor);
 		updateNetworkOf(world, actor);
 	}
 
-	public void removeFromNetwork(LevelAccessor world, IRedstoneLinkable actor) {
+	public void removeFromNetwork(WorldAccess world, IRedstoneLinkable actor) {
 		Set<IRedstoneLinkable> network = getNetworkOf(world, actor);
 		network.remove(actor);
 		if (network.isEmpty()) {
@@ -99,7 +97,7 @@ public class RedstoneLinkNetworkHandler {
 		updateNetworkOf(world, actor);
 	}
 
-	public void updateNetworkOf(LevelAccessor world, IRedstoneLinkable actor) {
+	public void updateNetworkOf(WorldAccess world, IRedstoneLinkable actor) {
 		Set<IRedstoneLinkable> network = getNetworkOf(world, actor);
 		globalPowerVersion.incrementAndGet();
 		int power = 0;
@@ -137,10 +135,10 @@ public class RedstoneLinkNetworkHandler {
 		if (from == to)
 			return true;
 		return from.getLocation()
-				.closerThan(to.getLocation(), AllConfigs.server().logistics.linkRange.get());
+				.isWithinDistance(to.getLocation(), AllConfigs.server().logistics.linkRange.get());
 	}
 
-	public Map<Couple<Frequency>, Set<IRedstoneLinkable>> networksIn(LevelAccessor world) {
+	public Map<Couple<Frequency>, Set<IRedstoneLinkable>> networksIn(WorldAccess world) {
 		if (!connections.containsKey(world)) {
 			Create.LOGGER.warn("Tried to Access unprepared network space of " + WorldHelper.getDimensionID(world));
 			return new HashMap<>();

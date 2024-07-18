@@ -7,20 +7,19 @@ import com.tterrag.registrate.util.nullness.NonNullFunction;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
 import io.github.fabricators_of_create.porting_lib.models.generators.block.BlockStateProvider;
-
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
+import net.minecraft.item.BlockItem;
+import net.minecraft.util.Identifier;
 
 public class ModelGen {
 
 	public static ModelFile createOvergrown(DataGenContext<Block, ? extends Block> ctx, BlockStateProvider prov,
-											ResourceLocation block, ResourceLocation overlay) {
+											Identifier block, Identifier overlay) {
 		return createOvergrown(ctx, prov, block, block, block, overlay);
 	}
 
 	public static ModelFile createOvergrown(DataGenContext<Block, ? extends Block> ctx, BlockStateProvider prov,
-		ResourceLocation side, ResourceLocation top, ResourceLocation bottom, ResourceLocation overlay) {
+		Identifier side, Identifier top, Identifier bottom, Identifier overlay) {
 		return prov.models()
 			.withExistingParent(ctx.getName(), Create.asResource("block/overgrown"))
 			.texture("particle", side)

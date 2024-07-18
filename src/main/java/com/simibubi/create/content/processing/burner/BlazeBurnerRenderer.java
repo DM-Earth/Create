@@ -1,11 +1,18 @@
 package com.simibubi.create.content.processing.burner;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.AllSpriteShifts;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
@@ -19,28 +26,19 @@ import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-
 public class BlazeBurnerRenderer extends SafeBlockEntityRenderer<BlazeBurnerBlockEntity> {
 
-	public BlazeBurnerRenderer(BlockEntityRendererProvider.Context context) {}
+	public BlazeBurnerRenderer(BlockEntityRendererFactory.Context context) {}
 
 	@Override
-	protected void renderSafe(BlazeBurnerBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource bufferSource,
+	protected void renderSafe(BlazeBurnerBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider bufferSource,
 		int light, int overlay) {
 		HeatLevel heatLevel = be.getHeatLevelFromBlock();
 		if (heatLevel == HeatLevel.NONE)
 			return;
 
-		Level level = be.getLevel();
-		BlockState blockState = be.getBlockState();
+		World level = be.getWorld();
+		BlockState blockState = be.getCachedState();
 		float animation = be.headAnimation.getValue(partialTicks) * .175f;
 		float horizontalAngle = AngleHelper.rad(be.headAngle.getValue(partialTicks));
 		boolean canDrawFlame = heatLevel.isAtLeast(HeatLevel.FADING);
@@ -54,7 +52,7 @@ public class BlazeBurnerRenderer extends SafeBlockEntityRenderer<BlazeBurnerBloc
 	}
 
 	public static void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource bufferSource, LerpedFloat headAngle, boolean conductor) {
+		ContraptionMatrices matrices, VertexConsumerProvider bufferSource, LerpedFloat headAngle, boolean conductor) {
 		BlockState state = context.state;
 		HeatLevel heatLevel = BlazeBurnerBlock.getHeatLevelOf(state);
 		if (heatLevel == HeatLevel.NONE)
@@ -64,7 +62,7 @@ public class BlazeBurnerRenderer extends SafeBlockEntityRenderer<BlazeBurnerBloc
 			heatLevel = HeatLevel.FADING;
 		}
 
-		Level level = context.world;
+		World level = context.world;
 		float horizontalAngle = AngleHelper.rad(headAngle.getValue(AnimationTickHolder.getPartialTicks(level)));
 		boolean drawGoggles = context.blockEntityData.contains("Goggles");
 		boolean drawHat = conductor || context.blockEntityData.contains("TrainHat");
@@ -75,37 +73,37 @@ public class BlazeBurnerRenderer extends SafeBlockEntityRenderer<BlazeBurnerBloc
 			false, drawGoggles, drawHat, hashCode);
 	}
 
-	private static void renderShared(PoseStack ms, @Nullable PoseStack modelTransform, MultiBufferSource bufferSource,
-		Level level, BlockState blockState, HeatLevel heatLevel, float animation, float horizontalAngle,
+	private static void renderShared(MatrixStack ms, @Nullable MatrixStack modelTransform, VertexConsumerProvider bufferSource,
+		World level, BlockState blockState, HeatLevel heatLevel, float animation, float horizontalAngle,
 		boolean canDrawFlame, boolean drawGoggles, boolean drawHat, int hashCode) {
 
 		boolean blockAbove = animation > 0.125f;
 		float time = AnimationTickHolder.getRenderTime(level);
 		float renderTick = time + (hashCode % 13) * 16f;
 		float offsetMult = heatLevel.isAtLeast(HeatLevel.FADING) ? 64 : 16;
-		float offset = Mth.sin((float) ((renderTick / 16f) % (2 * Math.PI))) / offsetMult;
-		float offset1 = Mth.sin((float) ((renderTick / 16f + Math.PI) % (2 * Math.PI))) / offsetMult;
-		float offset2 = Mth.sin((float) ((renderTick / 16f + Math.PI / 2) % (2 * Math.PI))) / offsetMult;
+		float offset = MathHelper.sin((float) ((renderTick / 16f) % (2 * Math.PI))) / offsetMult;
+		float offset1 = MathHelper.sin((float) ((renderTick / 16f + Math.PI) % (2 * Math.PI))) / offsetMult;
+		float offset2 = MathHelper.sin((float) ((renderTick / 16f + Math.PI / 2) % (2 * Math.PI))) / offsetMult;
 		float headY = offset - (animation * .75f);
 
-		VertexConsumer solid = bufferSource.getBuffer(RenderType.solid());
-		VertexConsumer cutout = bufferSource.getBuffer(RenderType.cutoutMipped());
+		VertexConsumer solid = bufferSource.getBuffer(RenderLayer.getSolid());
+		VertexConsumer cutout = bufferSource.getBuffer(RenderLayer.getCutoutMipped());
 
-		ms.pushPose();
+		ms.push();
 
 		if (canDrawFlame && blockAbove) {
 			SpriteShiftEntry spriteShift =
 				heatLevel == HeatLevel.SEETHING ? AllSpriteShifts.SUPER_BURNER_FLAME : AllSpriteShifts.BURNER_FLAME;
 
 			float spriteWidth = spriteShift.getTarget()
-				.getU1()
+				.getMaxU()
 				- spriteShift.getTarget()
-					.getU0();
+					.getMinU();
 
 			float spriteHeight = spriteShift.getTarget()
-				.getV1()
+				.getMaxV()
 				- spriteShift.getTarget()
-					.getV0();
+					.getMinV();
 
 			float speed = 1 / 32f + 1 / 64f * heatLevel.ordinal();
 
@@ -165,9 +163,9 @@ public class BlazeBurnerRenderer extends SafeBlockEntityRenderer<BlazeBurnerBloc
 				hatBuffer.translateY(0.75f);
 			}
 			hatBuffer
-				.rotateCentered(Direction.UP, horizontalAngle + Mth.PI)
+				.rotateCentered(Direction.UP, horizontalAngle + MathHelper.PI)
 				.translate(0.5f, 0, 0.5f)
-				.light(LightTexture.FULL_BRIGHT)
+				.light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
 				.renderInto(ms, solid);
 		}
 
@@ -181,23 +179,23 @@ public class BlazeBurnerRenderer extends SafeBlockEntityRenderer<BlazeBurnerBloc
 			if (modelTransform != null)
 				rodsBuffer.transform(modelTransform);
 			rodsBuffer.translate(0, offset1 + animation + .125f, 0)
-				.light(LightTexture.FULL_BRIGHT)
+				.light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
 				.renderInto(ms, solid);
 
 			SuperByteBuffer rodsBuffer2 = CachedBufferer.partial(rodsModel2, blockState);
 			if (modelTransform != null)
 				rodsBuffer2.transform(modelTransform);
 			rodsBuffer2.translate(0, offset2 + animation - 3 / 16f, 0)
-				.light(LightTexture.FULL_BRIGHT)
+				.light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
 				.renderInto(ms, solid);
 		}
 
-		ms.popPose();
+		ms.pop();
 	}
 
-	private static void draw(SuperByteBuffer buffer, float horizontalAngle, PoseStack ms, VertexConsumer vc) {
+	private static void draw(SuperByteBuffer buffer, float horizontalAngle, MatrixStack ms, VertexConsumer vc) {
 		buffer.rotateCentered(Direction.UP, horizontalAngle)
-			.light(LightTexture.FULL_BRIGHT)
+			.light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
 			.renderInto(ms, vc);
 	}
 }

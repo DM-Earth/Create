@@ -12,11 +12,11 @@ import com.simibubi.create.content.contraptions.render.ContraptionProgram;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
 public class CreateContexts {
-	private static final ResourceLocation CONTRAPTION = Create.asResource("context/contraption");
+	private static final Identifier CONTRAPTION = Create.asResource("context/contraption");
 
 	public static ProgramCompiler<ContraptionProgram> CWORLD;
 	public static ProgramCompiler<ContraptionProgram> STRUCTURE;

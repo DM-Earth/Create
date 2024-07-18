@@ -74,11 +74,14 @@ def dependencies(DependencyHandler deps) {
 // initial project setup
 def setup(DependencyHandler deps) {
     deps.minecraft("com.mojang:minecraft:$minecraft_version")
+    deps.mappings("net.fabricmc:yarn:$minecraft_version+build.$yarn_version:v2")
+    /*
     deps.mappings(loom.layered {
         it.mappings("org.quiltmc:quilt-mappings:$minecraft_version+build.$qm_version:intermediary-v2")
         it.parchment("org.parchmentmc.data:parchment-$minecraft_version:$parchment_version@zip")
         it.officialMojangMappings { nameSyntheticMembers = false }
     })
+    */
     deps.modImplementation("net.fabricmc:fabric-loader:$loader_version")
 }
 

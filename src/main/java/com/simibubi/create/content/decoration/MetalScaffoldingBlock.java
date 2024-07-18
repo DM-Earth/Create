@@ -4,71 +4,70 @@ import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 
 import io.github.fabricators_of_create.porting_lib.block.CustomScaffoldingBlock;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.ScaffoldingBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ScaffoldingBlock;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 
 public class MetalScaffoldingBlock extends ScaffoldingBlock implements IWrenchable, CustomScaffoldingBlock {
 
-	public MetalScaffoldingBlock(Properties pProperties) {
+	public MetalScaffoldingBlock(Settings pProperties) {
 		super(pProperties);
 	}
 
 	@Override
-	public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRand) {}
+	public void scheduledTick(BlockState pState, ServerWorld pLevel, BlockPos pPos, Random pRand) {}
 
 	@Override
-	public boolean canSurvive(BlockState pState, LevelReader pLevel, BlockPos pPos) {
+	public boolean canPlaceAt(BlockState pState, WorldView pLevel, BlockPos pPos) {
 		return true;
 	}
 
 	@Override
-	public VoxelShape getCollisionShape(BlockState pState, BlockGetter pLevel, BlockPos pPos,
-		CollisionContext pContext) {
-		if (pState.getValue(BOTTOM))
+	public VoxelShape getCollisionShape(BlockState pState, BlockView pLevel, BlockPos pPos,
+		ShapeContext pContext) {
+		if (pState.get(BOTTOM))
 			return AllShapes.SCAFFOLD_HALF;
 		return super.getCollisionShape(pState, pLevel, pPos, pContext);
 	}
 
 	@Override
-	public boolean isScaffolding(BlockState state, LevelReader level, BlockPos pos, LivingEntity entity) {
+	public boolean isScaffolding(BlockState state, WorldView level, BlockPos pos, LivingEntity entity) {
 		return true;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		if (pState.getValue(BOTTOM))
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
+		if (pState.get(BOTTOM))
 			return AllShapes.SCAFFOLD_HALF;
-		if (!pContext.isHoldingItem(pState.getBlock()
+		if (!pContext.isHolding(pState.getBlock()
 			.asItem()))
 			return AllShapes.SCAFFOLD_FULL;
-		return Shapes.block();
+		return VoxelShapes.fullCube();
 	}
 
 	@Override
-	public VoxelShape getInteractionShape(BlockState pState, BlockGetter pLevel, BlockPos pPos) {
-		return Shapes.block();
+	public VoxelShape getRaycastShape(BlockState pState, BlockView pLevel, BlockPos pPos) {
+		return VoxelShapes.fullCube();
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel,
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pFacing, BlockState pFacingState, WorldAccess pLevel,
 		BlockPos pCurrentPos, BlockPos pFacingPos) {
-		super.updateShape(pState, pFacing, pFacingState, pLevel, pCurrentPos, pFacingPos);
-		BlockState stateBelow = pLevel.getBlockState(pCurrentPos.below());
-		return pFacing == Direction.DOWN ? pState.setValue(BOTTOM,
-			!stateBelow.is(this) && !stateBelow.isFaceSturdy(pLevel, pCurrentPos.below(), Direction.UP)) : pState;
+		super.getStateForNeighborUpdate(pState, pFacing, pFacingState, pLevel, pCurrentPos, pFacingPos);
+		BlockState stateBelow = pLevel.getBlockState(pCurrentPos.down());
+		return pFacing == Direction.DOWN ? pState.with(BOTTOM,
+			!stateBelow.isOf(this) && !stateBelow.isSideSolidFullSquare(pLevel, pCurrentPos.down(), Direction.UP)) : pState;
 	}
 
 	@Override
@@ -77,11 +76,11 @@ public class MetalScaffoldingBlock extends ScaffoldingBlock implements IWrenchab
 	}
 
 	@Override
-	public boolean hidesNeighborFace(BlockGetter level, BlockPos pos, BlockState state, BlockState neighborState,
+	public boolean hidesNeighborFace(BlockView level, BlockPos pos, BlockState state, BlockState neighborState,
 		Direction dir) {
 		if (!(neighborState.getBlock() instanceof MetalScaffoldingBlock))
 			return false;
-		if (!neighborState.getValue(BOTTOM) && state.getValue(BOTTOM))
+		if (!neighborState.get(BOTTOM) && state.get(BOTTOM))
 			return false;
 		return dir.getAxis() != Axis.Y;
 	}

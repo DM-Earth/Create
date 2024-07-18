@@ -26,21 +26,20 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.SortedArraySet;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.phys.Vec3;
-
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.util.collection.SortedArraySet;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
@@ -52,7 +51,7 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 		private static final long serialVersionUID = 1L;
 	}
 
-	BoundingBox affectedArea;
+	BlockBox affectedArea;
 	BlockPos rootPos;
 	boolean infinite;
 	protected boolean counterpartActed;
@@ -127,22 +126,22 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 	}
 
 	protected void scheduleUpdatesInAffectedArea() {
-		Level world = getWorld();
+		World world = getWorld();
 		BlockPos
-			.betweenClosedStream(
-				new BlockPos(affectedArea.minX() - 1, affectedArea.minY() - 1, affectedArea.minZ() - 1),
-				new BlockPos(affectedArea.maxX() + 1, affectedArea.maxY() + 1, affectedArea.maxZ() + 1))
+			.stream(
+				new BlockPos(affectedArea.getMinX() - 1, affectedArea.getMinY() - 1, affectedArea.getMinZ() - 1),
+				new BlockPos(affectedArea.getMaxX() + 1, affectedArea.getMaxY() + 1, affectedArea.getMaxZ() + 1))
 			.forEach(pos -> {
 				FluidState nextFluidState = world.getFluidState(pos);
 				if (nextFluidState.isEmpty())
 					return;
-				world.scheduleTick(pos, nextFluidState.getType(), world.getRandom()
+				world.scheduleFluidTick(pos, nextFluidState.getFluid(), world.getRandom()
 					.nextInt(5));
 			});
 	}
 
 	protected int comparePositions(BlockPosEntry e1, BlockPosEntry e2) {
-		Vec3 centerOfRoot = VecHelper.getCenterOf(rootPos);
+		Vec3d centerOfRoot = VecHelper.getCenterOf(rootPos);
 		BlockPos pos2 = e2.pos;
 		BlockPos pos1 = e1.pos;
 		if (pos1.getY() != pos2.getY())
@@ -151,9 +150,9 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 		if (compareDistance != 0)
 			return compareDistance;
 		int distanceCompared = Double.compare(VecHelper.getCenterOf(pos2)
-						.distanceToSqr(centerOfRoot),
+						.squaredDistanceTo(centerOfRoot),
 				VecHelper.getCenterOf(pos1)
-						.distanceToSqr(centerOfRoot));
+						.squaredDistanceTo(centerOfRoot));
 		// fabric: since we're using a set for the queue, we need to only have them equal if they're really equal.
 		if (distanceCompared != 0)
 			return distanceCompared;
@@ -166,7 +165,7 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 
 	protected Fluid search(Fluid fluid, List<BlockPosEntry> frontier, Set<BlockPos> visited,
 		BiConsumer<BlockPos, Integer> add, boolean searchDownward) throws ChunkNotLoadedException {
-		Level world = getWorld();
+		World world = getWorld();
 		int maxBlocks = maxBlocks();
 		int maxRange = canDrainInfinitely(fluid) ? maxRange() : maxRange() / 2;
 		int maxRangeSq = maxRange * maxRange;
@@ -180,17 +179,17 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 				continue;
 			visited.add(currentPos);
 
-			if (!world.isLoaded(currentPos))
+			if (!world.canSetBlock(currentPos))
 				throw new ChunkNotLoadedException();
 
 			FluidState fluidState = world.getFluidState(currentPos);
 			if (fluidState.isEmpty())
 				continue;
 
-			Fluid currentFluid = FluidHelper.convertToStill(fluidState.getType());
+			Fluid currentFluid = FluidHelper.convertToStill(fluidState.getFluid());
 			if (fluid == null)
 				fluid = currentFluid;
-			if (!currentFluid.isSame(fluid))
+			if (!currentFluid.matchesType(fluid))
 				continue;
 
 			add.accept(currentPos, entry.distance);
@@ -199,18 +198,18 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 				if (!searchDownward && side == Direction.DOWN)
 					continue;
 
-				BlockPos offsetPos = currentPos.relative(side);
-				if (!world.isLoaded(offsetPos))
+				BlockPos offsetPos = currentPos.offset(side);
+				if (!world.canSetBlock(offsetPos))
 					throw new ChunkNotLoadedException();
 				if (visited.contains(offsetPos))
 					continue;
-				if (offsetPos.distSqr(rootPos) > maxRangeSq)
+				if (offsetPos.getSquaredDistance(rootPos) > maxRangeSq)
 					continue;
 
 				FluidState nextFluidState = world.getFluidState(offsetPos);
 				if (nextFluidState.isEmpty())
 					continue;
-				Fluid nextFluid = nextFluidState.getType();
+				Fluid nextFluid = nextFluidState.getFluid();
 				if (nextFluid == FluidHelper.convertToFlowing(nextFluid) && side == Direction.UP
 					&& !VecHelper.onSameAxis(rootPos, offsetPos, Axis.Y))
 					continue;
@@ -222,11 +221,11 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 		return fluid;
 	}
 
-	protected void playEffect(Level world, BlockPos pos, Fluid fluid, boolean fillSound) {
+	protected void playEffect(World world, BlockPos pos, Fluid fluid, boolean fillSound) {
 		if (fluid == null)
 			return;
 
-		BlockPos splooshPos = pos == null ? blockEntity.getBlockPos() : pos;
+		BlockPos splooshPos = pos == null ? blockEntity.getPos() : pos;
 		FluidStack stack = new FluidStack(fluid, 1);
 
 		FluidVariant variant = FluidVariant.of(fluid);
@@ -234,8 +233,8 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 				? FluidVariantAttributes.getFillSound(variant)
 				: FluidVariantAttributes.getEmptySound(variant);
 
-		world.playSound(null, splooshPos, soundevent, SoundSource.BLOCKS, 0.3F, 1.0F);
-		if (world instanceof ServerLevel)
+		world.playSound(null, splooshPos, soundevent, SoundCategory.BLOCKS, 0.3F, 1.0F);
+		if (world instanceof ServerWorld)
 			AllPackets.sendToNear(world, splooshPos, 10, new FluidSplashPacket(splooshPos, stack));
 	}
 
@@ -247,28 +246,28 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		if (infinite)
 			NBTHelper.putMarker(nbt, "Infinite");
 		if (rootPos != null)
-			nbt.put("LastPos", NbtUtils.writeBlockPos(rootPos));
+			nbt.put("LastPos", NbtHelper.fromBlockPos(rootPos));
 		if (affectedArea != null) {
 			nbt.put("AffectedAreaFrom",
-				NbtUtils.writeBlockPos(new BlockPos(affectedArea.minX(), affectedArea.minY(), affectedArea.minZ())));
+				NbtHelper.fromBlockPos(new BlockPos(affectedArea.getMinX(), affectedArea.getMinY(), affectedArea.getMinZ())));
 			nbt.put("AffectedAreaTo",
-				NbtUtils.writeBlockPos(new BlockPos(affectedArea.maxX(), affectedArea.maxY(), affectedArea.maxZ())));
+				NbtHelper.fromBlockPos(new BlockPos(affectedArea.getMaxX(), affectedArea.getMaxY(), affectedArea.getMaxZ())));
 		}
 		super.write(nbt, clientPacket);
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 		infinite = nbt.contains("Infinite");
 		if (nbt.contains("LastPos"))
-			rootPos = NbtUtils.readBlockPos(nbt.getCompound("LastPos"));
+			rootPos = NbtHelper.toBlockPos(nbt.getCompound("LastPos"));
 		if (nbt.contains("AffectedAreaFrom") && nbt.contains("AffectedAreaTo"))
-			affectedArea = BoundingBox.fromCorners(NbtUtils.readBlockPos(nbt.getCompound("AffectedAreaFrom")),
-				NbtUtils.readBlockPos(nbt.getCompound("AffectedAreaTo")));
+			affectedArea = BlockBox.create(NbtHelper.toBlockPos(nbt.getCompound("AffectedAreaFrom")),
+				NbtHelper.toBlockPos(nbt.getCompound("AffectedAreaTo")));
 		super.read(nbt, clientPacket);
 	}
 
@@ -299,12 +298,12 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 		int size = set.size();
 		SortedArraySetAccessor<T> access = (SortedArraySetAccessor<T>) set;
 		Comparator<T> comparator = access.create$getComparator();
-		T[] contents = access.create$getContents();
+		T[] contents = access.create$getElements();
 		T[] copiedContents = (T[]) new Object[size];
 		System.arraycopy(contents, 0, copiedContents, 0, size);
 		SortedArraySet<T> copy = SortedArraySet.create(comparator, size);
 		SortedArraySetAccessor<T> copyAccess = ((SortedArraySetAccessor<T>) copy);
-		copyAccess.create$setContents(copiedContents);
+		copyAccess.create$setElements(copiedContents);
 		copyAccess.create$setSize(size);
 		return copy;
 	}
@@ -314,7 +313,7 @@ public abstract class FluidManipulationBehaviour extends BlockEntityBehaviour {
 	 * identical to {@code set.remove(set.first())}
 	 */
 	public static <T> void dequeue(SortedArraySet<T> set) {
-		((SortedArraySetAccessor<T>) set).create$callRemoveInternal(0);
+		((SortedArraySetAccessor<T>) set).create$callRemove(0);
 	}
 
 }

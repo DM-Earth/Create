@@ -1,12 +1,10 @@
 package com.simibubi.create.foundation.recipe;
 
 import java.util.function.Predicate;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeType;
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
-
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
 
 /**
  * Commonly used Predicates for searching through recipe collections.
@@ -31,7 +29,7 @@ public class RecipeConditions {
 	}
 
 	public static Predicate<Recipe<?>> outputMatchesFilter(FilteringBehaviour filtering) {
-		return r -> filtering.test(r.getResultItem(filtering.getWorld().registryAccess()));
+		return r -> filtering.test(r.getOutput(filtering.getWorld().getRegistryManager()));
 
 	}
 

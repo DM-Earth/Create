@@ -9,11 +9,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
 import com.google.common.collect.ImmutableList;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 
 public class Couple<T> extends Pair<T, T> implements Iterable<T> {
 
@@ -109,11 +107,11 @@ public class Couple<T> extends Pair<T, T> implements Iterable<T> {
 		return Couple.create(second, first);
 	}
 
-	public ListTag serializeEach(Function<T, CompoundTag> serializer) {
+	public NbtList serializeEach(Function<T, NbtCompound> serializer) {
 		return NBTHelper.writeCompoundList(ImmutableList.of(first, second), serializer);
 	}
 
-	public static <S> Couple<S> deserializeEach(ListTag list, Function<CompoundTag, S> deserializer) {
+	public static <S> Couple<S> deserializeEach(NbtList list, Function<NbtCompound, S> deserializer) {
 		List<S> readCompoundList = NBTHelper.readCompoundList(list, deserializer);
 		return new Couple<>(readCompoundList.get(0), readCompoundList.get(1));
 	}

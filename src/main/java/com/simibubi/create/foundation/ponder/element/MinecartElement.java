@@ -1,32 +1,31 @@
 package com.simibubi.create.foundation.ponder.element;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.ponder.PonderScene;
 import com.simibubi.create.foundation.ponder.PonderWorld;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRenderDispatcher;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class MinecartElement extends AnimatedSceneElement {
 
-	private Vec3 location;
+	private Vec3d location;
 	private LerpedFloat rotation;
-	private AbstractMinecart entity;
+	private AbstractMinecartEntity entity;
 	private MinecartConstructor constructor;
 	private float initialRotation;
 
 	public interface MinecartConstructor {
-		AbstractMinecart create(Level w, double x, double y, double z);
+		AbstractMinecartEntity create(World w, double x, double y, double z);
 	}
 
-	public MinecartElement(Vec3 location, float rotation, MinecartConstructor constructor) {
+	public MinecartElement(Vec3d location, float rotation, MinecartConstructor constructor) {
 		initialRotation = rotation;
 		this.location = location.add(0, 1 / 16f, 0);
 		this.constructor = constructor;
@@ -37,13 +36,13 @@ public class MinecartElement extends AnimatedSceneElement {
 	@Override
 	public void reset(PonderScene scene) {
 		super.reset(scene);
-		entity.setPosRaw(0, 0, 0);
-		entity.xo = 0;
-		entity.yo = 0;
-		entity.zo = 0;
-		entity.xOld = 0;
-		entity.yOld = 0;
-		entity.zOld = 0;
+		entity.setPos(0, 0, 0);
+		entity.prevX = 0;
+		entity.prevY = 0;
+		entity.prevZ = 0;
+		entity.lastRenderX = 0;
+		entity.lastRenderY = 0;
+		entity.lastRenderZ = 0;
 		rotation.startWithValue(initialRotation);
 	}
 
@@ -53,25 +52,25 @@ public class MinecartElement extends AnimatedSceneElement {
 		if (entity == null)
 			entity = constructor.create(scene.getWorld(), 0, 0, 0);
 
-		entity.tickCount++;
+		entity.age++;
 		entity.setOnGround(true);
-		entity.xo = entity.getX();
-		entity.yo = entity.getY();
-		entity.zo = entity.getZ();
-		entity.xOld = entity.getX();
-		entity.yOld = entity.getY();
-		entity.zOld = entity.getZ();
+		entity.prevX = entity.getX();
+		entity.prevY = entity.getY();
+		entity.prevZ = entity.getZ();
+		entity.lastRenderX = entity.getX();
+		entity.lastRenderY = entity.getY();
+		entity.lastRenderZ = entity.getZ();
 	}
 
-	public void setPositionOffset(Vec3 position, boolean immediate) {
+	public void setPositionOffset(Vec3d position, boolean immediate) {
 		if (entity == null)
 			return;
-		entity.setPos(position.x, position.y, position.z);
+		entity.setPosition(position.x, position.y, position.z);
 		if (!immediate)
 			return;
-		entity.xo = position.x;
-		entity.yo = position.y;
-		entity.zo = position.z;
+		entity.prevX = position.x;
+		entity.prevY = position.y;
+		entity.prevZ = position.z;
 	}
 
 	public void setRotation(float angle, boolean immediate) {
@@ -83,31 +82,31 @@ public class MinecartElement extends AnimatedSceneElement {
 		rotation.startWithValue(angle);
 	}
 
-	public Vec3 getPositionOffset() {
-		return entity != null ? entity.position() : Vec3.ZERO;
+	public Vec3d getPositionOffset() {
+		return entity != null ? entity.getPos() : Vec3d.ZERO;
 	}
 
-	public Vec3 getRotation() {
-		return new Vec3(0, rotation.getValue(), 0);
+	public Vec3d getRotation() {
+		return new Vec3d(0, rotation.getValue(), 0);
 	}
 
 	@Override
-	protected void renderLast(PonderWorld world, MultiBufferSource buffer, PoseStack ms, float fade, float pt) {
-		EntityRenderDispatcher entityrenderermanager = Minecraft.getInstance()
+	protected void renderLast(PonderWorld world, VertexConsumerProvider buffer, MatrixStack ms, float fade, float pt) {
+		EntityRenderDispatcher entityrenderermanager = MinecraftClient.getInstance()
 			.getEntityRenderDispatcher();
 		if (entity == null)
 			entity = constructor.create(world, 0, 0, 0);
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(location.x, location.y, location.z);
-		ms.translate(Mth.lerp(pt, entity.xo, entity.getX()),
-			Mth.lerp(pt, entity.yo, entity.getY()), Mth.lerp(pt, entity.zo, entity.getZ()));
+		ms.translate(MathHelper.lerp(pt, entity.prevX, entity.getX()),
+			MathHelper.lerp(pt, entity.prevY, entity.getY()), MathHelper.lerp(pt, entity.prevZ, entity.getZ()));
 
 		TransformStack.cast(ms)
 			.rotateY(rotation.getValue(pt));
 
 		entityrenderermanager.render(entity, 0, 0, 0, 0, pt, ms, buffer, lightCoordsFromFade(fade));
-		ms.popPose();
+		ms.pop();
 	}
 
 }

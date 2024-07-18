@@ -2,8 +2,7 @@ package com.simibubi.create.content.trains.graph;
 
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
 
 public class TrackGraphRequestPacket extends SimplePacketBase {
 
@@ -13,12 +12,12 @@ public class TrackGraphRequestPacket extends SimplePacketBase {
 		this.netId = netId;
 	}
 
-	public TrackGraphRequestPacket(FriendlyByteBuf buffer) {
+	public TrackGraphRequestPacket(PacketByteBuf buffer) {
 		netId = buffer.readInt();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(netId);
 	}
 

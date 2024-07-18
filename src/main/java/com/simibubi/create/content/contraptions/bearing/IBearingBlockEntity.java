@@ -3,8 +3,7 @@ package com.simibubi.create.content.contraptions.bearing;
 import com.simibubi.create.content.contraptions.DirectionalExtenderScrollOptionSlot;
 import com.simibubi.create.content.contraptions.IControlContraption;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
-
-import net.minecraft.core.Direction.Axis;
+import net.minecraft.util.math.Direction.Axis;
 
 public interface IBearingBlockEntity extends IControlContraption {
 
@@ -15,7 +14,7 @@ public interface IBearingBlockEntity extends IControlContraption {
 	default ValueBoxTransform getMovementModeSlot() {
 		return new DirectionalExtenderScrollOptionSlot((state, d) -> {
 			Axis axis = d.getAxis();
-			Axis bearingAxis = state.getValue(BearingBlock.FACING)
+			Axis bearingAxis = state.get(BearingBlock.FACING)
 				.getAxis();
 			return bearingAxis != axis;
 		});

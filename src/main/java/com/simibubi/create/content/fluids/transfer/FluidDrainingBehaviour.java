@@ -23,19 +23,19 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.SortedArraySet;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LiquidBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.FluidBlock;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.collection.SortedArraySet;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 
@@ -58,10 +58,10 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 		@Override
 		protected Data createSnapshot() {
 			FluidDrainingBehaviour b = FluidDrainingBehaviour.this;
-			BlockPos rootPos = b.rootPos == null ? null : b.rootPos.immutable();
-			BoundingBox box = b.affectedArea == null ? null : new BoundingBox(
-					affectedArea.minX(), affectedArea.minY(), affectedArea.minZ(),
-					affectedArea.maxX(), affectedArea.maxY(), affectedArea.maxZ()
+			BlockPos rootPos = b.rootPos == null ? null : b.rootPos.toImmutable();
+			BlockBox box = b.affectedArea == null ? null : new BlockBox(
+					affectedArea.getMinX(), affectedArea.getMinY(), affectedArea.getMinZ(),
+					affectedArea.getMaxX(), affectedArea.getMaxY(), affectedArea.getMaxZ()
 			);
 
 			return new Data(
@@ -91,7 +91,7 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 
 	record Data(Fluid fluid, boolean valid, BlockPos rootPos, List<BlockPosEntry> validationFrontier,
 				Set<BlockPos> validationVisited, Set<BlockPos> newValidationSet, int revalidateIn,
-				BoundingBox affectedArea, SortedArraySet<BlockPosEntry> queue) {
+				BlockBox affectedArea, SortedArraySet<BlockPosEntry> queue) {
 	}
 
 	public FluidDrainingBehaviour(SmartBlockEntity be) {
@@ -119,9 +119,9 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 		}
 
 		if (affectedArea == null)
-			affectedArea = BoundingBox.fromCorners(root, root);
+			affectedArea = BlockBox.create(root, root);
 
-		Level world = getWorld();
+		World world = getWorld();
 		if (!queue.isEmpty() && !isValid) {
 			rebuildContext(root, ctx);
 			return false;
@@ -150,19 +150,19 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 			BlockState emptied = blockState;
 			Fluid fluid = Fluids.EMPTY;
 
-			if (blockState.hasProperty(BlockStateProperties.WATERLOGGED)
-				&& blockState.getValue(BlockStateProperties.WATERLOGGED)) {
-				emptied = blockState.setValue(BlockStateProperties.WATERLOGGED, Boolean.valueOf(false));
+			if (blockState.contains(Properties.WATERLOGGED)
+				&& blockState.get(Properties.WATERLOGGED)) {
+				emptied = blockState.with(Properties.WATERLOGGED, Boolean.valueOf(false));
 				fluid = Fluids.WATER;
-			} else if (blockState.getBlock() instanceof LiquidBlock) {
-				LiquidBlock flowingFluid = (LiquidBlock) blockState.getBlock();
-				emptied = Blocks.AIR.defaultBlockState();
-				if (blockState.getValue(LiquidBlock.LEVEL) == 0)
-					fluid = ((LiquidBlockAccessor) flowingFluid).port_lib$getFluid().getSource();
+			} else if (blockState.getBlock() instanceof FluidBlock) {
+				FluidBlock flowingFluid = (FluidBlock) blockState.getBlock();
+				emptied = Blocks.AIR.getDefaultState();
+				if (blockState.get(FluidBlock.LEVEL) == 0)
+					fluid = ((LiquidBlockAccessor) flowingFluid).port_lib$getFluid().getStill();
 				else {
-					affectedArea = BBHelper.encapsulate(affectedArea, BoundingBox.fromCorners(currentPos, currentPos));
+					affectedArea = BBHelper.encapsulate(affectedArea, BlockBox.create(currentPos, currentPos));
 					if (!blockEntity.isVirtual())
-						world.setBlock(currentPos, emptied, 2 | 16);
+						world.setBlockState(currentPos, emptied, 2 | 16);
 					dequeue(queue);
 					if (queue.isEmpty()) {
 						isValid = checkValid(world, rootPos);
@@ -171,17 +171,17 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 					continue;
 				}
 			} else if (blockState.getFluidState()
-				.getType() != Fluids.EMPTY && blockState.getCollisionShape(world, currentPos, CollisionContext.empty())
+				.getFluid() != Fluids.EMPTY && blockState.getCollisionShape(world, currentPos, ShapeContext.absent())
 					.isEmpty()) {
 				fluid = blockState.getFluidState()
-					.getType();
-				emptied = Blocks.AIR.defaultBlockState();
+					.getFluid();
+				emptied = Blocks.AIR.getDefaultState();
 			}
 
 			if (this.fluid == null)
 				this.fluid = fluid;
 
-			if (!this.fluid.isSame(fluid)) {
+			if (!this.fluid.matchesType(fluid)) {
 				dequeue(queue);
 				if (queue.isEmpty()) {
 					isValid = checkValid(world, rootPos);
@@ -204,7 +204,7 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 
 			if (!blockEntity.isVirtual()) {
 				world.updateSnapshots(ctx);
-				world.setBlock(currentPos, emptied, 2 | 16);
+				world.setBlockState(currentPos, emptied, 2 | 16);
 			}
 			affectedArea = BBHelper.encapsulate(affectedArea, currentPos);
 
@@ -240,17 +240,17 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 		TransactionCallback.onSuccess(ctx, blockEntity::sendData);
 	}
 
-	protected boolean checkValid(Level world, BlockPos root) {
+	protected boolean checkValid(World world, BlockPos root) {
 		BlockPos currentPos = root;
-		for (int timeout = 1000; timeout > 0 && !root.equals(blockEntity.getBlockPos()); timeout--) {
+		for (int timeout = 1000; timeout > 0 && !root.equals(blockEntity.getPos()); timeout--) {
 			FluidBlockType canPullFluidsFrom = canPullFluidsFrom(world.getBlockState(currentPos), currentPos);
 			if (canPullFluidsFrom == FluidBlockType.FLOWING) {
 				for (Direction d : Iterate.directions) {
-					BlockPos side = currentPos.relative(d);
+					BlockPos side = currentPos.offset(d);
 					if (canPullFluidsFrom(world.getBlockState(side), side) == FluidBlockType.SOURCE)
 						return true;
 				}
-				currentPos = currentPos.above();
+				currentPos = currentPos.up();
 				continue;
 			}
 			if (canPullFluidsFrom == FluidBlockType.SOURCE)
@@ -265,20 +265,20 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 		super.read(nbt, clientPacket);
 		if (!clientPacket && affectedArea != null)
 			frontier.add(new BlockPosEntry(rootPos, 0));
 	}
 
 	protected FluidBlockType canPullFluidsFrom(BlockState blockState, BlockPos pos) {
-		if (blockState.hasProperty(BlockStateProperties.WATERLOGGED)
-			&& blockState.getValue(BlockStateProperties.WATERLOGGED))
+		if (blockState.contains(Properties.WATERLOGGED)
+			&& blockState.get(Properties.WATERLOGGED))
 			return FluidBlockType.SOURCE;
-		if (blockState.getBlock() instanceof LiquidBlock)
-			return blockState.getValue(LiquidBlock.LEVEL) == 0 ? FluidBlockType.SOURCE : FluidBlockType.FLOWING;
+		if (blockState.getBlock() instanceof FluidBlock)
+			return blockState.get(FluidBlock.LEVEL) == 0 ? FluidBlockType.SOURCE : FluidBlockType.FLOWING;
 		if (blockState.getFluidState()
-			.getType() != Fluids.EMPTY && blockState.getCollisionShape(getWorld(), pos, CollisionContext.empty())
+			.getFluid() != Fluids.EMPTY && blockState.getCollisionShape(getWorld(), pos, ShapeContext.absent())
 				.isEmpty())
 			return FluidBlockType.SOURCE;
 		return FluidBlockType.NONE;
@@ -309,7 +309,7 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
 	public void rebuildContext(BlockPos root, TransactionContext ctx) {
 		reset(ctx);
 		rootPos = root;
-		affectedArea = BoundingBox.fromCorners(rootPos, rootPos);
+		affectedArea = BlockBox.create(rootPos, rootPos);
 		if (isValid)
 			frontier.add(new BlockPosEntry(root, 0));
 	}

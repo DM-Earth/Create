@@ -9,25 +9,25 @@ import java.util.stream.Stream;
 import com.simibubi.create.foundation.utility.NBTProcessors;
 
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.decoration.ItemFrame;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.AbstractBannerBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DirtPathBlock;
-import net.minecraft.world.level.block.FarmBlock;
-import net.minecraft.world.level.block.SeaPickleBlock;
-import net.minecraft.world.level.block.SnowLayerBlock;
-import net.minecraft.world.level.block.TurtleEggBlock;
-import net.minecraft.world.level.block.entity.BannerBlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.block.AbstractBannerBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.DirtPathBlock;
+import net.minecraft.block.FarmlandBlock;
+import net.minecraft.block.SeaPickleBlock;
+import net.minecraft.block.SnowBlock;
+import net.minecraft.block.TurtleEggBlock;
+import net.minecraft.block.entity.BannerBlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.enums.SlabType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.entity.decoration.ItemFrameEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.state.property.Properties;
 
 public class ItemRequirement {
 	public static final ItemRequirement NONE = new ItemRequirement(Collections.emptyList());
@@ -83,22 +83,22 @@ public class ItemRequirement {
 			return INVALID;
 
 		// double slab needs two items
-		if (state.hasProperty(BlockStateProperties.SLAB_TYPE)
-			&& state.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE)
+		if (state.contains(Properties.SLAB_TYPE)
+			&& state.get(Properties.SLAB_TYPE) == SlabType.DOUBLE)
 			return new ItemRequirement(ItemUseType.CONSUME, new ItemStack(item, 2));
 		if (block instanceof TurtleEggBlock)
-			return new ItemRequirement(ItemUseType.CONSUME, new ItemStack(item, state.getValue(TurtleEggBlock.EGGS)
+			return new ItemRequirement(ItemUseType.CONSUME, new ItemStack(item, state.get(TurtleEggBlock.EGGS)
 				.intValue()));
 		if (block instanceof SeaPickleBlock)
-			return new ItemRequirement(ItemUseType.CONSUME, new ItemStack(item, state.getValue(SeaPickleBlock.PICKLES)
+			return new ItemRequirement(ItemUseType.CONSUME, new ItemStack(item, state.get(SeaPickleBlock.PICKLES)
 				.intValue()));
-		if (block instanceof SnowLayerBlock)
-			return new ItemRequirement(ItemUseType.CONSUME, new ItemStack(item, state.getValue(SnowLayerBlock.LAYERS)
+		if (block instanceof SnowBlock)
+			return new ItemRequirement(ItemUseType.CONSUME, new ItemStack(item, state.get(SnowBlock.LAYERS)
 				.intValue()));
-		if (block instanceof FarmBlock || block instanceof DirtPathBlock)
+		if (block instanceof FarmlandBlock || block instanceof DirtPathBlock)
 			return new ItemRequirement(ItemUseType.CONSUME, Items.DIRT);
 		if (block instanceof AbstractBannerBlock && be instanceof BannerBlockEntity bannerBE)
-			return new ItemRequirement(new StrictNbtStackRequirement(bannerBE.getItem(), ItemUseType.CONSUME));
+			return new ItemRequirement(new StrictNbtStackRequirement(bannerBE.getPickStack(), ItemUseType.CONSUME));
 
 		return new ItemRequirement(ItemUseType.CONSUME, item);
 	}
@@ -107,19 +107,19 @@ public class ItemRequirement {
 		if (entity instanceof ISpecialEntityItemRequirement specialEntity)
 			return specialEntity.getRequiredItems();
 
-		if (entity instanceof ItemFrame itemFrame) {
+		if (entity instanceof ItemFrameEntity itemFrame) {
 			ItemStack frame = new ItemStack(Items.ITEM_FRAME);
-			ItemStack displayedItem = NBTProcessors.withUnsafeNBTDiscarded(itemFrame.getItem());
+			ItemStack displayedItem = NBTProcessors.withUnsafeNBTDiscarded(itemFrame.getHeldItemStack());
 			if (displayedItem.isEmpty())
 				return new ItemRequirement(ItemUseType.CONSUME, Items.ITEM_FRAME);
 			return new ItemRequirement(List.of(new ItemRequirement.StackRequirement(frame, ItemUseType.CONSUME),
 				new ItemRequirement.StrictNbtStackRequirement(displayedItem, ItemUseType.CONSUME)));
 		}
 
-		if (entity instanceof ArmorStand armorStand) {
+		if (entity instanceof ArmorStandEntity armorStand) {
 			List<StackRequirement> requirements = new ArrayList<>();
 			requirements.add(new StackRequirement(new ItemStack(Items.ARMOR_STAND), ItemUseType.CONSUME));
-			armorStand.getAllSlots()
+			armorStand.getItemsEquipped()
 				.forEach(s -> requirements
 					.add(new StrictNbtStackRequirement(NBTProcessors.withUnsafeNBTDiscarded(s), ItemUseType.CONSUME)));
 			return new ItemRequirement(requirements);
@@ -166,7 +166,7 @@ public class ItemRequirement {
 		}
 
 		public boolean matches(ItemStack other) {
-			return ItemStack.isSameItem(stack, other);
+			return ItemStack.areItemsEqual(stack, other);
 		}
 
 		public boolean matches(ItemVariant variant) {
@@ -181,7 +181,7 @@ public class ItemRequirement {
 
 		@Override
 		public boolean matches(ItemStack other) {
-			return ItemStack.isSameItemSameTags(stack, other);
+			return ItemStack.canCombine(stack, other);
 		}
 
 		@Override

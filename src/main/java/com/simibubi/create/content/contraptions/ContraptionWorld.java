@@ -1,22 +1,21 @@
 package com.simibubi.create.content.contraptions;
 
 import com.simibubi.create.foundation.utility.worldWrappers.WrappedWorld;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 
 public class ContraptionWorld extends WrappedWorld {
     final Contraption contraption;
 	private final int minY;
 	private final int height;
 
-	public ContraptionWorld(Level world, Contraption contraption) {
+	public ContraptionWorld(World world, Contraption contraption) {
         super(world);
 
         this.contraption = contraption;
@@ -29,7 +28,7 @@ public class ContraptionWorld extends WrappedWorld {
 
 	// https://math.stackexchange.com/questions/291468
 	private static int nextMultipleOf16(double a) {
-		return (((Math.abs((int) a) - 1) | 15) + 1) * Mth.sign(a);
+		return (((Math.abs((int) a) - 1) | 15) + 1) * MathHelper.sign(a);
 	}
 
 	@Override
@@ -39,12 +38,12 @@ public class ContraptionWorld extends WrappedWorld {
         if (blockInfo != null)
             return blockInfo.state();
 
-        return Blocks.AIR.defaultBlockState();
+        return Blocks.AIR.getDefaultState();
     }
 
     @Override
-    public void playLocalSound(double x, double y, double z, SoundEvent sound, SoundSource category, float volume, float pitch, boolean distanceDelay) {
-        world.playLocalSound(x, y, z, sound, category, volume, pitch, distanceDelay);
+    public void playSound(double x, double y, double z, SoundEvent sound, SoundCategory category, float volume, float pitch, boolean distanceDelay) {
+        world.playSound(x, y, z, sound, category, volume, pitch, distanceDelay);
     }
 
 	// Ensure that we provide accurate information about ContraptionWorld height to mods (such as Starlight) which
@@ -56,7 +55,7 @@ public class ContraptionWorld extends WrappedWorld {
 	}
 
 	@Override
-	public int getMinBuildHeight() {
+	public int getBottomY() {
 		return minY;
 	}
 }

@@ -5,28 +5,28 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import io.github.fabricators_of_create.porting_lib.block.CustomDestroyEffectsBlock;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.client.particle.TerrainParticle;
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.particle.BlockDustParticle;
+import net.minecraft.client.particle.ParticleManager;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.shape.VoxelShape;
 
 public interface ReducedDestroyEffects extends CustomDestroyEffectsBlock {
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	default boolean addDestroyEffects(BlockState state, ClientLevel world, BlockPos pos, ParticleEngine manager) {
-		VoxelShape voxelshape = state.getShape(world, pos);
+	default boolean addDestroyEffects(BlockState state, ClientWorld world, BlockPos pos, ParticleManager manager) {
+		VoxelShape voxelshape = state.getOutlineShape(world, pos);
 		MutableInt amtBoxes = new MutableInt(0);
-		voxelshape.forAllBoxes((x1, y1, z1, x2, y2, z2) -> amtBoxes.increment());
+		voxelshape.forEachBox((x1, y1, z1, x2, y2, z2) -> amtBoxes.increment());
 		double chance = 1d / amtBoxes.getValue();
 
 		if (state.isAir())
 			return true;
 
-		voxelshape.forAllBoxes((x1, y1, z1, x2, y2, z2) -> {
+		voxelshape.forEachBox((x1, y1, z1, x2, y2, z2) -> {
 			handleBox(x1, y1, z1, x2, y2, z2, chance, state, world, pos, manager);
 		});
 
@@ -35,13 +35,13 @@ public interface ReducedDestroyEffects extends CustomDestroyEffectsBlock {
 
 	@Environment(EnvType.CLIENT)
 	default void handleBox(double x1, double y1, double z1, double x2, double y2, double z2, double chance,
-						   BlockState state, ClientLevel world, BlockPos pos, ParticleEngine manager) {
+						   BlockState state, ClientWorld world, BlockPos pos, ParticleManager manager) {
 		double w = x2 - x1;
 		double h = y2 - y1;
 		double l = z2 - z1;
-		int xParts = Math.max(2, Mth.ceil(Math.min(1, w) * 4));
-		int yParts = Math.max(2, Mth.ceil(Math.min(1, h) * 4));
-		int zParts = Math.max(2, Mth.ceil(Math.min(1, l) * 4));
+		int xParts = Math.max(2, MathHelper.ceil(Math.min(1, w) * 4));
+		int yParts = Math.max(2, MathHelper.ceil(Math.min(1, h) * 4));
+		int zParts = Math.max(2, MathHelper.ceil(Math.min(1, l) * 4));
 
 		for (int xIndex = 0; xIndex < xParts; ++xIndex) {
 			for (int yIndex = 0; yIndex < yParts; ++yIndex) {
@@ -56,7 +56,7 @@ public interface ReducedDestroyEffects extends CustomDestroyEffectsBlock {
 					double y = pos.getY() + d5 * h + y1;
 					double z = pos.getZ() + d6 * l + z1;
 
-					manager.add(new TerrainParticle(world, x, y, z, d4 - 0.5D, d5 - 0.5D, d6 - 0.5D, state, pos)
+					manager.addParticle(new BlockDustParticle(world, x, y, z, d4 - 0.5D, d5 - 0.5D, d6 - 0.5D, state, pos)
 							.updateSprite(state, pos));
 				}
 			}

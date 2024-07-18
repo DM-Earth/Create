@@ -1,28 +1,27 @@
 package com.simibubi.create.foundation.gui.menu;
 
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class ClearMenuPacket extends SimplePacketBase {
 
 	public ClearMenuPacket() {}
 
-	public ClearMenuPacket(FriendlyByteBuf buffer) {}
+	public ClearMenuPacket(PacketByteBuf buffer) {}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {}
+	public void write(PacketByteBuf buffer) {}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
-			if (!(player.containerMenu instanceof IClearableMenu))
+			if (!(player.currentScreenHandler instanceof IClearableMenu))
 				return;
-			((IClearableMenu) player.containerMenu).clearContents();
+			((IClearableMenu) player.currentScreenHandler).clearContents();
 		});
 		return true;
 	}

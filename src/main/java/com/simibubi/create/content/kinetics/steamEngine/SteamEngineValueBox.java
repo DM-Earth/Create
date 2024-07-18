@@ -1,16 +1,15 @@
 package com.simibubi.create.content.kinetics.steamEngine;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Pointing;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
 
 public class SteamEngineValueBox extends ValueBoxTransform.Sided {
 
@@ -29,14 +28,14 @@ public class SteamEngineValueBox extends ValueBoxTransform.Sided {
 
 		boolean recessed = roll % 180 == 0;
 		if (engineFacing.getAxis() == Axis.Y)
-			recessed ^= state.getValue(SteamEngineBlock.FACING)
+			recessed ^= state.get(SteamEngineBlock.FACING)
 				.getAxis() == Axis.X;
 
 		return !recessed;
 	}
 
 	@Override
-	public Vec3 getLocalOffset(BlockState state) {
+	public Vec3d getLocalOffset(BlockState state) {
 		Direction side = getSide();
 		Direction engineFacing = SteamEngineBlock.getFacing(state);
 
@@ -49,7 +48,7 @@ public class SteamEngineValueBox extends ValueBoxTransform.Sided {
 
 		float horizontalAngle = AngleHelper.horizontalAngle(engineFacing);
 		float verticalAngle = AngleHelper.verticalAngle(engineFacing);
-		Vec3 local = VecHelper.voxelSpace(8, 14.5, 9);
+		Vec3d local = VecHelper.voxelSpace(8, 14.5, 9);
 
 		local = VecHelper.rotateCentered(local, roll, Axis.Z);
 		local = VecHelper.rotateCentered(local, horizontalAngle, Axis.Y);
@@ -59,7 +58,7 @@ public class SteamEngineValueBox extends ValueBoxTransform.Sided {
 	}
 
 	@Override
-	public void rotate(BlockState state, PoseStack ms) {
+	public void rotate(BlockState state, MatrixStack ms) {
 		Direction facing = SteamEngineBlock.getFacing(state);
 
 		if (facing.getAxis() == Axis.Y) {
@@ -80,8 +79,8 @@ public class SteamEngineValueBox extends ValueBoxTransform.Sided {
 	}
 
 	@Override
-	protected Vec3 getSouthLocation() {
-		return Vec3.ZERO;
+	protected Vec3d getSouthLocation() {
+		return Vec3d.ZERO;
 	}
 
 }

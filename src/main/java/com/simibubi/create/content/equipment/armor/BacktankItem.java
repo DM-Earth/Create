@@ -2,26 +2,24 @@ package com.simibubi.create.content.equipment.armor;
 
 import java.util.Locale;
 import java.util.function.Supplier;
-
+import net.minecraft.block.Block;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ArmorItem;
+import net.minecraft.item.ArmorMaterial;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.content.equipment.armor.CapacityEnchantment.ICapacityEnchantable;
 import com.simibubi.create.foundation.item.LayeredArmorItem;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.ArmorMaterial;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.block.Block;
 
 public class BacktankItem extends BaseArmorItem implements ICapacityEnchantable {
 	public static final EquipmentSlot SLOT = EquipmentSlot.CHEST;
@@ -30,7 +28,7 @@ public class BacktankItem extends BaseArmorItem implements ICapacityEnchantable 
 	
 	private final Supplier<BacktankBlockItem> blockItem;
 
-	public BacktankItem(ArmorMaterial material, Properties properties, ResourceLocation textureLoc, Supplier<BacktankBlockItem> placeable) {
+	public BacktankItem(ArmorMaterial material, Settings properties, Identifier textureLoc, Supplier<BacktankBlockItem> placeable) {
 		super(material, TYPE, properties, textureLoc);
 		this.blockItem = placeable;
 	}
@@ -40,20 +38,20 @@ public class BacktankItem extends BaseArmorItem implements ICapacityEnchantable 
 		if (!(entity instanceof LivingEntity livingEntity)) {
 			return null;
 		}
-		if (!(livingEntity.getItemBySlot(SLOT).getItem() instanceof BacktankItem item)) {
+		if (!(livingEntity.getEquippedStack(SLOT).getItem() instanceof BacktankItem item)) {
 			return null;
 		}
 		return item;
 	}
 
 	@Override
-	public InteractionResult useOn(UseOnContext ctx) {
+	public ActionResult useOnBlock(ItemUsageContext ctx) {
 		return blockItem.get()
-			.useOn(ctx);
+			.useOnBlock(ctx);
 	}
 
 	@Override
-	public boolean canBeDepleted() {
+	public boolean isDamageable() {
 		return false;
 	}
 
@@ -63,17 +61,17 @@ public class BacktankItem extends BaseArmorItem implements ICapacityEnchantable 
 	}
 
 	@Override
-	public boolean isBarVisible(ItemStack stack) {
+	public boolean isItemBarVisible(ItemStack stack) {
 		return true;
 	}
 
 	@Override
-	public int getBarWidth(ItemStack stack) {
-		return Math.round(13.0F * Mth.clamp(getRemainingAir(stack) / ((float) BacktankUtil.maxAir(stack)), 0, 1));
+	public int getItemBarStep(ItemStack stack) {
+		return Math.round(13.0F * MathHelper.clamp(getRemainingAir(stack) / ((float) BacktankUtil.maxAir(stack)), 0, 1));
 	}
 
 	@Override
-	public int getBarColor(ItemStack stack) {
+	public int getItemBarColor(ItemStack stack) {
 		return BAR_COLOR;
 	}
 
@@ -82,21 +80,21 @@ public class BacktankItem extends BaseArmorItem implements ICapacityEnchantable 
 	}
 
 	public static int getRemainingAir(ItemStack stack) {
-		CompoundTag orCreateTag = stack.getOrCreateTag();
+		NbtCompound orCreateTag = stack.getOrCreateNbt();
 		return orCreateTag.getInt("Air");
 	}
 
 	public static class BacktankBlockItem extends BlockItem {
 		private final Supplier<Item> actualItem;
 
-		public BacktankBlockItem(Block block, Supplier<Item> actualItem, Properties properties) {
+		public BacktankBlockItem(Block block, Supplier<Item> actualItem, Settings properties) {
 			super(block, properties);
 			this.actualItem = actualItem;
 		}
 
 		@Override
-		public String getDescriptionId() {
-			return this.getOrCreateDescriptionId();
+		public String getTranslationKey() {
+			return this.getOrCreateTranslationKey();
 		}
 
 		public Item getActualItem() {
@@ -105,7 +103,7 @@ public class BacktankItem extends BaseArmorItem implements ICapacityEnchantable 
 	}
 
 	public static class Layered extends BacktankItem implements LayeredArmorItem {
-		public Layered(ArmorMaterial material, Properties properties, ResourceLocation textureLoc, Supplier<BacktankBlockItem> placeable) {
+		public Layered(ArmorMaterial material, Settings properties, Identifier textureLoc, Supplier<BacktankBlockItem> placeable) {
 			super(material, properties, textureLoc, placeable);
 		}
 

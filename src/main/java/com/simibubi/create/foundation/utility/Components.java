@@ -1,33 +1,33 @@
 package com.simibubi.create.foundation.utility;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 
 public final class Components {
-	private static final Component IMMUTABLE_EMPTY = Component.empty();
+	private static final Text IMMUTABLE_EMPTY = Text.empty();
 
-	public static Component immutableEmpty() {
+	public static Text immutableEmpty() {
 		return IMMUTABLE_EMPTY;
 	}
 
 	/** Use {@link #immutableEmpty()} when possible to prevent creating an extra object. */
-	public static MutableComponent empty() {
-		return Component.empty();
+	public static MutableText empty() {
+		return Text.empty();
 	}
 
-	public static MutableComponent literal(String str) {
-		return Component.literal(str);
+	public static MutableText literal(String str) {
+		return Text.literal(str);
 	}
 
-	public static MutableComponent translatable(String key) {
-		return Component.translatable(key);
+	public static MutableText translatable(String key) {
+		return Text.translatable(key);
 	}
 
-	public static MutableComponent translatable(String key, Object... args) {
-		return Component.translatable(key, args);
+	public static MutableText translatable(String key, Object... args) {
+		return Text.translatable(key, args);
 	}
 
-	public static MutableComponent keybind(String name) {
-		return Component.keybind(name);
+	public static MutableText keybind(String name) {
+		return Text.keybind(name);
 	}
 }

@@ -7,7 +7,19 @@ import java.util.Optional;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.PoweredRailBlock;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.entity.vehicle.MinecartEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import io.github.fabricators_of_create.porting_lib.core.util.INBTSerializable;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -23,29 +35,15 @@ import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.VecHelper;
 import io.github.fabricators_of_create.porting_lib.util.MinecartAndRailUtil;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.entity.vehicle.Minecart;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.PoweredRailBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
-
 /**
  * Extended code for Minecarts, this allows for handling stalled carts and
  * coupled trains
  */
-public class MinecartController implements INBTSerializable<CompoundTag> {
+public class MinecartController implements INBTSerializable<NbtCompound> {
 
 	public static MinecartController EMPTY;
 	private boolean needsEntryRefresh;
-	private WeakReference<AbstractMinecart> weakRef;
+	private WeakReference<AbstractMinecartEntity> weakRef;
 
 	/*
 	 * Stall information, <Internal (waiting couplings), External (stalled
@@ -59,7 +57,7 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 	 */
 	private Couple<Optional<CouplingData>> couplings;
 
-	public MinecartController(AbstractMinecart minecart) {
+	public MinecartController(AbstractMinecartEntity minecart) {
 		weakRef = new WeakReference<>(minecart);
 		stallData = Couple.create(Optional::empty);
 		couplings = Couple.create(Optional::empty);
@@ -67,8 +65,8 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 	}
 
 	public void tick() {
-		AbstractMinecart cart = cart();
-		Level world = getWorld();
+		AbstractMinecartEntity cart = cart();
+		World world = getWorld();
 
 		if (needsEntryRefresh) {
 			CapabilityMinecartController.queuedAdditions.get(world).add(cart);
@@ -86,43 +84,43 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 				internalStall.booleanValue() || otherCart == null || !otherCart.isPresent() || otherCart.isStalled(false));
 
 		}));
-		if (!world.isClientSide) {
+		if (!world.isClient) {
 			setStalled(internalStall.booleanValue(), true);
 			disassemble(cart);
 		}
 	}
 
-	private void disassemble(AbstractMinecart cart) {
-		if (cart instanceof Minecart) {
+	private void disassemble(AbstractMinecartEntity cart) {
+		if (cart instanceof MinecartEntity) {
 			return;
 		}
-		List<Entity> passengers = cart.getPassengers();
+		List<Entity> passengers = cart.getPassengerList();
 		if (passengers.isEmpty() || !(passengers.get(0) instanceof AbstractContraptionEntity)) {
 			return;
 		}
-		Level world = cart.level();
-		int i = Mth.floor(cart.getX());
-		int j = Mth.floor(cart.getY());
-		int k = Mth.floor(cart.getZ());
+		World world = cart.getWorld();
+		int i = MathHelper.floor(cart.getX());
+		int j = MathHelper.floor(cart.getY());
+		int k = MathHelper.floor(cart.getZ());
 		if (world.getBlockState(new BlockPos(i, j - 1, k))
-				.is(BlockTags.RAILS)) {
+				.isIn(BlockTags.RAILS)) {
 			--j;
 		}
 		BlockPos blockpos = new BlockPos(i, j, k);
 		BlockState blockstate = world.getBlockState(blockpos);
-		if (blockstate.is(BlockTags.RAILS)
+		if (blockstate.isIn(BlockTags.RAILS)
 				&& blockstate.getBlock() instanceof PoweredRailBlock
 				&& (MinecartAndRailUtil.isActivatorRail(
 				blockstate.getBlock()))) {
-			if (cart.isVehicle()) {
-				cart.ejectPassengers();
+			if (cart.hasPassengers()) {
+				cart.removeAllPassengers();
 			}
 
-			if (cart.getHurtTime() == 0) {
-				cart.setHurtDir(-cart.getHurtDir());
-				cart.setHurtTime(10);
-				cart.setDamage(50.0F);
-				cart.hurtMarked = true;
+			if (cart.getDamageWobbleTicks() == 0) {
+				cart.setDamageWobbleSide(-cart.getDamageWobbleSide());
+				cart.setDamageWobbleTicks(10);
+				cart.setDamageWobbleStrength(50.0F);
+				cart.velocityModified = true;
 			}
 		}
 	}
@@ -173,8 +171,8 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 	}
 
 	public void removeConnection(boolean main) {
-		if (hasContraptionCoupling(main) && !getWorld().isClientSide) {
-			List<Entity> passengers = cart().getPassengers();
+		if (hasContraptionCoupling(main) && !getWorld().isClient) {
+			List<Entity> passengers = cart().getPassengerList();
 			if (!passengers.isEmpty()) {
 				Entity entity = passengers.get(0);
 				if (entity instanceof AbstractContraptionEntity)
@@ -214,7 +212,7 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 					if (!cd.contraption)
 						return;
 					List<Entity> passengers = mc.cart()
-						.getPassengers();
+						.getPassengerList();
 					if (passengers.isEmpty())
 						return;
 					Entity entity = passengers.get(0);
@@ -241,8 +239,8 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 	}
 
 	public void coupleWith(boolean isLeading, UUID coupled, float length, boolean contraption) {
-		UUID mainID = isLeading ? cart().getUUID() : coupled;
-		UUID connectedID = isLeading ? coupled : cart().getUUID();
+		UUID mainID = isLeading ? cart().getUuid() : coupled;
+		UUID connectedID = isLeading ? coupled : cart().getUuid();
 		couplings.set(isLeading, Optional.of(new CouplingData(mainID, connectedID, length, contraption)));
 		needsEntryRefresh |= isLeading;
 		sendData();
@@ -274,7 +272,7 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 		if (isStalled(internal) == stall)
 			return;
 
-		AbstractMinecart cart = cart();
+		AbstractMinecartEntity cart = cart();
 		if (stall) {
 			stallData.set(internal, Optional.of(new StallData(cart)));
 			sendData();
@@ -291,15 +289,15 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 	}
 
 	public void sendData() {
-		if (getWorld().isClientSide)
+		if (getWorld().isClient)
 			return;
 		AllPackets.getChannel().sendToClientsTracking(
 				new MinecartControllerUpdatePacket(this), this.cart());
 	}
 
 	@Override
-	public CompoundTag serializeNBT() {
-		CompoundTag compoundNBT = new CompoundTag();
+	public NbtCompound serializeNBT() {
+		NbtCompound compoundNBT = new NbtCompound();
 
 		stallData.forEachWithContext((opt, internal) -> opt
 			.ifPresent(sd -> compoundNBT.put(internal ? "InternalStallData" : "StallData", sd.serialize())));
@@ -309,7 +307,7 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 	}
 
 	@Override
-	public void deserializeNBT(CompoundTag nbt) {
+	public void deserializeNBT(NbtCompound nbt) {
 		Optional<StallData> internalSD = Optional.empty();
 		Optional<StallData> externalSD = Optional.empty();
 		Optional<CouplingData> mainCD = Optional.empty();
@@ -333,7 +331,7 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 		return weakRef.get() != null && cart().isAlive();
 	}
 
-	public AbstractMinecart cart() {
+	public AbstractMinecartEntity cart() {
 		return weakRef.get();
 	}
 
@@ -341,8 +339,8 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 		return EMPTY != null ? EMPTY : (EMPTY = new MinecartController(null));
 	}
 
-	private Level getWorld() {
-		return cart().getCommandSenderWorld();
+	private World getWorld() {
+		return cart().getEntityWorld();
 	}
 
 	private static class CouplingData {
@@ -365,18 +363,18 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 			connectedCartID = swap;
 		}
 
-		CompoundTag serialize() {
-			CompoundTag nbt = new CompoundTag();
-			nbt.put("Main", NbtUtils.createUUID(mainCartID));
-			nbt.put("Connected", NbtUtils.createUUID(connectedCartID));
+		NbtCompound serialize() {
+			NbtCompound nbt = new NbtCompound();
+			nbt.put("Main", NbtHelper.fromUuid(mainCartID));
+			nbt.put("Connected", NbtHelper.fromUuid(connectedCartID));
 			nbt.putFloat("Length", length);
 			nbt.putBoolean("Contraption", contraption);
 			return nbt;
 		}
 
-		static CouplingData read(CompoundTag nbt) {
-			UUID mainCartID = NbtUtils.loadUUID(NBTHelper.getINBT(nbt, "Main"));
-			UUID connectedCartID = NbtUtils.loadUUID(NBTHelper.getINBT(nbt, "Connected"));
+		static CouplingData read(NbtCompound nbt) {
+			UUID mainCartID = NbtHelper.toUuid(NBTHelper.getINBT(nbt, "Main"));
+			UUID connectedCartID = NbtHelper.toUuid(NBTHelper.getINBT(nbt, "Connected"));
 			float length = nbt.getFloat("Length");
 			boolean contraption = nbt.getBoolean("Contraption");
 			return new CouplingData(mainCartID, connectedCartID, length, contraption);
@@ -389,33 +387,33 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 	}
 
 	private static class StallData {
-		Vec3 position;
-		Vec3 motion;
+		Vec3d position;
+		Vec3d motion;
 		float yaw, pitch;
 
 		private StallData() {}
 
-		StallData(AbstractMinecart entity) {
-			position = entity.position();
-			motion = entity.getDeltaMovement();
-			yaw = entity.getYRot();
-			pitch = entity.getXRot();
+		StallData(AbstractMinecartEntity entity) {
+			position = entity.getPos();
+			motion = entity.getVelocity();
+			yaw = entity.getYaw();
+			pitch = entity.getPitch();
 			tick(entity);
 		}
 
-		void tick(AbstractMinecart entity) {
+		void tick(AbstractMinecartEntity entity) {
 //			entity.setPos(position.x, position.y, position.z);
-			entity.setDeltaMovement(Vec3.ZERO);
-			entity.setYRot(yaw);
-			entity.setXRot(pitch);
+			entity.setVelocity(Vec3d.ZERO);
+			entity.setYaw(yaw);
+			entity.setPitch(pitch);
 		}
 
-		void release(AbstractMinecart entity) {
-			entity.setDeltaMovement(motion);
+		void release(AbstractMinecartEntity entity) {
+			entity.setVelocity(motion);
 		}
 
-		CompoundTag serialize() {
-			CompoundTag nbt = new CompoundTag();
+		NbtCompound serialize() {
+			NbtCompound nbt = new NbtCompound();
 			nbt.put("Pos", VecHelper.writeNBT(position));
 			nbt.put("Motion", VecHelper.writeNBT(motion));
 			nbt.putFloat("Yaw", yaw);
@@ -423,10 +421,10 @@ public class MinecartController implements INBTSerializable<CompoundTag> {
 			return nbt;
 		}
 
-		static StallData read(CompoundTag nbt) {
+		static StallData read(NbtCompound nbt) {
 			StallData stallData = new StallData();
-			stallData.position = VecHelper.readNBT(nbt.getList("Pos", Tag.TAG_DOUBLE));
-			stallData.motion = VecHelper.readNBT(nbt.getList("Motion", Tag.TAG_DOUBLE));
+			stallData.position = VecHelper.readNBT(nbt.getList("Pos", NbtElement.DOUBLE_TYPE));
+			stallData.motion = VecHelper.readNBT(nbt.getList("Motion", NbtElement.DOUBLE_TYPE));
 			stallData.yaw = nbt.getFloat("Yaw");
 			stallData.pitch = nbt.getFloat("Pitch");
 			return stallData;

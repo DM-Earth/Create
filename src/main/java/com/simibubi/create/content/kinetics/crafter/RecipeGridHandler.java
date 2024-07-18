@@ -9,7 +9,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.FireworkRocketRecipe;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Predicates;
@@ -20,19 +32,6 @@ import com.simibubi.create.foundation.utility.Pointing;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.FireworkRocketRecipe;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class RecipeGridHandler {
 
@@ -67,8 +66,8 @@ public class RecipeGridHandler {
 				empty = true;
 			else
 				allEmpty = false;
-			if (poweredStart && current.getLevel()
-				.hasNeighborSignal(current.getBlockPos()))
+			if (poweredStart && current.getWorld()
+				.isReceivingRedstonePower(current.getPos()))
 				powered = true;
 
 			crafters.add(current);
@@ -86,33 +85,33 @@ public class RecipeGridHandler {
 	}
 
 	public static MechanicalCrafterBlockEntity getTargetingCrafter(MechanicalCrafterBlockEntity crafter) {
-		BlockState state = crafter.getBlockState();
+		BlockState state = crafter.getCachedState();
 		if (!isCrafter(state))
 			return null;
 
-		BlockPos targetPos = crafter.getBlockPos()
-			.relative(MechanicalCrafterBlock.getTargetDirection(state));
-		MechanicalCrafterBlockEntity targetBE = CrafterHelper.getCrafter(crafter.getLevel(), targetPos);
+		BlockPos targetPos = crafter.getPos()
+			.offset(MechanicalCrafterBlock.getTargetDirection(state));
+		MechanicalCrafterBlockEntity targetBE = CrafterHelper.getCrafter(crafter.getWorld(), targetPos);
 		if (targetBE == null)
 			return null;
 
-		BlockState targetState = targetBE.getBlockState();
+		BlockState targetState = targetBE.getCachedState();
 		if (!isCrafter(targetState))
 			return null;
-		if (state.getValue(HORIZONTAL_FACING) != targetState.getValue(HORIZONTAL_FACING))
+		if (state.get(HORIZONTAL_FACING) != targetState.get(HORIZONTAL_FACING))
 			return null;
 		return targetBE;
 	}
 
 	public static List<MechanicalCrafterBlockEntity> getPrecedingCrafters(MechanicalCrafterBlockEntity crafter) {
-		BlockPos pos = crafter.getBlockPos();
-		Level world = crafter.getLevel();
+		BlockPos pos = crafter.getPos();
+		World world = crafter.getWorld();
 		List<MechanicalCrafterBlockEntity> crafters = new ArrayList<>();
-		BlockState blockState = crafter.getBlockState();
+		BlockState blockState = crafter.getCachedState();
 		if (!isCrafter(blockState))
 			return crafters;
 
-		Direction blockFacing = blockState.getValue(HORIZONTAL_FACING);
+		Direction blockFacing = blockState.get(HORIZONTAL_FACING);
 		Direction blockPointing = MechanicalCrafterBlock.getTargetDirection(blockState);
 		for (Direction facing : Iterate.directions) {
 			if (blockFacing.getAxis() == facing.getAxis())
@@ -120,13 +119,13 @@ public class RecipeGridHandler {
 			if (blockPointing == facing)
 				continue;
 
-			BlockPos neighbourPos = pos.relative(facing);
+			BlockPos neighbourPos = pos.offset(facing);
 			BlockState neighbourState = world.getBlockState(neighbourPos);
 			if (!isCrafter(neighbourState))
 				continue;
 			if (MechanicalCrafterBlock.getTargetDirection(neighbourState) != facing.getOpposite())
 				continue;
-			if (blockFacing != neighbourState.getValue(HORIZONTAL_FACING))
+			if (blockFacing != neighbourState.get(HORIZONTAL_FACING))
 				continue;
 			MechanicalCrafterBlockEntity be = CrafterHelper.getCrafter(world, neighbourPos);
 			if (be == null)
@@ -142,29 +141,29 @@ public class RecipeGridHandler {
 		return AllBlocks.MECHANICAL_CRAFTER.has(state);
 	}
 
-	public static ItemStack tryToApplyRecipe(Level world, GroupedItems items) {
+	public static ItemStack tryToApplyRecipe(World world, GroupedItems items) {
 		items.calcStats();
-		CraftingContainer craftinginventory = new MechanicalCraftingInventory(items);
+		RecipeInputInventory craftinginventory = new MechanicalCraftingInventory(items);
 		ItemStack result = null;
-		RegistryAccess registryAccess = world.registryAccess();
+		DynamicRegistryManager registryAccess = world.getRegistryManager();
 		if (AllConfigs.server().recipes.allowRegularCraftingInCrafter.get())
 			result = world.getRecipeManager()
-				.getRecipeFor(RecipeType.CRAFTING, craftinginventory, world)
+				.getFirstMatch(RecipeType.CRAFTING, craftinginventory, world)
 				.filter(r -> isRecipeAllowed(r, craftinginventory))
-				.map(r -> r.assemble(craftinginventory, registryAccess))
+				.map(r -> r.craft(craftinginventory, registryAccess))
 				.orElse(null);
 		if (result == null)
 			result = AllRecipeTypes.MECHANICAL_CRAFTING.find(craftinginventory, world)
-				.map(r -> r.assemble(craftinginventory, registryAccess))
+				.map(r -> r.craft(craftinginventory, registryAccess))
 				.orElse(null);
 		return result;
 	}
 
-	public static boolean isRecipeAllowed(CraftingRecipe recipe, CraftingContainer inventory) {
+	public static boolean isRecipeAllowed(CraftingRecipe recipe, RecipeInputInventory inventory) {
 		if (recipe instanceof FireworkRocketRecipe) {
 			int numItems = 0;
-			for (int i = 0; i < inventory.getContainerSize(); i++) {
-				if (!inventory.getItem(i).isEmpty()) {
+			for (int i = 0; i < inventory.size(); i++) {
+				if (!inventory.getStack(i).isEmpty()) {
 					numItems++;
 				}
 			}
@@ -196,10 +195,10 @@ public class RecipeGridHandler {
 			other.statsReady = false;
 		}
 
-		public void write(CompoundTag nbt) {
-			ListTag gridNBT = new ListTag();
+		public void write(NbtCompound nbt) {
+			NbtList gridNBT = new NbtList();
 			grid.forEach((pair, stack) -> {
-				CompoundTag entry = new CompoundTag();
+				NbtCompound entry = new NbtCompound();
 				entry.putInt("x", pair.getKey());
 				entry.putInt("y", pair.getValue());
 				entry.put("item", NBTSerializer.serializeNBT(stack));
@@ -208,14 +207,14 @@ public class RecipeGridHandler {
 			nbt.put("Grid", gridNBT);
 		}
 
-		public static GroupedItems read(CompoundTag nbt) {
+		public static GroupedItems read(NbtCompound nbt) {
 			GroupedItems items = new GroupedItems();
-			ListTag gridNBT = nbt.getList("Grid", Tag.TAG_COMPOUND);
+			NbtList gridNBT = nbt.getList("Grid", NbtElement.COMPOUND_TYPE);
 			gridNBT.forEach(inbt -> {
-				CompoundTag entry = (CompoundTag) inbt;
+				NbtCompound entry = (NbtCompound) inbt;
 				int x = entry.getInt("x");
 				int y = entry.getInt("y");
-				ItemStack stack = ItemStack.of(entry.getCompound("item"));
+				ItemStack stack = ItemStack.fromNbt(entry.getCompound("item"));
 				items.grid.put(Pair.of(x, y), stack);
 			});
 			return items;

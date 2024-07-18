@@ -3,16 +3,15 @@ package com.simibubi.create.content.kinetics.waterwheel;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.core.model.BlockModel;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.kinetics.base.CutoutRotatingInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.foundation.render.CachedBufferer;
-
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.AxisDirection;
 
 public class WaterWheelInstance<T extends WaterWheelBlockEntity> extends CutoutRotatingInstance<T> {
 	protected final boolean large;
@@ -44,12 +43,12 @@ public class WaterWheelInstance<T extends WaterWheelBlockEntity> extends CutoutR
 			BlockState state = key.state();
 			Direction dir;
 			if (key.large()) {
-				dir = Direction.fromAxisAndDirection(state.getValue(LargeWaterWheelBlock.AXIS), AxisDirection.POSITIVE);
+				dir = Direction.from(state.get(LargeWaterWheelBlock.AXIS), AxisDirection.POSITIVE);
 			} else {
-				dir = state.getValue(WaterWheelBlock.FACING);
+				dir = state.get(WaterWheelBlock.FACING);
 			}
-			PoseStack transform = CachedBufferer.rotateToFaceVertical(dir).get();
-			return BlockModel.of(model, Blocks.AIR.defaultBlockState(), transform);
+			MatrixStack transform = CachedBufferer.rotateToFaceVertical(dir).get();
+			return BlockModel.of(model, Blocks.AIR.getDefaultState(), transform);
 		});
 	}
 }

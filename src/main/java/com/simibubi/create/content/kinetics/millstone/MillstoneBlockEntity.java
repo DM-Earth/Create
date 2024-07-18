@@ -32,17 +32,17 @@ import net.fabricmc.fabric.api.transfer.v1.storage.base.CombinedStorage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.particles.ItemParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ItemStackParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class MillstoneBlockEntity extends KineticBlockEntity implements SidedStorageBlockEntity {
 
@@ -77,8 +77,8 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 			.isEmpty())
 			return;
 
-		float pitch = Mth.clamp((Math.abs(getSpeed()) / 256f) + .45f, .85f, 1f);
-		SoundScapes.play(AmbienceGroup.MILLING, worldPosition, pitch);
+		float pitch = MathHelper.clamp((Math.abs(getSpeed()) / 256f) + .45f, .85f, 1f);
+		SoundScapes.play(AmbienceGroup.MILLING, pos, pitch);
 	}
 
 	@Override
@@ -95,7 +95,7 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 		if (timer > 0) {
 			timer -= getProcessingSpeed();
 
-			if (level.isClientSide) {
+			if (world.isClient) {
 				spawnParticles();
 				return;
 			}
@@ -108,8 +108,8 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 			.isEmpty())
 			return;
 
-		if (lastRecipe == null || !lastRecipe.matches(inputInv, level)) {
-			Optional<MillingRecipe> recipe = AllRecipeTypes.MILLING.find(inputInv, level);
+		if (lastRecipe == null || !lastRecipe.matches(inputInv, world)) {
+			Optional<MillingRecipe> recipe = AllRecipeTypes.MILLING.find(inputInv, world);
 			if (!recipe.isPresent()) {
 				timer = 100;
 				sendData();
@@ -133,13 +133,13 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 	@Override
 	public void destroy() {
 		super.destroy();
-		ItemHelper.dropContents(level, worldPosition, inputInv);
-		ItemHelper.dropContents(level, worldPosition, outputInv);
+		ItemHelper.dropContents(world, pos, inputInv);
+		ItemHelper.dropContents(world, pos, outputInv);
 	}
 
 	private void process() {
-		if (lastRecipe == null || !lastRecipe.matches(inputInv, level)) {
-			Optional<MillingRecipe> recipe = AllRecipeTypes.MILLING.find(inputInv, level);
+		if (lastRecipe == null || !lastRecipe.matches(inputInv, world)) {
+			Optional<MillingRecipe> recipe = AllRecipeTypes.MILLING.find(inputInv, world);
 			if (!recipe.isPresent())
 				return;
 			lastRecipe = recipe.get();
@@ -154,7 +154,7 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 		award(AllAdvancements.MILLSTONE);
 
 		sendData();
-		setChanged();
+		markDirty();
 	}
 
 	public void spawnParticles() {
@@ -162,19 +162,19 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 		if (stackInSlot.isEmpty())
 			return;
 
-		ItemParticleOption data = new ItemParticleOption(ParticleTypes.ITEM, stackInSlot);
-		float angle = level.random.nextFloat() * 360;
-		Vec3 offset = new Vec3(0, 0, 0.5f);
+		ItemStackParticleEffect data = new ItemStackParticleEffect(ParticleTypes.ITEM, stackInSlot);
+		float angle = world.random.nextFloat() * 360;
+		Vec3d offset = new Vec3d(0, 0, 0.5f);
 		offset = VecHelper.rotate(offset, angle, Axis.Y);
-		Vec3 target = VecHelper.rotate(offset, getSpeed() > 0 ? 25 : -25, Axis.Y);
+		Vec3d target = VecHelper.rotate(offset, getSpeed() > 0 ? 25 : -25, Axis.Y);
 
-		Vec3 center = offset.add(VecHelper.getCenterOf(worldPosition));
-		target = VecHelper.offsetRandomly(target.subtract(offset), level.random, 1 / 128f);
-		level.addParticle(data, center.x, center.y, center.z, target.x, target.y, target.z);
+		Vec3d center = offset.add(VecHelper.getCenterOf(pos));
+		target = VecHelper.offsetRandomly(target.subtract(offset), world.random, 1 / 128f);
+		world.addParticle(data, center.x, center.y, center.z, target.x, target.y, target.z);
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putInt("Timer", timer);
 		compound.put("InputInventory", inputInv.serializeNBT());
 		compound.put("OutputInventory", outputInv.serializeNBT());
@@ -182,7 +182,7 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		timer = compound.getInt("Timer");
 		inputInv.deserializeNBT(compound.getCompound("InputInventory"));
 		outputInv.deserializeNBT(compound.getCompound("OutputInventory"));
@@ -190,7 +190,7 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 	}
 
 	public int getProcessingSpeed() {
-		return Mth.clamp((int) Math.abs(getSpeed() / 16f), 1, 512);
+		return MathHelper.clamp((int) Math.abs(getSpeed() / 16f), 1, 512);
 	}
 
 	@Nullable
@@ -203,9 +203,9 @@ public class MillstoneBlockEntity extends KineticBlockEntity implements SidedSto
 		ItemStackHandlerContainer tester = new ItemStackHandlerContainer(1);
 		tester.setStackInSlot(0, stack);
 
-		if (lastRecipe != null && lastRecipe.matches(tester, level))
+		if (lastRecipe != null && lastRecipe.matches(tester, world))
 			return true;
-		return AllRecipeTypes.MILLING.find(tester, level)
+		return AllRecipeTypes.MILLING.find(tester, world)
 			.isPresent();
 	}
 

@@ -16,20 +16,19 @@ import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.ponder.instruction.EmitParticlesInstruction.Emitter;
 import com.simibubi.create.foundation.utility.Pointing;
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.WalkAnimationState;
-import net.minecraft.world.entity.animal.Sheep;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LimbAnimator;
+import net.minecraft.entity.passive.SheepEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class DeployerScenes {
 
@@ -41,7 +40,7 @@ public class DeployerScenes {
 		BlockPos deployerPos = util.grid.at(3, 1, 2);
 		Selection deployerSelection = util.select.position(deployerPos);
 
-		scene.world.setBlock(potPosition, Blocks.AIR.defaultBlockState(), false);
+		scene.world.setBlock(potPosition, Blocks.AIR.getDefaultState(), false);
 		scene.world.showSection(util.select.layer(0)
 			.add(util.select.position(1, 1, 2)), Direction.UP);
 		scene.idle(5);
@@ -106,7 +105,7 @@ public class DeployerScenes {
 		scene.idle(50);
 
 		ItemStack pot = new ItemStack(Items.FLOWER_POT);
-		Vec3 frontVec = util.vector.blockSurface(deployerPos, Direction.WEST)
+		Vec3d frontVec = util.vector.blockSurface(deployerPos, Direction.WEST)
 			.add(-.125, 0, 0);
 
 		scene.overlay.showControls(new InputWindowElement(frontVec, Pointing.DOWN).rightClick()
@@ -130,10 +129,10 @@ public class DeployerScenes {
 		scene.world.moveDeployer(deployerPos, -1, 25);
 		scene.idle(20);
 
-		scene.world.showSection(util.select.position(deployerPos.above()), Direction.DOWN);
+		scene.world.showSection(util.select.position(deployerPos.up()), Direction.DOWN);
 
 		ItemStack tulip = new ItemStack(Items.RED_TULIP);
-		Vec3 entitySpawn = util.vector.topOf(deployerPos.above(3));
+		Vec3d entitySpawn = util.vector.topOf(deployerPos.up(3));
 
 		ElementLink<EntityElement> entity1 =
 			scene.world.createItemEntity(entitySpawn, util.vector.of(0, 0.2, 0), tulip);
@@ -148,16 +147,16 @@ public class DeployerScenes {
 		scene.idle(30);
 		scene.world.moveDeployer(deployerPos, 1, 25);
 		scene.idle(26);
-		scene.world.setBlock(potPosition, Blocks.POTTED_RED_TULIP.defaultBlockState(), false);
+		scene.world.setBlock(potPosition, Blocks.POTTED_RED_TULIP.getDefaultState(), false);
 		scene.world.modifyBlockEntityNBT(deployerSelection, teType,
 			nbt -> nbt.put("HeldItem", NBTSerializer.serializeNBT(ItemStack.EMPTY)));
 		scene.world.moveDeployer(deployerPos, -1, 25);
 		scene.idle(25);
 		scene.world.hideSection(util.select.position(potPosition), Direction.UP);
-		scene.world.hideSection(util.select.position(deployerPos.above()), Direction.EAST);
+		scene.world.hideSection(util.select.position(deployerPos.up()), Direction.EAST);
 		scene.idle(20);
 
-		Vec3 filterSlot = util.vector.topOf(deployerPos)
+		Vec3d filterSlot = util.vector.topOf(deployerPos)
 			.add(2 / 16f, 0, 0);
 		scene.overlay.showFilterSlotInput(filterSlot, Direction.UP, 80);
 		scene.overlay.showText(40)
@@ -180,24 +179,24 @@ public class DeployerScenes {
 		scene.idle(70);
 
 		ElementLink<EntityElement> sheep = scene.world.createEntity(w -> {
-			Sheep entity = EntityType.SHEEP.create(w);
+			SheepEntity entity = EntityType.SHEEP.create(w);
 			entity.setColor(DyeColor.PINK);
-			Vec3 p = util.vector.topOf(util.grid.at(1, 0, 2));
-			entity.setPos(p.x, p.y, p.z);
-			entity.xo = p.x;
-			entity.yo = p.y;
-			entity.zo = p.z;
-			WalkAnimationState animation = entity.walkAnimation;
-			animation.update(-animation.position(), 1);
+			Vec3d p = util.vector.topOf(util.grid.at(1, 0, 2));
+			entity.setPosition(p.x, p.y, p.z);
+			entity.prevX = p.x;
+			entity.prevY = p.y;
+			entity.prevZ = p.z;
+			LimbAnimator animation = entity.limbAnimator;
+			animation.updateLimbs(-animation.getPos(), 1);
 			animation.setSpeed(1);
-			entity.yRotO = 210;
-			entity.setYRot(210);
-			entity.yHeadRotO = 210;
-			entity.yHeadRot = 210;
+			entity.prevYaw = 210;
+			entity.setYaw(210);
+			entity.prevHeadYaw = 210;
+			entity.headYaw = 210;
 			return entity;
 		});
 		scene.idle(20);
-		scene.world.showSection(util.select.position(deployerPos.above()), Direction.WEST);
+		scene.world.showSection(util.select.position(deployerPos.up()), Direction.WEST);
 		entity1 = scene.world.createItemEntity(entitySpawn, util.vector.of(0, 0.2, 0), shears);
 		scene.idle(17);
 		scene.world.modifyEntity(entity1, Entity::discard);
@@ -212,10 +211,10 @@ public class DeployerScenes {
 		scene.idle(70);
 		scene.world.moveDeployer(deployerPos, 1, 25);
 		scene.idle(26);
-		scene.world.modifyEntity(sheep, e -> ((Sheep) e).setSheared(true));
+		scene.world.modifyEntity(sheep, e -> ((SheepEntity) e).setSheared(true));
 		scene.effects.emitParticles(util.vector.topOf(deployerPos.west(2))
 			.add(0, -.25, 0),
-			Emitter.withinBlockSpace(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.PINK_WOOL.defaultBlockState()),
+			Emitter.withinBlockSpace(new BlockStateParticleEffect(ParticleTypes.BLOCK, Blocks.PINK_WOOL.getDefaultState()),
 				util.vector.of(0, 0, 0)),
 			25, 1);
 		scene.world.moveDeployer(deployerPos, -1, 25);
@@ -249,7 +248,7 @@ public class DeployerScenes {
 		scene.idle(10);
 
 		BlockPos deployerPos = util.grid.at(3, 1, 2);
-		Vec3 frontVec = util.vector.blockSurface(deployerPos, Direction.WEST)
+		Vec3d frontVec = util.vector.blockSurface(deployerPos, Direction.WEST)
 			.add(-.125, 0, 0);
 		Selection grassBlock = util.select.position(1, 1, 2);
 
@@ -278,7 +277,7 @@ public class DeployerScenes {
 			.text("By default, a Deployer imitates a Right-click interaction");
 
 		scene.idle(26);
-		scene.world.replaceBlocks(grassBlock, Blocks.FARMLAND.defaultBlockState(), false);
+		scene.world.replaceBlocks(grassBlock, Blocks.FARMLAND.getDefaultState(), false);
 		scene.world.moveDeployer(deployerPos, -1, 25);
 		scene.idle(46);
 
@@ -342,14 +341,14 @@ public class DeployerScenes {
 		scene.idle(10);
 
 		ItemStack tool = AllItems.SAND_PAPER.asStack();
-		scene.overlay.showControls(new InputWindowElement(util.vector.blockSurface(pressPos.below(), Direction.EAST)
+		scene.overlay.showControls(new InputWindowElement(util.vector.blockSurface(pressPos.down(), Direction.EAST)
 			.add(0, 0.15, 0), Pointing.RIGHT).withItem(tool), 30);
 		scene.idle(7);
 		scene.world.modifyBlockEntityNBT(pressS, DeployerBlockEntity.class,
 			nbt -> nbt.put("HeldItem", NBTSerializer.serializeNBT(tool)));
 		scene.idle(25);
 
-		Vec3 pressSide = util.vector.blockSurface(pressPos, Direction.WEST);
+		Vec3d pressSide = util.vector.blockSurface(pressPos, Direction.WEST);
 		scene.overlay.showText(60)
 			.pointAt(pressSide)
 			.placeNearTarget()
@@ -364,11 +363,11 @@ public class DeployerScenes {
 		scene.idle(50);
 		ItemStack quartz = AllItems.ROSE_QUARTZ.asStack();
 		scene.world.createItemOnBeltLike(depotPos, Direction.NORTH, quartz);
-		Vec3 depotCenter = util.vector.centerOf(depotPos.south());
+		Vec3d depotCenter = util.vector.centerOf(depotPos.south());
 		scene.overlay.showControls(new InputWindowElement(depotCenter, Pointing.UP).withItem(quartz), 30);
 		scene.idle(10);
 
-		Vec3 targetV = util.vector.centerOf(pressPos)
+		Vec3d targetV = util.vector.centerOf(pressPos)
 			.subtract(0, 1.65, 0);
 
 		scene.world.moveDeployer(pressPos, 1, 30);
@@ -413,8 +412,8 @@ public class DeployerScenes {
 		scene.idle(30);
 		scene.world.moveDeployer(pressPos, -1, 30);
 		scene.debug.enqueueCallback(s -> SandPaperItem.spawnParticles(targetV, quartz, s.getWorld()));
-		scene.world.removeItemsFromBelt(pressPos.below(2));
-		ingot = scene.world.createItemOnBelt(pressPos.below(2), Direction.UP, polished);
+		scene.world.removeItemsFromBelt(pressPos.down(2));
+		ingot = scene.world.createItemOnBelt(pressPos.down(2), Direction.UP, polished);
 		scene.world.stallBeltItem(ingot, true);
 		scene.idle(15);
 		scene.world.stallBeltItem(ingot, false);
@@ -424,8 +423,8 @@ public class DeployerScenes {
 		scene.idle(30);
 		scene.world.moveDeployer(pressPos, -1, 30);
 		scene.debug.enqueueCallback(s -> SandPaperItem.spawnParticles(targetV, quartz, s.getWorld()));
-		scene.world.removeItemsFromBelt(pressPos.below(2));
-		ingot2 = scene.world.createItemOnBelt(pressPos.below(2), Direction.UP, polished);
+		scene.world.removeItemsFromBelt(pressPos.down(2));
+		ingot2 = scene.world.createItemOnBelt(pressPos.down(2), Direction.UP, polished);
 		scene.world.stallBeltItem(ingot2, true);
 		scene.idle(15);
 		scene.world.stallBeltItem(ingot2, false);
@@ -502,7 +501,7 @@ public class DeployerScenes {
 		scene.configureBasePlate(0, 0, 6);
 		scene.scaleSceneView(.9f);
 		Selection flowers = util.select.fromTo(4, 1, 1, 1, 1, 1);
-		scene.world.replaceBlocks(flowers, Blocks.AIR.defaultBlockState(), false);
+		scene.world.replaceBlocks(flowers, Blocks.AIR.getDefaultState(), false);
 
 		Selection kinetics = util.select.fromTo(5, 1, 6, 5, 1, 3);
 		BlockPos deployerPos = util.grid.at(4, 1, 3);
@@ -553,10 +552,10 @@ public class DeployerScenes {
 
 		scene.world.hideSection(flowers, Direction.UP);
 		scene.idle(15);
-		scene.world.replaceBlocks(flowers, Blocks.AIR.defaultBlockState(), false);
+		scene.world.replaceBlocks(flowers, Blocks.AIR.getDefaultState(), false);
 		scene.world.showSection(flowers, Direction.UP);
 
-		Vec3 filterSlot = util.vector.blockSurface(deployerPos.west(3), Direction.WEST)
+		Vec3d filterSlot = util.vector.blockSurface(deployerPos.west(3), Direction.WEST)
 			.add(0, 0, 2 / 16f);
 		scene.overlay.showFilterSlotInput(filterSlot, Direction.WEST, 80);
 		scene.overlay.showText(60)
@@ -581,7 +580,7 @@ public class DeployerScenes {
 			scene.world.moveDeployer(deployerPos, 1, 9);
 			scene.idle(10);
 			scene.world.moveDeployer(deployerPos, -1, 9);
-			scene.world.setBlock(util.grid.at(1 + x, 1, 1), Blocks.POPPY.defaultBlockState(), false);
+			scene.world.setBlock(util.grid.at(1 + x, 1, 1), Blocks.POPPY.getDefaultState(), false);
 			scene.idle(18);
 		}
 

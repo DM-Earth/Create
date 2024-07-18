@@ -13,9 +13,9 @@ import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Hand;
 import net.minecraft.util.Unit;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
 
 public class DeployerItemHandler extends SnapshotParticipant<Unit> implements Storage<ItemVariant> {
 
@@ -30,20 +30,20 @@ public class DeployerItemHandler extends SnapshotParticipant<Unit> implements St
 	public ItemStack getHeld() {
 		if (player == null)
 			return ItemStack.EMPTY;
-		return player.getMainHandItem();
+		return player.getMainHandStack();
 	}
 
 	public void set(ItemStack stack) {
 		if (player == null)
 			return;
-		if (be.getLevel().isClientSide)
+		if (be.getWorld().isClient)
 			return;
-		player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+		player.setStackInHand(Hand.MAIN_HAND, stack);
 	}
 
 	@Override
 	public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
-		int maxInsert = Math.min((int) maxAmount, resource.getItem().getMaxStackSize());
+		int maxInsert = Math.min((int) maxAmount, resource.getItem().getMaxCount());
 		ItemStack stack = resource.toStack(maxInsert);
 		if (!isItemValid(stack))
 			return 0;
@@ -58,13 +58,13 @@ public class DeployerItemHandler extends SnapshotParticipant<Unit> implements St
 		if (!ItemHandlerHelper.canItemStacksStack(held, stack))
 			return 0;
 
-		int space = held.getMaxStackSize() - held.getCount();
+		int space = held.getMaxCount() - held.getCount();
 		if (space == 0)
 			return 0;
 
 		int toInsert = Math.min(maxInsert, space);
 		ItemStack newStack = held.copy();
-		newStack.grow(toInsert);
+		newStack.increment(toInsert);
 		be.snapshotParticipant.updateSnapshots(transaction);
 		set(newStack);
 		return toInsert;
@@ -95,7 +95,7 @@ public class DeployerItemHandler extends SnapshotParticipant<Unit> implements St
 				be.snapshotParticipant.updateSnapshots(transaction);
 			extracted += toExtract;
 			ItemStack newStack = itemStack.copy();
-			newStack.shrink(toExtract);
+			newStack.decrement(toExtract);
 			be.overflowItems.set(i, newStack);
 		}
 		return extracted;
@@ -113,7 +113,7 @@ public class DeployerItemHandler extends SnapshotParticipant<Unit> implements St
 		int toExtract = (int) Math.min(maxAmount, held.getCount());
 		be.snapshotParticipant.updateSnapshots(transaction);
 		ItemStack newStack = held.copy();
-		newStack.shrink(toExtract);
+		newStack.decrement(toExtract);
 		set(newStack);
 		return toExtract;
 	}
@@ -130,7 +130,7 @@ public class DeployerItemHandler extends SnapshotParticipant<Unit> implements St
 	@Override
 	protected void onFinalCommit() {
 		super.onFinalCommit();
-		be.setChanged();
+		be.markDirty();
 		be.sendData();
 	}
 
@@ -163,8 +163,8 @@ public class DeployerItemHandler extends SnapshotParticipant<Unit> implements St
 			Consumer<ItemStack> heldSetter = (stack) -> be.overflowItems.set(indexFinal, stack);
 			Predicate<ItemStack> mayExtract = stack -> true;
 			if (index == -1) {
-				heldGetter = player::getMainHandItem;
-				heldSetter = s -> player.setItemInHand(InteractionHand.MAIN_HAND, s);
+				heldGetter = player::getMainHandStack;
+				heldSetter = s -> player.setStackInHand(Hand.MAIN_HAND, s);
 				mayExtract = s -> be.filtering.getFilter().isEmpty() || !be.filtering.test(s);
 				index = be.overflowItems.size(); // hasNext will be false now
 			}
@@ -217,7 +217,7 @@ public class DeployerItemHandler extends SnapshotParticipant<Unit> implements St
 
 		@Override
 		public long getCapacity() {
-			return getStack().getMaxStackSize();
+			return getStack().getMaxCount();
 		}
 
 		public ItemStack getStack() {

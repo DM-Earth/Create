@@ -13,19 +13,19 @@ import com.simibubi.create.foundation.utility.Pair;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 
 public class PlayerPassengerCondition extends ScheduleWaitCondition {
 
 	@Override
-	public Pair<ItemStack, Component> getSummary() {
+	public Pair<ItemStack, Text> getSummary() {
 		int target = getTarget();
 		return Pair.of(AllBlocks.SEATS.get(DyeColor.YELLOW)
 			.asStack(),
@@ -33,7 +33,7 @@ public class PlayerPassengerCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return Create.asResource("player_count");
 	}
 
@@ -46,11 +46,11 @@ public class PlayerPassengerCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public List<Component> getTitleAs(String type) {
+	public List<Text> getTitleAs(String type) {
 		int target = getTarget();
 		return ImmutableList.of(Lang.translateDirect("schedule.condition.player_count.seated",
 			Lang.translateDirect("schedule.condition.player_count." + (target == 1 ? "summary" : "summary_plural"),
-				Components.literal("" + target).withStyle(ChatFormatting.DARK_AQUA))));
+				Components.literal("" + target).formatted(Formatting.DARK_AQUA))));
 	}
 
 	@Override
@@ -69,7 +69,7 @@ public class PlayerPassengerCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public boolean tickCompletion(Level level, Train train, CompoundTag context) {
+	public boolean tickCompletion(World level, Train train, NbtCompound context) {
 		int prev = context.getInt("PrevPlayerCount");
 		int present = train.countPlayerPassengers();
 		int target = getTarget();
@@ -80,7 +80,7 @@ public class PlayerPassengerCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public MutableComponent getWaitingStatus(Level level, Train train, CompoundTag tag) {
+	public MutableText getWaitingStatus(World level, Train train, NbtCompound tag) {
 		return Lang.translateDirect("schedule.condition.player_count.status", train.countPlayerPassengers(), getTarget());
 	}
 

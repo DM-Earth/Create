@@ -1,12 +1,11 @@
 package com.simibubi.create.foundation.mixin.fabric;
 
+import net.minecraft.client.gui.hud.InGameHud;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-import net.minecraft.client.gui.Gui;
-
-@Mixin(Gui.class)
+@Mixin(InGameHud.class)
 public interface GuiAccessor {
 	@Accessor
-	int getToolHighlightTimer();
+	int getHeldItemTooltipFade();
 }

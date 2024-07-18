@@ -8,15 +8,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-
+import net.minecraft.nbt.NbtCompound;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import com.simibubi.create.Create;
-
-import net.minecraft.nbt.CompoundTag;
 
 public class FilesHelper {
 
@@ -45,7 +43,7 @@ public class FilesHelper {
 			.replaceAll("\\W+", "_");
 	}
 
-	public static boolean saveTagCompoundAsJson(CompoundTag compound, String path) {
+	public static boolean saveTagCompoundAsJson(NbtCompound compound, String path) {
 		try {
 			Files.deleteIfExists(Paths.get(path));
 			JsonWriter writer = new JsonWriter(Files.newBufferedWriter(Paths.get(path), StandardOpenOption.CREATE));
@@ -59,7 +57,7 @@ public class FilesHelper {
 		return false;
 	}
 
-	public static boolean saveTagCompoundAsJsonCompact(CompoundTag compound, String path) {
+	public static boolean saveTagCompoundAsJsonCompact(NbtCompound compound, String path) {
 		try {
 			Files.deleteIfExists(Paths.get(path));
 			JsonWriter writer = new JsonWriter(Files.newBufferedWriter(Paths.get(path), StandardOpenOption.CREATE));

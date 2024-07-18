@@ -4,39 +4,37 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.World;
 import com.simibubi.create.content.trains.track.BezierConnection;
 import com.simibubi.create.content.trains.track.TrackMaterial;
 import com.simibubi.create.foundation.utility.Iterate;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Vec3i;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
-
 public class TrackNodeLocation extends Vec3i {
 
-	public ResourceKey<Level> dimension;
+	public RegistryKey<World> dimension;
 	public int yOffsetPixels;
 
-	public TrackNodeLocation(Vec3 vec) {
+	public TrackNodeLocation(Vec3d vec) {
 		this(vec.x, vec.y, vec.z);
 	}
 
 	public TrackNodeLocation(double x, double y, double z) {
-		super(Mth.floor(Math.round(x * 2)), Mth.floor(y) * 2, Mth.floor(Math.round(z * 2)));
+		super(MathHelper.floor(Math.round(x * 2)), MathHelper.floor(y) * 2, MathHelper.floor(Math.round(z * 2)));
 	}
 
-	public TrackNodeLocation in(Level level) {
-		return in(level.dimension());
+	public TrackNodeLocation in(World level) {
+		return in(level.getRegistryKey());
 	}
 
-	public TrackNodeLocation in(ResourceKey<Level> dimension) {
+	public TrackNodeLocation in(RegistryKey<World> dimension) {
 		this.dimension = dimension;
 		return this;
 	}
@@ -49,11 +47,11 @@ public class TrackNodeLocation extends Vec3i {
 		super(readBlockPos.getX(), readBlockPos.getY(), readBlockPos.getZ());
 	}
 
-	public Vec3 getLocation() {
-		return new Vec3(getX() / 2.0, getY() / 2.0 + yOffsetPixels / 16.0, getZ() / 2.0);
+	public Vec3d getLocation() {
+		return new Vec3d(getX() / 2.0, getY() / 2.0 + yOffsetPixels / 16.0, getZ() / 2.0);
 	}
 
-	public ResourceKey<Level> getDimension() {
+	public RegistryKey<World> getDimension() {
 		return dimension;
 	}
 
@@ -72,8 +70,8 @@ public class TrackNodeLocation extends Vec3i {
 		return (getY() + ((getZ() + yOffsetPixels * 31) * 31 + dimension.hashCode()) * 31) * 31 + getX();
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag c = NbtUtils.writeBlockPos(new BlockPos(this));
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound c = NbtHelper.fromBlockPos(new BlockPos(this));
 		if (dimensions != null)
 			c.putInt("D", dimensions.encode(dimension));
 		if (yOffsetPixels != 0)
@@ -81,15 +79,15 @@ public class TrackNodeLocation extends Vec3i {
 		return c;
 	}
 
-	public static TrackNodeLocation read(CompoundTag tag, DimensionPalette dimensions) {
-		TrackNodeLocation location = fromPackedPos(NbtUtils.readBlockPos(tag));
+	public static TrackNodeLocation read(NbtCompound tag, DimensionPalette dimensions) {
+		TrackNodeLocation location = fromPackedPos(NbtHelper.toBlockPos(tag));
 		if (dimensions != null)
 			location.dimension = dimensions.decode(tag.getInt("D"));
 		location.yOffsetPixels = tag.getInt("YO");
 		return location;
 	}
 
-	public void send(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+	public void send(PacketByteBuf buffer, DimensionPalette dimensions) {
 		buffer.writeVarInt(getX());
 		buffer.writeShort(getY());
 		buffer.writeVarInt(getZ());
@@ -97,7 +95,7 @@ public class TrackNodeLocation extends Vec3i {
 		buffer.writeVarInt(dimensions.encode(dimension));
 	}
 
-	public static TrackNodeLocation receive(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+	public static TrackNodeLocation receive(PacketByteBuf buffer, DimensionPalette dimensions) {
 		TrackNodeLocation location = fromPackedPos(new BlockPos(
 				buffer.readVarInt(),
 				buffer.readShort(),
@@ -110,12 +108,12 @@ public class TrackNodeLocation extends Vec3i {
 
 	public Collection<BlockPos> allAdjacent() {
 		Set<BlockPos> set = new HashSet<>();
-		Vec3 vec3 = getLocation().subtract(0, yOffsetPixels / 16.0, 0);
+		Vec3d vec3 = getLocation().subtract(0, yOffsetPixels / 16.0, 0);
 		double step = 1 / 8f;
 		for (int x : Iterate.positiveAndNegative)
 			for (int y : Iterate.positiveAndNegative)
 				for (int z : Iterate.positiveAndNegative)
-					set.add(BlockPos.containing(vec3.add(x * step, y * step, z * step)));
+					set.add(BlockPos.ofFloored(vec3.add(x * step, y * step, z * step)));
 		return set;
 	}
 
@@ -123,23 +121,23 @@ public class TrackNodeLocation extends Vec3i {
 
 		BezierConnection turn = null;
 		boolean forceNode = false;
-		Vec3 direction;
-		Vec3 normal;
+		Vec3d direction;
+		Vec3d normal;
 		TrackMaterial materialA;
 		TrackMaterial materialB;
 
-		public DiscoveredLocation(Level level, double x, double y, double z) {
+		public DiscoveredLocation(World level, double x, double y, double z) {
 			super(x, y, z);
 			in(level);
 		}
 
-		public DiscoveredLocation(ResourceKey<Level> dimension, Vec3 vec) {
+		public DiscoveredLocation(RegistryKey<World> dimension, Vec3d vec) {
 			super(vec);
 			in(dimension);
 		}
 
-		public DiscoveredLocation(Level level, Vec3 vec) {
-			this(level.dimension(), vec);
+		public DiscoveredLocation(World level, Vec3d vec) {
+			this(level.getRegistryKey(), vec);
 		}
 
 		public DiscoveredLocation materialA(TrackMaterial material) {
@@ -170,7 +168,7 @@ public class TrackNodeLocation extends Vec3i {
 			return this;
 		}
 
-		public DiscoveredLocation withNormal(Vec3 normal) {
+		public DiscoveredLocation withNormal(Vec3d normal) {
 			this.normal = normal;
 			return this;
 		}
@@ -180,7 +178,7 @@ public class TrackNodeLocation extends Vec3i {
 			return this;
 		}
 
-		public DiscoveredLocation withDirection(Vec3 direction) {
+		public DiscoveredLocation withDirection(Vec3d direction) {
 			this.direction = direction == null ? null : direction.normalize();
 			return this;
 		}
@@ -201,12 +199,12 @@ public class TrackNodeLocation extends Vec3i {
 			return materialA != materialB;
 		}
 
-		public boolean notInLineWith(Vec3 direction) {
+		public boolean notInLineWith(Vec3d direction) {
 			return this.direction != null
-				&& Math.max(direction.dot(this.direction), direction.dot(this.direction.scale(-1))) < 7 / 8f;
+				&& Math.max(direction.dotProduct(this.direction), direction.dotProduct(this.direction.multiply(-1))) < 7 / 8f;
 		}
 
-		public Vec3 getDirection() {
+		public Vec3d getDirection() {
 			return direction;
 		}
 

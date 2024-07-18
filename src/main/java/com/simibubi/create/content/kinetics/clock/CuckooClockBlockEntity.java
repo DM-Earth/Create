@@ -1,7 +1,18 @@
 package com.simibubi.create.content.kinetics.clock;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World.ExplosionSourceType;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -11,19 +22,6 @@ import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.VecHelper;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.level.Level.ExplosionInteraction;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class CuckooClockBlockEntity extends KineticBlockEntity {
 
@@ -49,7 +47,7 @@ public class CuckooClockBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		if (clientPacket && compound.contains("Animation")) {
 			animationType = NBTHelper.readEnum(compound, "Animation", Animation.class);
@@ -58,7 +56,7 @@ public class CuckooClockBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		if (clientPacket && sendAnimationUpdate)
 			NBTHelper.writeEnum(compound, "Animation", animationType);
 		sendAnimationUpdate = false;
@@ -72,24 +70,24 @@ public class CuckooClockBlockEntity extends KineticBlockEntity {
 			return;
 
 
-		boolean isNatural = level.dimensionType().natural();
-		int dayTime = (int) ((level.getDayTime() * (isNatural ? 1 : 24)) % 24000);
+		boolean isNatural = world.getDimension().natural();
+		int dayTime = (int) ((world.getTimeOfDay() * (isNatural ? 1 : 24)) % 24000);
 		int hours = (dayTime / 1000 + 6) % 24;
 		int minutes = (dayTime % 1000) * 60 / 1000;
 
 		if (!isNatural) {
-			if (level.isClientSide) {
+			if (world.isClient) {
 				moveHands(hours, minutes);
 
 				if (AnimationTickHolder.getTicks() % 6 == 0)
-					playSound(SoundEvents.NOTE_BLOCK_HAT.value(), 1 / 16f, 2f);
+					playSound(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), 1 / 16f, 2f);
 				else if (AnimationTickHolder.getTicks() % 3 == 0)
-					playSound(SoundEvents.NOTE_BLOCK_HAT.value(), 1 / 16f, 1.5f);
+					playSound(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), 1 / 16f, 1.5f);
 			}
 			return;
 		}
 
-		if (!level.isClientSide) {
+		if (!world.isClient) {
 			if (animationType == Animation.NONE) {
 				if (hours == 12 && minutes < 5)
 					startAnimation(Animation.PIG);
@@ -101,25 +99,25 @@ public class CuckooClockBlockEntity extends KineticBlockEntity {
 				if (value > 100)
 					animationType = Animation.NONE;
 
-				if (animationType == Animation.SURPRISE && Mth.equal(animationProgress.getValue(), 50)) {
-					Vec3 center = VecHelper.getCenterOf(worldPosition);
-					level.destroyBlock(worldPosition, false);
-					DamageSource damageSource = CreateDamageSources.cuckooSurprise(level);
-					level.explode(null, damageSource, null, center.x, center.y, center.z, 3, false,
-						ExplosionInteraction.BLOCK);
+				if (animationType == Animation.SURPRISE && MathHelper.approximatelyEquals(animationProgress.getValue(), 50)) {
+					Vec3d center = VecHelper.getCenterOf(pos);
+					world.breakBlock(pos, false);
+					DamageSource damageSource = CreateDamageSources.cuckooSurprise(world);
+					world.createExplosion(null, damageSource, null, center.x, center.y, center.z, 3, false,
+						ExplosionSourceType.BLOCK);
 				}
 
 			}
 		}
 
-		if (level.isClientSide) {
+		if (world.isClient) {
 			moveHands(hours, minutes);
 
 			if (animationType == Animation.NONE) {
 				if (AnimationTickHolder.getTicks() % 32 == 0)
-					playSound(SoundEvents.NOTE_BLOCK_HAT.value(), 1 / 16f, 2f);
+					playSound(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), 1 / 16f, 2f);
 				else if (AnimationTickHolder.getTicks() % 16 == 0)
-					playSound(SoundEvents.NOTE_BLOCK_HAT.value(), 1 / 16f, 1.5f);
+					playSound(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), 1 / 16f, 1.5f);
 			} else {
 
 				boolean isSurprise = animationType == Animation.SURPRISE;
@@ -131,29 +129,29 @@ public class CuckooClockBlockEntity extends KineticBlockEntity {
 				// sounds
 
 				if (value == 1)
-					playSound(SoundEvents.NOTE_BLOCK_CHIME.value(), 2, .5f);
+					playSound(SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), 2, .5f);
 				if (value == 21)
-					playSound(SoundEvents.NOTE_BLOCK_CHIME.value(), 2, 0.793701f);
+					playSound(SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), 2, 0.793701f);
 
 				if (value > 30 && isSurprise) {
-					Vec3 pos = VecHelper.offsetRandomly(VecHelper.getCenterOf(this.worldPosition), level.random, .5f);
-					level.addParticle(ParticleTypes.LARGE_SMOKE, pos.x, pos.y, pos.z, 0, 0, 0);
+					Vec3d pos = VecHelper.offsetRandomly(VecHelper.getCenterOf(this.pos), world.random, .5f);
+					world.addParticle(ParticleTypes.LARGE_SMOKE, pos.x, pos.y, pos.z, 0, 0, 0);
 				}
 				if (value == 40 && isSurprise)
-					playSound(SoundEvents.TNT_PRIMED, 1f, 1f);
+					playSound(SoundEvents.ENTITY_TNT_PRIMED, 1f, 1f);
 
 				int step = isSurprise ? 3 : 15;
 				for (int phase = 30; phase <= 60; phase += step) {
 					if (value == phase - step / 3)
-						playSound(SoundEvents.CHEST_OPEN, 1 / 16f, 2f);
+						playSound(SoundEvents.BLOCK_CHEST_OPEN, 1 / 16f, 2f);
 					if (value == phase) {
 						if (animationType == Animation.PIG)
-							playSound(SoundEvents.PIG_AMBIENT, 1 / 4f, 1f);
+							playSound(SoundEvents.ENTITY_PIG_AMBIENT, 1 / 4f, 1f);
 						else
-							playSound(SoundEvents.CREEPER_HURT, 1 / 4f, 3f);
+							playSound(SoundEvents.ENTITY_CREEPER_HURT, 1 / 4f, 3f);
 					}
 					if (value == phase + step / 3)
-						playSound(SoundEvents.CHEST_CLOSE, 1 / 16f, 2f);
+						playSound(SoundEvents.BLOCK_CHEST_CLOSE, 1 / 16f, 2f);
 
 				}
 
@@ -165,7 +163,7 @@ public class CuckooClockBlockEntity extends KineticBlockEntity {
 
 	public void startAnimation(Animation animation) {
 		animationType = animation;
-		if (animation != null && CuckooClockBlock.containsSurprise(getBlockState()))
+		if (animation != null && CuckooClockBlock.containsSurprise(getCachedState()))
 			animationType = Animation.SURPRISE;
 		animationProgress.startWithValue(0);
 		sendAnimationUpdate = true;
@@ -188,7 +186,7 @@ public class CuckooClockBlockEntity extends KineticBlockEntity {
 	}
 
 	private void playSound(SoundEvent sound, float volume, float pitch) {
-		Vec3 vec = VecHelper.getCenterOf(worldPosition);
-		level.playLocalSound(vec.x, vec.y, vec.z, sound, SoundSource.BLOCKS, volume, pitch, false);
+		Vec3d vec = VecHelper.getCenterOf(pos);
+		world.playSound(vec.x, vec.y, vec.z, sound, SoundCategory.BLOCKS, volume, pitch, false);
 	}
 }

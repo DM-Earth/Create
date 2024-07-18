@@ -25,20 +25,19 @@ import com.simibubi.create.foundation.utility.VecHelper;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 
@@ -67,7 +66,7 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		compound.putInt("TotalUseTicks", totalUseTicks);
 		compound.putInt("StartAngle", startAngle);
@@ -75,7 +74,7 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		totalUseTicks = compound.getInt("TotalUseTicks");
 		startAngle = compound.getInt("StartAngle");
@@ -87,24 +86,24 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 		super.tick();
 		if (inUse == 0 && cooldown > 0)
 			cooldown--;
-		independentAngle = level.isClientSide() ? getIndependentAngle(0) : 0;
+		independentAngle = world.isClient() ? getIndependentAngle(0) : 0;
 	}
 
 	@Override
 	public float getIndependentAngle(float partialTicks) {
 		if (inUse == 0 && source != null && getSpeed() != 0)
-			return KineticBlockEntityRenderer.getAngleForTe(this, worldPosition,
+			return KineticBlockEntityRenderer.getAngleForTe(this, pos,
 				KineticBlockEntityRenderer.getRotationAxisOf(this));
 
-		int step = getBlockState().getOptionalValue(ValveHandleBlock.FACING)
+		int step = getCachedState().getOrEmpty(ValveHandleBlock.FACING)
 			.orElse(Direction.SOUTH)
-			.getAxisDirection()
-			.getStep();
+			.getDirection()
+			.offset();
 
 		return (inUse > 0 && totalUseTicks > 0
-			? Mth.lerp(Math.min(totalUseTicks, totalUseTicks - inUse + partialTicks) / (float) totalUseTicks,
+			? MathHelper.lerp(Math.min(totalUseTicks, totalUseTicks - inUse + partialTicks) / (float) totalUseTicks,
 				startAngle, targetAngle)
-			: targetAngle) * Mth.DEG_TO_RAD * (backwards ? -1 : 1) * step;
+			: targetAngle) * MathHelper.RADIANS_PER_DEGREE * (backwards ? -1 : 1) * step;
 	}
 
 	public boolean showValue() {
@@ -116,7 +115,7 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 			return false;
 		if (inUse > 0 || cooldown > 0)
 			return false;
-		if (level.isClientSide)
+		if (world.isClient)
 			return true;
 
 		// Always overshoot, target will stop early
@@ -128,7 +127,7 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 		inUse = (int) Math.ceil(target / degreesPerTick) + 2;
 
 		startAngle = (int) ((independentAngle) % 90 + 360) % 90;
-		targetAngle = Math.round((startAngle + (target > 135 ? 180 : 90) * Mth.sign(value)) / 90f) * 90;
+		targetAngle = Math.round((startAngle + (target > 135 ? 180 : 90) * MathHelper.sign(value)) / 90f) * 90;
 		totalUseTicks = inUse;
 		backwards = sneak;
 
@@ -145,13 +144,13 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 	@Override
 	@Environment(EnvType.CLIENT)
 	public SuperByteBuffer getRenderedHandle() {
-		return CachedBufferer.block(getBlockState());
+		return CachedBufferer.block(getCachedState());
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
 	public Instancer<ModelData> getRenderedHandleInstance(Material<ModelData> material) {
-		return material.getModel(getBlockState());
+		return material.getModel(getCachedState());
 	}
 
 	@Override
@@ -169,16 +168,16 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 		}
 
 		@Override
-		public ValueSettingsBoard createBoard(Player player, BlockHitResult hitResult) {
-			ImmutableList<Component> rows = ImmutableList.of(Components.literal("\u27f3")
-				.withStyle(ChatFormatting.BOLD),
+		public ValueSettingsBoard createBoard(PlayerEntity player, BlockHitResult hitResult) {
+			ImmutableList<Text> rows = ImmutableList.of(Components.literal("\u27f3")
+				.formatted(Formatting.BOLD),
 				Components.literal("\u27f2")
-					.withStyle(ChatFormatting.BOLD));
+					.formatted(Formatting.BOLD));
 			return new ValueSettingsBoard(label, 180, 45, rows, new ValueSettingsFormatter(this::formatValue));
 		}
 
 		@Override
-		public void setValueSettings(Player player, ValueSettings valueSetting, boolean ctrlHeld) {
+		public void setValueSettings(PlayerEntity player, ValueSettings valueSetting, boolean ctrlHeld) {
 			int value = Math.max(1, valueSetting.value());
 			if (!valueSetting.equals(getValueSettings()))
 				playFeedbackSound(this);
@@ -190,15 +189,15 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 			return new ValueSettings(value < 0 ? 0 : 1, Math.abs(value));
 		}
 
-		public MutableComponent formatValue(ValueSettings settings) {
+		public MutableText formatValue(ValueSettings settings) {
 			return Lang.number(Math.max(1, Math.abs(settings.value())))
 				.add(Lang.translateDirect("generic.unit.degrees"))
 				.component();
 		}
 
 		@Override
-		public void onShortInteract(Player player, InteractionHand hand, Direction side) {
-			BlockState blockState = blockEntity.getBlockState();
+		public void onShortInteract(PlayerEntity player, Hand hand, Direction side) {
+			BlockState blockState = blockEntity.getCachedState();
 			if (blockState.getBlock() instanceof ValveHandleBlock vhb)
 				vhb.clicked(getWorld(), getPos(), blockState, player, hand);
 		}
@@ -209,17 +208,17 @@ public class ValveHandleBlockEntity extends HandCrankBlockEntity {
 
 		@Override
 		protected boolean isSideActive(BlockState state, Direction direction) {
-			return direction == state.getValue(ValveHandleBlock.FACING);
+			return direction == state.get(ValveHandleBlock.FACING);
 		}
 
 		@Override
-		protected Vec3 getSouthLocation() {
+		protected Vec3d getSouthLocation() {
 			return VecHelper.voxelSpace(8, 8, 4.5);
 		}
 
 		@Override
-		public boolean testHit(BlockState state, Vec3 localHit) {
-			Vec3 offset = getLocalOffset(state);
+		public boolean testHit(BlockState state, Vec3d localHit) {
+			Vec3d offset = getLocalOffset(state);
 			if (offset == null)
 				return false;
 			return localHit.distanceTo(offset) < scale / 1.5f;

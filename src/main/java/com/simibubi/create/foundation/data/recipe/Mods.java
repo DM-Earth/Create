@@ -1,8 +1,7 @@
 package com.simibubi.create.foundation.data.recipe;
 
 import java.util.function.Consumer;
-
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 public enum Mods {
 
@@ -58,24 +57,24 @@ public enum Mods {
 		this.id = id;
 	}
 
-	public ResourceLocation ingotOf(String type) {
-		return new ResourceLocation(id, reversedMetalPrefix ? "ingot_" + type : type + "_ingot");
+	public Identifier ingotOf(String type) {
+		return new Identifier(id, reversedMetalPrefix ? "ingot_" + type : type + "_ingot");
 	}
 
-	public ResourceLocation nuggetOf(String type) {
-		return new ResourceLocation(id, reversedMetalPrefix ? "nugget_" + type : type + "_nugget");
+	public Identifier nuggetOf(String type) {
+		return new Identifier(id, reversedMetalPrefix ? "nugget_" + type : type + "_nugget");
 	}
 
-	public ResourceLocation oreOf(String type) {
-		return new ResourceLocation(id, reversedMetalPrefix ? "ore_" + type : type + "_ore");
+	public Identifier oreOf(String type) {
+		return new Identifier(id, reversedMetalPrefix ? "ore_" + type : type + "_ore");
 	}
 
-	public ResourceLocation deepslateOreOf(String type) {
-		return new ResourceLocation(id, reversedMetalPrefix ? "deepslate_ore_" + type : "deepslate_" + type + "_ore");
+	public Identifier deepslateOreOf(String type) {
+		return new Identifier(id, reversedMetalPrefix ? "deepslate_ore_" + type : "deepslate_" + type + "_ore");
 	}
 
-	public ResourceLocation asResource(String id) {
-		return new ResourceLocation(this.id, id);
+	public Identifier asResource(String id) {
+		return new Identifier(this.id, id);
 	}
 
 	public String recipeId(String id) {

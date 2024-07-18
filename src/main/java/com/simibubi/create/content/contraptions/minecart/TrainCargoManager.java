@@ -19,10 +19,10 @@ import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.Unit;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.util.math.BlockPos;
 
 public class TrainCargoManager extends MountedStorageManager {
 
@@ -52,13 +52,13 @@ public class TrainCargoManager extends MountedStorageManager {
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		super.write(nbt, clientPacket);
 		nbt.putInt("TicksSinceLastExchange", ticksSinceLastExchange);
 	}
 
 	@Override
-	public void read(CompoundTag nbt, Map<BlockPos, BlockEntity> presentBlockEntities, boolean clientPacket) {
+	public void read(NbtCompound nbt, Map<BlockPos, BlockEntity> presentBlockEntities, boolean clientPacket) {
 		super.read(nbt, presentBlockEntities, clientPacket);
 		ticksSinceLastExchange = nbt.getInt("TicksSinceLastExchange");
 	}

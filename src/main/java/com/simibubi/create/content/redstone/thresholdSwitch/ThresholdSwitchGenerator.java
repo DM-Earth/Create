@@ -7,9 +7,8 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 
 public class ThresholdSwitchGenerator extends SpecialBlockStateGen {
 
@@ -20,14 +19,14 @@ public class ThresholdSwitchGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		return horizontalAngle(state.getValue(ThresholdSwitchBlock.FACING)) + 180;
+		return horizontalAngle(state.get(ThresholdSwitchBlock.FACING)) + 180;
 	}
 
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> ctx, RegistrateBlockstateProvider prov,
 												BlockState state) {
-		int level = state.getValue(ThresholdSwitchBlock.LEVEL);
-		String path = "threshold_switch/block_" + Lang.asId(state.getValue(ThresholdSwitchBlock.TARGET)
+		int level = state.get(ThresholdSwitchBlock.LEVEL);
+		String path = "threshold_switch/block_" + Lang.asId(state.get(ThresholdSwitchBlock.TARGET)
 			.name());
 		return prov.models()
 			.withExistingParent(path + "_" + level, Create.asResource("block/" + path))

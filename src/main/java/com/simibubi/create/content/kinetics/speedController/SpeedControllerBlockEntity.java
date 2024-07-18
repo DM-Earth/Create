@@ -1,7 +1,11 @@
 package com.simibubi.create.content.kinetics.speedController;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.compat.computercraft.AbstractComputerBehaviour;
 import com.simibubi.create.compat.computercraft.ComputerCraftProxy;
 import com.simibubi.create.content.kinetics.RotationPropagator;
@@ -16,12 +20,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollVa
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class SpeedControllerBlockEntity extends KineticBlockEntity {
 
@@ -61,7 +59,7 @@ public class SpeedControllerBlockEntity extends KineticBlockEntity {
 	private void updateTargetRotation() {
 		if (hasNetwork())
 			getOrCreateNetwork().remove(this);
-		RotationPropagator.handleRemoved(level, worldPosition, this);
+		RotationPropagator.handleRemoved(world, pos, this);
 		removeSource();
 		attachKinetics();
 
@@ -104,7 +102,7 @@ public class SpeedControllerBlockEntity extends KineticBlockEntity {
 			return 0;
 		}
 
-		boolean wheelPowersController = speedController.source.equals(cogWheel.getBlockPos());
+		boolean wheelPowersController = speedController.source.equals(cogWheel.getPos());
 
 		if (wheelPowersController) {
 			if (targetingController)
@@ -118,21 +116,21 @@ public class SpeedControllerBlockEntity extends KineticBlockEntity {
 	}
 
 	public void updateBracket() {
-		if (level != null && level.isClientSide)
+		if (world != null && world.isClient)
 			hasBracket = isCogwheelPresent();
 	}
 
 	private boolean isCogwheelPresent() {
-		BlockState stateAbove = level.getBlockState(worldPosition.above());
+		BlockState stateAbove = world.getBlockState(pos.up());
 		return ICogWheel.isDedicatedCogWheel(stateAbove.getBlock()) && ICogWheel.isLargeCog(stateAbove)
-			&& stateAbove.getValue(CogWheelBlock.AXIS)
+			&& stateAbove.get(CogWheelBlock.AXIS)
 				.isHorizontal();
 	}
 
 	private class ControllerValueBoxTransform extends ValueBoxTransform.Sided {
 
 		@Override
-		protected Vec3 getSouthLocation() {
+		protected Vec3d getSouthLocation() {
 			return VecHelper.voxelSpace(8, 11f, 15.5f);
 		}
 
@@ -141,7 +139,7 @@ public class SpeedControllerBlockEntity extends KineticBlockEntity {
 			if (direction.getAxis()
 				.isVertical())
 				return false;
-			return state.getValue(SpeedControllerBlock.HORIZONTAL_AXIS) != direction.getAxis();
+			return state.get(SpeedControllerBlock.HORIZONTAL_AXIS) != direction.getAxis();
 		}
 
 		@Override

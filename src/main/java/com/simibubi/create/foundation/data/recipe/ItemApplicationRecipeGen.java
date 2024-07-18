@@ -7,11 +7,10 @@ import com.simibubi.create.AllTags.AllItemTags;
 
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
-import net.minecraft.data.PackOutput;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.tag.TagKey;
 
 public class ItemApplicationRecipeGen extends ProcessingRecipeGen {
 
@@ -22,16 +21,16 @@ public class ItemApplicationRecipeGen extends ProcessingRecipeGen {
 		.require(I.sturdySheet())
 		.output(I.railwayCasing()));
 
-	protected GeneratedRecipe woodCasing(String type, Supplier<ItemLike> ingredient, Supplier<ItemLike> output) {
-		return woodCasingIngredient(type, () -> Ingredient.of(ingredient.get()), output);
+	protected GeneratedRecipe woodCasing(String type, Supplier<ItemConvertible> ingredient, Supplier<ItemConvertible> output) {
+		return woodCasingIngredient(type, () -> Ingredient.ofItems(ingredient.get()), output);
 	}
 
-	protected GeneratedRecipe woodCasingTag(String type, Supplier<TagKey<Item>> ingredient, Supplier<ItemLike> output) {
-		return woodCasingIngredient(type, () -> Ingredient.of(ingredient.get()), output);
+	protected GeneratedRecipe woodCasingTag(String type, Supplier<TagKey<Item>> ingredient, Supplier<ItemConvertible> output) {
+		return woodCasingIngredient(type, () -> Ingredient.fromTag(ingredient.get()), output);
 	}
 
 	protected GeneratedRecipe woodCasingIngredient(String type, Supplier<Ingredient> ingredient,
-		Supplier<ItemLike> output) {
+		Supplier<ItemConvertible> output) {
 		create(type + "_casing_from_log", b -> b.require(AllItemTags.STRIPPED_LOGS.tag)
 			.require(ingredient.get())
 			.output(output.get()));

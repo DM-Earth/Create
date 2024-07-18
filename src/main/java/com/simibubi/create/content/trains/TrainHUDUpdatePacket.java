@@ -1,13 +1,11 @@
 package com.simibubi.create.content.trains;
 
 import java.util.UUID;
-
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
 
 public class TrainHUDUpdatePacket extends SimplePacketBase {
 
@@ -26,8 +24,8 @@ public class TrainHUDUpdatePacket extends SimplePacketBase {
 		fuelTicks = train.fuelTicks;
 	}
 
-	public TrainHUDUpdatePacket(FriendlyByteBuf buffer) {
-		trainId = buffer.readUUID();
+	public TrainHUDUpdatePacket(PacketByteBuf buffer) {
+		trainId = buffer.readUuid();
 		if (buffer.readBoolean())
 			throttle = buffer.readDouble();
 		speed = buffer.readDouble();
@@ -35,8 +33,8 @@ public class TrainHUDUpdatePacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeUUID(trainId);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeUuid(trainId);
 		buffer.writeBoolean(throttle != null);
 		if (throttle != null)
 			buffer.writeDouble(throttle);
@@ -47,9 +45,9 @@ public class TrainHUDUpdatePacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer sender = context.getSender();
+			ServerPlayerEntity sender = context.getSender();
 			boolean clientSide = sender == null;
-			Train train = Create.RAILWAYS.sided(clientSide ? null : sender.level()).trains.get(trainId);
+			Train train = Create.RAILWAYS.sided(clientSide ? null : sender.getWorld()).trains.get(trainId);
 			if (train == null)
 				return;
 
@@ -65,7 +63,7 @@ public class TrainHUDUpdatePacket extends SimplePacketBase {
 
 	public static class Serverbound extends TrainHUDUpdatePacket {
 
-		public Serverbound(FriendlyByteBuf buffer) {
+		public Serverbound(PacketByteBuf buffer) {
 			super(buffer);
 		}
 

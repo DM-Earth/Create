@@ -6,10 +6,9 @@ import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.SingleRotatingInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
 
 public class PumpCogInstance extends SingleRotatingInstance<PumpBlockEntity> implements DynamicInstance {
 
@@ -22,8 +21,8 @@ public class PumpCogInstance extends SingleRotatingInstance<PumpBlockEntity> imp
 
 	@Override
 	protected Instancer<RotatingData> getModel() {
-		BlockState referenceState = blockEntity.getBlockState();
-		Direction facing = referenceState.getValue(BlockStateProperties.FACING);
+		BlockState referenceState = blockEntity.getCachedState();
+		Direction facing = referenceState.get(Properties.FACING);
 		return getRotatingMaterial().getModel(AllPartialModels.MECHANICAL_PUMP_COG, referenceState, facing);
 	}
 

@@ -2,35 +2,34 @@ package com.simibubi.create.content.redstone.displayLink;
 
 import com.simibubi.create.content.redstone.displayLink.source.DisplaySource;
 import com.simibubi.create.foundation.networking.BlockEntityConfigurationPacket;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 
 public class DisplayLinkConfigurationPacket extends BlockEntityConfigurationPacket<DisplayLinkBlockEntity> {
 
-	private CompoundTag configData;
+	private NbtCompound configData;
 	private int targetLine;
 
-	public DisplayLinkConfigurationPacket(BlockPos pos, CompoundTag configData, int targetLine) {
+	public DisplayLinkConfigurationPacket(BlockPos pos, NbtCompound configData, int targetLine) {
 		super(pos);
 		this.configData = configData;
 		this.targetLine = targetLine;
 	}
 
-	public DisplayLinkConfigurationPacket(FriendlyByteBuf buffer) {
+	public DisplayLinkConfigurationPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
 	@Override
-	protected void writeSettings(FriendlyByteBuf buffer) {
+	protected void writeSettings(PacketByteBuf buffer) {
 		buffer.writeNbt(configData);
 		buffer.writeInt(targetLine);
 	}
 
 	@Override
-	protected void readSettings(FriendlyByteBuf buffer) {
+	protected void readSettings(PacketByteBuf buffer) {
 		configData = buffer.readNbt();
 		targetLine = buffer.readInt();
 	}
@@ -44,7 +43,7 @@ public class DisplayLinkConfigurationPacket extends BlockEntityConfigurationPack
 			return;
 		}
 
-		ResourceLocation id = new ResourceLocation(configData.getString("Id"));
+		Identifier id = new Identifier(configData.getString("Id"));
 		DisplaySource source = AllDisplayBehaviours.getSource(id);
 		if (source == null) {
 			be.notifyUpdate();
@@ -56,7 +55,7 @@ public class DisplayLinkConfigurationPacket extends BlockEntityConfigurationPack
 			be.setSourceConfig(configData.copy());
 		} else {
 			be.getSourceConfig()
-				.merge(configData);
+				.copyFrom(configData);
 		}
 
 		be.updateGatheredData();

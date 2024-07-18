@@ -1,7 +1,5 @@
 package com.simibubi.create.content.contraptions.elevator;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.AllSpriteShifts;
 import com.simibubi.create.content.contraptions.pulley.AbstractPulleyRenderer;
@@ -12,22 +10,23 @@ import com.simibubi.create.foundation.block.render.SpriteShiftEntry;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class ElevatorPulleyRenderer extends KineticBlockEntityRenderer<ElevatorPulleyBlockEntity> {
 
-	public ElevatorPulleyRenderer(BlockEntityRendererProvider.Context context) {
+	public ElevatorPulleyRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	protected void renderSafe(ElevatorPulleyBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(ElevatorPulleyBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 
 //		if (Backend.canUseInstancing(be.getLevel()))
@@ -35,7 +34,7 @@ public class ElevatorPulleyRenderer extends KineticBlockEntityRenderer<ElevatorP
 
 		// from KBE. replace with super call when flw instance is implemented
 		BlockState state = getRenderedBlockState(be);
-		RenderType type = getRenderType(be, state);
+		RenderLayer type = getRenderType(be, state);
 		if (type != null)
 			renderRotatingBuffer(be, getRotatedModel(be, state), ms, buffer.getBuffer(type), light);
 		//
@@ -45,13 +44,13 @@ public class ElevatorPulleyRenderer extends KineticBlockEntityRenderer<ElevatorP
 
 		SpriteShiftEntry beltShift = AllSpriteShifts.ELEVATOR_BELT;
 		SpriteShiftEntry coilShift = AllSpriteShifts.ELEVATOR_COIL;
-		VertexConsumer vb = buffer.getBuffer(RenderType.solid());
-		Level world = be.getLevel();
-		BlockState blockState = be.getBlockState();
-		BlockPos pos = be.getBlockPos();
+		VertexConsumer vb = buffer.getBuffer(RenderLayer.getSolid());
+		World world = be.getWorld();
+		BlockState blockState = be.getCachedState();
+		BlockPos pos = be.getPos();
 
 		float blockStateAngle =
-			180 + AngleHelper.horizontalAngle(blockState.getValue(ElevatorPulleyBlock.HORIZONTAL_FACING));
+			180 + AngleHelper.horizontalAngle(blockState.get(ElevatorPulleyBlock.HORIZONTAL_FACING));
 
 		SuperByteBuffer magnet = CachedBufferer.partial(AllPartialModels.ELEVATOR_MAGNET, blockState);
 		if (running || offset == 0)
@@ -67,9 +66,9 @@ public class ElevatorPulleyRenderer extends KineticBlockEntityRenderer<ElevatorP
 		}
 
 		float spriteSize = beltShift.getTarget()
-			.getV1()
+			.getMaxV()
 			- beltShift.getTarget()
-				.getV0();
+				.getMinV();
 
 		double coilScroll = -(offset + 3 / 16f) - Math.floor((offset + 3 / 16f) * -2) / 2;
 		double beltScroll = (-(offset + .5) - Math.floor(-(offset + .5))) / 2;
@@ -109,18 +108,18 @@ public class ElevatorPulleyRenderer extends KineticBlockEntityRenderer<ElevatorP
 	}
 
 	protected SuperByteBuffer getRotatedCoil(KineticBlockEntity be) {
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		return CachedBufferer.partialFacing(AllPartialModels.ELEVATOR_COIL, blockState,
-			blockState.getValue(ElevatorPulleyBlock.HORIZONTAL_FACING));
+			blockState.get(ElevatorPulleyBlock.HORIZONTAL_FACING));
 	}
 
 	@Override
-	public int getViewDistance() {
+	public int getRenderDistance() {
 		return 128;
 	}
 
 	@Override
-	public boolean shouldRenderOffScreen(ElevatorPulleyBlockEntity p_188185_1_) {
+	public boolean rendersOutsideBoundingBox(ElevatorPulleyBlockEntity p_188185_1_) {
 		return true;
 	}
 

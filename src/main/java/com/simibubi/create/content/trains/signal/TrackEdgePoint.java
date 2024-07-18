@@ -1,7 +1,12 @@
 package com.simibubi.create.content.trains.signal;
 
 import java.util.UUID;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.graph.DimensionPalette;
 import com.simibubi.create.content.trains.graph.EdgePointType;
@@ -12,13 +17,6 @@ import com.simibubi.create.content.trains.graph.TrackNodeLocation;
 import com.simibubi.create.content.trains.track.TrackTargetingBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.Couple;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
 
 public abstract class TrackEdgePoint {
 
@@ -49,13 +47,13 @@ public abstract class TrackEdgePoint {
 		return false;
 	}
 
-	public abstract void invalidate(LevelAccessor level);
+	public abstract void invalidate(WorldAccess level);
 
-	protected void invalidateAt(LevelAccessor level, BlockPos blockEntityPos) {
+	protected void invalidateAt(WorldAccess level, BlockPos blockEntityPos) {
 		TrackTargetingBehaviour<?> behaviour = BlockEntityBehaviour.get(level, blockEntityPos, TrackTargetingBehaviour.TYPE);
 		if (behaviour == null)
 			return;
-		CompoundTag migrationData = new CompoundTag();
+		NbtCompound migrationData = new NbtCompound();
 		DimensionPalette dimensions = new DimensionPalette();
 		write(migrationData, dimensions);
 		dimensions.write(migrationData);
@@ -86,31 +84,31 @@ public abstract class TrackEdgePoint {
 			.equals(node1.getLocation());
 	}
 
-	public void read(CompoundTag nbt, boolean migration, DimensionPalette dimensions) {
+	public void read(NbtCompound nbt, boolean migration, DimensionPalette dimensions) {
 		if (migration)
 			return;
 
-		id = nbt.getUUID("Id");
+		id = nbt.getUuid("Id");
 		position = nbt.getDouble("Position");
-		edgeLocation = Couple.deserializeEach(nbt.getList("Edge", Tag.TAG_COMPOUND),
+		edgeLocation = Couple.deserializeEach(nbt.getList("Edge", NbtElement.COMPOUND_TYPE),
 			tag -> TrackNodeLocation.read(tag, dimensions));
 	}
 
-	public void read(FriendlyByteBuf buffer, DimensionPalette dimensions) {
-		id = buffer.readUUID();
+	public void read(PacketByteBuf buffer, DimensionPalette dimensions) {
+		id = buffer.readUuid();
 		edgeLocation = Couple.create(() -> TrackNodeLocation.receive(buffer, dimensions));
 		position = buffer.readDouble();
 	}
 
-	public void write(CompoundTag nbt, DimensionPalette dimensions) {
-		nbt.putUUID("Id", id);
+	public void write(NbtCompound nbt, DimensionPalette dimensions) {
+		nbt.putUuid("Id", id);
 		nbt.putDouble("Position", position);
 		nbt.put("Edge", edgeLocation.serializeEach(loc -> loc.write(dimensions)));
 	}
 
-	public void write(FriendlyByteBuf buffer, DimensionPalette dimensions) {
-		buffer.writeResourceLocation(type.getId());
-		buffer.writeUUID(id);
+	public void write(PacketByteBuf buffer, DimensionPalette dimensions) {
+		buffer.writeIdentifier(type.getId());
+		buffer.writeUuid(id);
 		edgeLocation.forEach(loc -> loc.send(buffer, dimensions));
 		buffer.writeDouble(position);
 	}

@@ -26,48 +26,48 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderGetter;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.block.Block;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.nbt.NbtTagSizeTracker;
+import net.minecraft.registry.RegistryEntryLookup;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class SchematicItem extends Item {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
-	public SchematicItem(Properties properties) {
+	public SchematicItem(Settings properties) {
 		super(properties);
 	}
 
-	public static ItemStack create(HolderGetter<Block> lookup, String schematic, String owner) {
+	public static ItemStack create(RegistryEntryLookup<Block> lookup, String schematic, String owner) {
 		ItemStack blueprint = AllItems.SCHEMATIC.asStack();
 
-		CompoundTag tag = new CompoundTag();
+		NbtCompound tag = new NbtCompound();
 		tag.putBoolean("Deployed", false);
 		tag.putString("Owner", owner);
 		tag.putString("File", schematic);
-		tag.put("Anchor", NbtUtils.writeBlockPos(BlockPos.ZERO));
-		tag.putString("Rotation", Rotation.NONE.name());
-		tag.putString("Mirror", Mirror.NONE.name());
-		blueprint.setTag(tag);
+		tag.put("Anchor", NbtHelper.fromBlockPos(BlockPos.ORIGIN));
+		tag.putString("Rotation", BlockRotation.NONE.name());
+		tag.putString("Mirror", BlockMirror.NONE.name());
+		blueprint.setNbt(tag);
 
 		writeSize(lookup, blueprint);
 		return blueprint;
@@ -75,45 +75,45 @@ public class SchematicItem extends Item {
 
 	@Override
 	@Environment(value = EnvType.CLIENT)
-	public void appendHoverText(ItemStack stack, Level worldIn, List<Component> tooltip, TooltipFlag flagIn) {
-		if (stack.hasTag()) {
-			if (stack.getTag()
+	public void appendTooltip(ItemStack stack, World worldIn, List<Text> tooltip, TooltipContext flagIn) {
+		if (stack.hasNbt()) {
+			if (stack.getNbt()
 				.contains("File"))
-				tooltip.add(Components.literal(ChatFormatting.GOLD + stack.getTag()
+				tooltip.add(Components.literal(Formatting.GOLD + stack.getNbt()
 					.getString("File")));
 		} else {
-			tooltip.add(Lang.translateDirect("schematic.invalid").withStyle(ChatFormatting.RED));
+			tooltip.add(Lang.translateDirect("schematic.invalid").formatted(Formatting.RED));
 		}
-		super.appendHoverText(stack, worldIn, tooltip, flagIn);
+		super.appendTooltip(stack, worldIn, tooltip, flagIn);
 	}
 
-	public static void writeSize(HolderGetter<Block> lookup, ItemStack blueprint) {
-		CompoundTag tag = blueprint.getTag();
+	public static void writeSize(RegistryEntryLookup<Block> lookup, ItemStack blueprint) {
+		NbtCompound tag = blueprint.getNbt();
 		StructureTemplate t = loadSchematic(lookup, blueprint);
 		tag.put("Bounds", NBTHelper.writeVec3i(t.getSize()));
-		blueprint.setTag(tag);
+		blueprint.setNbt(tag);
 		SchematicInstances.clearHash(blueprint);
 	}
 
-	public static StructurePlaceSettings getSettings(ItemStack blueprint) {
+	public static StructurePlacementData getSettings(ItemStack blueprint) {
 		return getSettings(blueprint, true);
 	}
 
-	public static StructurePlaceSettings getSettings(ItemStack blueprint, boolean processNBT) {
-		CompoundTag tag = blueprint.getTag();
-		StructurePlaceSettings settings = new StructurePlaceSettings();
-		settings.setRotation(Rotation.valueOf(tag.getString("Rotation")));
-		settings.setMirror(Mirror.valueOf(tag.getString("Mirror")));
+	public static StructurePlacementData getSettings(ItemStack blueprint, boolean processNBT) {
+		NbtCompound tag = blueprint.getNbt();
+		StructurePlacementData settings = new StructurePlacementData();
+		settings.setRotation(BlockRotation.valueOf(tag.getString("Rotation")));
+		settings.setMirror(BlockMirror.valueOf(tag.getString("Mirror")));
 		if (processNBT)
 			settings.addProcessor(SchematicProcessor.INSTANCE);
 		return settings;
 	}
 
-	public static StructureTemplate loadSchematic(HolderGetter<Block> lookup, ItemStack blueprint) {
+	public static StructureTemplate loadSchematic(RegistryEntryLookup<Block> lookup, ItemStack blueprint) {
 		StructureTemplate t = new StructureTemplate();
-		String owner = blueprint.getTag()
+		String owner = blueprint.getNbt()
 			.getString("Owner");
-		String schematic = blueprint.getTag()
+		String schematic = blueprint.getNbt()
 			.getString("File");
 
 		if (!schematic.endsWith(".nbt"))
@@ -143,8 +143,8 @@ public class SchematicItem extends Item {
 
 		try (DataInputStream stream = new DataInputStream(new BufferedInputStream(
 				new GZIPInputStream(Files.newInputStream(path, StandardOpenOption.READ))))) {
-			CompoundTag nbt = NbtIo.read(stream, new NbtAccounter(0x20000000L));
-			t.load(lookup, nbt);
+			NbtCompound nbt = NbtIo.read(stream, new NbtTagSizeTracker(0x20000000L));
+			t.readNbt(lookup, nbt);
 		} catch (IOException e) {
 			LOGGER.warn("Failed to read schematic", e);
 		}
@@ -154,24 +154,24 @@ public class SchematicItem extends Item {
 
 	@Nonnull
 	@Override
-	public InteractionResult useOn(UseOnContext context) {
+	public ActionResult useOnBlock(ItemUsageContext context) {
 		if (context.getPlayer() != null && !onItemUse(context.getPlayer(), context.getHand()))
-			return super.useOn(context);
-		return InteractionResult.SUCCESS;
+			return super.useOnBlock(context);
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level worldIn, Player playerIn, InteractionHand handIn) {
+	public TypedActionResult<ItemStack> use(World worldIn, PlayerEntity playerIn, Hand handIn) {
 		if (!onItemUse(playerIn, handIn))
 			return super.use(worldIn, playerIn, handIn);
-		return new InteractionResultHolder<>(InteractionResult.SUCCESS, playerIn.getItemInHand(handIn));
+		return new TypedActionResult<>(ActionResult.SUCCESS, playerIn.getStackInHand(handIn));
 	}
 
-	private boolean onItemUse(Player player, InteractionHand hand) {
-		if (!player.isShiftKeyDown() || hand != InteractionHand.MAIN_HAND)
+	private boolean onItemUse(PlayerEntity player, Hand hand) {
+		if (!player.isSneaking() || hand != Hand.MAIN_HAND)
 			return false;
-		if (!player.getItemInHand(hand)
-			.hasTag())
+		if (!player.getStackInHand(hand)
+			.hasNbt())
 			return false;
 		EnvExecutor.runWhenOn(EnvType.CLIENT, () -> this::displayBlueprintScreen);
 		return true;

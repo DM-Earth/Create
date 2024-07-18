@@ -3,8 +3,6 @@ package com.simibubi.create.foundation.gui;
 import org.joml.Matrix4f;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.gui.element.DelegatedStencilElement;
 import com.simibubi.create.foundation.gui.element.ScreenElement;
@@ -12,16 +10,18 @@ import com.simibubi.create.foundation.utility.Color;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
 
 public class AllIcons implements ScreenElement {
 
-	public static final ResourceLocation ICON_ATLAS = Create.asResource("textures/gui/icons.png");
+	public static final Identifier ICON_ATLAS = Create.asResource("textures/gui/icons.png");
 	public static final int ICON_ATLAS_SIZE = 256;
 
 	private static int x = 0, y = -1;
@@ -184,21 +184,21 @@ public class AllIcons implements ScreenElement {
 
 	@Environment(EnvType.CLIENT)
 	@Override
-	public void render(GuiGraphics graphics, int x, int y) {
-		graphics.blit(ICON_ATLAS, x, y, 0, iconX, iconY, 16, 16, 256, 256);
+	public void render(DrawContext graphics, int x, int y) {
+		graphics.drawTexture(ICON_ATLAS, x, y, 0, iconX, iconY, 16, 16, 256, 256);
 	}
 
 	@Environment(EnvType.CLIENT)
-	public void render(PoseStack ms, MultiBufferSource buffer, int color) {
-		VertexConsumer builder = buffer.getBuffer(RenderType.text(ICON_ATLAS));
-		Matrix4f matrix = ms.last().pose();
+	public void render(MatrixStack ms, VertexConsumerProvider buffer, int color) {
+		VertexConsumer builder = buffer.getBuffer(RenderLayer.getText(ICON_ATLAS));
+		Matrix4f matrix = ms.peek().getPositionMatrix();
 		Color rgb = new Color(color);
-		int light = LightTexture.FULL_BRIGHT;
+		int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
 
-		Vec3 vec1 = new Vec3(0, 0, 0);
-		Vec3 vec2 = new Vec3(0, 1, 0);
-		Vec3 vec3 = new Vec3(1, 1, 0);
-		Vec3 vec4 = new Vec3(1, 0, 0);
+		Vec3d vec1 = new Vec3d(0, 0, 0);
+		Vec3d vec2 = new Vec3d(0, 1, 0);
+		Vec3d vec3 = new Vec3d(1, 1, 0);
+		Vec3d vec4 = new Vec3d(1, 0, 0);
 
 		float u1 = iconX * 1f / ICON_ATLAS_SIZE;
 		float u2 = (iconX + 16) * 1f / ICON_ATLAS_SIZE;
@@ -212,12 +212,12 @@ public class AllIcons implements ScreenElement {
 	}
 
 	@Environment(EnvType.CLIENT)
-	private void vertex(VertexConsumer builder, Matrix4f matrix, Vec3 vec, Color rgb, float u, float v, int light) {
+	private void vertex(VertexConsumer builder, Matrix4f matrix, Vec3d vec, Color rgb, float u, float v, int light) {
 		builder.vertex(matrix, (float) vec.x, (float) vec.y, (float) vec.z)
 			.color(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255)
-			.uv(u, v)
-			.uv2(light)
-			.endVertex();
+			.texture(u, v)
+			.light(light)
+			.next();
 	}
 
 	@Environment(EnvType.CLIENT)

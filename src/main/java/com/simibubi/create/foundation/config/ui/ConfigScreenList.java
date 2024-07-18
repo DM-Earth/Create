@@ -6,9 +6,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.util.Window;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.simibubi.create.foundation.config.ui.entries.NumberEntry;
 import com.simibubi.create.foundation.gui.RemovedGuiUtils;
@@ -20,45 +28,35 @@ import com.simibubi.create.foundation.utility.Color;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.ObjectSelectionList;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+public class ConfigScreenList extends AlwaysSelectedEntryListWidget<ConfigScreenList.Entry> implements TickableGuiEventListener {
 
-public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry> implements TickableGuiEventListener {
+	public static TextFieldWidget currentText;
 
-	public static EditBox currentText;
-
-	public ConfigScreenList(Minecraft client, int width, int height, int top, int bottom, int elementHeight) {
+	public ConfigScreenList(MinecraftClient client, int width, int height, int top, int bottom, int elementHeight) {
 		super(client, width, height, top, bottom, elementHeight);
 		setRenderBackground(false);
-		setRenderTopAndBottom(false);
+		setRenderHorizontalShadows(false);
 		setRenderSelection(false);
 		currentText = null;
 		headerHeight = 3;
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	public void render(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		Color c = new Color(0x60_000000);
-		UIRenderHelper.angledGradient(graphics, 90, x0 + width / 2, y0, width, 5, c, Color.TRANSPARENT_BLACK);
-		UIRenderHelper.angledGradient(graphics, -90, x0 + width / 2, y1, width, 5, c, Color.TRANSPARENT_BLACK);
-		UIRenderHelper.angledGradient(graphics, 0, x0, y0 + height / 2, height, 5, c, Color.TRANSPARENT_BLACK);
-		UIRenderHelper.angledGradient(graphics, 180, x1, y0 + height / 2, height, 5, c, Color.TRANSPARENT_BLACK);
+		UIRenderHelper.angledGradient(graphics, 90, left + width / 2, top, width, 5, c, Color.TRANSPARENT_BLACK);
+		UIRenderHelper.angledGradient(graphics, -90, left + width / 2, bottom, width, 5, c, Color.TRANSPARENT_BLACK);
+		UIRenderHelper.angledGradient(graphics, 0, left, top + height / 2, height, 5, c, Color.TRANSPARENT_BLACK);
+		UIRenderHelper.angledGradient(graphics, 180, right, top + height / 2, height, 5, c, Color.TRANSPARENT_BLACK);
 
 		super.render(graphics, mouseX, mouseY, partialTicks);
 	}
 
 	@Override
-	protected void renderList(GuiGraphics graphics, int p_239229_, int p_239230_, float p_239231_) {
-		Window window = minecraft.getWindow();
-		double d0 = window.getGuiScale();
-		RenderSystem.enableScissor((int) (this.x0 * d0), (int) (window.getHeight() - (this.y1 * d0)), (int) (this.width * d0), (int) (this.height * d0));
+	protected void renderList(DrawContext graphics, int p_239229_, int p_239230_, float p_239231_) {
+		Window window = client.getWindow();
+		double d0 = window.getScaleFactor();
+		RenderSystem.enableScissor((int) (this.left * d0), (int) (window.getFramebufferHeight() - (this.bottom * d0)), (int) (this.width * d0), (int) (this.height * d0));
 		super.renderList(graphics, p_239229_, p_239230_, p_239231_);
 		RenderSystem.disableScissor();
 	}
@@ -76,8 +74,8 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 	}
 
 	@Override
-	protected int getScrollbarPosition() {
-		return x0 + this.width - 6;
+	protected int getScrollbarPositionX() {
+		return left + this.width - 6;
 	}
 
 	@Override
@@ -88,7 +86,7 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 			if (bot >= this.y0 && top <= this.y1)
 				this.getEntry(i).tick();
 		}*/
-		children().forEach(Entry::tick);
+		children().forEach(com.simibubi.create.foundation.config.ui.ConfigScreenList.Entry::tick);
 
 	}
 
@@ -99,7 +97,7 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 		}
 
 		String q = query.toLowerCase(Locale.ROOT);
-		Optional<Entry> first = children().stream().filter(entry -> {
+		Optional<com.simibubi.create.foundation.config.ui.ConfigScreenList.Entry> first = children().stream().filter(entry -> {
 			if (entry.path == null)
 				return false;
 
@@ -113,7 +111,7 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 			return false;
 		}
 
-		Entry e = first.get();
+		com.simibubi.create.foundation.config.ui.ConfigScreenList.Entry e = first.get();
 		e.annotations.put("highlight", "(:");
 		centerScrollOn(e);
 		return true;
@@ -123,8 +121,8 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 		ConfigScreen.cogSpin.bump(3, force);
 	}
 
-	public static abstract class Entry extends ObjectSelectionList.Entry<Entry> implements TickableGuiEventListener {
-		protected List<GuiEventListener> listeners;
+	public static abstract class Entry extends AlwaysSelectedEntryListWidget.Entry<com.simibubi.create.foundation.config.ui.ConfigScreenList.Entry> implements TickableGuiEventListener {
+		protected List<Element> listeners;
 		public Map<String, String> annotations;
 		public String path;
 
@@ -151,7 +149,7 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 		@Override
 		public void tick() {}
 
-		public List<GuiEventListener> getGuiListeners() {
+		public List<Element> getGuiListeners() {
 			return listeners;
 		}
 
@@ -165,18 +163,18 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 		}
 	}
 
-	public static class LabeledEntry extends Entry {
+	public static class LabeledEntry extends com.simibubi.create.foundation.config.ui.ConfigScreenList.Entry {
 
 		protected static final float labelWidthMult = 0.4f;
 
 		public TextStencilElement label;
-		protected List<Component> labelTooltip;
+		protected List<Text> labelTooltip;
 		protected String unit = null;
 		protected LerpedFloat differenceAnimation = LerpedFloat.linear().startWithValue(0);
 		protected LerpedFloat highlightAnimation = LerpedFloat.linear().startWithValue(0);
 
 		public LabeledEntry(String label) {
-			this.label = new TextStencilElement(Minecraft.getInstance().font, label);
+			this.label = new TextStencilElement(MinecraftClient.getInstance().textRenderer, label);
 			this.label.withElementRenderer((graphics, width, height, alpha) -> UIRenderHelper.angledGradient(graphics,
 				0, 0, height / 2, height, width, Theme.p(Theme.Key.TEXT_ACCENT_STRONG)));
 			labelTooltip = new ArrayList<>();
@@ -195,7 +193,7 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 		}
 
 		@Override
-		public void render(GuiGraphics graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
+		public void render(DrawContext graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
 			if (isCurrentValueChanged()) {
 				if (differenceAnimation.getChaseTarget() != 1)
 					differenceAnimation.chase(1, .5f, LerpedFloat.Chaser.EXP);
@@ -219,14 +217,14 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 
 			UIRenderHelper.streak(graphics, 0, x - 10, y + height / 2, height - 6, width / 8 * 7, 0xdd_000000);
 			UIRenderHelper.streak(graphics, 180, x + (int) (width * 1.35f) + 10, y + height / 2, height - 6, width / 8 * 7, 0xdd_000000);
-			MutableComponent component = label.getComponent();
-			Font font = Minecraft.getInstance().font;
-			if (font.width(component) > getLabelWidth(width) - 10) {
-				label.withText(font.substrByWidth(component, getLabelWidth(width) - 15).getString() + "...");
+			MutableText component = label.getComponent();
+			TextRenderer font = MinecraftClient.getInstance().textRenderer;
+			if (font.getWidth(component) > getLabelWidth(width) - 10) {
+				label.withText(font.trimToWidth(component, getLabelWidth(width) - 15).getString() + "...");
 			}
 			if (unit != null) {
-				int unitWidth = font.width(unit);
-				graphics.drawString(font, unit, x + getLabelWidth(width) - unitWidth - 5, y + height / 2 + 2, Theme.i(Theme.Key.TEXT_DARKER), false);
+				int unitWidth = font.getWidth(unit);
+				graphics.drawText(font, unit, x + getLabelWidth(width) - unitWidth - 5, y + height / 2 + 2, Theme.i(Theme.Key.TEXT_DARKER), false);
 				label.at(x + 10, y + height / 2 - 10, 0).render(graphics);
 			} else {
 				label.at(x + 10, y + height / 2 - 4, 0).render(graphics);
@@ -248,18 +246,18 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 
 
 			if (mouseX > x && mouseX < x + getLabelWidth(width) && mouseY > y + 5 && mouseY < y + height - 5) {
-				List<Component> tooltip = getLabelTooltip();
+				List<Text> tooltip = getLabelTooltip();
 				if (tooltip.isEmpty())
 					return;
 
 				RenderSystem.disableScissor();
-				Screen screen = Minecraft.getInstance().screen;
+				Screen screen = MinecraftClient.getInstance().currentScreen;
 				RemovedGuiUtils.drawHoveringText(graphics, tooltip, mouseX, mouseY, screen.width, screen.height, 700, font);
 				GlStateManager._enableScissorTest();
 			}
 		}
 
-		public List<Component> getLabelTooltip() {
+		public List<Text> getLabelTooltip() {
 			return labelTooltip;
 		}
 
@@ -269,7 +267,7 @@ public class ConfigScreenList extends ObjectSelectionList<ConfigScreenList.Entry
 
 		// TODO 1.17
 		@Override
-		public Component getNarration() {
+		public Text getNarration() {
 			return Components.immutableEmpty();
 		}
 	}

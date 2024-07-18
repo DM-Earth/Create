@@ -1,9 +1,8 @@
 package com.simibubi.create.content.kinetics.gauge;
 
 import com.simibubi.create.foundation.networking.BlockEntityConfigurationPacket;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
 
 public class GaugeObservedPacket extends BlockEntityConfigurationPacket<StressGaugeBlockEntity> {
 
@@ -11,15 +10,15 @@ public class GaugeObservedPacket extends BlockEntityConfigurationPacket<StressGa
 		super(pos);
 	}
 
-	public GaugeObservedPacket(FriendlyByteBuf buffer) {
+	public GaugeObservedPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
 	@Override
-	protected void writeSettings(FriendlyByteBuf buffer) {}
+	protected void writeSettings(PacketByteBuf buffer) {}
 
 	@Override
-	protected void readSettings(FriendlyByteBuf buffer) {}
+	protected void readSettings(PacketByteBuf buffer) {}
 
 	@Override
 	protected void applySettings(StressGaugeBlockEntity be) {

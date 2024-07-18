@@ -28,14 +28,14 @@ import com.tterrag.registrate.util.nullness.NonNullSupplier;
 import io.github.fabricators_of_create.porting_lib.models.generators.ConfiguredModel;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockBehaviour.Properties;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.AbstractBlock.Settings;
+import net.minecraft.block.Block;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.item.Item;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction.Axis;
 
 public class PaletteBlockPattern {
 
@@ -76,12 +76,12 @@ public class PaletteBlockPattern {
 	private Optional<Function<String, ConnectedTextureBehaviour>> ctFactory;
 
 	private IPatternBlockStateGenerator blockStateGenerator;
-	private NonNullFunction<Properties, ? extends Block> blockFactory;
+	private NonNullFunction<Settings, ? extends Block> blockFactory;
 	private NonNullFunction<NonNullSupplier<Block>, NonNullBiConsumer<DataGenContext<Block, ? extends Block>, RegistrateRecipeProvider>> additionalRecipes;
 	private PaletteBlockPartial<? extends Block>[] partials;
 
 	@Environment(EnvType.CLIENT)
-	private RenderType renderType;
+	private RenderLayer renderType;
 
 	private static PaletteBlockPattern create(String name, PatternNameType nameType,
 		PaletteBlockPartial<?>... partials) {
@@ -114,7 +114,7 @@ public class PaletteBlockPattern {
 		return itemTags;
 	}
 
-	public NonNullFunction<Properties, ? extends Block> getBlockFactory() {
+	public NonNullFunction<Settings, ? extends Block> getBlockFactory() {
 		return blockFactory;
 	}
 
@@ -148,7 +148,7 @@ public class PaletteBlockPattern {
 		return this;
 	}
 
-	private PaletteBlockPattern block(NonNullFunction<Properties, ? extends Block> blockFactory) {
+	private PaletteBlockPattern block(NonNullFunction<Settings, ? extends Block> blockFactory) {
 		this.blockFactory = blockFactory;
 		return this;
 	}
@@ -161,26 +161,26 @@ public class PaletteBlockPattern {
 	// Model generators
 
 	public IBlockStateProvider cubeAll(String variant) {
-		ResourceLocation all = toLocation(variant, textures[0]);
+		Identifier all = toLocation(variant, textures[0]);
 		return (ctx, prov) -> prov.simpleBlock(ctx.get(), prov.models()
 			.cubeAll(createName(variant), all));
 	}
 
 	public IBlockStateProvider cubeBottomTop(String variant) {
-		ResourceLocation side = toLocation(variant, textures[0]);
-		ResourceLocation bottom = toLocation(variant, textures[1]);
-		ResourceLocation top = toLocation(variant, textures[2]);
+		Identifier side = toLocation(variant, textures[0]);
+		Identifier bottom = toLocation(variant, textures[1]);
+		Identifier top = toLocation(variant, textures[2]);
 		return (ctx, prov) -> prov.simpleBlock(ctx.get(), prov.models()
 			.cubeBottomTop(createName(variant), side, bottom, top));
 	}
 
 	public IBlockStateProvider pillar(String variant) {
-		ResourceLocation side = toLocation(variant, textures[0]);
-		ResourceLocation end = toLocation(variant, textures[1]);
+		Identifier side = toLocation(variant, textures[0]);
+		Identifier end = toLocation(variant, textures[1]);
 
 		return (ctx, prov) -> prov.getVariantBuilder(ctx.getEntry())
 			.forAllStatesExcept(state -> {
-				Axis axis = state.getValue(BlockStateProperties.AXIS);
+				Axis axis = state.get(Properties.AXIS);
 				if (axis == Axis.Y)
 					return ConfiguredModel.builder()
 						.modelFile(prov.models()
@@ -194,13 +194,13 @@ public class PaletteBlockPattern {
 					.rotationX(90)
 					.rotationY(axis == Axis.X ? 90 : 0)
 					.build();
-			}, BlockStateProperties.WATERLOGGED, ConnectedPillarBlock.NORTH, ConnectedPillarBlock.SOUTH,
+			}, Properties.WATERLOGGED, ConnectedPillarBlock.NORTH, ConnectedPillarBlock.SOUTH,
 				ConnectedPillarBlock.EAST, ConnectedPillarBlock.WEST);
 	}
 
 	public IBlockStateProvider cubeColumn(String variant) {
-		ResourceLocation side = toLocation(variant, textures[0]);
-		ResourceLocation end = toLocation(variant, textures[1]);
+		Identifier side = toLocation(variant, textures[0]);
+		Identifier end = toLocation(variant, textures[1]);
 		return (ctx, prov) -> prov.simpleBlock(ctx.get(), prov.models()
 			.cubeColumn(createName(variant), side, end));
 	}
@@ -219,16 +219,16 @@ public class PaletteBlockPattern {
 		return nameType == SUFFIX ? String.format(formatString, variant, id) : String.format(formatString, id, variant);
 	}
 
-	public static ResourceLocation toLocation(String variant, String texture) {
+	public static Identifier toLocation(String variant, String texture) {
 		return Create.asResource(
 			String.format(TEXTURE_LOCATION, texture, variant + (texture.equals("cut") ? "_" : "_cut_") + texture));
 	}
 
 	protected static CTSpriteShiftEntry ct(String variant, CTs texture) {
-		ResourceLocation resLoc = texture.srcFactory.apply(variant);
-		ResourceLocation resLocTarget = texture.targetFactory.apply(variant);
+		Identifier resLoc = texture.srcFactory.apply(variant);
+		Identifier resLocTarget = texture.targetFactory.apply(variant);
 		return CTSpriteShifter.getCT(texture.type, resLoc,
-			new ResourceLocation(resLocTarget.getNamespace(), resLocTarget.getPath() + "_connected"));
+			new Identifier(resLocTarget.getNamespace(), resLocTarget.getPath() + "_connected"));
 	}
 
 	@FunctionalInterface
@@ -256,15 +256,15 @@ public class PaletteBlockPattern {
 		;
 
 		public CTType type;
-		private Function<String, ResourceLocation> srcFactory;
-		private Function<String, ResourceLocation> targetFactory;
+		private Function<String, Identifier> srcFactory;
+		private Function<String, Identifier> targetFactory;
 
-		private CTs(CTType type, Function<String, ResourceLocation> factory) {
+		private CTs(CTType type, Function<String, Identifier> factory) {
 			this(type, factory, factory);
 		}
 
-		private CTs(CTType type, Function<String, ResourceLocation> srcFactory,
-			Function<String, ResourceLocation> targetFactory) {
+		private CTs(CTType type, Function<String, Identifier> srcFactory,
+			Function<String, Identifier> targetFactory) {
 			this.type = type;
 			this.srcFactory = srcFactory;
 			this.targetFactory = targetFactory;

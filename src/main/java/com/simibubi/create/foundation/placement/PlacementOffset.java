@@ -1,26 +1,25 @@
 package com.simibubi.create.foundation.placement;
 
 import java.util.function.Function;
-
-import net.minecraft.advancements.CriteriaTriggers;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Vec3i;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.stats.Stats;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.advancement.criterion.Criteria;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.stat.Stats;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.World;
 
 public class PlacementOffset {
 
@@ -31,7 +30,7 @@ public class PlacementOffset {
 
 	private PlacementOffset(boolean success) {
 		this.success = success;
-		this.pos = BlockPos.ZERO;
+		this.pos = BlockPos.ORIGIN;
 		this.stateTransform = Function.identity();
 		this.ghostState = null;
 	}
@@ -94,37 +93,37 @@ public class PlacementOffset {
 		return ghostState;
 	}
 
-	public boolean isReplaceable(Level world) {
+	public boolean isReplaceable(World world) {
 		if (!success)
 			return false;
 
-		return world.getBlockState(new BlockPos(pos)).canBeReplaced();
+		return world.getBlockState(new BlockPos(pos)).isReplaceable();
 	}
 
-	public InteractionResult placeInWorld(Level world, BlockItem blockItem, Player player, InteractionHand hand, BlockHitResult ray) {
+	public ActionResult placeInWorld(World world, BlockItem blockItem, PlayerEntity player, Hand hand, BlockHitResult ray) {
 
 		if (!isReplaceable(world))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
-		if (world.isClientSide)
-			return InteractionResult.SUCCESS;
+		if (world.isClient)
+			return ActionResult.SUCCESS;
 
-		UseOnContext context = new UseOnContext(player, hand, ray);
+		ItemUsageContext context = new ItemUsageContext(player, hand, ray);
 		BlockPos newPos = new BlockPos(pos);
-		ItemStack stackBefore = player.getItemInHand(hand)
+		ItemStack stackBefore = player.getStackInHand(hand)
 			.copy();
 
-		if (!world.mayInteract(player, newPos))
-			return InteractionResult.PASS;
+		if (!world.canPlayerModifyAt(player, newPos))
+			return ActionResult.PASS;
 
-		BlockState state = stateTransform.apply(blockItem.getBlock().defaultBlockState());
-		if (state.hasProperty(BlockStateProperties.WATERLOGGED)) {
+		BlockState state = stateTransform.apply(blockItem.getBlock().getDefaultState());
+		if (state.contains(Properties.WATERLOGGED)) {
 			FluidState fluidState = world.getFluidState(newPos);
-			state = state.setValue(BlockStateProperties.WATERLOGGED, fluidState.getType() == Fluids.WATER);
+			state = state.with(Properties.WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
 		}
 
 //		BlockSnapshot snapshot = BlockSnapshot.create(world.dimension(), world, newPos);
-		world.setBlockAndUpdate(newPos, state);
+		world.setBlockState(newPos, state);
 
 //		BlockEvent.EntityPlaceEvent event = new BlockEvent.EntityPlaceEvent(snapshot, IPlacementHelper.ID, player);
 //		if (MinecraftForge.EVENT_BUS.post(event)) {
@@ -133,19 +132,19 @@ public class PlacementOffset {
 //		}
 
 		BlockState newState = world.getBlockState(newPos);
-		SoundType soundtype = newState.getSoundType();
-		world.playSound(null, newPos, soundtype.getPlaceSound(), SoundSource.BLOCKS, (soundtype.getVolume() + 1.0F) / 2.0F, soundtype.getPitch() * 0.8F);
+		BlockSoundGroup soundtype = newState.getSoundGroup();
+		world.playSound(null, newPos, soundtype.getPlaceSound(), SoundCategory.BLOCKS, (soundtype.getVolume() + 1.0F) / 2.0F, soundtype.getPitch() * 0.8F);
 
-		player.awardStat(Stats.ITEM_USED.get(blockItem));
+		player.incrementStat(Stats.USED.getOrCreateStat(blockItem));
 		newState.getBlock()
-			.setPlacedBy(world, newPos, newState, player, stackBefore);
+			.onPlaced(world, newPos, newState, player, stackBefore);
 
-		if (player instanceof ServerPlayer)
-			CriteriaTriggers.PLACED_BLOCK.trigger((ServerPlayer) player, newPos, context.getItemInHand());
+		if (player instanceof ServerPlayerEntity)
+			Criteria.PLACED_BLOCK.trigger((ServerPlayerEntity) player, newPos, context.getStack());
 
 		if (!player.isCreative())
-			context.getItemInHand().shrink(1);
+			context.getStack().decrement(1);
 
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 }

@@ -1,31 +1,30 @@
 package com.simibubi.create.content.equipment.toolbox;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
 
 public class ToolboxRenderer extends SmartBlockEntityRenderer<ToolboxBlockEntity> {
 
-	public ToolboxRenderer(BlockEntityRendererProvider.Context context) {
+	public ToolboxRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	protected void renderSafe(ToolboxBlockEntity blockEntity, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, int overlay) {
+	protected void renderSafe(ToolboxBlockEntity blockEntity, float partialTicks, MatrixStack ms,
+		VertexConsumerProvider buffer, int light, int overlay) {
 
-		BlockState blockState = blockEntity.getBlockState();
-		Direction facing = blockState.getValue(ToolboxBlock.FACING)
+		BlockState blockState = blockEntity.getCachedState();
+		Direction facing = blockState.get(ToolboxBlock.FACING)
 			.getOpposite();
 		SuperByteBuffer lid =
 			CachedBufferer.partial(AllPartialModels.TOOLBOX_LIDS.get(blockEntity.getColor()), blockState);
@@ -34,9 +33,9 @@ public class ToolboxRenderer extends SmartBlockEntityRenderer<ToolboxBlockEntity
 		float lidAngle = blockEntity.lid.getValue(partialTicks);
 		float drawerOffset = blockEntity.drawers.getValue(partialTicks);
 
-		VertexConsumer builder = buffer.getBuffer(RenderType.cutoutMipped());
+		VertexConsumer builder = buffer.getBuffer(RenderLayer.getCutoutMipped());
 		lid.centre()
-			.rotateY(-facing.toYRot())
+			.rotateY(-facing.asRotation())
 			.unCentre()
 			.translate(0, 6 / 16f, 12 / 16f)
 			.rotateX(135 * lidAngle)
@@ -46,7 +45,7 @@ public class ToolboxRenderer extends SmartBlockEntityRenderer<ToolboxBlockEntity
 
 		for (int offset : Iterate.zeroAndOne) {
 			drawer.centre()
-					.rotateY(-facing.toYRot())
+					.rotateY(-facing.asRotation())
 					.unCentre()
 					.translate(0, offset * 1 / 8f, -drawerOffset * .175f * (2 - offset))
 					.light(light)

@@ -1,19 +1,18 @@
 package com.simibubi.create.content.equipment.symmetryWand;
 
 import com.jozufozu.flywheel.core.PartialModel;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 
 public class SymmetryWandItemRenderer extends CustomRenderedItemModelRenderer {
 
@@ -22,20 +21,20 @@ public class SymmetryWandItemRenderer extends CustomRenderedItemModelRenderer {
 	protected static final PartialModel CORE_GLOW = new PartialModel(Create.asResource("item/wand_of_symmetry/core_glow"));
 
 	@Override
-	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ItemDisplayContext transformType,
-		PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
+	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ModelTransformationMode transformType,
+		MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay) {
 		float worldTime = AnimationTickHolder.getRenderTime() / 20;
-		int maxLight = LightTexture.FULL_BRIGHT;
+		int maxLight = LightmapTextureManager.MAX_LIGHT_COORDINATE;
 
 		renderer.render(model.getOriginalModel(), light);
 		renderer.renderSolidGlowing(CORE.get(), maxLight);
 		renderer.renderGlowing(CORE_GLOW.get(), maxLight);
 
-		float floating = Mth.sin(worldTime) * .05f;
+		float floating = MathHelper.sin(worldTime) * .05f;
 		float angle = worldTime * -10 % 360;
 
 		ms.translate(0, floating, 0);
-		ms.mulPose(Axis.YP.rotationDegrees(angle));
+		ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(angle));
 
 		renderer.renderGlowing(BITS.get(), maxLight);
 	}

@@ -1,41 +1,39 @@
 package com.simibubi.create.content.contraptions.behaviour;
 
 import java.util.function.UnaryOperator;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.logistics.filter.FilterItemStack;
 import com.simibubi.create.foundation.utility.VecHelper;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
-import net.minecraft.world.phys.Vec3;
-
 public class MovementContext {
 
-	public Vec3 position;
-	public Vec3 motion;
-	public Vec3 relativeMotion;
-	public UnaryOperator<Vec3> rotation;
+	public Vec3d position;
+	public Vec3d motion;
+	public Vec3d relativeMotion;
+	public UnaryOperator<Vec3d> rotation;
 
-	public Level world;
+	public World world;
 	public BlockState state;
 	public BlockPos localPos;
-	public CompoundTag blockEntityData;
+	public NbtCompound blockEntityData;
 
 	public boolean stall;
 	public boolean disabled;
 	public boolean firstMovement;
-	public CompoundTag data;
+	public NbtCompound data;
 	public Contraption contraption;
 	public Object temporaryData;
 	
 	private FilterItemStack filter;
 
-	public MovementContext(Level world, StructureBlockInfo info, Contraption contraption) {
+	public MovementContext(World world, StructureBlockInfo info, Contraption contraption) {
 		this.world = world;
 		this.state = info.state();
 		this.blockEntityData = info.nbt();
@@ -44,11 +42,11 @@ public class MovementContext {
 
 		disabled = false;
 		firstMovement = true;
-		motion = Vec3.ZERO;
-		relativeMotion = Vec3.ZERO;
+		motion = Vec3d.ZERO;
+		relativeMotion = Vec3d.ZERO;
 		rotation = v -> v;
 		position = null;
-		data = new CompoundTag();
+		data = new NbtCompound();
 		stall = false;
 		filter = null;
 	}
@@ -58,26 +56,26 @@ public class MovementContext {
 		double length = -motion.length();
 		if (disabled)
 			return 0;
-		if (world.isClientSide && contraption.stalled)
+		if (world.isClient && contraption.stalled)
 			return 700;
 		if (Math.abs(length) < 1 / 512f)
 			return 0;
 		return (((int) (length * modifier + 100 * Math.signum(length))) / 100) * 100;
 	}
 
-	public static MovementContext readNBT(Level world, StructureBlockInfo info, CompoundTag nbt, Contraption contraption) {
+	public static MovementContext readNBT(World world, StructureBlockInfo info, NbtCompound nbt, Contraption contraption) {
 		MovementContext context = new MovementContext(world, info, contraption);
-		context.motion = VecHelper.readNBT(nbt.getList("Motion", Tag.TAG_DOUBLE));
-		context.relativeMotion = VecHelper.readNBT(nbt.getList("RelativeMotion", Tag.TAG_DOUBLE));
+		context.motion = VecHelper.readNBT(nbt.getList("Motion", NbtElement.DOUBLE_TYPE));
+		context.relativeMotion = VecHelper.readNBT(nbt.getList("RelativeMotion", NbtElement.DOUBLE_TYPE));
 		if (nbt.contains("Position"))
-			context.position = VecHelper.readNBT(nbt.getList("Position", Tag.TAG_DOUBLE));
+			context.position = VecHelper.readNBT(nbt.getList("Position", NbtElement.DOUBLE_TYPE));
 		context.stall = nbt.getBoolean("Stall");
 		context.firstMovement = nbt.getBoolean("FirstMovement");
 		context.data = nbt.getCompound("Data");
 		return context;
 	}
 
-	public CompoundTag writeToNBT(CompoundTag nbt) {
+	public NbtCompound writeToNBT(NbtCompound nbt) {
 		nbt.put("Motion", VecHelper.writeNBT(motion));
 		nbt.put("RelativeMotion", VecHelper.writeNBT(relativeMotion));
 		if (position != null)

@@ -2,8 +2,7 @@ package com.simibubi.create.foundation.gui.element;
 
 import com.simibubi.create.foundation.gui.UIRenderHelper;
 import com.simibubi.create.foundation.utility.Color;
-
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
 
 public class DelegatedStencilElement extends StencilElement {
 
@@ -36,18 +35,18 @@ public class DelegatedStencilElement extends StencilElement {
 	}
 
 	@Override
-	protected void renderStencil(GuiGraphics graphics) {
+	protected void renderStencil(DrawContext graphics) {
 		stencil.render(graphics, width, height, 1);
 	}
 
 	@Override
-	protected void renderElement(GuiGraphics graphics) {
+	protected void renderElement(DrawContext graphics) {
 		element.render(graphics, width, height, alpha);
 	}
 
 	@FunctionalInterface
 	public interface ElementRenderer {
-		void render(GuiGraphics graphics, int width, int height, float alpha);
+		void render(DrawContext graphics, int width, int height, float alpha);
 	}
 
 }

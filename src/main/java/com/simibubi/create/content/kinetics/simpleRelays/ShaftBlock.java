@@ -1,7 +1,22 @@
 package com.simibubi.create.content.kinetics.simpleRelays;
 
 import java.util.function.Predicate;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 import com.google.common.base.Predicates;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllShapes;
@@ -14,28 +29,11 @@ import com.simibubi.create.foundation.placement.PlacementHelpers;
 import com.simibubi.create.foundation.placement.PlacementOffset;
 import com.simibubi.create.foundation.placement.PoleHelper;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-
 public class ShaftBlock extends AbstractSimpleShaftBlock implements EncasableBlock {
 
 	public static final int placementHelperId = PlacementHelpers.register(new PlacementHelper());
 
-	public ShaftBlock(Properties properties) {
+	public ShaftBlock(Settings properties) {
 		super(properties);
 	}
 
@@ -44,20 +42,20 @@ public class ShaftBlock extends AbstractSimpleShaftBlock implements EncasableBlo
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState stateForPlacement = super.getStateForPlacement(context);
-		return pickCorrectShaftType(stateForPlacement, context.getLevel(), context.getClickedPos());
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState stateForPlacement = super.getPlacementState(context);
+		return pickCorrectShaftType(stateForPlacement, context.getWorld(), context.getBlockPos());
 	}
 
-	public static BlockState pickCorrectShaftType(BlockState stateForPlacement, Level level, BlockPos pos) {
+	public static BlockState pickCorrectShaftType(BlockState stateForPlacement, World level, BlockPos pos) {
 		if (PoweredShaftBlock.stillValid(stateForPlacement, level, pos))
 			return PoweredShaftBlock.getEquivalent(stateForPlacement);
 		return stateForPlacement;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return AllShapes.SIX_VOXEL_POLE.get(state.getValue(AXIS));
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return AllShapes.SIX_VOXEL_POLE.get(state.get(AXIS));
 	}
 
 	@Override
@@ -71,26 +69,26 @@ public class ShaftBlock extends AbstractSimpleShaftBlock implements EncasableBlo
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult ray) {
-		if (player.isShiftKeyDown() || !player.mayBuild())
-			return InteractionResult.PASS;
+		if (player.isSneaking() || !player.canModifyBlocks())
+			return ActionResult.PASS;
 
-		ItemStack heldItem = player.getItemInHand(hand);
-		InteractionResult result = tryEncase(state, world, pos, heldItem, player, hand, ray);
-		if (result.consumesAction())
+		ItemStack heldItem = player.getStackInHand(hand);
+		ActionResult result = tryEncase(state, world, pos, heldItem, player, hand, ray);
+		if (result.isAccepted())
 			return result;
 
-		if (AllBlocks.METAL_GIRDER.isIn(heldItem) && state.getValue(AXIS) != Axis.Y) {
+		if (AllBlocks.METAL_GIRDER.isIn(heldItem) && state.get(AXIS) != Axis.Y) {
 			KineticBlockEntity.switchToBlockState(world, pos, AllBlocks.METAL_GIRDER_ENCASED_SHAFT.getDefaultState()
-				.setValue(WATERLOGGED, state.getValue(WATERLOGGED))
-				.setValue(GirderEncasedShaftBlock.HORIZONTAL_AXIS, state.getValue(AXIS) == Axis.Z ? Axis.Z : Axis.X));
-			if (!world.isClientSide && !player.isCreative()) {
-				heldItem.shrink(1);
+				.with(WATERLOGGED, state.get(WATERLOGGED))
+				.with(GirderEncasedShaftBlock.HORIZONTAL_AXIS, state.get(AXIS) == Axis.Z ? Axis.Z : Axis.X));
+			if (!world.isClient && !player.isCreative()) {
+				heldItem.decrement(1);
 				if (heldItem.isEmpty())
-					player.setItemInHand(hand, ItemStack.EMPTY);
+					player.setStackInHand(hand, ItemStack.EMPTY);
 			}
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
 
 		IPlacementHelper helper = PlacementHelpers.get(placementHelperId);
@@ -98,7 +96,7 @@ public class ShaftBlock extends AbstractSimpleShaftBlock implements EncasableBlo
 			return helper.getOffset(player, world, state, pos, ray)
 				.placeInWorld(world, (BlockItem) heldItem.getItem(), player, hand, ray);
 
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
 	@MethodsReturnNonnullByDefault
@@ -108,7 +106,7 @@ public class ShaftBlock extends AbstractSimpleShaftBlock implements EncasableBlo
 
 		private PlacementHelper() {
 			super(state -> state.getBlock() instanceof AbstractSimpleShaftBlock
-				|| state.getBlock() instanceof PoweredShaftBlock, state -> state.getValue(AXIS), AXIS);
+				|| state.getBlock() instanceof PoweredShaftBlock, state -> state.get(AXIS), AXIS);
 		}
 
 		@Override
@@ -123,7 +121,7 @@ public class ShaftBlock extends AbstractSimpleShaftBlock implements EncasableBlo
 		}
 
 		@Override
-		public PlacementOffset getOffset(Player player, Level world, BlockState state, BlockPos pos,
+		public PlacementOffset getOffset(PlayerEntity player, World world, BlockState state, BlockPos pos,
 			BlockHitResult ray) {
 			PlacementOffset offset = super.getOffset(player, world, state, pos, ray);
 			if (offset.isSuccessful())

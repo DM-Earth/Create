@@ -1,18 +1,18 @@
 package com.simibubi.create.foundation.damageTypes;
 
-import net.minecraft.data.worldgen.BootstapContext;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.damagesource.CombatEntry;
-import net.minecraft.world.damagesource.CombatTracker;
-import net.minecraft.world.damagesource.DamageEffects;
-import net.minecraft.world.damagesource.DamageScaling;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageType;
-import net.minecraft.world.damagesource.DeathMessageType;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.damage.DamageEffects;
+import net.minecraft.entity.damage.DamageRecord;
+import net.minecraft.entity.damage.DamageScaling;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageTracker;
+import net.minecraft.entity.damage.DamageType;
+import net.minecraft.entity.damage.DeathMessageType;
+import net.minecraft.registry.Registerable;
+import net.minecraft.registry.RegistryKey;
 
 public class DamageTypeBuilder {
-	protected final ResourceKey<DamageType> key;
+	protected final RegistryKey<DamageType> key;
 
 	protected String msgId;
 	protected DamageScaling scaling;
@@ -20,7 +20,7 @@ public class DamageTypeBuilder {
 	protected DamageEffects effects;
 	protected DeathMessageType deathMessageType;
 
-	public DamageTypeBuilder(ResourceKey<DamageType> key) {
+	public DamageTypeBuilder(RegistryKey<DamageType> key) {
 		this.key = key;
 	}
 
@@ -35,7 +35,7 @@ public class DamageTypeBuilder {
 	}
 
 	public DamageTypeBuilder simpleMsgId() {
-		return msgId(key.location().getNamespace() + "." + key.location().getPath());
+		return msgId(key.getValue().getNamespace() + "." + key.getValue().getPath());
 	}
 
 	/**
@@ -65,8 +65,8 @@ public class DamageTypeBuilder {
 	/**
 	 * Set the death message type of this damage type. This determines how a death message lang key is assembled.
 	 * <ul>
-	 *     <li>{@link DeathMessageType#DEFAULT}: {@link DamageSource#getLocalizedDeathMessage}</li>
-	 *     <li>{@link DeathMessageType#FALL_VARIANTS}: {@link CombatTracker#getFallMessage(CombatEntry, Entity)}</li>
+	 *     <li>{@link DeathMessageType#DEFAULT}: {@link DamageSource#getDeathMessage}</li>
+	 *     <li>{@link DeathMessageType#FALL_VARIANTS}: {@link DamageTracker#getFallDeathMessage(DamageRecord, Entity)}</li>
 	 *     <li>{@link DeathMessageType#INTENTIONAL_GAME_DESIGN}: "death.attack." + msgId, wrapped in brackets, linking to MCPE-28723</li>
 	 * </ul>
 	 */
@@ -91,7 +91,7 @@ public class DamageTypeBuilder {
 		return new DamageType(msgId, scaling, exhaustion, effects, deathMessageType);
 	}
 
-	public DamageType register(BootstapContext<DamageType> ctx) {
+	public DamageType register(Registerable<DamageType> ctx) {
 		DamageType type = build();
 		ctx.register(key, type);
 		return type;

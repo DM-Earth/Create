@@ -2,6 +2,7 @@ package com.simibubi.create.foundation.utility;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -10,19 +11,17 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
-
+import net.minecraft.world.WorldAccess;
 import com.tterrag.registrate.util.nullness.NonNullFunction;
-
-import net.minecraft.world.level.LevelAccessor;
 
 public class WorldAttached<T> {
 
 	// weak references to prevent leaking hashmaps when a WorldAttached is GC'd during runtime
-	static List<WeakReference<Map<LevelAccessor, ?>>> allMaps = new ArrayList<>();
-	private final Map<LevelAccessor, T> attached;
-	private final Function<LevelAccessor, T> factory;
+	static List<WeakReference<Map<WorldAccess, ?>>> allMaps = new ArrayList<>();
+	private final Map<WorldAccess, T> attached;
+	private final Function<WorldAccess, T> factory;
 
-	public WorldAttached(Function<LevelAccessor, T> factory) {
+	public WorldAttached(Function<WorldAccess, T> factory) {
 		this.factory = factory;
 		// Weak key hashmaps prevent worlds not existing anywhere else from leaking memory.
 		// This is only a fallback in the event that unload events fail to fire for any reason.
@@ -30,10 +29,10 @@ public class WorldAttached<T> {
 		allMaps.add(new WeakReference<>(attached));
 	}
 
-	public static void invalidateWorld(LevelAccessor world) {
+	public static void invalidateWorld(WorldAccess world) {
 		var i = allMaps.iterator();
 		while (i.hasNext()) {
-			Map<LevelAccessor, ?> map = i.next()
+			Map<WorldAccess, ?> map = i.next()
 					.get();
 			if (map == null) {
 				// If the map has been GC'd, remove the weak reference
@@ -46,7 +45,7 @@ public class WorldAttached<T> {
 	}
 
 	@Nonnull
-	public T get(LevelAccessor world) {
+	public T get(WorldAccess world) {
 		T t = attached.get(world);
 		if (t != null) return t;
 		T entry = factory.apply(world);
@@ -54,7 +53,7 @@ public class WorldAttached<T> {
 		return entry;
 	}
 
-	public void put(LevelAccessor world, T entry) {
+	public void put(WorldAccess world, T entry) {
 		attached.put(world, entry);
 	}
 
@@ -62,7 +61,7 @@ public class WorldAttached<T> {
 	 * Replaces the entry with a new one from the factory and returns the new entry.
 	 */
 	@Nonnull
-	public T replace(LevelAccessor world) {
+	public T replace(WorldAccess world) {
 		attached.remove(world);
 
 		return get(world);
@@ -72,7 +71,7 @@ public class WorldAttached<T> {
 	 * Replaces the entry with a new one from the factory and returns the new entry.
 	 */
 	@Nonnull
-	public T replace(LevelAccessor world, Consumer<T> finalizer) {
+	public T replace(WorldAccess world, Consumer<T> finalizer) {
 		T remove = attached.remove(world);
 
 		if (remove != null)
@@ -86,7 +85,7 @@ public class WorldAttached<T> {
 	 *
 	 * @param finalizer Do something with all of the world-value pairs
 	 */
-	public void empty(BiConsumer<LevelAccessor, T> finalizer) {
+	public void empty(BiConsumer<WorldAccess, T> finalizer) {
 		attached.forEach(finalizer);
 		attached.clear();
 	}

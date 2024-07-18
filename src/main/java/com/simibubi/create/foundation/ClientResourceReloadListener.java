@@ -11,17 +11,17 @@ import com.simibubi.create.foundation.utility.LangNumberFormat;
 
 import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.ResourceReloadListenerKeys;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.SynchronousResourceReloader;
+import net.minecraft.util.Identifier;
 
-public class ClientResourceReloadListener implements ResourceManagerReloadListener, IdentifiableResourceReloadListener {
-	public static final ResourceLocation ID = Create.asResource("client_reload_listener");
+public class ClientResourceReloadListener implements SynchronousResourceReloader, IdentifiableResourceReloadListener {
+	public static final Identifier ID = Create.asResource("client_reload_listener");
 	// fabric: make sure number format is updated after languages load
-	public static final Set<ResourceLocation> DEPENDENCIES = Set.of(ResourceReloadListenerKeys.LANGUAGES);
+	public static final Set<Identifier> DEPENDENCIES = Set.of(ResourceReloadListenerKeys.LANGUAGES);
 
 	@Override
-	public void onResourceManagerReload(ResourceManager resourceManager) {
+	public void reload(ResourceManager resourceManager) {
 		CreateClient.invalidateRenderers();
 		SoundScapes.invalidateAll();
 		LangNumberFormat.numberFormat.update();
@@ -29,12 +29,12 @@ public class ClientResourceReloadListener implements ResourceManagerReloadListen
 	}
 
 	@Override
-	public ResourceLocation getFabricId() {
+	public Identifier getFabricId() {
 		return ID;
 	}
 
 	@Override
-	public Collection<ResourceLocation> getFabricDependencies() {
+	public Collection<Identifier> getFabricDependencies() {
 		return DEPENDENCIES;
 	}
 }

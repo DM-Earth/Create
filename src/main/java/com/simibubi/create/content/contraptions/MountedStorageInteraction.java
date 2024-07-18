@@ -13,45 +13,45 @@ import io.github.fabricators_of_create.porting_lib.transfer.TransferUtil;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.Container;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.screen.GenericContainerScreenHandler;
+import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.MathHelper;
 
 public class MountedStorageInteraction {
 
-	public static final List<MenuType<?>> menus = ImmutableList.of(MenuType.GENERIC_9x1, MenuType.GENERIC_9x2,
-		MenuType.GENERIC_9x3, MenuType.GENERIC_9x4, MenuType.GENERIC_9x5, MenuType.GENERIC_9x6);
+	public static final List<ScreenHandlerType<?>> menus = ImmutableList.of(ScreenHandlerType.GENERIC_9X1, ScreenHandlerType.GENERIC_9X2,
+		ScreenHandlerType.GENERIC_9X3, ScreenHandlerType.GENERIC_9X4, ScreenHandlerType.GENERIC_9X5, ScreenHandlerType.GENERIC_9X6);
 
-	public static MenuProvider createMenuProvider(Component displayName, ItemStackHandler primary, @Nullable ItemStackHandler secondary,
+	public static NamedScreenHandlerFactory createMenuProvider(Text displayName, ItemStackHandler primary, @Nullable ItemStackHandler secondary,
 		int slotCount, Supplier<Boolean> stillValid) {
-		int rows = Mth.clamp(slotCount / 9, 1, 6);
-		MenuType<?> menuType = menus.get(rows - 1);
-		Component menuName = Lang.translateDirect("contraptions.moving_container", displayName);
+		int rows = MathHelper.clamp(slotCount / 9, 1, 6);
+		ScreenHandlerType<?> menuType = menus.get(rows - 1);
+		Text menuName = Lang.translateDirect("contraptions.moving_container", displayName);
 
-		return new MenuProvider() {
+		return new NamedScreenHandlerFactory() {
 
 			@Override
-			public AbstractContainerMenu createMenu(int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
-				return new ChestMenu(menuType, pContainerId, pPlayerInventory, new StorageInteractionContainer(primary, secondary, stillValid),
+			public ScreenHandler createMenu(int pContainerId, PlayerInventory pPlayerInventory, PlayerEntity pPlayer) {
+				return new GenericContainerScreenHandler(menuType, pContainerId, pPlayerInventory, new StorageInteractionContainer(primary, secondary, stillValid),
 					rows);
 			}
 
 			@Override
-			public Component getDisplayName() {
+			public Text getDisplayName() {
 				return menuName;
 			}
 
 		};
 	}
 
-	public static class StorageInteractionContainer implements Container {
+	public static class StorageInteractionContainer implements Inventory {
 
 		private Supplier<Boolean> stillValid;
 		private final ItemStackHandler primary;
@@ -82,7 +82,7 @@ public class MountedStorageInteraction {
 		}
 
 		@Override
-		public int getContainerSize() {
+		public int size() {
 			return primary.getSlotCount() + (secondary == null ? 0 : secondary.getSlotCount());
 		}
 
@@ -94,7 +94,7 @@ public class MountedStorageInteraction {
 		}
 
 		@Override
-		public ItemStack getItem(int slot) {
+		public ItemStack getStack(int slot) {
 			if (oob(slot))
 				return ItemStack.EMPTY;
 			ItemStackHandler handler = handlerForSlot(slot);
@@ -103,7 +103,7 @@ public class MountedStorageInteraction {
 		}
 
 		@Override
-		public ItemStack removeItem(int slot, int count) {
+		public ItemStack removeStack(int slot, int count) {
 			if (oob(slot))
 				return ItemStack.EMPTY;
 			ItemStackHandler handler = handlerForSlot(slot);
@@ -119,12 +119,12 @@ public class MountedStorageInteraction {
 		}
 
 		@Override
-		public ItemStack removeItemNoUpdate(int slot) {
-			return removeItem(slot, Integer.MAX_VALUE);
+		public ItemStack removeStack(int slot) {
+			return removeStack(slot, Integer.MAX_VALUE);
 		}
 
 		@Override
-		public void setItem(int slot, ItemStack stack) {
+		public void setStack(int slot, ItemStack stack) {
 			if (!oob(slot)) {
 				ItemStackHandler handler = handlerForSlot(slot);
 				slot = actualSlot(slot);
@@ -133,23 +133,23 @@ public class MountedStorageInteraction {
 		}
 
 		@Override
-		public void setChanged() {
+		public void markDirty() {
 		}
 
 		@Override
-		public boolean stillValid(Player player) {
+		public boolean canPlayerUse(PlayerEntity player) {
 			return stillValid.get();
 		}
 
 		@Override
-		public boolean canPlaceItem(int slot, ItemStack stack) {
+		public boolean isValid(int slot, ItemStack stack) {
 			ItemStackHandler handler = handlerForSlot(slot);
 			slot = actualSlot(slot);
 			return handler.isItemValid(slot, ItemVariant.of(stack), 1);
 		}
 
 		@Override
-		public void clearContent() {
+		public void clear() {
 			primary.setSize(primary.getSlotCount());
 			if (secondary != null)
 				secondary.setSize(secondary.getSlotCount());

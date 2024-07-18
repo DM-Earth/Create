@@ -1,7 +1,8 @@
 package com.simibubi.create.content.kinetics.transmission;
 
 import java.util.ArrayList;
-
+import net.minecraft.block.Block;
+import net.minecraft.util.math.Direction;
 import com.jozufozu.flywheel.api.InstanceData;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.Material;
@@ -11,9 +12,6 @@ import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Block;
 
 public class SplitShaftInstance extends KineticBlockEntityInstance<SplitShaftBlockEntity> {
 

@@ -5,11 +5,11 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.math.BlockPos;
 
 public class ContraptionBlockChangedPacket extends SimplePacketBase {
 
@@ -24,17 +24,17 @@ public class ContraptionBlockChangedPacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(entityID);
 		buffer.writeBlockPos(localPos);
-		buffer.writeNbt(NbtUtils.writeBlockState(newState));
+		buffer.writeNbt(NbtHelper.fromBlockState(newState));
 	}
 
 	@SuppressWarnings("deprecation")
-	public ContraptionBlockChangedPacket(FriendlyByteBuf buffer) {
+	public ContraptionBlockChangedPacket(PacketByteBuf buffer) {
 		entityID = buffer.readInt();
 		localPos = buffer.readBlockPos();
-		newState = NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(), buffer.readNbt());
+		newState = NbtHelper.toBlockState(Registries.BLOCK.getReadOnlyWrapper(), buffer.readNbt());
 	}
 
 	@Override

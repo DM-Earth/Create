@@ -2,9 +2,12 @@ package com.simibubi.create;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import net.minecraft.core.Registry;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.content.contraptions.behaviour.DoorMovingInteraction;
@@ -14,18 +17,11 @@ import com.simibubi.create.content.contraptions.behaviour.TrapdoorMovingInteract
 import com.simibubi.create.foundation.utility.AttachedRegistry;
 import com.tterrag.registrate.util.nullness.NonNullConsumer;
 
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-
 public class AllInteractionBehaviours {
-	private static final AttachedRegistry<Block, MovingInteractionBehaviour> BLOCK_BEHAVIOURS = new AttachedRegistry<>(BuiltInRegistries.BLOCK);
+	private static final AttachedRegistry<Block, MovingInteractionBehaviour> BLOCK_BEHAVIOURS = new AttachedRegistry<>(Registries.BLOCK);
 	private static final List<BehaviourProvider> GLOBAL_BEHAVIOURS = new ArrayList<>();
 
-	public static void registerBehaviour(ResourceLocation block, MovingInteractionBehaviour provider) {
+	public static void registerBehaviour(Identifier block, MovingInteractionBehaviour provider) {
 		BLOCK_BEHAVIOURS.register(block, provider);
 	}
 
@@ -64,7 +60,7 @@ public class AllInteractionBehaviours {
 
 		DoorMovingInteraction doorBehaviour = new DoorMovingInteraction();
 		registerBehaviourProvider(state -> {
-			if (state.is(BlockTags.WOODEN_DOORS)) {
+			if (state.isIn(BlockTags.WOODEN_DOORS)) {
 				return doorBehaviour;
 			}
 			return null;
@@ -72,7 +68,7 @@ public class AllInteractionBehaviours {
 
 		TrapdoorMovingInteraction trapdoorBehaviour = new TrapdoorMovingInteraction();
 		registerBehaviourProvider(state -> {
-			if (state.is(BlockTags.WOODEN_TRAPDOORS)) {
+			if (state.isIn(BlockTags.WOODEN_TRAPDOORS)) {
 				return trapdoorBehaviour;
 			}
 			return null;

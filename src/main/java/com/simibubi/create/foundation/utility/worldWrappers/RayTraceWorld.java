@@ -1,20 +1,19 @@
 package com.simibubi.create.foundation.utility.worldWrappers;
 
 import java.util.function.BiFunction;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldAccess;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
+public class RayTraceWorld implements BlockView {
 
-public class RayTraceWorld implements BlockGetter {
-
-	private final LevelAccessor template;
+	private final WorldAccess template;
 	private final BiFunction<BlockPos, BlockState, BlockState> stateGetter;
 
-	public RayTraceWorld(LevelAccessor template, BiFunction<BlockPos, BlockState, BlockState> stateGetter) {
+	public RayTraceWorld(WorldAccess template, BiFunction<BlockPos, BlockState, BlockState> stateGetter) {
 		this.template = template;
 		this.stateGetter = stateGetter;
 	}
@@ -40,8 +39,8 @@ public class RayTraceWorld implements BlockGetter {
 	}
 
 	@Override
-	public int getMinBuildHeight() {
-		return template.getMinBuildHeight();
+	public int getBottomY() {
+		return template.getBottomY();
 	}
 
 }

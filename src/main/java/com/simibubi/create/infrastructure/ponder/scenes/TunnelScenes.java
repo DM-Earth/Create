@@ -1,7 +1,15 @@
 package com.simibubi.create.infrastructure.ponder.scenes;
 
 import java.util.Vector;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.belt.BeltBlock;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
@@ -19,16 +27,6 @@ import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.Pointing;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class TunnelScenes {
 
@@ -155,7 +153,7 @@ public class TunnelScenes {
 		for (Direction d : Iterate.horizontalDirections) {
 			if (d == Direction.SOUTH)
 				continue;
-			Vec3 filter = getTunnelFilterVec(tunnelPos, d);
+			Vec3d filter = getTunnelFilterVec(tunnelPos, d);
 			scene.overlay.showFilterSlotInput(filter, d, 40);
 			scene.idle(3);
 		}
@@ -170,7 +168,7 @@ public class TunnelScenes {
 		scene.rotateCameraY(70);
 
 		scene.idle(20);
-		Vec3 tunnelFilterVec = getTunnelFilterVec(tunnelPos, Direction.EAST);
+		Vec3d tunnelFilterVec = getTunnelFilterVec(tunnelPos, Direction.EAST);
 		scene.overlay.showFilterSlotInput(tunnelFilterVec, Direction.EAST, 10);
 		scene.overlay.showText(60)
 			.attachKeyFrame()
@@ -226,7 +224,7 @@ public class TunnelScenes {
 			.setFilter(Direction.WEST, ItemStack.EMPTY));
 		scene.idle(10);
 
-		Vec3 tunnelTop = util.vector.topOf(tunnelPos);
+		Vec3d tunnelTop = util.vector.topOf(tunnelPos);
 		scene.overlay.showCenteredScrollInput(tunnelPos, Direction.UP, 120);
 		scene.overlay.showText(120)
 			.attachKeyFrame()
@@ -266,7 +264,7 @@ public class TunnelScenes {
 		ItemStack item3 = new ItemStack(Items.SWEET_BERRIES);
 
 		tunnelFilterVec = getTunnelFilterVec(tunnelPos, Direction.WEST);
-		BlockPos newTunnelPos = tunnelPos.above(2)
+		BlockPos newTunnelPos = tunnelPos.up(2)
 			.south();
 		scene.overlay
 			.showControls(new InputWindowElement(tunnelFilterVec.add(0, 0, -1), Pointing.RIGHT).withItem(item1), 20);
@@ -292,8 +290,8 @@ public class TunnelScenes {
 		scene.idle(90);
 
 		BlockPos beltPos = util.grid.at(5, 3, 3);
-		Vec3 m = util.vector.of(0, 0.1, 0);
-		Vec3 spawn = util.vector.centerOf(util.grid.at(5, 3, 2));
+		Vec3d m = util.vector.of(0, 0.1, 0);
+		Vec3d spawn = util.vector.centerOf(util.grid.at(5, 3, 2));
 		scene.world.createItemEntity(spawn, m, item1);
 		scene.idle(12);
 		scene.world.createItemOnBelt(beltPos, Direction.UP, item1);
@@ -311,7 +309,7 @@ public class TunnelScenes {
 		scene.world.showSectionAndMerge(util.select.position(3, 5, 2), Direction.DOWN, newBelt);
 
 		scene.overlay.showText(80)
-			.pointAt(util.vector.blockSurface(tunnelPos.above()
+			.pointAt(util.vector.blockSurface(tunnelPos.up()
 				.north(), Direction.WEST))
 			.placeNearTarget()
 			.text("For this, items can also be inserted into the Tunnel block directly");
@@ -335,17 +333,17 @@ public class TunnelScenes {
 
 	}
 
-	protected static Vec3 getTunnelFilterVec(BlockPos pos, Direction d) {
+	protected static Vec3d getTunnelFilterVec(BlockPos pos, Direction d) {
 		return VecHelper.getCenterOf(pos)
-			.add(Vec3.atLowerCornerOf(d.getNormal())
-				.scale(.5))
+			.add(Vec3d.of(d.getVector())
+				.multiply(.5))
 			.add(0, 0.3, 0);
 	}
 
 	public static void brassModes(SceneBuilder scene, SceneBuildingUtil util) {
 		scene.title("brass_tunnel_modes", "Distribution Modes of the Brass Tunnel");
 		scene.configureBasePlate(0, 1, 5);
-		BlockState barrier = Blocks.BARRIER.defaultBlockState();
+		BlockState barrier = Blocks.BARRIER.getDefaultState();
 		scene.world.setBlock(util.grid.at(1, 1, 0), barrier, false);
 		scene.world.showSection(util.select.layer(0), Direction.UP);
 		scene.idle(5);
@@ -357,7 +355,7 @@ public class TunnelScenes {
 			scene.idle(4);
 		}
 
-		Vec3 tunnelTop = util.vector.topOf(util.grid.at(2, 2, 3));
+		Vec3d tunnelTop = util.vector.topOf(util.grid.at(2, 2, 3));
 		scene.overlay.showControls(new InputWindowElement(tunnelTop, Pointing.DOWN).rightClick(), 80);
 		scene.idle(7);
 		scene.overlay.showCenteredScrollInput(util.grid.at(2, 2, 3), Direction.UP, 120);
@@ -373,7 +371,7 @@ public class TunnelScenes {
 			scene.world.showIndependentSection(util.select.position(4, 1, 0), Direction.UP);
 		scene.world.moveSection(blockage, util.vector.of(-3, 0, 0), 0);
 
-		Vec3 modeVec = util.vector.of(4, 2.5, 3);
+		Vec3d modeVec = util.vector.of(4, 2.5, 3);
 		scene.overlay.showControls(new InputWindowElement(modeVec, Pointing.RIGHT).showing(AllIcons.I_TUNNEL_SPLIT),
 			140);
 
@@ -417,7 +415,7 @@ public class TunnelScenes {
 					.colored(PonderPalette.RED);
 				scene.idle(60);
 				scene.world.moveSection(blockage, util.vector.of(-1, 0, 0), 10);
-				scene.world.setBlock(util.grid.at(1, 1, 0), Blocks.AIR.defaultBlockState(), false);
+				scene.world.setBlock(util.grid.at(1, 1, 0), Blocks.AIR.getDefaultState(), false);
 				scene.world.multiplyKineticSpeed(util.select.everywhere(), 1.5f);
 			}
 
@@ -464,7 +462,7 @@ public class TunnelScenes {
 					.colored(PonderPalette.RED);
 				scene.idle(30);
 				scene.world.moveSection(blockage, util.vector.of(-1, 0, 0), 10);
-				scene.world.setBlock(util.grid.at(1, 1, 0), Blocks.AIR.defaultBlockState(), false);
+				scene.world.setBlock(util.grid.at(1, 1, 0), Blocks.AIR.getDefaultState(), false);
 			}
 
 			if (i == 19) {
@@ -484,16 +482,16 @@ public class TunnelScenes {
 			}
 
 			if (i == 21) {
-				scene.world.setBlock(util.grid.at(2, 1, 0), Blocks.BARRIER.defaultBlockState(), false);
+				scene.world.setBlock(util.grid.at(2, 1, 0), Blocks.BARRIER.getDefaultState(), false);
 				blockage2 = scene.world.showIndependentSection(util.select.position(4, 1, 0), Direction.UP);
 				scene.world.moveSection(blockage2, util.vector.of(-2, 0, 0), 0);
 			}
 
 			if (i == 25) {
 				scene.world.hideIndependentSection(blockage, Direction.DOWN);
-				scene.world.setBlock(util.grid.at(1, 1, 0), Blocks.AIR.defaultBlockState(), false);
+				scene.world.setBlock(util.grid.at(1, 1, 0), Blocks.AIR.getDefaultState(), false);
 				scene.world.hideIndependentSection(blockage2, Direction.DOWN);
-				scene.world.setBlock(util.grid.at(2, 1, 0), Blocks.AIR.defaultBlockState(), false);
+				scene.world.setBlock(util.grid.at(2, 1, 0), Blocks.AIR.getDefaultState(), false);
 			}
 
 			if (i == 26) {

@@ -1,9 +1,8 @@
 package com.simibubi.create.foundation.gui.widget;
 
 import java.util.List;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.text.Text;
 
 public class TooltipArea extends AbstractSimiWidget {
 
@@ -12,12 +11,12 @@ public class TooltipArea extends AbstractSimiWidget {
 	}
 
 	@Override
-	public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	public void renderButton(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		if (visible)
-			isHovered = mouseX >= getX() && mouseY >= getY() && mouseX < getX() + width && mouseY < getY() + height;
+			hovered = mouseX >= getX() && mouseY >= getY() && mouseX < getX() + width && mouseY < getY() + height;
 	}
 
-	public TooltipArea withTooltip(List<Component> tooltip) {
+	public TooltipArea withTooltip(List<Text> tooltip) {
 		this.toolTip = tooltip;
 		return this;
 	}

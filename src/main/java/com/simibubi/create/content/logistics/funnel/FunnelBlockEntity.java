@@ -30,16 +30,16 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHoveringInformation {
 
@@ -63,28 +63,28 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 	}
 
 	public Mode determineCurrentMode() {
-		BlockState state = getBlockState();
+		BlockState state = getCachedState();
 		if (!FunnelBlock.isFunnel(state))
 			return Mode.INVALID;
-		if (state.getOptionalValue(BlockStateProperties.POWERED)
+		if (state.getOrEmpty(Properties.POWERED)
 			.orElse(false))
 			return Mode.PAUSED;
 		if (state.getBlock() instanceof BeltFunnelBlock) {
-			Shape shape = state.getValue(BeltFunnelBlock.SHAPE);
+			Shape shape = state.get(BeltFunnelBlock.SHAPE);
 			if (shape == Shape.PULLING)
 				return Mode.TAKING_FROM_BELT;
 			if (shape == Shape.PUSHING)
 				return Mode.PUSHING_TO_BELT;
 
-			BeltBlockEntity belt = BeltHelper.getSegmentBE(level, worldPosition.below());
+			BeltBlockEntity belt = BeltHelper.getSegmentBE(world, pos.down());
 			if (belt != null)
-				return belt.getMovementFacing() == state.getValue(BeltFunnelBlock.HORIZONTAL_FACING)
+				return belt.getMovementFacing() == state.get(BeltFunnelBlock.HORIZONTAL_FACING)
 					? Mode.PUSHING_TO_BELT
 					: Mode.TAKING_FROM_BELT;
 			return Mode.INVALID;
 		}
 		if (state.getBlock() instanceof FunnelBlock)
-			return state.getValue(FunnelBlock.EXTRACTING) ? Mode.EXTRACT : Mode.COLLECT;
+			return state.get(FunnelBlock.EXTRACTING) ? Mode.EXTRACT : Mode.COLLECT;
 
 		return Mode.INVALID;
 	}
@@ -94,7 +94,7 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 		super.tick();
 		flap.tickChaser();
 		Mode mode = determineCurrentMode();
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
 		// Redstone resets the extraction cooldown
@@ -118,14 +118,14 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 		if (invVersionTracker.stillWaiting(invManipulation))
 			return;
 		
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		Direction facing = AbstractFunnelBlock.getFunnelFacing(blockState);
 
 		if (facing == null)
 			return;
 
 		boolean trackingEntityPresent = true;
-		AABB area = getEntityOverflowScanningArea();
+		Box area = getEntityOverflowScanningArea();
 
 		// Check if last item is still blocking the extractor
 		if (lastObserved == null) {
@@ -151,7 +151,7 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 			invVersionTracker.awaitNewVersion(invManipulation);
 			return;
 		}
-		for (ItemEntity itemEntity : level.getEntitiesOfClass(ItemEntity.class, area)) {
+		for (ItemEntity itemEntity : world.getNonSpectatingEntities(ItemEntity.class, area)) {
 			lastObserved = new WeakReference<>(itemEntity);
 			return;
 		}
@@ -164,47 +164,47 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 		flap(false);
 		onTransfer(stack);
 
-		Vec3 outputPos = VecHelper.getCenterOf(worldPosition);
+		Vec3d outputPos = VecHelper.getCenterOf(pos);
 		boolean vertical = facing.getAxis()
 			.isVertical();
 		boolean up = facing == Direction.UP;
 
-		outputPos = outputPos.add(Vec3.atLowerCornerOf(facing.getNormal())
-			.scale(vertical ? up ? .15f : .5f : .25f));
+		outputPos = outputPos.add(Vec3d.of(facing.getVector())
+			.multiply(vertical ? up ? .15f : .5f : .25f));
 		if (!vertical)
 			outputPos = outputPos.subtract(0, .45f, 0);
 
-		Vec3 motion = Vec3.ZERO;
+		Vec3d motion = Vec3d.ZERO;
 		if (up)
-			motion = new Vec3(0, 4 / 16f, 0);
+			motion = new Vec3d(0, 4 / 16f, 0);
 
-		ItemEntity item = new ItemEntity(level, outputPos.x, outputPos.y, outputPos.z, stack.copy());
-		item.setDefaultPickUpDelay();
-		item.setDeltaMovement(motion);
-		level.addFreshEntity(item);
+		ItemEntity item = new ItemEntity(world, outputPos.x, outputPos.y, outputPos.z, stack.copy());
+		item.setToDefaultPickupDelay();
+		item.setVelocity(motion);
+		world.spawnEntity(item);
 		lastObserved = new WeakReference<>(item);
 
 		startCooldown();
 	}
 
-	static final AABB coreBB = new AABB(VecHelper.CENTER_OF_ORIGIN, VecHelper.CENTER_OF_ORIGIN).inflate(.75f);
+	static final Box coreBB = new Box(VecHelper.CENTER_OF_ORIGIN, VecHelper.CENTER_OF_ORIGIN).expand(.75f);
 
-	private AABB getEntityOverflowScanningArea() {
-		Direction facing = AbstractFunnelBlock.getFunnelFacing(getBlockState());
-		AABB bb = coreBB.move(worldPosition);
+	private Box getEntityOverflowScanningArea() {
+		Direction facing = AbstractFunnelBlock.getFunnelFacing(getCachedState());
+		Box bb = coreBB.offset(pos);
 		if (facing == null || facing == Direction.UP)
 			return bb;
-		return bb.expandTowards(0, -1, 0);
+		return bb.stretch(0, -1, 0);
 	}
 
 	private void activateExtractingBeltFunnel() {
 		if (invVersionTracker.stillWaiting(invManipulation))
 			return;
 
-		BlockState blockState = getBlockState();
-		Direction facing = blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
+		BlockState blockState = getCachedState();
+		Direction facing = blockState.get(BeltFunnelBlock.HORIZONTAL_FACING);
 		DirectBeltInputBehaviour inputBehaviour =
-			BlockEntityBehaviour.get(level, worldPosition.below(), DirectBeltInputBehaviour.TYPE);
+			BlockEntityBehaviour.get(world, pos.down(), DirectBeltInputBehaviour.TYPE);
 
 		if (inputBehaviour == null)
 			return;
@@ -274,32 +274,32 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 	}
 
 	private boolean supportsAmountOnFilter() {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		boolean beltFunnelsupportsAmount = false;
 		if (blockState.getBlock() instanceof BeltFunnelBlock) {
-			Shape shape = blockState.getValue(BeltFunnelBlock.SHAPE);
+			Shape shape = blockState.get(BeltFunnelBlock.SHAPE);
 			if (shape == Shape.PUSHING)
 				beltFunnelsupportsAmount = true;
 			else
-				beltFunnelsupportsAmount = BeltHelper.getSegmentBE(level, worldPosition.below()) != null;
+				beltFunnelsupportsAmount = BeltHelper.getSegmentBE(world, pos.down()) != null;
 		}
-		boolean extractor = blockState.getBlock() instanceof FunnelBlock && blockState.getValue(FunnelBlock.EXTRACTING);
+		boolean extractor = blockState.getBlock() instanceof FunnelBlock && blockState.get(FunnelBlock.EXTRACTING);
 		return beltFunnelsupportsAmount || extractor;
 	}
 
 	private boolean supportsDirectBeltInput(Direction side) {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (blockState == null)
 			return false;
 		if (!(blockState.getBlock() instanceof FunnelBlock))
 			return false;
-		if (blockState.getValue(FunnelBlock.EXTRACTING))
+		if (blockState.get(FunnelBlock.EXTRACTING))
 			return false;
 		return FunnelBlock.getFunnelFacing(blockState) == Direction.UP;
 	}
 
 	private boolean supportsFiltering() {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		return AllBlocks.BRASS_BELT_FUNNEL.has(blockState) || AllBlocks.BRASS_FUNNEL.has(blockState);
 	}
 
@@ -317,17 +317,17 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 	}
 
 	public void flap(boolean inward) {
-		if (!level.isClientSide) {
+		if (!world.isClient) {
 			AllPackets.getChannel()
 				.sendToClientsTracking(new FunnelFlapPacket(this, inward), this);
 		} else {
 			flap.setValue(inward ? 1 : -1);
-			AllSoundEvents.FUNNEL_FLAP.playAt(level, worldPosition, 1, 1, true);
+			AllSoundEvents.FUNNEL_FLAP.playAt(world, pos, 1, 1, true);
 		}
 	}
 
 	public boolean hasFlap() {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!AbstractFunnelBlock.getFunnelFacing(blockState)
 			.getAxis()
 			.isHorizontal())
@@ -336,10 +336,10 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 	}
 
 	public float getFlapOffset() {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!(blockState.getBlock() instanceof BeltFunnelBlock))
 			return -1 / 16f;
-		switch (blockState.getValue(BeltFunnelBlock.SHAPE)) {
+		switch (blockState.get(BeltFunnelBlock.SHAPE)) {
 		default:
 		case RETRACTED:
 			return 0;
@@ -352,13 +352,13 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		compound.putInt("TransferCooldown", extractionCooldown);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		extractionCooldown = compound.getInt("TransferCooldown");
 
@@ -368,7 +368,7 @@ public class FunnelBlockEntity extends SmartBlockEntity implements IHaveHovering
 
 	public void onTransfer(ItemStack stack) {
 		AllBlocks.SMART_OBSERVER.get()
-			.onFunnelTransfer(level, worldPosition, stack);
+			.onFunnelTransfer(world, pos, stack);
 		award(AllAdvancements.FUNNEL);
 	}
 

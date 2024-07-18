@@ -1,7 +1,12 @@
 package com.simibubi.create.content.trains.entity;
 
 import java.util.UUID;
-
+import net.minecraft.entity.Entity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.contraptions.ContraptionRelocationPacket;
@@ -11,24 +16,17 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
-
 public class TrainRelocationPacket extends SimplePacketBase {
 
 	UUID trainId;
 	BlockPos pos;
-	Vec3 lookAngle;
+	Vec3d lookAngle;
 	int entityId;
 	private boolean direction;
 	private BezierTrackPointLocation hoveredBezier;
 
-	public TrainRelocationPacket(FriendlyByteBuf buffer) {
-		trainId = buffer.readUUID();
+	public TrainRelocationPacket(PacketByteBuf buffer) {
+		trainId = buffer.readUuid();
 		pos = buffer.readBlockPos();
 		lookAngle = VecHelper.read(buffer);
 		entityId = buffer.readInt();
@@ -38,7 +36,7 @@ public class TrainRelocationPacket extends SimplePacketBase {
 	}
 
 	public TrainRelocationPacket(UUID trainId, BlockPos pos, BezierTrackPointLocation hoveredBezier, boolean direction,
-		Vec3 lookAngle, int entityId) {
+		Vec3d lookAngle, int entityId) {
 		this.trainId = trainId;
 		this.pos = pos;
 		this.hoveredBezier = hoveredBezier;
@@ -48,8 +46,8 @@ public class TrainRelocationPacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeUUID(trainId);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeUuid(trainId);
 		buffer.writeBlockPos(pos);
 		VecHelper.write(lookAngle, buffer);
 		buffer.writeInt(entityId);
@@ -64,9 +62,9 @@ public class TrainRelocationPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer sender = context.getSender();
+			ServerPlayerEntity sender = context.getSender();
 			Train train = Create.RAILWAYS.trains.get(trainId);
-			Entity entity = sender.level().getEntity(entityId);
+			Entity entity = sender.getWorld().getEntityById(entityId);
 
 			String messagePrefix = sender.getName()
 				.getString() + " could not relocate Train ";
@@ -81,21 +79,21 @@ public class TrainRelocationPacket extends SimplePacketBase {
 				return;
 
 			int verifyDistance = AllConfigs.server().trains.maxTrackPlacementLength.get() * 2;
-			if (!sender.position()
-				.closerThan(Vec3.atCenterOf(pos), verifyDistance)) {
+			if (!sender.getPos()
+				.isInRange(Vec3d.ofCenter(pos), verifyDistance)) {
 				Create.LOGGER.warn(messagePrefix + train.name.getString() + ": player too far from clicked pos");
 				return;
 			}
-			if (!sender.position()
-				.closerThan(cce.position(), verifyDistance + cce.getBoundingBox()
-					.getXsize() / 2)) {
+			if (!sender.getPos()
+				.isInRange(cce.getPos(), verifyDistance + cce.getBoundingBox()
+					.getXLength() / 2)) {
 				Create.LOGGER.warn(messagePrefix + train.name.getString() + ": player too far from carriage entity");
 				return;
 			}
 
-			if (TrainRelocator.relocate(train, sender.level(), pos, hoveredBezier, direction, lookAngle, false)) {
-				sender.displayClientMessage(Lang.translateDirect("train.relocate.success")
-					.withStyle(ChatFormatting.GREEN), true);
+			if (TrainRelocator.relocate(train, sender.getWorld(), pos, hoveredBezier, direction, lookAngle, false)) {
+				sender.sendMessage(Lang.translateDirect("train.relocate.success")
+					.formatted(Formatting.GREEN), true);
 				train.carriages.forEach(c -> c.forEachPresentEntity(e -> {
 					e.nonDamageTicks = 10;
 					AllPackets.getChannel().sendToClientsTracking(new ContraptionRelocationPacket(e.getId()), e);

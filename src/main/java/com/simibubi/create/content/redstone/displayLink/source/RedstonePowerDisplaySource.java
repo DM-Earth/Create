@@ -7,9 +7,9 @@ import com.simibubi.create.foundation.utility.Lang;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.text.MutableText;
 
 public class RedstonePowerDisplaySource extends PercentOrProgressBarDisplaySource {
 
@@ -19,7 +19,7 @@ public class RedstonePowerDisplaySource extends PercentOrProgressBarDisplaySourc
 	}
 
 	@Override
-	protected MutableComponent formatNumeric(DisplayLinkContext context, Float currentLevel) {
+	protected MutableText formatNumeric(DisplayLinkContext context, Float currentLevel) {
 		return Components.literal(String.valueOf((int) (currentLevel * 15)));
 	}
 
@@ -33,8 +33,8 @@ public class RedstonePowerDisplaySource extends PercentOrProgressBarDisplaySourc
 		BlockState blockState = context.level()
 			.getBlockState(context.getSourcePos());
 		return Math.max(context.level()
-			.getDirectSignalTo(context.getSourcePos()),
-			blockState.getOptionalValue(BlockStateProperties.POWER)
+			.getReceivedStrongRedstonePower(context.getSourcePos()),
+			blockState.getOrEmpty(Properties.POWER)
 				.orElse(0))
 			/ 15f;
 	}

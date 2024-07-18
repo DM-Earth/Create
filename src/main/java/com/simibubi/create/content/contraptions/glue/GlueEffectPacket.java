@@ -5,10 +5,10 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class GlueEffectPacket extends SimplePacketBase {
 
@@ -22,16 +22,16 @@ public class GlueEffectPacket extends SimplePacketBase {
 		this.fullBlock = fullBlock;
 	}
 
-	public GlueEffectPacket(FriendlyByteBuf buffer) {
+	public GlueEffectPacket(PacketByteBuf buffer) {
 		pos = buffer.readBlockPos();
-		direction = Direction.from3DDataValue(buffer.readByte());
+		direction = Direction.byId(buffer.readByte());
 		fullBlock = buffer.readBoolean();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBlockPos(pos);
-		buffer.writeByte(direction.get3DDataValue());
+		buffer.writeByte(direction.getId());
 		buffer.writeBoolean(fullBlock);
 	}
 
@@ -43,10 +43,10 @@ public class GlueEffectPacket extends SimplePacketBase {
 
 	@Environment(EnvType.CLIENT)
 	public void handleClient() {
-		Minecraft mc = Minecraft.getInstance();
-		if (!mc.player.blockPosition().closerThan(pos, 100))
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (!mc.player.getBlockPos().isWithinDistance(pos, 100))
 			return;
-		SuperGlueItem.spawnParticles(mc.level, pos, direction, fullBlock);
+		SuperGlueItem.spawnParticles(mc.world, pos, direction, fullBlock);
 	}
 
 }

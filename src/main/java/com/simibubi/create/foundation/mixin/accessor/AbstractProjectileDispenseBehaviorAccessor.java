@@ -1,22 +1,21 @@
 package com.simibubi.create.foundation.mixin.accessor;
 
+import net.minecraft.block.dispenser.ProjectileDispenserBehavior;
+import net.minecraft.entity.projectile.ProjectileEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.Position;
+import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
-import net.minecraft.core.Position;
-import net.minecraft.core.dispenser.AbstractProjectileDispenseBehavior;
-import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-
-@Mixin(AbstractProjectileDispenseBehavior.class)
+@Mixin(ProjectileDispenserBehavior.class)
 public interface AbstractProjectileDispenseBehaviorAccessor {
-	@Invoker("getProjectile")
-	Projectile create$callGetProjectile(Level level, Position position, ItemStack stack);
+	@Invoker("createProjectile")
+	ProjectileEntity create$callCreateProjectile(World level, Position position, ItemStack stack);
 
-	@Invoker("getUncertainty")
-	float create$callGetUncertainty();
+	@Invoker("getVariation")
+	float create$callGetVariation();
 
-	@Invoker("getPower")
-	float create$callGetPower();
+	@Invoker("getForce")
+	float create$callGetForce();
 }

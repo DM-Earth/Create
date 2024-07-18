@@ -5,7 +5,26 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.BubbleColumnBlock;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
@@ -13,27 +32,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.fluid.FluidHelper;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.core.Vec3i;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.BubbleColumnBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 public class WaterWheelBlockEntity extends GeneratingKineticBlockEntity {
 
@@ -45,21 +43,21 @@ public class WaterWheelBlockEntity extends GeneratingKineticBlockEntity {
 			HashSet<BlockPos> offsets = new HashSet<>();
 			for (Direction d : Iterate.directions)
 				if (d.getAxis() != axis)
-					offsets.add(BlockPos.ZERO.relative(d));
+					offsets.add(BlockPos.ORIGIN.offset(d));
 			SMALL_OFFSETS.put(axis, offsets);
 
 			offsets = new HashSet<>();
 			for (Direction d : Iterate.directions) {
 				if (d.getAxis() == axis)
 					continue;
-				BlockPos centralOffset = BlockPos.ZERO.relative(d, 2);
+				BlockPos centralOffset = BlockPos.ORIGIN.offset(d, 2);
 				offsets.add(centralOffset);
 				for (Direction d2 : Iterate.directions) {
 					if (d2.getAxis() == axis)
 						continue;
 					if (d2.getAxis() == d.getAxis())
 						continue;
-					offsets.add(centralOffset.relative(d2));
+					offsets.add(centralOffset.offset(d2));
 				}
 			}
 			LARGE_OFFSETS.put(axis, offsets);
@@ -71,7 +69,7 @@ public class WaterWheelBlockEntity extends GeneratingKineticBlockEntity {
 
 	public WaterWheelBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
-		material = Blocks.SPRUCE_PLANKS.defaultBlockState();
+		material = Blocks.SPRUCE_PLANKS.getDefaultState();
 		setLazyTickRate(60);
 	}
 
@@ -83,26 +81,26 @@ public class WaterWheelBlockEntity extends GeneratingKineticBlockEntity {
 		return (getSize() == 1 ? SMALL_OFFSETS : LARGE_OFFSETS).get(getAxis());
 	}
 
-	public InteractionResult applyMaterialIfValid(ItemStack stack) {
+	public ActionResult applyMaterialIfValid(ItemStack stack) {
 		if (!(stack.getItem()instanceof BlockItem blockItem))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		BlockState material = blockItem.getBlock()
-			.defaultBlockState();
+			.getDefaultState();
 		if (material == this.material)
-			return InteractionResult.PASS;
-		if (!material.is(BlockTags.PLANKS))
-			return InteractionResult.PASS;
-		if (level.isClientSide() && !isVirtual())
-			return InteractionResult.SUCCESS;
+			return ActionResult.PASS;
+		if (!material.isIn(BlockTags.PLANKS))
+			return ActionResult.PASS;
+		if (world.isClient() && !isVirtual())
+			return ActionResult.SUCCESS;
 		this.material = material;
 		notifyUpdate();
-		level.levelEvent(2001, worldPosition, Block.getId(material));
-		return InteractionResult.SUCCESS;
+		world.syncWorldEvent(2001, pos, Block.getRawIdFromState(material));
+		return ActionResult.SUCCESS;
 	}
 
 	protected Axis getAxis() {
 		Axis axis = Axis.X;
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (blockState.getBlock()instanceof IRotate irotate)
 			axis = irotate.getRotationAxis(blockState);
 		return axis;
@@ -117,43 +115,43 @@ public class WaterWheelBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	public void determineAndApplyFlowScore() {
-		Vec3 wheelPlane =
-			Vec3.atLowerCornerOf(new Vec3i(1, 1, 1).subtract(Direction.get(AxisDirection.POSITIVE, getAxis())
-				.getNormal()));
+		Vec3d wheelPlane =
+			Vec3d.of(new Vec3i(1, 1, 1).subtract(Direction.get(AxisDirection.POSITIVE, getAxis())
+				.getVector()));
 
 		int flowScore = 0;
 		boolean lava = false;
 		for (BlockPos blockPos : getOffsetsToCheck()) {
-			BlockPos targetPos = blockPos.offset(worldPosition);
-			Vec3 flowAtPos = getFlowVectorAtPosition(targetPos).multiply(wheelPlane);
-			lava |= FluidHelper.isLava(level.getFluidState(targetPos)
-				.getType());
+			BlockPos targetPos = blockPos.add(pos);
+			Vec3d flowAtPos = getFlowVectorAtPosition(targetPos).multiply(wheelPlane);
+			lava |= FluidHelper.isLava(world.getFluidState(targetPos)
+				.getFluid());
 
-			if (flowAtPos.lengthSqr() == 0)
+			if (flowAtPos.lengthSquared() == 0)
 				continue;
 
 			flowAtPos = flowAtPos.normalize();
-			Vec3 normal = Vec3.atLowerCornerOf(blockPos)
+			Vec3d normal = Vec3d.of(blockPos)
 				.normalize();
 
-			Vec3 positiveMotion = VecHelper.rotate(normal, 90, getAxis());
-			double dot = flowAtPos.dot(positiveMotion);
+			Vec3d positiveMotion = VecHelper.rotate(normal, 90, getAxis());
+			double dot = flowAtPos.dotProduct(positiveMotion);
 			if (Math.abs(dot) > .5)
 				flowScore += Math.signum(dot);
 		}
 
-		if (flowScore != 0 && !level.isClientSide())
+		if (flowScore != 0 && !world.isClient())
 			award(lava ? AllAdvancements.LAVA_WHEEL : AllAdvancements.WATER_WHEEL);
 
 		setFlowScoreAndUpdate(flowScore);
 	}
 
-	public Vec3 getFlowVectorAtPosition(BlockPos pos) {
-		FluidState fluid = level.getFluidState(pos);
-		Vec3 vec = fluid.getFlow(level, pos);
-		BlockState blockState = level.getBlockState(pos);
+	public Vec3d getFlowVectorAtPosition(BlockPos pos) {
+		FluidState fluid = world.getFluidState(pos);
+		Vec3d vec = fluid.getVelocity(world, pos);
+		BlockState blockState = world.getBlockState(pos);
 		if (blockState.getBlock() == Blocks.BUBBLE_COLUMN)
-			vec = new Vec3(0, blockState.getValue(BubbleColumnBlock.DRAG_DOWN) ? -1 : 1, 0);
+			vec = new Vec3d(0, blockState.get(BubbleColumnBlock.DRAG) ? -1 : 1, 0);
 		return vec;
 	}
 
@@ -162,17 +160,17 @@ public class WaterWheelBlockEntity extends GeneratingKineticBlockEntity {
 			return;
 		flowScore = score;
 		updateGeneratedRotation();
-		setChanged();
+		markDirty();
 	}
 
 	private void redraw() {
 		if (!isVirtual())
 			requestModelDataUpdate();
-		if (hasLevel()) {
-			level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 16);
-			level.getChunkSource()
-				.getLightEngine()
-				.checkBlock(worldPosition);
+		if (hasWorld()) {
+			world.updateListeners(getPos(), getCachedState(), getCachedState(), 16);
+			world.getChunkManager()
+				.getLightingProvider()
+				.checkBlock(pos);
 		}
 	}
 
@@ -183,7 +181,7 @@ public class WaterWheelBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		flowScore = compound.getInt("FlowScore");
 
@@ -191,29 +189,29 @@ public class WaterWheelBlockEntity extends GeneratingKineticBlockEntity {
 		if (!compound.contains("Material"))
 			return;
 
-		material = NbtUtils.readBlockState(blockHolderGetter(), compound.getCompound("Material"));
+		material = NbtHelper.toBlockState(blockHolderGetter(), compound.getCompound("Material"));
 		if (material.isAir())
-			material = Blocks.SPRUCE_PLANKS.defaultBlockState();
+			material = Blocks.SPRUCE_PLANKS.getDefaultState();
 
 		if (clientPacket && prevMaterial != material)
 			redraw();
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		compound.putInt("FlowScore", flowScore);
-		compound.put("Material", NbtUtils.writeBlockState(material));
+		compound.put("Material", NbtHelper.fromBlockState(material));
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return new AABB(worldPosition).inflate(getSize());
+	protected Box createRenderBoundingBox() {
+		return new Box(pos).expand(getSize());
 	}
 
 	@Override
 	public float getGeneratedSpeed() {
-		return Mth.clamp(flowScore, -1, 1) * 8 / getSize();
+		return MathHelper.clamp(flowScore, -1, 1) * 8 / getSize();
 	}
 
 }

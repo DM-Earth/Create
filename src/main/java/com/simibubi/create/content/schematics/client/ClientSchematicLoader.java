@@ -24,16 +24,16 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
 public class ClientSchematicLoader {
 
 	public static final int PACKET_DELAY = 10;
 
-	private List<Component> availableSchematics;
+	private List<Text> availableSchematics;
 	private Map<String, InputStream> activeUploads;
 	private int packetCycle;
 
@@ -80,14 +80,14 @@ public class ClientSchematicLoader {
 	}
 
 	public static boolean validateSizeLimitation(long size) {
-		if (Minecraft.getInstance().hasSingleplayerServer())
+		if (MinecraftClient.getInstance().isIntegratedServerRunning())
 			return true;
 		Integer maxSize = AllConfigs.server().schematics.maxTotalSchematicSize.get();
 		if (size > maxSize * 1000) {
-			LocalPlayer player = Minecraft.getInstance().player;
+			ClientPlayerEntity player = MinecraftClient.getInstance().player;
 			if (player != null) {
-				player.displayClientMessage(Lang.translateDirect("schematics.uploadTooLarge").append(" (" + size / 1000 + " KB)."), false);
-				player.displayClientMessage(Lang.translateDirect("schematics.maxAllowedSize").append(" " + maxSize + " KB"), false);
+				player.sendMessage(Lang.translateDirect("schematics.uploadTooLarge").append(" (" + size / 1000 + " KB)."), false);
+				player.sendMessage(Lang.translateDirect("schematics.maxAllowedSize").append(" " + maxSize + " KB"), false);
 			}
 			return false;
 		}
@@ -104,7 +104,7 @@ public class ClientSchematicLoader {
 				if (status != -1) {
 					if (status < maxPacketSize)
 						data = Arrays.copyOf(data, status);
-					if (Minecraft.getInstance().level != null)
+					if (MinecraftClient.getInstance().world != null)
 						AllPackets.getChannel().sendToServer(SchematicUploadPacket.write(schematic, data));
 					else {
 						activeUploads.remove(schematic);
@@ -199,7 +199,7 @@ public class ClientSchematicLoader {
 		});
 	}
 
-	public List<Component> getAvailableSchematics() {
+	public List<Text> getAvailableSchematics() {
 		return availableSchematics;
 	}
 

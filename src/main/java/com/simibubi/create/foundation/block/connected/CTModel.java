@@ -11,19 +11,17 @@ import com.simibubi.create.foundation.utility.Iterate;
 import net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.inventory.InventoryMenu;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.util.RandomSource;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.screen.PlayerScreenHandler;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
 public class CTModel extends ForwardingBakedModel {
 
@@ -34,13 +32,13 @@ public class CTModel extends ForwardingBakedModel {
 		this.behaviour = behaviour;
 	}
 
-	protected CTData createCTData(BlockAndTintGetter world, BlockPos pos, BlockState state) {
+	protected CTData createCTData(BlockRenderView world, BlockPos pos, BlockState state) {
 		CTData data = new CTData();
-		MutableBlockPos mutablePos = new MutableBlockPos();
+		Mutable mutablePos = new Mutable();
 		for (Direction face : Iterate.directions) {
 			BlockState actualState = world.getBlockState(pos);
 			if (!behaviour.buildContextForOccludedDirections()
-				&& !Block.shouldRenderFace(state, world, pos, face, mutablePos.setWithOffset(pos, face))
+				&& !Block.shouldDrawSide(state, world, pos, face, mutablePos.set(pos, face))
 				&& !(actualState.getBlock()instanceof CopycatBlock ufb
 					&& !ufb.canFaceBeOccluded(actualState, face)))
 				continue;
@@ -59,14 +57,14 @@ public class CTModel extends ForwardingBakedModel {
 	}
 
 	@Override
-	public void emitBlockQuads(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context) {
+	public void emitBlockQuads(BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context) {
 		CTData data = createCTData(blockView, pos, state);
 
-		SpriteFinder spriteFinder = SpriteFinder.get(Minecraft.getInstance().getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS));
+		SpriteFinder spriteFinder = SpriteFinder.get(MinecraftClient.getInstance().getBakedModelManager().getAtlas(PlayerScreenHandler.BLOCK_ATLAS_TEXTURE));
 		context.pushTransform(quad -> {
 			int index = data.get(quad.lightFace());
 			if (index != -1) {
-				TextureAtlasSprite sprite = spriteFinder.find(quad, 0);
+				Sprite sprite = spriteFinder.find(quad, 0);
 				CTSpriteShiftEntry spriteShift = behaviour.getShift(state, quad.lightFace(), sprite);
 				if (spriteShift != null) {
 					if (sprite == spriteShift.getOriginal()) {
@@ -96,11 +94,11 @@ public class CTModel extends ForwardingBakedModel {
 		}
 
 		public void put(Direction face, int texture) {
-			indices[face.get3DDataValue()] = texture;
+			indices[face.getId()] = texture;
 		}
 
 		public int get(Direction face) {
-			return indices[face.get3DDataValue()];
+			return indices[face.getId()];
 		}
 	}
 

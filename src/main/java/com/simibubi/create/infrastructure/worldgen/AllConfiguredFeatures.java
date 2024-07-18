@@ -1,45 +1,43 @@
 package com.simibubi.create.infrastructure.worldgen;
 
-import static net.minecraft.data.worldgen.features.FeatureUtils.register;
+import static net.minecraft.world.gen.feature.ConfiguredFeatures.register;
 
 import java.util.List;
-
+import net.minecraft.registry.Registerable;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.structure.rule.RuleTest;
+import net.minecraft.structure.rule.TagMatchRuleTest;
+import net.minecraft.world.gen.feature.ConfiguredFeature;
+import net.minecraft.world.gen.feature.Feature;
+import net.minecraft.world.gen.feature.OreFeatureConfig;
+import net.minecraft.world.gen.feature.OreFeatureConfig.Target;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.Create;
 
-import net.minecraft.core.registries.Registries;
-import net.minecraft.data.worldgen.BootstapContext;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
-import net.minecraft.world.level.levelgen.feature.Feature;
-import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
-import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration.TargetBlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.RuleTest;
-import net.minecraft.world.level.levelgen.structure.templatesystem.TagMatchTest;
-
 public class AllConfiguredFeatures {
-	public static final ResourceKey<ConfiguredFeature<?, ?>>
+	public static final RegistryKey<ConfiguredFeature<?, ?>>
 				ZINC_ORE = key("zinc_ore"),
 				STRIATED_ORES_OVERWORLD = key("striated_ores_overworld"),
 				STRIATED_ORES_NETHER = key("striated_ores_nether");
 
-	private static ResourceKey<ConfiguredFeature<?, ?>> key(String name) {
-		return ResourceKey.create(Registries.CONFIGURED_FEATURE, Create.asResource(name));
+	private static RegistryKey<ConfiguredFeature<?, ?>> key(String name) {
+		return RegistryKey.of(RegistryKeys.CONFIGURED_FEATURE, Create.asResource(name));
 	}
 
-	public static void bootstrap(BootstapContext<ConfiguredFeature<?, ?>> ctx) {
-		RuleTest stoneOreReplaceables = new TagMatchTest(BlockTags.STONE_ORE_REPLACEABLES);
-		RuleTest deepslateOreReplaceables = new TagMatchTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES);
+	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> ctx) {
+		RuleTest stoneOreReplaceables = new TagMatchRuleTest(BlockTags.STONE_ORE_REPLACEABLES);
+		RuleTest deepslateOreReplaceables = new TagMatchRuleTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES);
 
-		List<TargetBlockState> zincTargetStates = List.of(
-			OreConfiguration.target(stoneOreReplaceables, AllBlocks.ZINC_ORE.get()
-				.defaultBlockState()),
-			OreConfiguration.target(deepslateOreReplaceables, AllBlocks.DEEPSLATE_ZINC_ORE.get()
-				.defaultBlockState())
+		List<Target> zincTargetStates = List.of(
+			OreFeatureConfig.createTarget(stoneOreReplaceables, AllBlocks.ZINC_ORE.get()
+				.getDefaultState()),
+			OreFeatureConfig.createTarget(deepslateOreReplaceables, AllBlocks.DEEPSLATE_ZINC_ORE.get()
+				.getDefaultState())
 		);
 
-		register(ctx, ZINC_ORE, Feature.ORE, new OreConfiguration(zincTargetStates, 12));
+		register(ctx, ZINC_ORE, Feature.ORE, new OreFeatureConfig(zincTargetStates, 12));
 
 		List<LayerPattern> overworldLayerPatterns = List.of(
 			AllLayerPatterns.SCORIA.get(),

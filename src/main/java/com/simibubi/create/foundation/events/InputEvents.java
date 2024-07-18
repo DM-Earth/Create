@@ -12,15 +12,15 @@ import io.github.fabricators_of_create.porting_lib.event.client.InteractEvents;
 import io.github.fabricators_of_create.porting_lib.event.client.KeyInputCallback;
 import io.github.fabricators_of_create.porting_lib.event.client.MouseInputEvents;
 import io.github.fabricators_of_create.porting_lib.event.client.MouseInputEvents.Action;
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.phys.HitResult;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.HitResult;
 
 public class InputEvents {
 
 	public static void onKeyInput(int key, int scancode, int action, int mods) {
-		if (Minecraft.getInstance().screen != null)
+		if (MinecraftClient.getInstance().currentScreen != null)
 			return;
 
 		boolean pressed = !(action == 0);
@@ -30,7 +30,7 @@ public class InputEvents {
 	}
 
 	public static boolean onMouseScrolled(double deltaX, double delta /* Y */) {
-		if (Minecraft.getInstance().screen != null)
+		if (MinecraftClient.getInstance().currentScreen != null)
 			return false;
 
 //		CollisionDebugger.onScroll(delta);
@@ -41,7 +41,7 @@ public class InputEvents {
 	}
 
 	public static boolean onMouseInput(int button, int modifiers, Action action) {
-		if (Minecraft.getInstance().screen != null)
+		if (MinecraftClient.getInstance().currentScreen != null)
 			return false;
 
 		boolean pressed = action == Action.PRESS;
@@ -54,12 +54,12 @@ public class InputEvents {
 	}
 
 	// fabric: onClickInput split up
-	public static InteractionResult onUse(Minecraft mc, HitResult hit, InteractionHand hand) {
-		if (mc.screen != null)
-			return InteractionResult.PASS;
+	public static ActionResult onUse(MinecraftClient mc, HitResult hit, Hand hand) {
+		if (mc.currentScreen != null)
+			return ActionResult.PASS;
 
 		if (CurvedTrackInteraction.onClickInput(true, false)) {
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
 
 
@@ -68,25 +68,25 @@ public class InputEvents {
 		boolean relocatorCancelled = TrainRelocator.onClicked();
 
 		return glueCancelled || relocatorCancelled
-				? InteractionResult.SUCCESS
-				: InteractionResult.PASS;
+				? ActionResult.SUCCESS
+				: ActionResult.PASS;
 	}
 
-	public static InteractionResult onAttack(Minecraft mc, HitResult hit) {
-		if (mc.screen != null)
-			return InteractionResult.PASS;
+	public static ActionResult onAttack(MinecraftClient mc, HitResult hit) {
+		if (mc.currentScreen != null)
+			return ActionResult.PASS;
 
 		if (CurvedTrackInteraction.onClickInput(false, true)) {
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
 
 		return CreateClient.GLUE_HANDLER.onMouseInput(true)
-				? InteractionResult.SUCCESS
-				: InteractionResult.PASS;
+				? ActionResult.SUCCESS
+				: ActionResult.PASS;
 	}
 
-	public static boolean onPick(Minecraft mc, HitResult hit) {
-		if (mc.screen != null)
+	public static boolean onPick(MinecraftClient mc, HitResult hit) {
+		if (mc.currentScreen != null)
 			return false;
 
 		return ToolboxHandlerClient.onPickItem();

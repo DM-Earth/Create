@@ -3,7 +3,15 @@ package com.simibubi.create.compat.computercraft.implementation.peripherals;
 import java.util.Map;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.nbt.AbstractNbtList;
+import net.minecraft.nbt.AbstractNbtNumber;
+import net.minecraft.nbt.NbtByte;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtDouble;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtString;
 import org.jetbrains.annotations.NotNull;
 
 import com.simibubi.create.AllPackets;
@@ -19,15 +27,6 @@ import com.simibubi.create.foundation.utility.StringHelper;
 import dan200.computercraft.api.lua.IArguments;
 import dan200.computercraft.api.lua.LuaException;
 import dan200.computercraft.api.lua.LuaFunction;
-import net.minecraft.nbt.ByteTag;
-import net.minecraft.nbt.CollectionTag;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.DoubleTag;
-import net.minecraft.nbt.IntTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NumericTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
 
 public class StationPeripheral extends SyncedPeripheral<StationBlockEntity> {
 
@@ -168,26 +167,26 @@ public class StationPeripheral extends SyncedPeripheral<StationBlockEntity> {
 		return train;
 	}
 
-	private static @NotNull CreateLuaTable fromCompoundTag(CompoundTag tag) throws LuaException {
+	private static @NotNull CreateLuaTable fromCompoundTag(NbtCompound tag) throws LuaException {
 		return (CreateLuaTable) fromNBTTag(null, tag);
 	}
 
-	private static @NotNull Object fromNBTTag(@Nullable String key, Tag tag) throws LuaException {
-		byte type = tag.getId();
+	private static @NotNull Object fromNBTTag(@Nullable String key, NbtElement tag) throws LuaException {
+		byte type = tag.getType();
 
-		if (type == Tag.TAG_BYTE && key != null && key.equals("Count"))
-			return ((NumericTag) tag).getAsByte();
-		else if (type == Tag.TAG_BYTE)
-			return ((NumericTag) tag).getAsByte() != 0;
-		else if (type == Tag.TAG_SHORT || type == Tag.TAG_INT || type == Tag.TAG_LONG)
-			return ((NumericTag) tag).getAsLong();
-		else if (type == Tag.TAG_FLOAT || type == Tag.TAG_DOUBLE)
-			return ((NumericTag) tag).getAsDouble();
-		else if (type == Tag.TAG_STRING)
-			return tag.getAsString();
-		else if (type == Tag.TAG_LIST || type == Tag.TAG_BYTE_ARRAY || type == Tag.TAG_INT_ARRAY || type == Tag.TAG_LONG_ARRAY) {
+		if (type == NbtElement.BYTE_TYPE && key != null && key.equals("Count"))
+			return ((AbstractNbtNumber) tag).byteValue();
+		else if (type == NbtElement.BYTE_TYPE)
+			return ((AbstractNbtNumber) tag).byteValue() != 0;
+		else if (type == NbtElement.SHORT_TYPE || type == NbtElement.INT_TYPE || type == NbtElement.LONG_TYPE)
+			return ((AbstractNbtNumber) tag).longValue();
+		else if (type == NbtElement.FLOAT_TYPE || type == NbtElement.DOUBLE_TYPE)
+			return ((AbstractNbtNumber) tag).doubleValue();
+		else if (type == NbtElement.STRING_TYPE)
+			return tag.asString();
+		else if (type == NbtElement.LIST_TYPE || type == NbtElement.BYTE_ARRAY_TYPE || type == NbtElement.INT_ARRAY_TYPE || type == NbtElement.LONG_ARRAY_TYPE) {
 			CreateLuaTable list = new CreateLuaTable();
-			CollectionTag<?> listTag = (CollectionTag<?>) tag;
+			AbstractNbtList<?> listTag = (AbstractNbtList<?>) tag;
 
 			for (int i = 0; i < listTag.size(); i++) {
 				list.put(i + 1, fromNBTTag(null, listTag.get(i)));
@@ -195,11 +194,11 @@ public class StationPeripheral extends SyncedPeripheral<StationBlockEntity> {
 
 			return list;
 
-		} else if (type == Tag.TAG_COMPOUND) {
+		} else if (type == NbtElement.COMPOUND_TYPE) {
 			CreateLuaTable table = new CreateLuaTable();
-			CompoundTag compoundTag = (CompoundTag) tag;
+			NbtCompound compoundTag = (NbtCompound) tag;
 
-			for (String compoundKey : compoundTag.getAllKeys()) {
+			for (String compoundKey : compoundTag.getKeys()) {
 				table.put(
 						StringHelper.camelCaseToSnakeCase(compoundKey),
 						fromNBTTag(compoundKey, compoundTag.get(compoundKey))
@@ -209,29 +208,29 @@ public class StationPeripheral extends SyncedPeripheral<StationBlockEntity> {
 			return table;
 		}
 
-		throw new LuaException("unknown tag type " + tag.getType().getName());
+		throw new LuaException("unknown tag type " + tag.getNbtType().getCrashReportName());
 	}
 
-	private static @NotNull CompoundTag toCompoundTag(CreateLuaTable table) throws LuaException {
-		return (CompoundTag) toNBTTag(null, table.getMap());
+	private static @NotNull NbtCompound toCompoundTag(CreateLuaTable table) throws LuaException {
+		return (NbtCompound) toNBTTag(null, table.getMap());
 	}
 
-	private static @NotNull Tag toNBTTag(@Nullable String key, Object value) throws LuaException {
+	private static @NotNull NbtElement toNBTTag(@Nullable String key, Object value) throws LuaException {
 		if (value instanceof Boolean v)
-			return ByteTag.valueOf(v);
+			return NbtByte.of(v);
 		else if (value instanceof Byte || (key != null && key.equals("count")))
-			return ByteTag.valueOf(((Number) value).byteValue());
+			return NbtByte.of(((Number) value).byteValue());
 		else if (value instanceof Number v) {
 			// If number is numerical integer
 			if (v.intValue() == v.doubleValue())
-				return IntTag.valueOf(v.intValue());
+				return NbtInt.of(v.intValue());
 			else
-				return DoubleTag.valueOf(v.doubleValue());
+				return NbtDouble.of(v.doubleValue());
 
 		} else if (value instanceof String v)
-			return StringTag.valueOf(v);
+			return NbtString.of(v);
 		else if (value instanceof Map<?, ?> v && v.containsKey(1.0)) { // List
-			ListTag list = new ListTag();
+			NbtList list = new NbtList();
 			for (Object o : v.values()) {
 				list.add(toNBTTag(null, o));
 			}
@@ -239,7 +238,7 @@ public class StationPeripheral extends SyncedPeripheral<StationBlockEntity> {
 			return list;
 
 		} else if (value instanceof Map<?, ?> v) { // Table/Map
-			CompoundTag compound = new CompoundTag();
+			NbtCompound compound = new NbtCompound();
 			for (Object objectKey : v.keySet()) {
 				if (!(objectKey instanceof String compoundKey))
 					throw new LuaException("table key is not of type string");

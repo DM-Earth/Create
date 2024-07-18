@@ -2,26 +2,25 @@ package com.simibubi.create.content.kinetics.base;
 
 import com.simibubi.create.foundation.advancement.AdvancementBehaviour;
 import com.simibubi.create.foundation.block.IBE;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 
 public abstract class KineticBlock extends Block implements IRotate {
 
-	public KineticBlock(Properties properties) {
+	public KineticBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
+	public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
 		// onBlockAdded is useless for init, as sometimes the BE gets re-instantiated
 
 		// however, if a block change occurs that does not change kinetic connections,
@@ -44,12 +43,12 @@ public abstract class KineticBlock extends Block implements IRotate {
 	}
 	
 	@Override
-	public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
+	public void onStateReplaced(BlockState pState, World pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
 		IBE.onRemove(pState, pLevel, pPos, pNewState);
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
 		return false;
 	}
 
@@ -60,9 +59,9 @@ public abstract class KineticBlock extends Block implements IRotate {
 	}
 
 	@Override
-	public void updateIndirectNeighbourShapes(BlockState stateIn, LevelAccessor worldIn, BlockPos pos, int flags,
+	public void prepare(BlockState stateIn, WorldAccess worldIn, BlockPos pos, int flags,
 		int count) {
-		if (worldIn.isClientSide())
+		if (worldIn.isClient())
 			return;
 
 		BlockEntity blockEntity = worldIn.getBlockEntity(pos);
@@ -80,9 +79,9 @@ public abstract class KineticBlock extends Block implements IRotate {
 	}
 
 	@Override
-	public void setPlacedBy(Level worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+	public void onPlaced(World worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
 		AdvancementBehaviour.setPlacedBy(worldIn, pos, placer);
-		if (worldIn.isClientSide)
+		if (worldIn.isClient)
 			return;
 
 		BlockEntity blockEntity = worldIn.getBlockEntity(pos);

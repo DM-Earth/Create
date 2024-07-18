@@ -1,16 +1,14 @@
 package com.simibubi.create.foundation.blockEntity.behaviour.edgeInteraction;
 
 import java.util.function.Predicate;
-
+import net.minecraft.item.Item;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import com.simibubi.create.AllTags;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.Level;
 
 public class EdgeInteractionBehaviour extends BlockEntityBehaviour {
 
@@ -49,12 +47,12 @@ public class EdgeInteractionBehaviour extends BlockEntityBehaviour {
 
 	@FunctionalInterface
 	public interface ConnectionCallback {
-		public void apply(Level world, BlockPos clicked, BlockPos neighbour);
+		public void apply(World world, BlockPos clicked, BlockPos neighbour);
 	}
 
 	@FunctionalInterface
 	public interface ConnectivityPredicate {
-		public boolean test(Level world, BlockPos pos, Direction selectedFace, Direction connectedFace);
+		public boolean test(World world, BlockPos pos, Direction selectedFace, Direction connectedFace);
 	}
 
 }

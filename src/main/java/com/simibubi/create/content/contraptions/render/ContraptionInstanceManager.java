@@ -3,7 +3,9 @@ package com.simibubi.create.content.contraptions.render;
 import java.util.ArrayList;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.render.Camera;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.jozufozu.flywheel.api.MaterialManager;
@@ -15,10 +17,6 @@ import com.simibubi.create.AllMovementBehaviours;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-
-import net.minecraft.client.Camera;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 
 public class ContraptionInstanceManager extends BlockEntityInstanceManager {
 
@@ -40,7 +38,7 @@ public class ContraptionInstanceManager extends BlockEntityInstanceManager {
 
 	@Override
 	protected boolean canCreateInstance(BlockEntity blockEntity) {
-		return !contraption.isHiddenInPortal(blockEntity.getBlockPos());
+		return !contraption.isHiddenInPortal(blockEntity.getPos());
 	}
 
 	@Override

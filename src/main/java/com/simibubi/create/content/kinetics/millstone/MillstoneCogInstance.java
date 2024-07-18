@@ -14,6 +14,6 @@ public class MillstoneCogInstance extends SingleRotatingInstance<MillstoneBlockE
 
     @Override
     protected Instancer<RotatingData> getModel() {
-        return getRotatingMaterial().getModel(AllPartialModels.MILLSTONE_COG, blockEntity.getBlockState());
+        return getRotatingMaterial().getModel(AllPartialModels.MILLSTONE_COG, blockEntity.getCachedState());
     }
 }

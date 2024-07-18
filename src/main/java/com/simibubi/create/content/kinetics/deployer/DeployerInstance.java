@@ -10,16 +10,15 @@ import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.jozufozu.flywheel.api.instance.TickableInstance;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.core.materials.oriented.OrientedData;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.ShaftInstance;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.util.Mth;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3i;
 
 public class DeployerInstance extends ShaftInstance<DeployerBlockEntity> implements DynamicInstance, TickableInstance {
 
@@ -38,9 +37,9 @@ public class DeployerInstance extends ShaftInstance<DeployerBlockEntity> impleme
     public DeployerInstance(MaterialManager materialManager, DeployerBlockEntity blockEntity) {
         super(materialManager, blockEntity);
 
-        facing = blockState.getValue(FACING);
+        facing = blockState.get(FACING);
 
-        boolean rotatePole = blockState.getValue(AXIS_ALONG_FIRST_COORDINATE) ^ facing.getAxis() == Direction.Axis.Z;
+        boolean rotatePole = blockState.get(AXIS_ALONG_FIRST_COORDINATE) ^ facing.getAxis() == Direction.Axis.Z;
 
         yRot = AngleHelper.horizontalAngle(facing);
         xRot = facing == Direction.UP ? 270 : facing == Direction.DOWN ? 90 : 0;
@@ -73,7 +72,7 @@ public class DeployerInstance extends ShaftInstance<DeployerBlockEntity> impleme
 
         float newProgress = getProgress(AnimationTickHolder.getPartialTicks());
 
-        if (Mth.equal(newProgress, progress)) return;
+        if (MathHelper.approximatelyEquals(newProgress, progress)) return;
 
         progress = newProgress;
 
@@ -108,8 +107,8 @@ public class DeployerInstance extends ShaftInstance<DeployerBlockEntity> impleme
     private void updatePosition() {
         float handLength = currentHand == AllPartialModels.DEPLOYER_HAND_POINTING ? 0
                 : currentHand == AllPartialModels.DEPLOYER_HAND_HOLDING ? 4 / 16f : 3 / 16f;
-        float distance = Math.min(Mth.clamp(progress, 0, 1) * (blockEntity.reach + handLength), 21 / 16f);
-        Vec3i facingVec = facing.getNormal();
+        float distance = Math.min(MathHelper.clamp(progress, 0, 1) * (blockEntity.reach + handLength), 21 / 16f);
+        Vec3i facingVec = facing.getVector();
         BlockPos blockPos = getInstancePosition();
 
         float x = blockPos.getX() + ((float) facingVec.getX()) * distance;
@@ -122,12 +121,12 @@ public class DeployerInstance extends ShaftInstance<DeployerBlockEntity> impleme
 
     static void updateRotation(OrientedData pole, OrientedData hand, float yRot, float xRot, float zRot) {
 
-        Quaternionf q = Axis.YP.rotationDegrees(yRot);
-        q.mul(Axis.XP.rotationDegrees(xRot));
+        Quaternionf q = RotationAxis.POSITIVE_Y.rotationDegrees(yRot);
+        q.mul(RotationAxis.POSITIVE_X.rotationDegrees(xRot));
 
         hand.setRotation(q);
 
-        q.mul(Axis.ZP.rotationDegrees(zRot));
+        q.mul(RotationAxis.POSITIVE_Z.rotationDegrees(zRot));
 
         pole.setRotation(q);
     }

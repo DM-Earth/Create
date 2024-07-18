@@ -1,30 +1,28 @@
 package com.simibubi.create.content.equipment.clipboard;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 
 public class ClipboardEditPacket extends SimplePacketBase {
 
 	private int hotbarSlot;
-	private CompoundTag data;
+	private NbtCompound data;
 	private BlockPos targetedBlock;
 
-	public ClipboardEditPacket(int hotbarSlot, CompoundTag data, @Nullable BlockPos targetedBlock) {
+	public ClipboardEditPacket(int hotbarSlot, NbtCompound data, @Nullable BlockPos targetedBlock) {
 		this.hotbarSlot = hotbarSlot;
 		this.data = data;
 		this.targetedBlock = targetedBlock;
 	}
 
-	public ClipboardEditPacket(FriendlyByteBuf buffer) {
+	public ClipboardEditPacket(PacketByteBuf buffer) {
 		hotbarSlot = buffer.readVarInt();
 		data = buffer.readNbt();
 		if (buffer.readBoolean())
@@ -32,7 +30,7 @@ public class ClipboardEditPacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeVarInt(hotbarSlot);
 		buffer.writeNbt(data);
 		buffer.writeBoolean(targetedBlock != null);
@@ -43,26 +41,26 @@ public class ClipboardEditPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer sender = context.getSender();
+			ServerPlayerEntity sender = context.getSender();
 
 			if (targetedBlock != null) {
-				Level world = sender.level();
-				if (world == null || !world.isLoaded(targetedBlock))
+				World world = sender.getWorld();
+				if (world == null || !world.canSetBlock(targetedBlock))
 					return;
-				if (!targetedBlock.closerThan(sender.blockPosition(), 20))
+				if (!targetedBlock.isWithinDistance(sender.getBlockPos(), 20))
 					return;
 				if (world.getBlockEntity(targetedBlock) instanceof ClipboardBlockEntity cbe) {
-					cbe.dataContainer.setTag(data.isEmpty() ? null : data);
+					cbe.dataContainer.setNbt(data.isEmpty() ? null : data);
 					cbe.onEditedBy(sender);
 				}
 				return;
 			}
 
 			ItemStack itemStack = sender.getInventory()
-				.getItem(hotbarSlot);
+				.getStack(hotbarSlot);
 			if (!AllBlocks.CLIPBOARD.isIn(itemStack))
 				return;
-			itemStack.setTag(data.isEmpty() ? null : data);
+			itemStack.setNbt(data.isEmpty() ? null : data);
 		});
 
 		return true;

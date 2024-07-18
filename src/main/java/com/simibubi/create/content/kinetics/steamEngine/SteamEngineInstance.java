@@ -8,10 +8,9 @@ import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.foundation.utility.AngleHelper;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.Mth;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
 
 public class SteamEngineInstance extends BlockEntityInstance<SteamEngineBlockEntity> implements DynamicInstance {
 
@@ -55,8 +54,8 @@ public class SteamEngineInstance extends BlockEntityInstance<SteamEngineBlockEnt
 			axis = KineticBlockEntityRenderer.getRotationAxisOf(shaft);
 
 		boolean roll90 = facingAxis.isHorizontal() && axis == Axis.Y || facingAxis.isVertical() && axis == Axis.Z;
-		float sine = Mth.sin(angle);
-		float sine2 = Mth.sin(angle - Mth.HALF_PI);
+		float sine = MathHelper.sin(angle);
+		float sine2 = MathHelper.sin(angle - MathHelper.HALF_PI);
 		float piston = ((1 - sine) / 4) * 24 / 16f;
 
 		transformed(this.piston, facing, roll90)
@@ -74,7 +73,7 @@ public class SteamEngineInstance extends BlockEntityInstance<SteamEngineBlockEnt
 		transformed(connector, facing, roll90)
 			.translate(0, 2, 0)
 			.centre()
-			.rotateXRadians(-angle + Mth.HALF_PI)
+			.rotateXRadians(-angle + MathHelper.HALF_PI)
 			.unCentre();
 	}
 

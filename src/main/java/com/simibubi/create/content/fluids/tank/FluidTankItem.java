@@ -7,18 +7,18 @@ import com.simibubi.create.AllBlocks;
 import com.simibubi.create.api.connectivity.ConnectivityHandler;
 
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class FluidTankItem extends BlockItem {
 	// fabric: (#690) because of ordering differences, we need to delay connection by a tick when placing multiblocks with NBT.
@@ -30,28 +30,28 @@ public class FluidTankItem extends BlockItem {
 	@Internal
 	public static boolean IS_PLACING_NBT = false;
 
-	public FluidTankItem(Block p_i48527_1_, Properties p_i48527_2_) {
+	public FluidTankItem(Block p_i48527_1_, Settings p_i48527_2_) {
 		super(p_i48527_1_, p_i48527_2_);
 	}
 
 	@Override
-	public InteractionResult place(BlockPlaceContext ctx) {
+	public ActionResult place(ItemPlacementContext ctx) {
 		IS_PLACING_NBT = FluidTankItem.checkPlacingNbt(ctx);
-		InteractionResult initialResult = super.place(ctx);
+		ActionResult initialResult = super.place(ctx);
 		IS_PLACING_NBT = false;
-		if (!initialResult.consumesAction())
+		if (!initialResult.isAccepted())
 			return initialResult;
 		tryMultiPlace(ctx);
 		return initialResult;
 	}
 
 	@Override
-	protected boolean updateCustomBlockEntityTag(BlockPos p_195943_1_, Level p_195943_2_, Player p_195943_3_,
+	protected boolean postPlacement(BlockPos p_195943_1_, World p_195943_2_, PlayerEntity p_195943_3_,
 		ItemStack p_195943_4_, BlockState p_195943_5_) {
 		MinecraftServer minecraftserver = p_195943_2_.getServer();
 		if (minecraftserver == null)
 			return false;
-		CompoundTag nbt = p_195943_4_.getTagElement("BlockEntityTag");
+		NbtCompound nbt = p_195943_4_.getSubNbt("BlockEntityTag");
 		if (nbt != null) {
 			nbt.remove("Luminosity");
 			nbt.remove("Size");
@@ -62,27 +62,27 @@ public class FluidTankItem extends BlockItem {
 				FluidStack fluid = FluidStack.loadFluidStackFromNBT(nbt.getCompound("TankContent"));
 				if (!fluid.isEmpty()) {
 					fluid.setAmount(Math.min(FluidTankBlockEntity.getCapacityMultiplier(), fluid.getAmount()));
-					nbt.put("TankContent", fluid.writeToNBT(new CompoundTag()));
+					nbt.put("TankContent", fluid.writeToNBT(new NbtCompound()));
 				}
 			}
 		}
-		return super.updateCustomBlockEntityTag(p_195943_1_, p_195943_2_, p_195943_3_, p_195943_4_, p_195943_5_);
+		return super.postPlacement(p_195943_1_, p_195943_2_, p_195943_3_, p_195943_4_, p_195943_5_);
 	}
 
-	private void tryMultiPlace(BlockPlaceContext ctx) {
-		Player player = ctx.getPlayer();
+	private void tryMultiPlace(ItemPlacementContext ctx) {
+		PlayerEntity player = ctx.getPlayer();
 		if (player == null)
 			return;
-		if (player.isShiftKeyDown())
+		if (player.isSneaking())
 			return;
-		Direction face = ctx.getClickedFace();
+		Direction face = ctx.getSide();
 		if (!face.getAxis()
 			.isVertical())
 			return;
-		ItemStack stack = ctx.getItemInHand();
-		Level world = ctx.getLevel();
-		BlockPos pos = ctx.getClickedPos();
-		BlockPos placedOnPos = pos.relative(face.getOpposite());
+		ItemStack stack = ctx.getStack();
+		World world = ctx.getWorld();
+		BlockPos pos = ctx.getBlockPos();
+		BlockPos placedOnPos = pos.offset(face.getOpposite());
 		BlockState placedOnState = world.getBlockState(placedOnPos);
 
 		if (!FluidTankBlock.isTank(placedOnState))
@@ -102,21 +102,21 @@ public class FluidTankItem extends BlockItem {
 			return;
 
 		int tanksToPlace = 0;
-		BlockPos startPos = face == Direction.DOWN ? controllerBE.getBlockPos()
-			.below()
-			: controllerBE.getBlockPos()
-				.above(controllerBE.height);
+		BlockPos startPos = face == Direction.DOWN ? controllerBE.getPos()
+			.down()
+			: controllerBE.getPos()
+				.up(controllerBE.height);
 
 		if (startPos.getY() != pos.getY())
 			return;
 
 		for (int xOffset = 0; xOffset < width; xOffset++) {
 			for (int zOffset = 0; zOffset < width; zOffset++) {
-				BlockPos offsetPos = startPos.offset(xOffset, 0, zOffset);
+				BlockPos offsetPos = startPos.add(xOffset, 0, zOffset);
 				BlockState blockState = world.getBlockState(offsetPos);
 				if (FluidTankBlock.isTank(blockState))
 					continue;
-				if (!blockState.canBeReplaced())
+				if (!blockState.isReplaceable())
 					return;
 				tanksToPlace++;
 			}
@@ -127,11 +127,11 @@ public class FluidTankItem extends BlockItem {
 
 		for (int xOffset = 0; xOffset < width; xOffset++) {
 			for (int zOffset = 0; zOffset < width; zOffset++) {
-				BlockPos offsetPos = startPos.offset(xOffset, 0, zOffset);
+				BlockPos offsetPos = startPos.add(xOffset, 0, zOffset);
 				BlockState blockState = world.getBlockState(offsetPos);
 				if (FluidTankBlock.isTank(blockState))
 					continue;
-				BlockPlaceContext context = BlockPlaceContext.at(ctx, offsetPos, face);
+				ItemPlacementContext context = ItemPlacementContext.offset(ctx, offsetPos, face);
 				player.getCustomData()
 					.putBoolean("SilenceTankSound", true);
 				IS_PLACING_NBT = checkPlacingNbt(context);
@@ -143,8 +143,8 @@ public class FluidTankItem extends BlockItem {
 		}
 	}
 
-	public static boolean checkPlacingNbt(BlockPlaceContext ctx) {
-		ItemStack item = ctx.getItemInHand();
-		return BlockItem.getBlockEntityData(item) != null;
+	public static boolean checkPlacingNbt(ItemPlacementContext ctx) {
+		ItemStack item = ctx.getStack();
+		return BlockItem.getBlockEntityNbt(item) != null;
 	}
 }

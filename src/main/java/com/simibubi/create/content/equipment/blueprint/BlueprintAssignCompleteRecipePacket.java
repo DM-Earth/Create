@@ -1,40 +1,39 @@
 package com.simibubi.create.content.equipment.blueprint;
 
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
 
 public class BlueprintAssignCompleteRecipePacket extends SimplePacketBase {
 
-	private ResourceLocation recipeID;
+	private Identifier recipeID;
 
-	public BlueprintAssignCompleteRecipePacket(ResourceLocation recipeID) {
+	public BlueprintAssignCompleteRecipePacket(Identifier recipeID) {
 		this.recipeID = recipeID;
 	}
 
-	public BlueprintAssignCompleteRecipePacket(FriendlyByteBuf buffer) {
-		recipeID = buffer.readResourceLocation();
+	public BlueprintAssignCompleteRecipePacket(PacketByteBuf buffer) {
+		recipeID = buffer.readIdentifier();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeResourceLocation(recipeID);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeIdentifier(recipeID);
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
-			if (player.containerMenu instanceof BlueprintMenu) {
-				BlueprintMenu c = (BlueprintMenu) player.containerMenu;
-				player.level()
+			if (player.currentScreenHandler instanceof BlueprintMenu) {
+				BlueprintMenu c = (BlueprintMenu) player.currentScreenHandler;
+				player.getWorld()
 						.getRecipeManager()
-						.byKey(recipeID)
-						.ifPresent(r -> BlueprintItem.assignCompleteRecipe(c.player.level(), c.ghostInventory, r));
+						.get(recipeID)
+						.ifPresent(r -> BlueprintItem.assignCompleteRecipe(c.player.getWorld(), c.ghostInventory, r));
 			}
 		});
 		return true;

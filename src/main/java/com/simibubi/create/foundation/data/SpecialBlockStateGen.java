@@ -5,11 +5,10 @@ import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ConfiguredModel;
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Property;
+import net.minecraft.util.math.Direction;
 
 public abstract class SpecialBlockStateGen {
 
@@ -32,7 +31,7 @@ public abstract class SpecialBlockStateGen {
 		if (direction.getAxis()
 			.isVertical())
 			return 0;
-		return (int) direction.toYRot();
+		return (int) direction.asRotation();
 	}
 
 	protected abstract int getXRotation(BlockState state);

@@ -1,7 +1,11 @@
 package com.simibubi.create.content.contraptions.bearing;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.INamedIconOptions;
@@ -9,12 +13,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollOp
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class WindmillBearingBlockEntity extends MechanicalBearingBlockEntity {
 
@@ -44,7 +42,7 @@ public class WindmillBearingBlockEntity extends MechanicalBearingBlockEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (level.isClientSide())
+		if (world.isClient())
 			return;
 		if (!queuedReassembly)
 			return;
@@ -68,7 +66,7 @@ public class WindmillBearingBlockEntity extends MechanicalBearingBlockEntity {
 			return lastGeneratedSpeed;
 		int sails = ((BearingContraption) movedContraption.getContraption()).getSailBlocks()
 			/ AllConfigs.server().kinetics.windmillSailsPerRPM.get();
-		return Mth.clamp(sails, 1, 16) * getAngleSpeedDirection();
+		return MathHelper.clamp(sails, 1, 16) * getAngleSpeedDirection();
 	}
 
 	@Override
@@ -82,14 +80,14 @@ public class WindmillBearingBlockEntity extends MechanicalBearingBlockEntity {
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putFloat("LastGenerated", lastGeneratedSpeed);
 		compound.putBoolean("QueueAssembly", queuedReassembly);
 		super.write(compound, clientPacket);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		if (!wasMoved)
 			lastGeneratedSpeed = compound.getFloat("LastGenerated");
 		queuedReassembly = compound.getBoolean("QueueAssembly");
@@ -110,7 +108,7 @@ public class WindmillBearingBlockEntity extends MechanicalBearingBlockEntity {
 	private void onDirectionChanged() {
 		if (!running)
 			return;
-		if (!level.isClientSide)
+		if (!world.isClient)
 			updateGeneratedRotation();
 	}
 

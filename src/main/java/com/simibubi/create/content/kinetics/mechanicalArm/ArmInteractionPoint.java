@@ -13,20 +13,20 @@ import io.github.fabricators_of_create.porting_lib.util.StorageProvider;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class ArmInteractionPoint {
 
 	protected final ArmInteractionPointType type;
-	protected Level level;
+	protected World level;
 	protected final BlockPos pos;
 	protected Mode mode = Mode.DEPOSIT;
 
@@ -34,7 +34,7 @@ public class ArmInteractionPoint {
 	protected StorageProvider<ItemVariant> handlerProvider = null;
 	protected ArmAngleTarget cachedAngles;
 
-	public ArmInteractionPoint(ArmInteractionPointType type, Level level, BlockPos pos, BlockState state) {
+	public ArmInteractionPoint(ArmInteractionPointType type, World level, BlockPos pos, BlockState state) {
 		this.type = type;
 		this.level = level;
 		this.pos = pos;
@@ -45,11 +45,11 @@ public class ArmInteractionPoint {
 		return type;
 	}
 
-	public Level getLevel() {
+	public World getLevel() {
 		return level;
 	}
 
-	public void setLevel(Level level) {
+	public void setLevel(World level) {
 		this.level = level;
 	}
 
@@ -65,7 +65,7 @@ public class ArmInteractionPoint {
 		mode = mode == Mode.DEPOSIT ? Mode.TAKE : Mode.DEPOSIT;
 	}
 
-	protected Vec3 getInteractionPositionVector() {
+	protected Vec3d getInteractionPositionVector() {
 		return VecHelper.getCenterOf(pos);
 	}
 
@@ -119,31 +119,31 @@ public class ArmInteractionPoint {
 		return extract(64, ctx);
 	}
 
-	protected void serialize(CompoundTag nbt, BlockPos anchor) {
+	protected void serialize(NbtCompound nbt, BlockPos anchor) {
 		NBTHelper.writeEnum(nbt, "Mode", mode);
 	}
 
-	protected void deserialize(CompoundTag nbt, BlockPos anchor) {
+	protected void deserialize(NbtCompound nbt, BlockPos anchor) {
 		mode = NBTHelper.readEnum(nbt, "Mode", Mode.class);
 	}
 
-	public final CompoundTag serialize(BlockPos anchor) {
-		CompoundTag nbt = new CompoundTag();
+	public final NbtCompound serialize(BlockPos anchor) {
+		NbtCompound nbt = new NbtCompound();
 		nbt.putString("Type", type.getId().toString());
-		nbt.put("Pos", NbtUtils.writeBlockPos(pos.subtract(anchor)));
+		nbt.put("Pos", NbtHelper.fromBlockPos(pos.subtract(anchor)));
 		serialize(nbt, anchor);
 		return nbt;
 	}
 
 	@Nullable
-	public static ArmInteractionPoint deserialize(CompoundTag nbt, Level level, BlockPos anchor) {
-		ResourceLocation id = ResourceLocation.tryParse(nbt.getString("Type"));
+	public static ArmInteractionPoint deserialize(NbtCompound nbt, World level, BlockPos anchor) {
+		Identifier id = Identifier.tryParse(nbt.getString("Type"));
 		if (id == null)
 			return null;
 		ArmInteractionPointType type = ArmInteractionPointType.get(id);
 		if (type == null)
 			return null;
-		BlockPos pos = NbtUtils.readBlockPos(nbt.getCompound("Pos")).offset(anchor);
+		BlockPos pos = NbtHelper.toBlockPos(nbt.getCompound("Pos")).add(anchor);
 		BlockState state = level.getBlockState(pos);
 		if (!type.canCreatePoint(level, pos, state))
 			return null;
@@ -154,18 +154,18 @@ public class ArmInteractionPoint {
 		return point;
 	}
 
-	public static void transformPos(CompoundTag nbt, StructureTransform transform) {
-		BlockPos pos = NbtUtils.readBlockPos(nbt.getCompound("Pos"));
+	public static void transformPos(NbtCompound nbt, StructureTransform transform) {
+		BlockPos pos = NbtHelper.toBlockPos(nbt.getCompound("Pos"));
 		pos = transform.applyWithoutOffset(pos);
-		nbt.put("Pos", NbtUtils.writeBlockPos(pos));
+		nbt.put("Pos", NbtHelper.fromBlockPos(pos));
 	}
 
-	public static boolean isInteractable(Level level, BlockPos pos, BlockState state) {
+	public static boolean isInteractable(World level, BlockPos pos, BlockState state) {
 		return ArmInteractionPointType.getPrimaryType(level, pos, state) != null;
 	}
 
 	@Nullable
-	public static ArmInteractionPoint create(Level level, BlockPos pos, BlockState state) {
+	public static ArmInteractionPoint create(World level, BlockPos pos, BlockState state) {
 		ArmInteractionPointType type = ArmInteractionPointType.getPrimaryType(level, pos, state);
 		if (type == null)
 			return null;

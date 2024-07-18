@@ -4,8 +4,6 @@ import com.jozufozu.flywheel.backend.Backend;
 import com.jozufozu.flywheel.util.transform.Rotate;
 import com.jozufozu.flywheel.util.transform.TransformStack;
 import com.jozufozu.flywheel.util.transform.Translate;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.ShaftRenderer;
@@ -14,39 +12,40 @@ import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.LongAttached;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.Vec3d;
 
 public class EjectorRenderer extends ShaftRenderer<EjectorBlockEntity> {
 
-	static final Vec3 pivot = VecHelper.voxelSpace(0, 11.25, 0.75);
+	static final Vec3d pivot = VecHelper.voxelSpace(0, 11.25, 0.75);
 
-	public EjectorRenderer(BlockEntityRendererProvider.Context context) {
+	public EjectorRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	public boolean shouldRenderOffScreen(EjectorBlockEntity p_188185_1_) {
+	public boolean rendersOutsideBoundingBox(EjectorBlockEntity p_188185_1_) {
 		return true;
 	}
 
 	@Override
-	protected void renderSafe(EjectorBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(EjectorBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 		super.renderSafe(be, partialTicks, ms, buffer, light, overlay);
 
-		VertexConsumer vertexBuilder = buffer.getBuffer(RenderType.solid());
+		VertexConsumer vertexBuilder = buffer.getBuffer(RenderLayer.getSolid());
 		float lidProgress = be.getLidProgress(partialTicks);
 		float angle = lidProgress * 70;
 
-		if (!Backend.canUseInstancing(be.getLevel())) {
-			SuperByteBuffer model = CachedBufferer.partial(AllPartialModels.EJECTOR_TOP, be.getBlockState());
+		if (!Backend.canUseInstancing(be.getWorld())) {
+			SuperByteBuffer model = CachedBufferer.partial(AllPartialModels.EJECTOR_TOP, be.getCachedState());
 			applyLidAngle(be, angle, model);
 			model.light(light)
 					.renderInto(ms, vertexBuilder);
@@ -61,42 +60,42 @@ public class EjectorRenderer extends ShaftRenderer<EjectorBlockEntity> {
 			if (time > maxTime)
 				continue;
 
-			ms.pushPose();
-			Vec3 launchedItemLocation = be.getLaunchedItemLocation(time);
-			msr.translate(launchedItemLocation.subtract(Vec3.atLowerCornerOf(be.getBlockPos())));
-			Vec3 itemRotOffset = VecHelper.voxelSpace(0, 3, 0);
+			ms.push();
+			Vec3d launchedItemLocation = be.getLaunchedItemLocation(time);
+			msr.translate(launchedItemLocation.subtract(Vec3d.of(be.getPos())));
+			Vec3d itemRotOffset = VecHelper.voxelSpace(0, 3, 0);
 			msr.translate(itemRotOffset);
 			msr.rotateY(AngleHelper.horizontalAngle(be.getFacing()));
 			msr.rotateX(time * 40);
 			msr.translateBack(itemRotOffset);
-			Minecraft.getInstance()
+			MinecraftClient.getInstance()
 				.getItemRenderer()
-				.renderStatic(LongAttached.getValue(), ItemDisplayContext.GROUND, light, overlay, ms, buffer, be.getLevel(), 0);
-			ms.popPose();
+				.renderItem(LongAttached.getValue(), ModelTransformationMode.GROUND, light, overlay, ms, buffer, be.getWorld(), 0);
+			ms.pop();
 		}
 
 		DepotBehaviour behaviour = be.getBehaviour(DepotBehaviour.TYPE);
 		if (behaviour == null || behaviour.isEmpty())
 			return;
 
-		ms.pushPose();
+		ms.push();
 		applyLidAngle(be, angle, msr);
 		msr.centre()
-			.rotateY(-180 - AngleHelper.horizontalAngle(be.getBlockState()
-				.getValue(EjectorBlock.HORIZONTAL_FACING)))
+			.rotateY(-180 - AngleHelper.horizontalAngle(be.getCachedState()
+				.get(EjectorBlock.HORIZONTAL_FACING)))
 			.unCentre();
 		DepotRenderer.renderItemsOf(be, partialTicks, ms, buffer, light, overlay, behaviour);
-		ms.popPose();
+		ms.pop();
 	}
 
 	static <T extends Translate<T> & Rotate<T>> void applyLidAngle(KineticBlockEntity be, float angle, T tr) {
 		applyLidAngle(be, pivot, angle, tr);
 	}
 
-	static <T extends Translate<T> & Rotate<T>> void applyLidAngle(KineticBlockEntity be, Vec3 rotationOffset, float angle, T tr) {
+	static <T extends Translate<T> & Rotate<T>> void applyLidAngle(KineticBlockEntity be, Vec3d rotationOffset, float angle, T tr) {
 		tr.centre()
-			.rotateY(180 + AngleHelper.horizontalAngle(be.getBlockState()
-				.getValue(EjectorBlock.HORIZONTAL_FACING)))
+			.rotateY(180 + AngleHelper.horizontalAngle(be.getCachedState()
+				.get(EjectorBlock.HORIZONTAL_FACING)))
 			.unCentre()
 			.translate(rotationOffset)
 			.rotateX(-angle)

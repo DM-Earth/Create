@@ -18,12 +18,12 @@ import io.github.fabricators_of_create.porting_lib.util.StorageProvider;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 /**
  * Behaviour for BlockEntities to which belts can transfer items directly in a
@@ -139,20 +139,20 @@ public class DirectBeltInputBehaviour extends BlockEntityBehaviour {
 
 	@Nullable
 	public ItemStack tryExportingToBeltFunnel(ItemStack stack, @Nullable Direction side, boolean simulate) {
-		BlockPos funnelPos = blockEntity.getBlockPos()
-			.above();
-		Level world = getWorld();
+		BlockPos funnelPos = blockEntity.getPos()
+			.up();
+		World world = getWorld();
 		BlockState funnelState = world.getBlockState(funnelPos);
 		if (!(funnelState.getBlock() instanceof BeltFunnelBlock))
 			return null;
-		if (funnelState.getValue(BeltFunnelBlock.SHAPE) != Shape.PULLING)
+		if (funnelState.get(BeltFunnelBlock.SHAPE) != Shape.PULLING)
 			return null;
 		if (side != null && FunnelBlock.getFunnelFacing(funnelState) != side)
 			return null;
 		BlockEntity be = world.getBlockEntity(funnelPos);
 		if (!(be instanceof FunnelBlockEntity))
 			return null;
-		if (funnelState.getValue(BeltFunnelBlock.POWERED))
+		if (funnelState.get(BeltFunnelBlock.POWERED))
 			return stack;
 		ItemStack insert = FunnelBlock.tryInsert(world, funnelPos, stack, simulate);
 		if (insert.getCount() != stack.getCount() && !simulate)

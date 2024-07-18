@@ -57,9 +57,9 @@ import com.simibubi.create.infrastructure.worldgen.AllBiomeModifiers;
 import com.simibubi.create.infrastructure.worldgen.AllFeatures;
 import com.simibubi.create.infrastructure.worldgen.AllPlacementModifiers;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 
 public class Create implements ModInitializer {
 
@@ -73,7 +73,7 @@ public class Create implements ModInitializer {
 		.disableHtmlEscaping()
 		.create();
 
-	/** Use the {@link Random} of a local {@link Level} or {@link Entity} or create one */
+	/** Use the {@link Random} of a local {@link World} or {@link Entity} or create one */
 	@Deprecated
 	public static final Random RANDOM = new Random();
 
@@ -175,8 +175,8 @@ public class Create implements ModInitializer {
 //		});
 	}
 
-	public static ResourceLocation asResource(String path) {
-		return new ResourceLocation(ID, path);
+	public static Identifier asResource(String path) {
+		return new Identifier(ID, path);
 	}
 
 }

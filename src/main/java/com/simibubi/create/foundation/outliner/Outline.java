@@ -3,7 +3,13 @@ package com.simibubi.create.foundation.outliner;
 import java.util.Optional;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
@@ -11,18 +17,10 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllSpecialTextures;
 import com.simibubi.create.foundation.render.SuperRenderTypeBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Color;
-
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 
 public abstract class Outline {
 
@@ -43,31 +41,31 @@ public abstract class Outline {
 		return params;
 	}
 
-	public abstract void render(PoseStack ms, SuperRenderTypeBuffer buffer, Vec3 camera, float pt);
+	public abstract void render(MatrixStack ms, SuperRenderTypeBuffer buffer, Vec3d camera, float pt);
 
 	public void tick() {}
 
-	public void bufferCuboidLine(PoseStack poseStack, VertexConsumer consumer, Vec3 camera, Vector3d start, Vector3d end,
+	public void bufferCuboidLine(MatrixStack poseStack, VertexConsumer consumer, Vec3d camera, Vector3d start, Vector3d end,
 		float width, Vector4f color, int lightmap, boolean disableNormals) {
 		Vector3f diff = this.diffPosTemp;
 		diff.set((float) (end.x - start.x), (float) (end.y - start.y), (float) (end.z - start.z));
 
-		float length = Mth.sqrt(diff.x() * diff.x() + diff.y() * diff.y() + diff.z() * diff.z());
-		float hAngle = AngleHelper.deg(Mth.atan2(diff.x(), diff.z()));
-		float hDistance = Mth.sqrt(diff.x() * diff.x() + diff.z() * diff.z());
-		float vAngle = AngleHelper.deg(Mth.atan2(hDistance, diff.y())) - 90;
+		float length = MathHelper.sqrt(diff.x() * diff.x() + diff.y() * diff.y() + diff.z() * diff.z());
+		float hAngle = AngleHelper.deg(MathHelper.atan2(diff.x(), diff.z()));
+		float hDistance = MathHelper.sqrt(diff.x() * diff.x() + diff.z() * diff.z());
+		float vAngle = AngleHelper.deg(MathHelper.atan2(hDistance, diff.y())) - 90;
 
-		poseStack.pushPose();
+		poseStack.push();
 		TransformStack.cast(poseStack)
 			.translate(start.x - camera.x, start.y - camera.y, start.z - camera.z)
 			.rotateY(hAngle)
 			.rotateX(vAngle);
-		bufferCuboidLine(poseStack.last(), consumer, new Vector3f(), Direction.SOUTH, length, width, color, lightmap,
+		bufferCuboidLine(poseStack.peek(), consumer, new Vector3f(), Direction.SOUTH, length, width, color, lightmap,
 			disableNormals);
-		poseStack.popPose();
+		poseStack.pop();
 	}
 
-	public void bufferCuboidLine(PoseStack.Pose pose, VertexConsumer consumer, Vector3f origin, Direction direction,
+	public void bufferCuboidLine(MatrixStack.Entry pose, VertexConsumer consumer, Vector3f origin, Direction direction,
 		float length, float width, Vector4f color, int lightmap, boolean disableNormals) {
 		Vector3f minPos = minPosTemp;
 		Vector3f maxPos = maxPosTemp;
@@ -100,7 +98,7 @@ public abstract class Outline {
 		bufferCuboid(pose, consumer, minPos, maxPos, color, lightmap, disableNormals);
 	}
 
-	public void bufferCuboid(PoseStack.Pose pose, VertexConsumer consumer, Vector3f minPos, Vector3f maxPos,
+	public void bufferCuboid(MatrixStack.Entry pose, VertexConsumer consumer, Vector3f minPos, Vector3f maxPos,
 		Vector4f color, int lightmap, boolean disableNormals) {
 		Vector4f posTransformTemp = this.posTransformTemp;
 		Vector3f normalTransformTemp = this.normalTransformTemp;
@@ -112,7 +110,7 @@ public abstract class Outline {
 		float maxY = maxPos.y();
 		float maxZ = maxPos.z();
 
-		Matrix4f posMatrix = pose.pose();
+		Matrix4f posMatrix = pose.getPositionMatrix();
 
 		posTransformTemp.set(minX, minY, maxZ, 1);
 		posTransformTemp.mul(posMatrix);
@@ -167,7 +165,7 @@ public abstract class Outline {
 		float b = color.z();
 		float a = color.w();
 
-		Matrix3f normalMatrix = pose.normal();
+		Matrix3f normalMatrix = pose.getNormalMatrix();
 
 		// down
 
@@ -183,35 +181,35 @@ public abstract class Outline {
 
 		consumer.vertex(x0, y0, z0)
 			.color(r, g, b, a)
-			.uv(0, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx0, ny0, nz0)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x1, y1, z1)
 			.color(r, g, b, a)
-			.uv(0, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx0, ny0, nz0)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x2, y2, z2)
 			.color(r, g, b, a)
-			.uv(1, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx0, ny0, nz0)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x3, y3, z3)
 			.color(r, g, b, a)
-			.uv(1, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx0, ny0, nz0)
-			.endVertex();
+			.next();
 
 		// up
 
@@ -223,35 +221,35 @@ public abstract class Outline {
 
 		consumer.vertex(x4, y4, z4)
 			.color(r, g, b, a)
-			.uv(0, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx1, ny1, nz1)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x5, y5, z5)
 			.color(r, g, b, a)
-			.uv(0, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx1, ny1, nz1)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x6, y6, z6)
 			.color(r, g, b, a)
-			.uv(1, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx1, ny1, nz1)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x7, y7, z7)
 			.color(r, g, b, a)
-			.uv(1, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx1, ny1, nz1)
-			.endVertex();
+			.next();
 
 		// north
 
@@ -267,35 +265,35 @@ public abstract class Outline {
 
 		consumer.vertex(x7, y7, z7)
 			.color(r, g, b, a)
-			.uv(0, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx2, ny2, nz2)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x2, y2, z2)
 			.color(r, g, b, a)
-			.uv(0, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx2, ny2, nz2)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x1, y1, z1)
 			.color(r, g, b, a)
-			.uv(1, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx2, ny2, nz2)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x4, y4, z4)
 			.color(r, g, b, a)
-			.uv(1, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx2, ny2, nz2)
-			.endVertex();
+			.next();
 
 		// south
 
@@ -311,35 +309,35 @@ public abstract class Outline {
 
 		consumer.vertex(x5, y5, z5)
 			.color(r, g, b, a)
-			.uv(0, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx3, ny3, nz3)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x0, y0, z0)
 			.color(r, g, b, a)
-			.uv(0, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx3, ny3, nz3)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x3, y3, z3)
 			.color(r, g, b, a)
-			.uv(1, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx3, ny3, nz3)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x6, y6, z6)
 			.color(r, g, b, a)
-			.uv(1, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx3, ny3, nz3)
-			.endVertex();
+			.next();
 
 		// west
 
@@ -355,35 +353,35 @@ public abstract class Outline {
 
 		consumer.vertex(x4, y4, z4)
 			.color(r, g, b, a)
-			.uv(0, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx4, ny4, nz4)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x1, y1, z1)
 			.color(r, g, b, a)
-			.uv(0, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx4, ny4, nz4)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x0, y0, z0)
 			.color(r, g, b, a)
-			.uv(1, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx4, ny4, nz4)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x5, y5, z5)
 			.color(r, g, b, a)
-			.uv(1, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx4, ny4, nz4)
-			.endVertex();
+			.next();
 
 		// east
 
@@ -399,48 +397,48 @@ public abstract class Outline {
 
 		consumer.vertex(x6, y6, z6)
 			.color(r, g, b, a)
-			.uv(0, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx5, ny5, nz5)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x3, y3, z3)
 			.color(r, g, b, a)
-			.uv(0, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(0, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx5, ny5, nz5)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x2, y2, z2)
 			.color(r, g, b, a)
-			.uv(1, 1)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 1)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx5, ny5, nz5)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x7, y7, z7)
 			.color(r, g, b, a)
-			.uv(1, 0)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(1, 0)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx5, ny5, nz5)
-			.endVertex();
+			.next();
 	}
 
-	public void bufferQuad(PoseStack.Pose pose, VertexConsumer consumer, Vector3f pos0, Vector3f pos1, Vector3f pos2,
+	public void bufferQuad(MatrixStack.Entry pose, VertexConsumer consumer, Vector3f pos0, Vector3f pos1, Vector3f pos2,
 		Vector3f pos3, Vector4f color, int lightmap, Vector3f normal) {
 		bufferQuad(pose, consumer, pos0, pos1, pos2, pos3, color, 0, 0, 1, 1, lightmap, normal);
 	}
 
-	public void bufferQuad(PoseStack.Pose pose, VertexConsumer consumer, Vector3f pos0, Vector3f pos1, Vector3f pos2,
+	public void bufferQuad(MatrixStack.Entry pose, VertexConsumer consumer, Vector3f pos0, Vector3f pos1, Vector3f pos2,
 		Vector3f pos3, Vector4f color, float minU, float minV, float maxU, float maxV, int lightmap, Vector3f normal) {
 		Vector4f posTransformTemp = this.posTransformTemp;
 		Vector3f normalTransformTemp = this.normalTransformTemp;
 
-		Matrix4f posMatrix = pose.pose();
+		Matrix4f posMatrix = pose.getPositionMatrix();
 
 		posTransformTemp.set(pos0.x(), pos0.y(), pos0.z(), 1);
 		posTransformTemp.mul(posMatrix);
@@ -472,42 +470,42 @@ public abstract class Outline {
 		float a = color.w();
 
 		normalTransformTemp.set(normal);
-		normalTransformTemp.mul(pose.normal());
+		normalTransformTemp.mul(pose.getNormalMatrix());
 		float nx = normalTransformTemp.x();
 		float ny = normalTransformTemp.y();
 		float nz = normalTransformTemp.z();
 
 		consumer.vertex(x0, y0, z0)
 			.color(r, g, b, a)
-			.uv(minU, minV)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(minU, minV)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx, ny, nz)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x1, y1, z1)
 			.color(r, g, b, a)
-			.uv(minU, maxV)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(minU, maxV)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx, ny, nz)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x2, y2, z2)
 			.color(r, g, b, a)
-			.uv(maxU, maxV)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(maxU, maxV)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx, ny, nz)
-			.endVertex();
+			.next();
 
 		consumer.vertex(x3, y3, z3)
 			.color(r, g, b, a)
-			.uv(maxU, minV)
-			.overlayCoords(OverlayTexture.NO_OVERLAY)
-			.uv2(lightmap)
+			.texture(maxU, minV)
+			.overlay(OverlayTexture.DEFAULT_UV)
+			.light(lightmap)
 			.normal(nx, ny, nz)
-			.endVertex();
+			.next();
 	}
 
 	public static class OutlineParams {
@@ -528,7 +526,7 @@ public abstract class Outline {
 			lineWidth = 1 / 32f;
 			fadeLineWidth = true;
 			rgb = Color.WHITE;
-			lightmap = LightTexture.FULL_BRIGHT;
+			lightmap = LightmapTextureManager.MAX_LIGHT_COORDINATE;
 		}
 
 		// builder

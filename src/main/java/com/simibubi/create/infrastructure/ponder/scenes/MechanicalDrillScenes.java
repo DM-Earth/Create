@@ -8,15 +8,14 @@ import com.simibubi.create.foundation.ponder.element.EntityElement;
 import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class MechanicalDrillScenes {
 
@@ -60,7 +59,7 @@ public class MechanicalDrillScenes {
 		scene.world.modifyKineticSpeed(util.select.everywhere(), f -> 4 * f);
 		scene.effects.rotationSpeedIndicator(breakingPos.east(3));
 		scene.idle(5);
-		scene.world.setBlock(breakingPos, Blocks.OAK_PLANKS.defaultBlockState(), false);
+		scene.world.setBlock(breakingPos, Blocks.OAK_PLANKS.getDefaultState(), false);
 		scene.world.showSection(util.select.position(breakingPos), Direction.DOWN);
 
 		scene.idle(5);
@@ -142,7 +141,7 @@ public class MechanicalDrillScenes {
 			}
 		}
 
-		Vec3 m = util.vector.of(-.1, 0, 0);
+		Vec3d m = util.vector.of(-.1, 0, 0);
 		ItemStack item = new ItemStack(Items.OAK_PLANKS);
 		scene.world.createItemEntity(util.vector.centerOf(p1), m, item);
 		scene.world.createItemEntity(util.vector.centerOf(p2), m, item);
@@ -162,7 +161,7 @@ public class MechanicalDrillScenes {
 		scene.world.hideSection(planks, Direction.UP);
 		scene.idle(40);
 
-		scene.world.setBlocks(planks, Blocks.OAK_PLANKS.defaultBlockState(), false);
+		scene.world.setBlocks(planks, Blocks.OAK_PLANKS.getDefaultState(), false);
 		scene.world.modifyEntities(ItemEntity.class, Entity::discard);
 		scene.world.glueBlockOnto(util.grid.at(4, 3, 2), Direction.DOWN, contraption);
 

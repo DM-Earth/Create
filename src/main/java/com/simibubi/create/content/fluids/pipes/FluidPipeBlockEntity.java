@@ -1,7 +1,11 @@
 package com.simibubi.create.content.fluids.pipes;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.BlockRenderView;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.AllBlocks;
@@ -13,12 +17,6 @@ import com.simibubi.create.content.fluids.FluidTransportBehaviour;
 import com.simibubi.create.content.fluids.PipeAttachmentBlockEntity;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class FluidPipeBlockEntity extends SmartBlockEntity implements ITransformableBlockEntity, PipeAttachmentBlockEntity {
 
@@ -60,15 +58,15 @@ public class FluidPipeBlockEntity extends SmartBlockEntity implements ITransform
 		@Override
 		public boolean canHaveFlowToward(BlockState state, Direction direction) {
 			return (FluidPipeBlock.isPipe(state) || state.getBlock() instanceof EncasedPipeBlock)
-				&& state.getValue(FluidPipeBlock.PROPERTY_BY_DIRECTION.get(direction));
+				&& state.get(FluidPipeBlock.FACING_PROPERTIES.get(direction));
 		}
 
 		@Override
-		public AttachmentTypes getRenderedRimAttachment(BlockAndTintGetter world, BlockPos pos, BlockState state,
+		public AttachmentTypes getRenderedRimAttachment(BlockRenderView world, BlockPos pos, BlockState state,
 			Direction direction) {
 			AttachmentTypes attachment = super.getRenderedRimAttachment(world, pos, state, direction);
 
-			BlockPos offsetPos = pos.relative(direction);
+			BlockPos offsetPos = pos.offset(direction);
 			BlockState otherState = world.getBlockState(offsetPos);
 
 			if (state.getBlock() instanceof EncasedPipeBlock && attachment != AttachmentTypes.DRAIN)
@@ -85,7 +83,7 @@ public class FluidPipeBlockEntity extends SmartBlockEntity implements ITransform
 
 			if (attachment == AttachmentTypes.RIM && !FluidPipeBlock.shouldDrawRim(world, pos, state, direction))
 				return AttachmentTypes.CONNECTION;
-			if (attachment == AttachmentTypes.NONE && state.getValue(FluidPipeBlock.PROPERTY_BY_DIRECTION.get(direction)))
+			if (attachment == AttachmentTypes.NONE && state.get(FluidPipeBlock.FACING_PROPERTIES.get(direction)))
 				return AttachmentTypes.CONNECTION;
 			return attachment;
 		}

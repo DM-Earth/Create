@@ -7,19 +7,19 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class ArmPlacementPacket extends SimplePacketBase {
 
 	private Collection<ArmInteractionPoint> points;
-	private ListTag receivedTag;
+	private NbtList receivedTag;
 	private BlockPos pos;
 
 	public ArmPlacementPacket(Collection<ArmInteractionPoint> points, BlockPos pos) {
@@ -27,16 +27,16 @@ public class ArmPlacementPacket extends SimplePacketBase {
 		this.pos = pos;
 	}
 
-	public ArmPlacementPacket(FriendlyByteBuf buffer) {
-		CompoundTag nbt = buffer.readNbt();
-		receivedTag = nbt.getList("Points", Tag.TAG_COMPOUND);
+	public ArmPlacementPacket(PacketByteBuf buffer) {
+		NbtCompound nbt = buffer.readNbt();
+		receivedTag = nbt.getList("Points", NbtElement.COMPOUND_TYPE);
 		pos = buffer.readBlockPos();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		CompoundTag nbt = new CompoundTag();
-		ListTag pointsNBT = new ListTag();
+	public void write(PacketByteBuf buffer) {
+		NbtCompound nbt = new NbtCompound();
+		NbtList pointsNBT = new NbtList();
 		points.stream()
 			.map(aip -> aip.serialize(pos))
 			.forEach(pointsNBT::add);
@@ -48,11 +48,11 @@ public class ArmPlacementPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
-			Level world = player.level();
-			if (world == null || !world.isLoaded(pos))
+			World world = player.getWorld();
+			if (world == null || !world.canSetBlock(pos))
 				return;
 			BlockEntity blockEntity = world.getBlockEntity(pos);
 			if (!(blockEntity instanceof ArmBlockEntity))
@@ -72,12 +72,12 @@ public class ArmPlacementPacket extends SimplePacketBase {
 			this.pos = pos;
 		}
 
-		public ClientBoundRequest(FriendlyByteBuf buffer) {
+		public ClientBoundRequest(PacketByteBuf buffer) {
 			this.pos = buffer.readBlockPos();
 		}
 
 		@Override
-		public void write(FriendlyByteBuf buffer) {
+		public void write(PacketByteBuf buffer) {
 			buffer.writeBlockPos(pos);
 		}
 

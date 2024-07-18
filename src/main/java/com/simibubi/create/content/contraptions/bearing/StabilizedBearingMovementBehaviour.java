@@ -7,7 +7,6 @@ import org.joml.Quaternionf;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.ControlledContraptionEntity;
@@ -23,11 +22,12 @@ import com.simibubi.create.foundation.utility.AnimationTickHolder;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.item.ItemStack;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.RotationAxis;
 
 public class StabilizedBearingMovementBehaviour implements MovementBehaviour {
 
@@ -39,11 +39,11 @@ public class StabilizedBearingMovementBehaviour implements MovementBehaviour {
 	@Override
 	@Environment(EnvType.CLIENT)
 	public void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
 		if (ContraptionRenderDispatcher.canInstance())
 			return;
 
-		Direction facing = context.state.getValue(BlockStateProperties.FACING);
+		Direction facing = context.state.get(Properties.FACING);
 		PartialModel top = AllPartialModels.BEARING_TOP;
 		SuperByteBuffer superBuffer = CachedBufferer.partial(top, context.state);
 		float renderPartialTicks = AnimationTickHolder.getPartialTicks();
@@ -52,10 +52,10 @@ public class StabilizedBearingMovementBehaviour implements MovementBehaviour {
 		Quaternionf orientation = BearingInstance.getBlockStateOrientation(facing);
 
 		// rotate against parent
-		float angle = getCounterRotationAngle(context, facing, renderPartialTicks) * facing.getAxisDirection()
-			.getStep();
+		float angle = getCounterRotationAngle(context, facing, renderPartialTicks) * facing.getDirection()
+			.offset();
 
-		Quaternionf rotation = Axis.of(facing.step())
+		Quaternionf rotation = RotationAxis.of(facing.getUnitVector())
 			.rotationDegrees(angle);
 
 		rotation.mul(orientation);
@@ -68,7 +68,7 @@ public class StabilizedBearingMovementBehaviour implements MovementBehaviour {
 		// render
 		superBuffer
 			.light(matrices.getWorld(), ContraptionRenderDispatcher.getContraptionWorldLight(context, renderWorld))
-			.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderType.solid()));
+			.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderLayer.getSolid()));
 	}
 
 	@Override
@@ -99,11 +99,11 @@ public class StabilizedBearingMovementBehaviour implements MovementBehaviour {
 		} else if (entity instanceof OrientedContraptionEntity) {
 			OrientedContraptionEntity orientedCE = (OrientedContraptionEntity) entity;
 			if (axis.isVertical())
-				offset = -orientedCE.getViewYRot(renderPartialTicks);
+				offset = -orientedCE.getYaw(renderPartialTicks);
 			else {
 				if (orientedCE.isInitialOrientationPresent() && orientedCE.getInitialOrientation()
 					.getAxis() == axis)
-					offset = -orientedCE.getViewXRot(renderPartialTicks);
+					offset = -orientedCE.getPitch(renderPartialTicks);
 			}
 		}
 		return offset;

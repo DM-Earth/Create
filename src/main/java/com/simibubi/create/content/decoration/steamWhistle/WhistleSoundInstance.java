@@ -5,14 +5,13 @@ import static com.simibubi.create.AllSoundEvents.WHISTLE_LOW;
 import static com.simibubi.create.AllSoundEvents.WHISTLE_MEDIUM;
 
 import com.simibubi.create.content.decoration.steamWhistle.WhistleBlock.WhistleSize;
+import net.minecraft.client.sound.MovingSoundInstance;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
-import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.phys.Vec3;
-
-public class WhistleSoundInstance extends AbstractTickableSoundInstance {
+public class WhistleSoundInstance extends MovingSoundInstance {
 
 	private boolean active;
 	private int keepAlive;
@@ -20,14 +19,14 @@ public class WhistleSoundInstance extends AbstractTickableSoundInstance {
 
 	public WhistleSoundInstance(WhistleSize size, BlockPos worldPosition) {
 		super((size == WhistleSize.SMALL ? WHISTLE_HIGH : size == WhistleSize.MEDIUM ? WHISTLE_MEDIUM : WHISTLE_LOW)
-			.getMainEvent(), SoundSource.RECORDS, SoundInstance.createUnseededRandom());
+			.getMainEvent(), SoundCategory.RECORDS, SoundInstance.createRandom());
 		this.size = size;
-		looping = true;
+		repeat = true;
 		active = true;
 		volume = 0.05f;
-		delay = 0;
+		repeatDelay = 0;
 		keepAlive();
-		Vec3 v = Vec3.atCenterOf(worldPosition);
+		Vec3d v = Vec3d.ofCenter(worldPosition);
 		x = v.x;
 		y = v.y;
 		z = v.z;
@@ -61,7 +60,7 @@ public class WhistleSoundInstance extends AbstractTickableSoundInstance {
 		}
 		volume = Math.max(0, volume - .25f);
 		if (volume == 0)
-			stop();
+			setDone();
 	}
 
 }

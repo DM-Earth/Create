@@ -8,22 +8,21 @@ import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlockEntity;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Direction;
 
 public class ItemNameDisplaySource extends SingleLineDisplaySource {
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
 		DisplayLinkBlockEntity gatherer = context.blockEntity();
 		Direction direction = gatherer.getDirection();
-		MutableBlockPos pos = gatherer.getSourcePosition()
-			.mutable();
+		Mutable pos = gatherer.getSourcePosition()
+			.mutableCopy();
 
-		MutableComponent combined = EMPTY_LINE.copy();
+		MutableText combined = EMPTY_LINE.copy();
 
 		for (int i = 0; i < 32; i++) {
 			TransportedItemStackHandlerBehaviour behaviour =
@@ -41,7 +40,7 @@ public class ItemNameDisplaySource extends SingleLineDisplaySource {
 
 			ItemStack stack = stackHolder.getValue();
 			if (stack != null && !stack.isEmpty())
-				combined = combined.append(stack.getHoverName());
+				combined = combined.append(stack.getName());
 		}
 
 		return combined;

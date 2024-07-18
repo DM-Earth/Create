@@ -1,11 +1,11 @@
 package com.simibubi.create.content.trains.station;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldAccess;
 
 public interface StationMapData {
 
-	boolean toggleStation(LevelAccessor level, BlockPos pos, StationBlockEntity stationBlockEntity);
+	boolean toggleStation(WorldAccess level, BlockPos pos, StationBlockEntity stationBlockEntity);
 
 	void addStationMarker(StationMarker marker);
 

@@ -1,39 +1,38 @@
 package com.simibubi.create.content.fluids.pipes.valve;
 
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
 
 public class FluidValveRenderer extends KineticBlockEntityRenderer<FluidValveBlockEntity> {
 
-	public FluidValveRenderer(BlockEntityRendererProvider.Context context) {
+	public FluidValveRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	protected void renderSafe(FluidValveBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(FluidValveBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 
-		if (Backend.canUseInstancing(be.getLevel())) return;
+		if (Backend.canUseInstancing(be.getWorld())) return;
 
 		super.renderSafe(be, partialTicks, ms, buffer, light, overlay);
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		SuperByteBuffer pointer = CachedBufferer.partial(AllPartialModels.FLUID_VALVE_POINTER, blockState);
-		Direction facing = blockState.getValue(FluidValveBlock.FACING);
+		Direction facing = blockState.get(FluidValveBlock.FACING);
 
-		float pointerRotation = Mth.lerp(be.pointer.getValue(partialTicks), 0, -90);
+		float pointerRotation = MathHelper.lerp(be.pointer.getValue(partialTicks), 0, -90);
 		Axis pipeAxis = FluidValveBlock.getPipeAxis(blockState);
 		Axis shaftAxis = getRotationAxisOf(be);
 
@@ -47,7 +46,7 @@ public class FluidValveRenderer extends KineticBlockEntityRenderer<FluidValveBlo
 			.rotateY(pointerRotationOffset + pointerRotation)
 			.unCentre()
 			.light(light)
-			.renderInto(ms, buffer.getBuffer(RenderType.solid()));
+			.renderInto(ms, buffer.getBuffer(RenderLayer.getSolid()));
 	}
 
 	@Override

@@ -26,13 +26,12 @@ import com.simibubi.create.foundation.ponder.PonderScene;
 import com.tterrag.registrate.providers.RegistrateDataProvider;
 import com.tterrag.registrate.AbstractRegistrate;
 import com.tterrag.registrate.providers.ProviderType;
-
-import net.minecraft.Util;
-import net.minecraft.data.CachedOutput;
+import net.minecraft.data.DataOutput;
 import net.minecraft.data.DataProvider;
-import net.minecraft.data.PackOutput;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
+import net.minecraft.data.DataWriter;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.JsonHelper;
+import net.minecraft.util.Util;
 
 /**
  * @deprecated Use {@link AbstractRegistrate#addRawLang} or {@link AbstractRegistrate#addDataGenerator} with {@link ProviderType#LANG} instead.
@@ -53,10 +52,10 @@ public class LangMerger implements DataProvider {
 
 	private List<Object> mergedLangData;
 	private List<String> langIgnore;
-	private PackOutput output;
+	private DataOutput output;
 
 	@SuppressWarnings("removal")
-	public <T extends LangPartial> LangMerger(PackOutput output, String modid, String displayName,
+	public <T extends LangPartial> LangMerger(DataOutput output, String modid, String displayName,
 		T[] allLangPartials) {
 		this.output = output;
 		this.modid = modid;
@@ -86,9 +85,9 @@ public class LangMerger implements DataProvider {
 	}
 
 	@Override
-	public CompletableFuture<?> run(CachedOutput pOutput) {
-		Path path = output.createPathProvider(PackOutput.Target.RESOURCE_PACK, "lang")
-				.json(new ResourceLocation(modid, "en_us"));
+	public CompletableFuture<?> run(DataWriter pOutput) {
+		Path path = output.getResolver(DataOutput.OutputType.RESOURCE_PACK, "lang")
+				.resolveJson(new Identifier(modid, "en_us"));
 
 		return CompletableFuture.runAsync(() -> {
 			try {
@@ -103,7 +102,7 @@ public class LangMerger implements DataProvider {
 				LOGGER.error("Failed to run LangMerger", ioexception);
 			}
 
-		}, Util.backgroundExecutor());
+		}, Util.getMainWorkerExecutor());
 	}
 
 	private void collectExistingEntries(Path path) throws IOException {
@@ -113,7 +112,7 @@ public class LangMerger implements DataProvider {
 		}
 
 		try (BufferedReader reader = Files.newBufferedReader(path)) {
-			JsonObject jsonobject = GsonHelper.fromJson(GSON, reader, JsonObject.class);
+			JsonObject jsonobject = JsonHelper.deserialize(GSON, reader, JsonObject.class);
 
 			/*
 			 * Erase additional sections from previous lang in case registrate did not
@@ -202,13 +201,13 @@ public class LangMerger implements DataProvider {
 					.getAsJsonObject());
 	}
 
-	private void save(CachedOutput cache, List<Object> dataIn, Path target, String message) throws IOException {
+	private void save(DataWriter cache, List<Object> dataIn, Path target, String message) throws IOException {
 		ByteArrayOutputStream bytearrayoutputstream = new ByteArrayOutputStream();
 		Writer writer = new OutputStreamWriter(bytearrayoutputstream, StandardCharsets.UTF_8);
 		writer.append(createString(dataIn));
 		writer.close();
 
-		CachedOutput.NO_CACHE.writeIfNeeded(target, bytearrayoutputstream.toByteArray(), HashCode.fromInt(0));
+		DataWriter.UNCACHED.write(target, bytearrayoutputstream.toByteArray(), HashCode.fromInt(0));
 		Create.LOGGER.info(message);
 	}
 

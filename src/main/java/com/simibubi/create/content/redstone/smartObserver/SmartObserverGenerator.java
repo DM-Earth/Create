@@ -7,15 +7,14 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 
 public class SmartObserverGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getXRotation(BlockState state) {
-		return switch (state.getValue(SmartObserverBlock.TARGET)) {
+		return switch (state.get(SmartObserverBlock.TARGET)) {
 		case CEILING -> -90;
 		case WALL -> 0;
 		case FLOOR -> 90;
@@ -24,7 +23,7 @@ public class SmartObserverGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		return horizontalAngle(state.getValue(ThresholdSwitchBlock.FACING)) + 180;
+		return horizontalAngle(state.get(ThresholdSwitchBlock.FACING)) + 180;
 	}
 
 	@Override

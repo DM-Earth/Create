@@ -1,14 +1,17 @@
 package com.simibubi.create.foundation.item;
 
-import static net.minecraft.ChatFormatting.DARK_GRAY;
-import static net.minecraft.ChatFormatting.GRAY;
+import static net.minecraft.util.Formatting.DARK_GRAY;
+import static net.minecraft.util.Formatting.GRAY;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-
+import net.minecraft.block.Block;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.AllBlocks;
@@ -24,14 +27,6 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.LangBuilder;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 import com.simibubi.create.infrastructure.config.CKinetics;
-
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.block.Block;
 
 public class KineticStats implements TooltipModifier {
 	protected final Block block;
@@ -52,16 +47,16 @@ public class KineticStats implements TooltipModifier {
 	}
 
 	@Override
-	public void modify(ItemStack stack, Player player, TooltipFlag flags, List<Component> tooltip) {
-		List<Component> kineticStats = getKineticStats(block, player);
+	public void modify(ItemStack stack, PlayerEntity player, TooltipContext flags, List<Text> tooltip) {
+		List<Text> kineticStats = getKineticStats(block, player);
 		if (!kineticStats.isEmpty()) {
 			tooltip.add(Components.immutableEmpty());
 			tooltip.addAll(kineticStats);
 		}
 	}
 
-	public static List<Component> getKineticStats(Block block, Player player) {
-		List<Component> list = new ArrayList<>();
+	public static List<Text> getKineticStats(Block block, PlayerEntity player) {
+		List<Text> list = new ArrayList<>();
 
 		CKinetics config = AllConfigs.server().kinetics;
 		LangBuilder rpmUnit = Lang.translate("generic.unit.rpm");

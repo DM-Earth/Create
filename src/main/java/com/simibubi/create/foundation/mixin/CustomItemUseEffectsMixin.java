@@ -8,26 +8,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.simibubi.create.foundation.item.CustomUseEffectsItem;
-
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.world.World;
 
 @Mixin(LivingEntity.class)
 public abstract class CustomItemUseEffectsMixin extends Entity {
-	private CustomItemUseEffectsMixin(EntityType<?> entityType, Level level) {
+	private CustomItemUseEffectsMixin(EntityType<?> entityType, World level) {
 		super(entityType, level);
 	}
 
 	@Shadow
-	public abstract ItemStack getUseItem();
+	public abstract ItemStack getActiveItem();
 
-	@Inject(method = "shouldTriggerItemUseEffects()Z", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "shouldSpawnConsumptionEffects()Z", at = @At("HEAD"), cancellable = true)
 	private void create$onShouldTriggerUseEffects(CallbackInfoReturnable<Boolean> cir) {
-		ItemStack using = getUseItem();
+		ItemStack using = getActiveItem();
 		Item item = using.getItem();
 		if (item instanceof CustomUseEffectsItem handler) {
 			Boolean result = handler.shouldTriggerUseEffects(using, (LivingEntity) (Object) this);
@@ -37,7 +36,7 @@ public abstract class CustomItemUseEffectsMixin extends Entity {
 		}
 	}
 
-	@Inject(method = "triggerItemUseEffects(Lnet/minecraft/world/item/ItemStack;I)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;getUseAnimation()Lnet/minecraft/world/item/UseAnim;", ordinal = 0), cancellable = true)
+	@Inject(method = "spawnConsumptionEffects(Lnet/minecraft/item/ItemStack;I)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/item/ItemStack;getUseAction()Lnet/minecraft/util/UseAction;", ordinal = 0), cancellable = true)
 	private void create$onTriggerUseEffects(ItemStack stack, int count, CallbackInfo ci) {
 		Item item = stack.getItem();
 		if (item instanceof CustomUseEffectsItem handler) {

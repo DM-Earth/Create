@@ -18,34 +18,34 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.VecHelper;
 
 import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class ScrollValueBehaviour extends BlockEntityBehaviour implements ValueSettingsBehaviour {
 
 	public static final BehaviourType<ScrollValueBehaviour> TYPE = new BehaviourType<>();
 
 	ValueBoxTransform slotPositioning;
-	Vec3 textShift;
+	Vec3d textShift;
 
 	int min = 0;
 	protected int max = 1;
 	public int value;
-	public Component label;
+	public Text label;
 	Consumer<Integer> callback;
 	Consumer<Integer> clientCallback;
 	Function<Integer, String> formatter;
 	private Supplier<Boolean> isActive;
 	boolean needsWrench;
 
-	public ScrollValueBehaviour(Component label, SmartBlockEntity be, ValueBoxTransform slot) {
+	public ScrollValueBehaviour(Text label, SmartBlockEntity be, ValueBoxTransform slot) {
 		super(be);
 		this.setLabel(label);
 		slotPositioning = slot;
@@ -64,13 +64,13 @@ public class ScrollValueBehaviour extends BlockEntityBehaviour implements ValueS
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		nbt.putInt("ScrollValue", value);
 		super.write(nbt, clientPacket);
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 		value = nbt.getInt("ScrollValue");
 		super.read(nbt, clientPacket);
 	}
@@ -107,12 +107,12 @@ public class ScrollValueBehaviour extends BlockEntityBehaviour implements ValueS
 	}
 
 	public void setValue(int value) {
-		value = Mth.clamp(value, min, max);
+		value = MathHelper.clamp(value, min, max);
 		if (value == this.value)
 			return;
 		this.value = value;
 		callback.accept(value);
-		blockEntity.setChanged();
+		blockEntity.markDirty();
 		blockEntity.sendData();
 	}
 
@@ -135,13 +135,13 @@ public class ScrollValueBehaviour extends BlockEntityBehaviour implements ValueS
 	}
 
 	@Override
-	public boolean testHit(Vec3 hit) {
-		BlockState state = blockEntity.getBlockState();
-		Vec3 localHit = hit.subtract(Vec3.atLowerCornerOf(blockEntity.getBlockPos()));
+	public boolean testHit(Vec3d hit) {
+		BlockState state = blockEntity.getCachedState();
+		Vec3d localHit = hit.subtract(Vec3d.of(blockEntity.getPos()));
 		return slotPositioning.testHit(state, localHit);
 	}
 
-	public void setLabel(Component label) {
+	public void setLabel(Text label) {
 		this.label = label;
 	}
 
@@ -158,13 +158,13 @@ public class ScrollValueBehaviour extends BlockEntityBehaviour implements ValueS
 	}
 
 	@Override
-	public ValueSettingsBoard createBoard(Player player, BlockHitResult hitResult) {
+	public ValueSettingsBoard createBoard(PlayerEntity player, BlockHitResult hitResult) {
 		return new ValueSettingsBoard(label, max, 10, ImmutableList.of(Components.literal("Value")),
 			new ValueSettingsFormatter(ValueSettings::format));
 	}
 
 	@Override
-	public void setValueSettings(Player player, ValueSettings valueSetting, boolean ctrlDown) {
+	public void setValueSettings(PlayerEntity player, ValueSettings valueSetting, boolean ctrlDown) {
 		if (valueSetting.equals(getValueSettings()))
 			return;
 		setValue(valueSetting.value());
@@ -182,10 +182,10 @@ public class ScrollValueBehaviour extends BlockEntityBehaviour implements ValueS
 	}
 
 	@Override
-	public void onShortInteract(Player player, InteractionHand hand, Direction side) {
+	public void onShortInteract(PlayerEntity player, Hand hand, Direction side) {
 		if (player instanceof FakePlayer)
-			blockEntity.getBlockState()
-				.use(getWorld(), player, hand,
+			blockEntity.getCachedState()
+				.onUse(getWorld(), player, hand,
 					new BlockHitResult(VecHelper.getCenterOf(getPos()), side, getPos(), true));
 	}
 

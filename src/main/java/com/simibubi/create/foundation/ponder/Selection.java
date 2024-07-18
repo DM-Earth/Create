@@ -4,18 +4,16 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.foundation.outliner.Outline.OutlineParams;
 import com.simibubi.create.foundation.outliner.Outliner;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-
 public abstract class Selection implements Predicate<BlockPos> {
 
-	public static Selection of(BoundingBox bb) {
+	public static Selection of(BlockBox bb) {
 		return new Simple(bb);
 	}
 
@@ -25,7 +23,7 @@ public abstract class Selection implements Predicate<BlockPos> {
 
 	public abstract Selection copy();
 
-	public abstract Vec3 getCenter();
+	public abstract Vec3d getCenter();
 
 	public abstract void forEach(Consumer<BlockPos> callback);
 
@@ -38,7 +36,7 @@ public abstract class Selection implements Predicate<BlockPos> {
 	private static class Compound extends Selection {
 
 		Set<BlockPos> posSet;
-		Vec3 center;
+		Vec3d center;
 
 		public Compound(Simple initial) {
 			posSet = new HashSet<>();
@@ -56,14 +54,14 @@ public abstract class Selection implements Predicate<BlockPos> {
 
 		@Override
 		public Selection add(Selection other) {
-			other.forEach(p -> posSet.add(p.immutable()));
+			other.forEach(p -> posSet.add(p.toImmutable()));
 			center = null;
 			return this;
 		}
 
 		@Override
 		public Selection substract(Selection other) {
-			other.forEach(p -> posSet.remove(p.immutable()));
+			other.forEach(p -> posSet.remove(p.toImmutable()));
 			center = null;
 			return this;
 		}
@@ -79,18 +77,18 @@ public abstract class Selection implements Predicate<BlockPos> {
 		}
 
 		@Override
-		public Vec3 getCenter() {
+		public Vec3d getCenter() {
 			return center == null ? center = evalCenter() : center;
 		}
 
-		private Vec3 evalCenter() {
-			Vec3 center = Vec3.ZERO;
+		private Vec3d evalCenter() {
+			Vec3d center = Vec3d.ZERO;
 			if (posSet.isEmpty())
 				return center;
 			for (BlockPos blockPos : posSet)
-				center = center.add(Vec3.atLowerCornerOf(blockPos));
-			center = center.scale(1f / posSet.size());
-			return center.add(new Vec3(.5, .5, .5));
+				center = center.add(Vec3d.of(blockPos));
+			center = center.multiply(1f / posSet.size());
+			return center.add(new Vec3d(.5, .5, .5));
 		}
 
 		@Override
@@ -102,17 +100,17 @@ public abstract class Selection implements Predicate<BlockPos> {
 
 	private static class Simple extends Selection {
 
-		private BoundingBox bb;
-		private AABB aabb;
+		private BlockBox bb;
+		private Box aabb;
 
-		public Simple(BoundingBox bb) {
+		public Simple(BlockBox bb) {
 			this.bb = bb;
 			this.aabb = getAABB();
 		}
 
 		@Override
 		public boolean test(BlockPos t) {
-			return bb.isInside(t);
+			return bb.contains(t);
 		}
 
 		@Override
@@ -127,12 +125,12 @@ public abstract class Selection implements Predicate<BlockPos> {
 
 		@Override
 		public void forEach(Consumer<BlockPos> callback) {
-			BlockPos.betweenClosedStream(bb)
+			BlockPos.stream(bb)
 				.forEach(callback);
 		}
 
 		@Override
-		public Vec3 getCenter() {
+		public Vec3d getCenter() {
 			return aabb.getCenter();
 		}
 
@@ -141,13 +139,13 @@ public abstract class Selection implements Predicate<BlockPos> {
 			return outliner.showAABB(slot, aabb);
 		}
 
-		private AABB getAABB() {
-			return new AABB(bb.minX(), bb.minY(), bb.minZ(), bb.maxX() + 1, bb.maxY() + 1, bb.maxZ() + 1);
+		private Box getAABB() {
+			return new Box(bb.getMinX(), bb.getMinY(), bb.getMinZ(), bb.getMaxX() + 1, bb.getMaxY() + 1, bb.getMaxZ() + 1);
 		}
 
 		@Override
 		public Selection copy() {
-			return new Simple(new BoundingBox(bb.minX(), bb.minY(), bb.minZ(), bb.maxX(), bb.maxY(), bb.maxZ()));
+			return new Simple(new BlockBox(bb.getMinX(), bb.getMinY(), bb.getMinZ(), bb.getMaxX(), bb.getMaxY(), bb.getMaxZ()));
 		}
 
 	}

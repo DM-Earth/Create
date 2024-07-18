@@ -4,7 +4,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.Map;
-
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.LightType;
 import com.jozufozu.flywheel.api.InstanceData;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
@@ -15,9 +16,6 @@ import com.simibubi.create.content.logistics.flwdata.FlapData;
 import com.simibubi.create.foundation.render.AllMaterialSpecs;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.LightLayer;
 
 public class BeltTunnelInstance extends BlockEntityInstance<BeltTunnelBlockEntity> implements DynamicInstance {
 
@@ -32,14 +30,14 @@ public class BeltTunnelInstance extends BlockEntityInstance<BeltTunnelBlockEntit
                 .material(AllMaterialSpecs.FLAPS)
 				.getModel(AllPartialModels.BELT_TUNNEL_FLAP, blockState);
 
-        int blockLight = world.getBrightness(LightLayer.BLOCK, pos);
-        int skyLight = world.getBrightness(LightLayer.SKY, pos);
+        int blockLight = world.getLightLevel(LightType.BLOCK, pos);
+        int skyLight = world.getLightLevel(LightType.SKY, pos);
 
         blockEntity.flaps.forEach((direction, flapValue) -> {
 
             float flapness = flapValue.getValue(AnimationTickHolder.getPartialTicks());
 
-            float horizontalAngle = direction.getOpposite().toYRot();
+            float horizontalAngle = direction.getOpposite().asRotation();
 
             float flapScale = direction.getAxis() == Direction.Axis.X ? 1 : -1;
 

@@ -17,9 +17,9 @@ import io.github.fabricators_of_create.porting_lib.transfer.TransferUtil;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class FluidMovementActorScenes {
 
@@ -42,9 +42,9 @@ public class FluidMovementActorScenes {
 		BlockPos ct2 = util.grid.at(6, 3, 2);
 		BlockPos st = util.grid.at(0, 1, 5);
 		Class<FluidTankBlockEntity> type = FluidTankBlockEntity.class;
-		ItemStack bucket = AllFluids.CHOCOLATE.get().getBucket().getDefaultInstance();
+		ItemStack bucket = AllFluids.CHOCOLATE.get().getBucketItem().getDefaultStack();
 
-		scene.world.modifyBlock(pumpPos, s -> s.setValue(PumpBlock.FACING, Direction.NORTH), false);
+		scene.world.modifyBlock(pumpPos, s -> s.with(PumpBlock.FACING, Direction.NORTH), false);
 
 		scene.world.modifyBlockEntity(st, type, be ->
 				TransferUtil.insert(be.getFluidStorage(null), chocolate.getType(), FluidConstants.BUCKET * 10));
@@ -59,7 +59,7 @@ public class FluidMovementActorScenes {
 		scene.world.rotateBearing(bearing, 360, 70);
 		scene.world.rotateSection(contraption, 0, 360, 0, 70);
 		scene.overlay.showText(60)
-			.pointAt(util.vector.topOf(bearing.above(2)))
+			.pointAt(util.vector.topOf(bearing.up(2)))
 			.colored(PonderPalette.RED)
 			.placeNearTarget()
 			.attachKeyFrame()
@@ -154,7 +154,7 @@ public class FluidMovementActorScenes {
 			.placeNearTarget()
 			.pointAt(util.vector.topOf(pumpPos))
 			.text("...or extracted from the contraption");
-		scene.world.modifyBlock(pumpPos, s -> s.setValue(PumpBlock.FACING, Direction.SOUTH), true);
+		scene.world.modifyBlock(pumpPos, s -> s.with(PumpBlock.FACING, Direction.SOUTH), true);
 		scene.world.propagatePipeChange(pumpPos);
 		scene.idle(30);
 

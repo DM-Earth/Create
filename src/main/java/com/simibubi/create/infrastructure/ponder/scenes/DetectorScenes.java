@@ -10,13 +10,12 @@ import com.simibubi.create.foundation.ponder.Selection;
 import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class DetectorScenes {
 
@@ -164,7 +163,7 @@ public class DetectorScenes {
 		scene.overlay.showText(60)
 			.text("...and will emit a pulse, if an item enters or exits a funnel")
 			.attachKeyFrame()
-			.pointAt(util.vector.blockSurface(observerPos.above()
+			.pointAt(util.vector.blockSurface(observerPos.up()
 				.east(), Direction.WEST))
 			.placeNearTarget();
 		scene.idle(60);
@@ -173,7 +172,7 @@ public class DetectorScenes {
 			scene.world.createItemOnBelt(util.grid.at(3, 1, 1), Direction.EAST, amethystItem);
 
 			scene.world.toggleRedstonePower(util.select.position(observerPos));
-			scene.effects.indicateRedstone(observerPos.above()
+			scene.effects.indicateRedstone(observerPos.up()
 				.east());
 			scene.idle(5);
 
@@ -246,7 +245,7 @@ public class DetectorScenes {
 		scene.world.multiplyKineticSpeed(util.select.everywhere(), 1 / 8f);
 		scene.idle(10);
 
-		Vec3 upper = util.vector.blockSurface(switchPos, Direction.NORTH)
+		Vec3d upper = util.vector.blockSurface(switchPos, Direction.NORTH)
 			.add(0, 3 / 16f, 0);
 		scene.overlay.showLine(PonderPalette.RED, upper.add(2 / 16f, 0, 0), upper.subtract(2 / 16f, 0, 0), 60);
 		scene.overlay.showText(70)
@@ -279,11 +278,11 @@ public class DetectorScenes {
 			scene.world.createItemOnBelt(util.grid.at(3, 0, 4), Direction.NORTH, ironIngot);
 			if (i % 3 == 1)
 				scene.world.modifyBlock(switchPos,
-					s -> s.setValue(ThresholdSwitchBlock.LEVEL, s.getValue(ThresholdSwitchBlock.LEVEL) - 1), false);
+					s -> s.with(ThresholdSwitchBlock.LEVEL, s.get(ThresholdSwitchBlock.LEVEL) - 1), false);
 		}
 		scene.world.multiplyKineticSpeed(util.select.everywhere(), 1 / 8f);
 
-		Vec3 lower = util.vector.blockSurface(switchPos, Direction.NORTH)
+		Vec3d lower = util.vector.blockSurface(switchPos, Direction.NORTH)
 			.add(0, -3 / 16f, 0);
 		scene.overlay.showLine(PonderPalette.GREEN, lower.add(2 / 16f, 0, 0), lower.subtract(2 / 16f, 0, 0), 60);
 		scene.overlay.showText(70)
@@ -299,7 +298,7 @@ public class DetectorScenes {
 			scene.world.createItemOnBelt(util.grid.at(3, 0, 4), Direction.NORTH, ironIngot);
 			if (i % 3 == 2)
 				scene.world.modifyBlock(switchPos,
-					s -> s.setValue(ThresholdSwitchBlock.LEVEL, s.getValue(ThresholdSwitchBlock.LEVEL) - 1), false);
+					s -> s.with(ThresholdSwitchBlock.LEVEL, s.get(ThresholdSwitchBlock.LEVEL) - 1), false);
 		}
 
 		scene.world.toggleRedstonePower(redstone);
@@ -367,7 +366,7 @@ public class DetectorScenes {
 			scene.world.makeSectionIndependent(util.select.position(switchPos));
 		scene.idle(10);
 		scene.world.moveSection(switchLink, util.vector.of(0, 1, 0), 15);
-		scene.world.modifyBlock(switchPos, s -> s.setValue(ThresholdSwitchBlock.LEVEL, 0), false);
+		scene.world.modifyBlock(switchPos, s -> s.with(ThresholdSwitchBlock.LEVEL, 0), false);
 		scene.idle(5);
 		scene.world.showSection(pulley, Direction.DOWN);
 		scene.idle(15);
@@ -376,7 +375,7 @@ public class DetectorScenes {
 
 		scene.overlay.showText(70)
 			.text("...as well as, curiously, the length of an extended rope pulley")
-			.pointAt(util.vector.blockSurface(switchPos.above(), Direction.NORTH))
+			.pointAt(util.vector.blockSurface(switchPos.up(), Direction.NORTH))
 			.attachKeyFrame()
 			.placeNearTarget();
 		scene.idle(10);

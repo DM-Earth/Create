@@ -4,7 +4,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BellBlock;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.NoteBlock;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.BlockPos;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.simibubi.create.AllBlocks;
@@ -14,18 +24,6 @@ import com.simibubi.create.content.decoration.steamWhistle.WhistleBlock;
 import com.simibubi.create.content.decoration.steamWhistle.WhistleBlock.WhistleSize;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.level.block.BellBlock;
-import net.minecraft.world.level.block.NoteBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 
 public class ArrivalSoundQueue {
 
@@ -77,7 +75,7 @@ public class ArrivalSoundQueue {
 				BlockState state = info.state();
 				if (state.getBlock() instanceof WhistleBlock && info.nbt() != null) {
 					int pitch = info.nbt().getInt("Pitch");
-					WhistleSize size = state.getValue(WhistleBlock.SIZE);
+					WhistleSize size = state.get(WhistleBlock.SIZE);
 					return Pair.of(size == WhistleSize.LARGE, (size == WhistleSize.SMALL ? 12 : 0) - pitch);
 				}
 			}
@@ -85,23 +83,23 @@ public class ArrivalSoundQueue {
 		return null;
 	}
 
-	public void serialize(CompoundTag tagIn) {
-		CompoundTag tag = new CompoundTag();
+	public void serialize(NbtCompound tagIn) {
+		NbtCompound tag = new NbtCompound();
 		tag.putInt("Offset", offset);
 		tag.put("Sources", NBTHelper.writeCompoundList(sources.entries(), e -> {
-			CompoundTag c = new CompoundTag();
+			NbtCompound c = new NbtCompound();
 			c.putInt("Tick", e.getKey());
-			c.put("Pos", NbtUtils.writeBlockPos(e.getValue()));
+			c.put("Pos", NbtHelper.fromBlockPos(e.getValue()));
 			return c;
 		}));
 		tagIn.put("SoundQueue", tag);
 	}
 
-	public void deserialize(CompoundTag tagIn) {
-		CompoundTag tag = tagIn.getCompound("SoundQueue");
+	public void deserialize(NbtCompound tagIn) {
+		NbtCompound tag = tagIn.getCompound("SoundQueue");
 		offset = tag.getInt("Offset");
-		NBTHelper.iterateCompoundList(tag.getList("Sources", Tag.TAG_COMPOUND),
-			c -> add(c.getInt("Tick"), NbtUtils.readBlockPos(c.getCompound("Pos"))));
+		NBTHelper.iterateCompoundList(tag.getList("Sources", NbtElement.COMPOUND_TYPE),
+			c -> add(c.getInt("Tick"), NbtHelper.toBlockPos(c.getCompound("Pos"))));
 	}
 
 	public void add(int offset, BlockPos localPos) {
@@ -129,19 +127,19 @@ public class ArrivalSoundQueue {
 			if (AllBlocks.HAUNTED_BELL.has(state))
 				playSimple(entity, AllSoundEvents.HAUNTED_BELL_USE.getMainEvent(), 1, 1);
 			else
-				playSimple(entity, SoundEvents.BELL_BLOCK, 1, 1);
+				playSimple(entity, SoundEvents.BLOCK_BELL_USE, 1, 1);
 		}
 
 		if (state.getBlock() instanceof NoteBlock nb) {
-			float f = (float) Math.pow(2, (state.getValue(NoteBlock.NOTE) - 12) / 12.0);
-			playSimple(entity, state.getValue(NoteBlock.INSTRUMENT)
-				.getSoundEvent()
+			float f = (float) Math.pow(2, (state.get(NoteBlock.NOTE) - 12) / 12.0);
+			playSimple(entity, state.get(NoteBlock.INSTRUMENT)
+				.getSound()
 				.value(), 1, f);
 		}
 
 		if (state.getBlock() instanceof WhistleBlock && info.nbt() != null) {
 			int pitch = info.nbt().getInt("Pitch");
-			WhistleSize size = state.getValue(WhistleBlock.SIZE);
+			WhistleSize size = state.get(WhistleBlock.SIZE);
 			float f = (float) Math.pow(2, ((size == WhistleSize.SMALL ? 12 : 0) - pitch) / 12.0);
 			playSimple(entity,
 				(size == WhistleSize.LARGE ? AllSoundEvents.WHISTLE_TRAIN_LOW : AllSoundEvents.WHISTLE_TRAIN)
@@ -154,7 +152,7 @@ public class ArrivalSoundQueue {
 	}
 
 	private static void playSimple(CarriageContraptionEntity entity, SoundEvent event, float volume, float pitch) {
-		entity.level().playSound(null, entity, event, SoundSource.NEUTRAL, 5 * volume, pitch);
+		entity.getWorld().playSoundFromEntity(null, entity, event, SoundCategory.NEUTRAL, 5 * volume, pitch);
 	}
 
 }

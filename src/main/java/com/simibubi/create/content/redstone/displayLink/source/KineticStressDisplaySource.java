@@ -9,12 +9,12 @@ import com.simibubi.create.foundation.utility.LangBuilder;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.text.MutableText;
 
 public class KineticStressDisplaySource extends PercentOrProgressBarDisplaySource {
 
 	@Override
-	protected MutableComponent formatNumeric(DisplayLinkContext context, Float currentLevel) {
+	protected MutableText formatNumeric(DisplayLinkContext context, Float currentLevel) {
 		int mode = getMode(context);
 		if (mode == 1)
 			return super.formatNumeric(context, currentLevel);

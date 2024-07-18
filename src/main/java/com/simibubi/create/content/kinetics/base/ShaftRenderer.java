@@ -1,11 +1,11 @@
 package com.simibubi.create.content.kinetics.base;
 
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 
 public class ShaftRenderer<T extends KineticBlockEntity> extends KineticBlockEntityRenderer<T> {
 
-	public ShaftRenderer(BlockEntityRendererProvider.Context context) {
+	public ShaftRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 

@@ -2,12 +2,11 @@ package com.simibubi.create.content.contraptions.render;
 
 import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
 import com.jozufozu.flywheel.event.BeginFrameEvent;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.util.Mth;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.MathHelper;
 
 public class ContraptionRenderInfo {
 	public final Contraption contraption;
@@ -35,8 +34,8 @@ public class ContraptionRenderInfo {
 		AbstractContraptionEntity entity = contraption.entity;
 
 		visible = event.getFrustum()
-			.isVisible(entity.getBoundingBoxForCulling()
-				.inflate(2));
+			.isVisible(entity.getVisibilityBoundingBox()
+				.expand(2));
 	}
 
 	public boolean isVisible() {
@@ -46,21 +45,21 @@ public class ContraptionRenderInfo {
 	/**
 	 * Need to call this during RenderLayerEvent.
 	 */
-	public void setupMatrices(PoseStack viewProjection, double camX, double camY, double camZ) {
+	public void setupMatrices(MatrixStack viewProjection, double camX, double camY, double camZ) {
 		if (!matrices.isReady()) {
 			AbstractContraptionEntity entity = contraption.entity;
 
-			viewProjection.pushPose();
+			viewProjection.push();
 
-			double x = Mth.lerp(AnimationTickHolder.getPartialTicks(), entity.xOld, entity.getX()) - camX;
-			double y = Mth.lerp(AnimationTickHolder.getPartialTicks(), entity.yOld, entity.getY()) - camY;
-			double z = Mth.lerp(AnimationTickHolder.getPartialTicks(), entity.zOld, entity.getZ()) - camZ;
+			double x = MathHelper.lerp(AnimationTickHolder.getPartialTicks(), entity.lastRenderX, entity.getX()) - camX;
+			double y = MathHelper.lerp(AnimationTickHolder.getPartialTicks(), entity.lastRenderY, entity.getY()) - camY;
+			double z = MathHelper.lerp(AnimationTickHolder.getPartialTicks(), entity.lastRenderZ, entity.getZ()) - camZ;
 
 			viewProjection.translate(x, y, z);
 
 			matrices.setup(viewProjection, entity);
 
-			viewProjection.popPose();
+			viewProjection.pop();
 		}
 	}
 

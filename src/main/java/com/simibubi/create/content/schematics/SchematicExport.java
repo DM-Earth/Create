@@ -13,15 +13,14 @@ import com.simibubi.create.foundation.utility.FilesHelper;
 import com.simibubi.create.foundation.utility.Lang;
 
 import net.fabricmc.loader.api.FabricLoader;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.block.Blocks;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.world.World;
 
 public class SchematicExport {
 	public static final Path SCHEMATICS = FabricLoader.getInstance().getGameDir().resolve("schematics");
@@ -37,16 +36,16 @@ public class SchematicExport {
 	 * @return a SchematicExportResult, or null if an error occurred.
 	 */
 	@Nullable
-	public static SchematicExportResult saveSchematic(Path dir, String fileName, boolean overwrite, Level level, BlockPos first, BlockPos second) {
-		BoundingBox bb = BoundingBox.fromCorners(first, second);
-		BlockPos origin = new BlockPos(bb.minX(), bb.minY(), bb.minZ());
-		BlockPos bounds = new BlockPos(bb.getXSpan(), bb.getYSpan(), bb.getZSpan());
+	public static SchematicExportResult saveSchematic(Path dir, String fileName, boolean overwrite, World level, BlockPos first, BlockPos second) {
+		BlockBox bb = BlockBox.create(first, second);
+		BlockPos origin = new BlockPos(bb.getMinX(), bb.getMinY(), bb.getMinZ());
+		BlockPos bounds = new BlockPos(bb.getBlockCountX(), bb.getBlockCountY(), bb.getBlockCountZ());
 
 		StructureTemplate structure = new StructureTemplate();
-		structure.fillFromWorld(level, origin, bounds, true, Blocks.AIR);
-		CompoundTag data = structure.save(new CompoundTag());
+		structure.saveFromWorld(level, origin, bounds, true, Blocks.AIR);
+		NbtCompound data = structure.writeNbt(new NbtCompound());
 		SchematicAndQuillItem.replaceStructureVoidWithAir(data);
-		SchematicAndQuillItem.clampGlueBoxes(level, new AABB(origin, origin.offset(bounds)), data);
+		SchematicAndQuillItem.clampGlueBoxes(level, new Box(origin, origin.add(bounds)), data);
 
 		if (fileName.isEmpty())
 			fileName = Lang.translateDirect("schematicAndQuill.fallbackName").getString();

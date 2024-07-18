@@ -1,10 +1,20 @@
 package com.simibubi.create.foundation.ponder.element;
 
 import java.util.function.Supplier;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRenderDispatcher;
+import net.minecraft.client.util.Window;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.passive.ParrotEntity;
+import net.minecraft.entity.passive.ParrotEntity.Variant;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.platform.Window;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.ponder.PonderScene;
@@ -12,31 +22,19 @@ import com.simibubi.create.foundation.ponder.PonderWorld;
 import com.simibubi.create.foundation.ponder.ui.PonderUI;
 import com.simibubi.create.foundation.utility.AngleHelper;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.animal.Parrot;
-import net.minecraft.world.entity.animal.Parrot.Variant;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.phys.Vec3;
-
 public class ParrotElement extends AnimatedSceneElement {
 
-	private Vec3 location;
-	private Parrot entity;
+	private Vec3d location;
+	private ParrotEntity entity;
 	private ParrotPose pose;
 	private boolean deferConductor = false;
 	private Supplier<? extends ParrotPose> initialPose;
 
-	public static ParrotElement create(Vec3 location, Supplier<? extends ParrotPose> pose) {
+	public static ParrotElement create(Vec3d location, Supplier<? extends ParrotPose> pose) {
 		return new ParrotElement(location, pose);
 	}
 
-	protected ParrotElement(Vec3 location, Supplier<? extends ParrotPose> pose) {
+	protected ParrotElement(Vec3d location, Supplier<? extends ParrotPose> pose) {
 		this.location = location;
 		initialPose = pose;
 		setPose(initialPose.get());
@@ -46,15 +44,15 @@ public class ParrotElement extends AnimatedSceneElement {
 	public void reset(PonderScene scene) {
 		super.reset(scene);
 		setPose(initialPose.get());
-		entity.setPosRaw(0, 0, 0);
-		entity.xo = 0;
-		entity.yo = 0;
-		entity.zo = 0;
-		entity.xOld = 0;
-		entity.yOld = 0;
-		entity.zOld = 0;
-		entity.setXRot(entity.xRotO = 0);
-		entity.setYRot(entity.yRotO = 180);
+		entity.setPos(0, 0, 0);
+		entity.prevX = 0;
+		entity.prevY = 0;
+		entity.prevZ = 0;
+		entity.lastRenderX = 0;
+		entity.lastRenderY = 0;
+		entity.lastRenderZ = 0;
+		entity.setPitch(entity.prevPitch = 0);
+		entity.setYaw(entity.prevYaw = 180);
 		entity.getCustomData()
 			.remove("TrainHat");
 		deferConductor = false;
@@ -65,51 +63,51 @@ public class ParrotElement extends AnimatedSceneElement {
 		super.tick(scene);
 		if (entity == null) {
 			entity = pose.create(scene.getWorld());
-			entity.setYRot(entity.yRotO = 180);
+			entity.setYaw(entity.prevYaw = 180);
 			if (deferConductor)
 				setConductor(deferConductor);
 			deferConductor = false;
 		}
 
-		entity.tickCount++;
-		entity.yHeadRotO = entity.yHeadRot;
-		entity.oFlapSpeed = entity.flapSpeed;
-		entity.oFlap = entity.flap;
+		entity.age++;
+		entity.prevHeadYaw = entity.headYaw;
+		entity.prevMaxWingDeviation = entity.maxWingDeviation;
+		entity.prevFlapProgress = entity.flapProgress;
 		entity.setOnGround(true);
 
-		entity.xo = entity.getX();
-		entity.yo = entity.getY();
-		entity.zo = entity.getZ();
-		entity.yRotO = entity.getYRot();
-		entity.xRotO = entity.getXRot();
+		entity.prevX = entity.getX();
+		entity.prevY = entity.getY();
+		entity.prevZ = entity.getZ();
+		entity.prevYaw = entity.getYaw();
+		entity.prevPitch = entity.getPitch();
 
 		pose.tick(scene, entity, location);
 
-		entity.xOld = entity.getX();
-		entity.yOld = entity.getY();
-		entity.zOld = entity.getZ();
+		entity.lastRenderX = entity.getX();
+		entity.lastRenderY = entity.getY();
+		entity.lastRenderZ = entity.getZ();
 	}
 
-	public void setPositionOffset(Vec3 position, boolean immediate) {
+	public void setPositionOffset(Vec3d position, boolean immediate) {
 		if (entity == null)
 			return;
-		entity.setPos(position.x, position.y, position.z);
+		entity.setPosition(position.x, position.y, position.z);
 		if (!immediate)
 			return;
-		entity.xo = position.x;
-		entity.yo = position.y;
-		entity.zo = position.z;
+		entity.prevX = position.x;
+		entity.prevY = position.y;
+		entity.prevZ = position.z;
 	}
 
-	public void setRotation(Vec3 eulers, boolean immediate) {
+	public void setRotation(Vec3d eulers, boolean immediate) {
 		if (entity == null)
 			return;
-		entity.setXRot((float) eulers.x);
-		entity.setYRot((float) eulers.y);
+		entity.setPitch((float) eulers.x);
+		entity.setYaw((float) eulers.y);
 		if (!immediate)
 			return;
-		entity.xRotO = entity.getXRot();
-		entity.yRotO = entity.getYRot();
+		entity.prevPitch = entity.getPitch();
+		entity.prevYaw = entity.getYaw();
 	}
 
 	public void setConductor(boolean isConductor) {
@@ -117,41 +115,41 @@ public class ParrotElement extends AnimatedSceneElement {
 			deferConductor = isConductor;
 			return;
 		}
-		CompoundTag data = entity.getCustomData();
+		NbtCompound data = entity.getCustomData();
 		if (isConductor)
 			data.putBoolean("TrainHat", true);
 		else
 			data.remove("TrainHat");
 	}
 
-	public Vec3 getPositionOffset() {
-		return entity != null ? entity.position() : Vec3.ZERO;
+	public Vec3d getPositionOffset() {
+		return entity != null ? entity.getPos() : Vec3d.ZERO;
 	}
 
-	public Vec3 getRotation() {
-		return entity != null ? new Vec3(entity.getXRot(), entity.getYRot(), 0) : Vec3.ZERO;
+	public Vec3d getRotation() {
+		return entity != null ? new Vec3d(entity.getPitch(), entity.getYaw(), 0) : Vec3d.ZERO;
 	}
 
 	@Override
-	protected void renderLast(PonderWorld world, MultiBufferSource buffer, PoseStack ms, float fade, float pt) {
-		EntityRenderDispatcher entityrenderermanager = Minecraft.getInstance()
+	protected void renderLast(PonderWorld world, VertexConsumerProvider buffer, MatrixStack ms, float fade, float pt) {
+		EntityRenderDispatcher entityrenderermanager = MinecraftClient.getInstance()
 			.getEntityRenderDispatcher();
 
 		if (entity == null) {
 			entity = pose.create(world);
-			entity.setYRot(entity.yRotO = 180);
+			entity.setYaw(entity.prevYaw = 180);
 		}
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(location.x, location.y, location.z);
-		ms.translate(Mth.lerp(pt, entity.xo, entity.getX()), Mth.lerp(pt, entity.yo, entity.getY()),
-			Mth.lerp(pt, entity.zo, entity.getZ()));
+		ms.translate(MathHelper.lerp(pt, entity.prevX, entity.getX()), MathHelper.lerp(pt, entity.prevY, entity.getY()),
+			MathHelper.lerp(pt, entity.prevZ, entity.getZ()));
 
 		TransformStack.cast(ms)
-			.rotateY(AngleHelper.angleLerp(pt, entity.yRotO, entity.getYRot()));
+			.rotateY(AngleHelper.angleLerp(pt, entity.prevYaw, entity.getYaw()));
 
 		entityrenderermanager.render(entity, 0, 0, 0, 0, pt, ms, buffer, lightCoordsFromFade(fade));
-		ms.popPose();
+		ms.pop();
 	}
 
 	public void setPose(ParrotPose pose) {
@@ -160,12 +158,12 @@ public class ParrotElement extends AnimatedSceneElement {
 
 	public static abstract class ParrotPose {
 
-		abstract void tick(PonderScene scene, Parrot entity, Vec3 location);
+		abstract void tick(PonderScene scene, ParrotEntity entity, Vec3d location);
 
-		Parrot create(PonderWorld world) {
-			Parrot entity = new Parrot(EntityType.PARROT, world);
-			Variant[] variants = Parrot.Variant.values();
-			Parrot.Variant variant = variants[Create.RANDOM.nextInt(variants.length)];
+		ParrotEntity create(PonderWorld world) {
+			ParrotEntity entity = new ParrotEntity(EntityType.PARROT, world);
+			Variant[] variants = ParrotEntity.Variant.values();
+			ParrotEntity.Variant variant = variants[Create.RANDOM.nextInt(variants.length)];
 			entity.setVariant(variant == Variant.BLUE ? Variant.RED_BLUE : variant); // blue parrots are difficult to see
 			return entity;
 		}
@@ -175,16 +173,16 @@ public class ParrotElement extends AnimatedSceneElement {
 	public static class DancePose extends ParrotPose {
 
 		@Override
-		Parrot create(PonderWorld world) {
-			Parrot entity = super.create(world);
-			entity.setRecordPlayingNearby(BlockPos.ZERO, true);
+		ParrotEntity create(PonderWorld world) {
+			ParrotEntity entity = super.create(world);
+			entity.setNearbySongPlaying(BlockPos.ORIGIN, true);
 			return entity;
 		}
 
 		@Override
-		void tick(PonderScene scene, Parrot entity, Vec3 location) {
-			entity.yRotO = entity.getYRot();
-			entity.setYRot(entity.getYRot() - 2);
+		void tick(PonderScene scene, ParrotEntity entity, Vec3d location) {
+			entity.prevYaw = entity.getYaw();
+			entity.setYaw(entity.getYaw() - 2);
 		}
 
 	}
@@ -192,16 +190,16 @@ public class ParrotElement extends AnimatedSceneElement {
 	public static class FlappyPose extends ParrotPose {
 
 		@Override
-		void tick(PonderScene scene, Parrot entity, Vec3 location) {
-			double length = entity.position()
-				.subtract(entity.xOld, entity.yOld, entity.zOld)
+		void tick(PonderScene scene, ParrotEntity entity, Vec3d location) {
+			double length = entity.getPos()
+				.subtract(entity.lastRenderX, entity.lastRenderY, entity.lastRenderZ)
 				.length();
 			entity.setOnGround(false);
 			double phase = Math.min(length * 15, 8);
 			float f = (float) ((PonderUI.ponderTicks % 100) * phase);
-			entity.flapSpeed = Mth.sin(f) + 1;
+			entity.maxWingDeviation = MathHelper.sin(f) + 1;
 			if (length == 0)
-				entity.flapSpeed = 0;
+				entity.maxWingDeviation = 0;
 		}
 
 	}
@@ -215,14 +213,14 @@ public class ParrotElement extends AnimatedSceneElement {
 		}
 
 		@Override
-		void tick(PonderScene scene, Parrot entity, Vec3 location) {
+		void tick(PonderScene scene, ParrotEntity entity, Vec3d location) {
 			BlockEntity blockEntity = scene.getWorld()
 				.getBlockEntity(componentPos);
 			if (!(blockEntity instanceof KineticBlockEntity))
 				return;
 			float rpm = ((KineticBlockEntity) blockEntity).getSpeed();
-			entity.yRotO = entity.getYRot();
-			entity.setYRot(entity.getYRot() + (rpm * .3f));
+			entity.prevYaw = entity.getYaw();
+			entity.setYaw(entity.getYaw() + (rpm * .3f));
 		}
 
 	}
@@ -230,28 +228,28 @@ public class ParrotElement extends AnimatedSceneElement {
 	public static abstract class FaceVecPose extends ParrotPose {
 
 		@Override
-		void tick(PonderScene scene, Parrot entity, Vec3 location) {
-			Vec3 p_200602_2_ = getFacedVec(scene);
-			Vec3 Vector3d = location.add(entity.getEyePosition(0));
+		void tick(PonderScene scene, ParrotEntity entity, Vec3d location) {
+			Vec3d p_200602_2_ = getFacedVec(scene);
+			Vec3d Vector3d = location.add(entity.getCameraPosVec(0));
 			double d0 = p_200602_2_.x - Vector3d.x;
 			double d1 = p_200602_2_.y - Vector3d.y;
 			double d2 = p_200602_2_.z - Vector3d.z;
-			double d3 = Mth.sqrt((float) (d0 * d0 + d2 * d2));
-			float targetPitch = Mth.wrapDegrees((float) -(Mth.atan2(d1, d3) * (double) (180F / (float) Math.PI)));
-			float targetYaw = Mth.wrapDegrees((float) -(Mth.atan2(d2, d0) * (double) (180F / (float) Math.PI)) + 90);
+			double d3 = MathHelper.sqrt((float) (d0 * d0 + d2 * d2));
+			float targetPitch = MathHelper.wrapDegrees((float) -(MathHelper.atan2(d1, d3) * (double) (180F / (float) Math.PI)));
+			float targetYaw = MathHelper.wrapDegrees((float) -(MathHelper.atan2(d2, d0) * (double) (180F / (float) Math.PI)) + 90);
 
-			entity.setXRot(AngleHelper.angleLerp(.4f, entity.getXRot(), targetPitch));
-			entity.setYRot(AngleHelper.angleLerp(.4f, entity.getYRot(), targetYaw));
+			entity.setPitch(AngleHelper.angleLerp(.4f, entity.getPitch(), targetPitch));
+			entity.setYaw(AngleHelper.angleLerp(.4f, entity.getYaw(), targetYaw));
 		}
 
-		protected abstract Vec3 getFacedVec(PonderScene scene);
+		protected abstract Vec3d getFacedVec(PonderScene scene);
 
 	}
 
 	public static class FacePointOfInterestPose extends FaceVecPose {
 
 		@Override
-		protected Vec3 getFacedVec(PonderScene scene) {
+		protected Vec3d getFacedVec(PonderScene scene) {
 			return scene.getPointOfInterest();
 		}
 
@@ -260,11 +258,11 @@ public class ParrotElement extends AnimatedSceneElement {
 	public static class FaceCursorPose extends FaceVecPose {
 
 		@Override
-		protected Vec3 getFacedVec(PonderScene scene) {
-			Minecraft minecraft = Minecraft.getInstance();
+		protected Vec3d getFacedVec(PonderScene scene) {
+			MinecraftClient minecraft = MinecraftClient.getInstance();
 			Window w = minecraft.getWindow();
-			double mouseX = minecraft.mouseHandler.xpos() * w.getGuiScaledWidth() / w.getScreenWidth();
-			double mouseY = minecraft.mouseHandler.ypos() * w.getGuiScaledHeight() / w.getScreenHeight();
+			double mouseX = minecraft.mouse.getX() * w.getScaledWidth() / w.getWidth();
+			double mouseY = minecraft.mouse.getY() * w.getScaledHeight() / w.getHeight();
 			return scene.getTransform()
 				.screenToScene(mouseX, mouseY, 300, 0);
 		}

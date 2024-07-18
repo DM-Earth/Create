@@ -14,7 +14,11 @@ import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import com.simibubi.create.content.trains.graph.DiscoveredPath;
 
 import org.apache.commons.lang3.mutable.MutableDouble;
@@ -41,12 +45,6 @@ import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.Pair;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
-
 public class Navigation {
 
 	public Train train;
@@ -71,7 +69,7 @@ public class Navigation {
 		waitingForChainedGroups = new HashMap<>();
 	}
 
-	public void tick(Level level) {
+	public void tick(World level) {
 		if (destination == null)
 			return;
 
@@ -133,7 +131,7 @@ public class Navigation {
 				signalScout.position = leadingPoint.position;
 
 				double brakingDistanceNoFlicker = brakingDistance + 3 - (brakingDistance % 3);
-				double scanDistance = Mth.clamp(brakingDistanceNoFlicker, preDepartureLookAhead, distanceToDestination);
+				double scanDistance = MathHelper.clamp(brakingDistanceNoFlicker, preDepartureLookAhead, distanceToDestination);
 
 				MutableDouble crossSignalDistanceTracker = new MutableDouble(-1);
 				MutableObject<Pair<UUID, Boolean>> trackingCrossSignal = new MutableObject<>(null);
@@ -214,7 +212,7 @@ public class Navigation {
 								.multiply(1, 0, 1)
 								.distanceTo(turn.axes.getSecond()
 									.multiply(1, 0, 1)
-									.scale(-1)) < 1 / 64f
+									.multiply(-1)) < 1 / 64f
 								&& vDistance / turn.getLength() < .225f)
 								return;
 						}
@@ -345,13 +343,13 @@ public class Navigation {
 
 	public ITrackSelector control(TravellingPoint mp) {
 		if (destination == null)
-			return mp.steer(train.manualSteer, new Vec3(0, 1, 0));
+			return mp.steer(train.manualSteer, new Vec3d(0, 1, 0));
 		return (graph, pair) -> navigateOptions(currentPath, graph, pair.getSecond());
 	}
 
 	public ITrackSelector controlSignalScout() {
 		if (destination == null)
-			return signalScout.steer(train.manualSteer, new Vec3(0, 1, 0));
+			return signalScout.steer(train.manualSteer, new Vec3d(0, 1, 0));
 		List<Couple<TrackNode>> pathCopy = new ArrayList<>(currentPath);
 		return (graph, pair) -> navigateOptions(pathCopy, graph, pair.getSecond());
 	}
@@ -609,7 +607,7 @@ public class Navigation {
 
 		double distanceToNode2 = forward ? initialEdge.getLength() - startingPoint.position : startingPoint.position;
 
-		int signalWeight = Mth.clamp(ticksWaitingForSignal * 2, Train.Penalties.RED_SIGNAL, 200);
+		int signalWeight = MathHelper.clamp(ticksWaitingForSignal * 2, Train.Penalties.RED_SIGNAL, 200);
 
 		// Apply penalties to initial edge
 		int initialPenalty = 0;
@@ -763,7 +761,7 @@ public class Navigation {
 				// Calculate remaining distance estimator for next connected edge
 				if (destinations != null && !destinations.isEmpty()) {
 					remainingDist = Double.MAX_VALUE;
-					Vec3 newNodePosition = newNode.getLocation().getLocation();
+					Vec3d newNodePosition = newNode.getLocation().getLocation();
 					for (GlobalStation destination : destinations) {
 						TrackNodeLocation destinationNode = destination.edgeLocation.getFirst();
 						double dMin = Math.abs(newNodePosition.x - destinationNode.getLocation().x);
@@ -842,36 +840,36 @@ public class Navigation {
 			Pair<Couple<TrackNode>, TrackEdge> current, GlobalStation station);
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag tag = new CompoundTag();
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound tag = new NbtCompound();
 		if (destination == null)
 			return tag;
 
 		removeBrokenPathEntries();
 
-		tag.putUUID("Destination", destination.id);
+		tag.putUuid("Destination", destination.id);
 		tag.putDouble("DistanceToDestination", distanceToDestination);
 		tag.putDouble("DistanceStartedAt", distanceStartedAt);
 		tag.putBoolean("BehindTrain", destinationBehindTrain);
 		tag.putBoolean("AnnounceArrival", announceArrival);
 		tag.put("Path", NBTHelper.writeCompoundList(currentPath, c -> {
-			CompoundTag nbt = new CompoundTag();
+			NbtCompound nbt = new NbtCompound();
 			nbt.put("Nodes", c.map(TrackNode::getLocation)
 				.serializeEach(loc -> loc.write(dimensions)));
 			return nbt;
 		}));
 		if (waitingForSignal == null)
 			return tag;
-		tag.putUUID("BlockingSignal", waitingForSignal.getFirst());
+		tag.putUuid("BlockingSignal", waitingForSignal.getFirst());
 		tag.putBoolean("BlockingSignalSide", waitingForSignal.getSecond());
 		tag.putDouble("DistanceToSignal", distanceToSignal);
 		tag.putInt("TicksWaitingForSignal", ticksWaitingForSignal);
 		return tag;
 	}
 
-	public void read(CompoundTag tag, TrackGraph graph, DimensionPalette dimensions) {
+	public void read(NbtCompound tag, TrackGraph graph, DimensionPalette dimensions) {
 		destination = graph != null && tag.contains("Destination")
-			? graph.getPoint(EdgePointType.STATION, tag.getUUID("Destination"))
+			? graph.getPoint(EdgePointType.STATION, tag.getUuid("Destination"))
 			: null;
 
 		if (destination == null)
@@ -882,15 +880,15 @@ public class Navigation {
 		destinationBehindTrain = tag.getBoolean("BehindTrain");
 		announceArrival = tag.getBoolean("AnnounceArrival");
 		currentPath.clear();
-		NBTHelper.iterateCompoundList(tag.getList("Path", Tag.TAG_COMPOUND),
+		NBTHelper.iterateCompoundList(tag.getList("Path", NbtElement.COMPOUND_TYPE),
 			c -> currentPath.add(Couple
-				.deserializeEach(c.getList("Nodes", Tag.TAG_COMPOUND), c2 -> TrackNodeLocation.read(c2, dimensions))
+				.deserializeEach(c.getList("Nodes", NbtElement.COMPOUND_TYPE), c2 -> TrackNodeLocation.read(c2, dimensions))
 				.map(graph::locateNode)));
 		
 		removeBrokenPathEntries();
 		
 		waitingForSignal = tag.contains("BlockingSignal")
-			? Pair.of(tag.getUUID("BlockingSignal"), tag.getBoolean("BlockingSignalSide"))
+			? Pair.of(tag.getUuid("BlockingSignal"), tag.getBoolean("BlockingSignalSide"))
 			: null;
 		if (waitingForSignal == null)
 			return;

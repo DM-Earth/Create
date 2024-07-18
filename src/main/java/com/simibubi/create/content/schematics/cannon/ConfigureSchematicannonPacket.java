@@ -2,9 +2,8 @@ package com.simibubi.create.content.schematics.cannon;
 
 import com.simibubi.create.content.schematics.cannon.SchematicannonBlockEntity.State;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class ConfigureSchematicannonPacket extends SimplePacketBase {
 
@@ -20,24 +19,24 @@ public class ConfigureSchematicannonPacket extends SimplePacketBase {
 		this.set = set;
 	}
 
-	public ConfigureSchematicannonPacket(FriendlyByteBuf buffer) {
-		this(buffer.readEnum(Option.class), buffer.readBoolean());
+	public ConfigureSchematicannonPacket(PacketByteBuf buffer) {
+		this(buffer.readEnumConstant(Option.class), buffer.readBoolean());
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeEnum(option);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeEnumConstant(option);
 		buffer.writeBoolean(set);
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
-			if (player == null || !(player.containerMenu instanceof SchematicannonMenu))
+			ServerPlayerEntity player = context.getSender();
+			if (player == null || !(player.currentScreenHandler instanceof SchematicannonMenu))
 				return;
 
-			SchematicannonBlockEntity be = ((SchematicannonMenu) player.containerMenu).contentHolder;
+			SchematicannonBlockEntity be = ((SchematicannonMenu) player.currentScreenHandler).contentHolder;
 			switch (option) {
 			case DONT_REPLACE:
 			case REPLACE_ANY:

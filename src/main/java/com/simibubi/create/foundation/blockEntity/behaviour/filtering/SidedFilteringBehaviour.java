@@ -6,20 +6,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.content.schematics.requirement.ItemRequirement;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform.Sided;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class SidedFilteringBehaviour extends FilteringBehaviour {
 
@@ -60,11 +58,11 @@ public class SidedFilteringBehaviour extends FilteringBehaviour {
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		nbt.put("Filters", NBTHelper.writeCompoundList(sidedFilters.entrySet(), entry -> {
-			CompoundTag compound = new CompoundTag();
+			NbtCompound compound = new NbtCompound();
 			compound.putInt("Side", entry.getKey()
-				.get3DDataValue());
+				.getId());
 			entry.getValue()
 				.write(compound, clientPacket);
 			return compound;
@@ -73,9 +71,9 @@ public class SidedFilteringBehaviour extends FilteringBehaviour {
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
-		NBTHelper.iterateCompoundList(nbt.getList("Filters", Tag.TAG_COMPOUND), compound -> {
-			Direction face = Direction.from3DDataValue(compound.getInt("Side"));
+	public void read(NbtCompound nbt, boolean clientPacket) {
+		NBTHelper.iterateCompoundList(nbt.getList("Filters", NbtElement.COMPOUND_TYPE), compound -> {
+			Direction face = Direction.byId(compound.getInt("Side"));
 			if (sidedFilters.containsKey(face))
 				sidedFilters.get(face)
 					.read(compound, clientPacket);
@@ -137,10 +135,10 @@ public class SidedFilteringBehaviour extends FilteringBehaviour {
 				.destroy();
 	}
 
-	public boolean testHit(Direction direction, Vec3 hit) {
+	public boolean testHit(Direction direction, Vec3d hit) {
 		ValueBoxTransform.Sided sidedPositioning = (Sided) slotPositioning;
-		BlockState state = blockEntity.getBlockState();
-		Vec3 localHit = hit.subtract(Vec3.atLowerCornerOf(blockEntity.getBlockPos()));
+		BlockState state = blockEntity.getCachedState();
+		Vec3d localHit = hit.subtract(Vec3d.of(blockEntity.getPos()));
 		return sidedPositioning.fromSide(direction)
 			.testHit(state, localHit);
 	}

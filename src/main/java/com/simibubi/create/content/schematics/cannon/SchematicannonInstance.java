@@ -6,11 +6,10 @@ import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.jozufozu.flywheel.backend.instancing.blockentity.BlockEntityInstance;
 import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
 
 public class SchematicannonInstance extends BlockEntityInstance<SchematicannonBlockEntity> implements DynamicInstance {
 
@@ -37,17 +36,17 @@ public class SchematicannonInstance extends BlockEntityInstance<SchematicannonBl
 
         double recoil = SchematicannonRenderer.getRecoil(blockEntity, partialTicks);
 
-        PoseStack ms = new PoseStack();
+        MatrixStack ms = new MatrixStack();
         TransformStack msr = TransformStack.cast(ms);
 
         msr.translate(getInstancePosition());
 
-        ms.pushPose();
+        ms.push();
         msr.centre();
         msr.rotate(Direction.UP, (float) ((yaw + 90) / 180 * Math.PI));
         msr.unCentre();
         connector.setTransform(ms);
-        ms.popPose();
+        ms.pop();
 
         msr.translate(.5f, 15 / 16f, .5f);
         msr.rotate(Direction.UP, (float) ((yaw + 90) / 180 * Math.PI));

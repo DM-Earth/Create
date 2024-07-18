@@ -1,16 +1,14 @@
 package com.simibubi.create.foundation.blockEntity.behaviour;
 
 import java.util.ConcurrentModificationException;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 import com.simibubi.create.content.schematics.requirement.ItemRequirement;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 
 public abstract class BlockEntityBehaviour {
 
@@ -37,11 +35,11 @@ public abstract class BlockEntityBehaviour {
 
 	}
 
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 
 	}
 
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 
 	}
 
@@ -81,14 +79,14 @@ public abstract class BlockEntityBehaviour {
 	}
 
 	public BlockPos getPos() {
-		return blockEntity.getBlockPos();
+		return blockEntity.getPos();
 	}
 
-	public Level getWorld() {
-		return blockEntity.getLevel();
+	public World getWorld() {
+		return blockEntity.getWorld();
 	}
 
-	public static <T extends BlockEntityBehaviour> T get(BlockGetter reader, BlockPos pos, BehaviourType<T> type) {
+	public static <T extends BlockEntityBehaviour> T get(BlockView reader, BlockPos pos, BehaviourType<T> type) {
 		BlockEntity be;
 		try {
 			be = reader.getBlockEntity(pos);

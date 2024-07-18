@@ -3,10 +3,9 @@ package com.simibubi.create.content.kinetics.crusher;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeBuilder.ProcessingRecipeParams;
 import com.simibubi.create.foundation.recipe.IRecipeTypeInfo;
+import net.minecraft.inventory.Inventory;
 
-import net.minecraft.world.Container;
-
-public abstract class AbstractCrushingRecipe extends ProcessingRecipe<Container> {
+public abstract class AbstractCrushingRecipe extends ProcessingRecipe<Inventory> {
 
 	public AbstractCrushingRecipe(IRecipeTypeInfo recipeType, ProcessingRecipeParams params) {
 		super(recipeType, params);

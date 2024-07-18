@@ -19,66 +19,65 @@ import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Lang;
 import com.tterrag.registrate.util.nullness.NonNullBiFunction;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class TrackTargetingBlockItem extends BlockItem {
 
 	private EdgePointType<?> type;
 
-	public static <T extends Block> NonNullBiFunction<? super T, Item.Properties, TrackTargetingBlockItem> ofType(
+	public static <T extends Block> NonNullBiFunction<? super T, Item.Settings, TrackTargetingBlockItem> ofType(
 		EdgePointType<?> type) {
 		return (b, p) -> new TrackTargetingBlockItem(b, p, type);
 	}
 
-	public TrackTargetingBlockItem(Block pBlock, Properties pProperties, EdgePointType<?> type) {
+	public TrackTargetingBlockItem(Block pBlock, Settings pProperties, EdgePointType<?> type) {
 		super(pBlock, pProperties);
 		this.type = type;
 	}
 
 	@Override
-	public InteractionResult useOn(UseOnContext pContext) {
-		ItemStack stack = pContext.getItemInHand();
-		BlockPos pos = pContext.getClickedPos();
-		Level level = pContext.getLevel();
+	public ActionResult useOnBlock(ItemUsageContext pContext) {
+		ItemStack stack = pContext.getStack();
+		BlockPos pos = pContext.getBlockPos();
+		World level = pContext.getWorld();
 		BlockState state = level.getBlockState(pos);
-		Player player = pContext.getPlayer();
+		PlayerEntity player = pContext.getPlayer();
 
 		if (player == null)
-			return InteractionResult.FAIL;
+			return ActionResult.FAIL;
 
-		if (player.isShiftKeyDown() && stack.hasTag()) {
-			if (level.isClientSide)
-				return InteractionResult.SUCCESS;
-			player.displayClientMessage(Lang.translateDirect("track_target.clear"), true);
-			stack.setTag(null);
+		if (player.isSneaking() && stack.hasNbt()) {
+			if (level.isClient)
+				return ActionResult.SUCCESS;
+			player.sendMessage(Lang.translateDirect("track_target.clear"), true);
+			stack.setNbt(null);
 			AllSoundEvents.CONTROLLER_CLICK.play(level, null, pos, 1, .5f);
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
 
 		if (state.getBlock() instanceof ITrackBlock track) {
-			if (level.isClientSide)
-				return InteractionResult.SUCCESS;
+			if (level.isClient)
+				return ActionResult.SUCCESS;
 
-			Vec3 lookAngle = player.getLookAngle();
+			Vec3d lookAngle = player.getRotationVector();
 			boolean front = track.getNearestTrackAxis(level, pos, state, lookAngle)
 				.getSecond() == AxisDirection.POSITIVE;
 			EdgePointType<?> type = getType(stack);
@@ -87,58 +86,58 @@ public class TrackTargetingBlockItem extends BlockItem {
 			withGraphLocation(level, pos, front, null, type, (overlap, location) -> result.setValue(overlap));
 
 			if (result.getValue().feedback != null) {
-				player.displayClientMessage(Lang.translateDirect(result.getValue().feedback)
-					.withStyle(ChatFormatting.RED), true);
+				player.sendMessage(Lang.translateDirect(result.getValue().feedback)
+					.formatted(Formatting.RED), true);
 				AllSoundEvents.DENY.play(level, null, pos, .5f, 1);
-				return InteractionResult.FAIL;
+				return ActionResult.FAIL;
 			}
 
-			CompoundTag stackTag = stack.getOrCreateTag();
-			stackTag.put("SelectedPos", NbtUtils.writeBlockPos(pos));
+			NbtCompound stackTag = stack.getOrCreateNbt();
+			stackTag.put("SelectedPos", NbtHelper.fromBlockPos(pos));
 			stackTag.putBoolean("SelectedDirection", front);
 			stackTag.remove("Bezier");
-			player.displayClientMessage(Lang.translateDirect("track_target.set"), true);
-			stack.setTag(stackTag);
+			player.sendMessage(Lang.translateDirect("track_target.set"), true);
+			stack.setNbt(stackTag);
 			AllSoundEvents.CONTROLLER_CLICK.play(level, null, pos, 1, 1);
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
 
-		if (!stack.hasTag()) {
-			player.displayClientMessage(Lang.translateDirect("track_target.missing")
-				.withStyle(ChatFormatting.RED), true);
-			return InteractionResult.FAIL;
+		if (!stack.hasNbt()) {
+			player.sendMessage(Lang.translateDirect("track_target.missing")
+				.formatted(Formatting.RED), true);
+			return ActionResult.FAIL;
 		}
 
-		CompoundTag tag = stack.getTag();
-		CompoundTag teTag = new CompoundTag();
+		NbtCompound tag = stack.getNbt();
+		NbtCompound teTag = new NbtCompound();
 		teTag.putBoolean("TargetDirection", tag.getBoolean("SelectedDirection"));
 
-		BlockPos selectedPos = NbtUtils.readBlockPos(tag.getCompound("SelectedPos"));
-		BlockPos placedPos = pos.relative(pContext.getClickedFace(), state.canBeReplaced() ? 0 : 1);
+		BlockPos selectedPos = NbtHelper.toBlockPos(tag.getCompound("SelectedPos"));
+		BlockPos placedPos = pos.offset(pContext.getSide(), state.isReplaceable() ? 0 : 1);
 
 		boolean bezier = tag.contains("Bezier");
 
-		if (!selectedPos.closerThan(placedPos, bezier ? 64 + 16 : 16)) {
-			player.displayClientMessage(Lang.translateDirect("track_target.too_far")
-				.withStyle(ChatFormatting.RED), true);
-			return InteractionResult.FAIL;
+		if (!selectedPos.isWithinDistance(placedPos, bezier ? 64 + 16 : 16)) {
+			player.sendMessage(Lang.translateDirect("track_target.too_far")
+				.formatted(Formatting.RED), true);
+			return ActionResult.FAIL;
 		}
 
 		if (bezier)
 			teTag.put("Bezier", tag.getCompound("Bezier"));
 
-		teTag.put("TargetTrack", NbtUtils.writeBlockPos(selectedPos.subtract(placedPos)));
+		teTag.put("TargetTrack", NbtHelper.fromBlockPos(selectedPos.subtract(placedPos)));
 		tag.put("BlockEntityTag", teTag);
 
-		InteractionResult useOn = super.useOn(pContext);
-		if (level.isClientSide || useOn == InteractionResult.FAIL)
+		ActionResult useOn = super.useOnBlock(pContext);
+		if (level.isClient || useOn == ActionResult.FAIL)
 			return useOn;
 
-		ItemStack itemInHand = player.getItemInHand(pContext.getHand());
+		ItemStack itemInHand = player.getStackInHand(pContext.getHand());
 		if (!itemInHand.isEmpty())
-			itemInHand.setTag(null);
-		player.displayClientMessage(Lang.translateDirect("track_target.success")
-			.withStyle(ChatFormatting.GREEN), true);
+			itemInHand.setNbt(null);
+		player.sendMessage(Lang.translateDirect("track_target.success")
+			.formatted(Formatting.GREEN), true);
 		
 		if (type == EdgePointType.SIGNAL)
 			AllAdvancements.SIGNAL.awardTo(player);
@@ -152,15 +151,15 @@ public class TrackTargetingBlockItem extends BlockItem {
 
 	@Environment(EnvType.CLIENT)
 	public boolean useOnCurve(BezierPointSelection selection, ItemStack stack) {
-		Minecraft mc = Minecraft.getInstance();
-		LocalPlayer player = mc.player;
+		MinecraftClient mc = MinecraftClient.getInstance();
+		ClientPlayerEntity player = mc.player;
 		TrackBlockEntity be = selection.blockEntity();
 		BezierTrackPointLocation loc = selection.loc();
-		boolean front = player.getLookAngle()
-			.dot(selection.direction()) < 0;
+		boolean front = player.getRotationVector()
+			.dotProduct(selection.direction()) < 0;
 
-		AllPackets.getChannel().sendToServer(new CurvedTrackSelectionPacket(be.getBlockPos(), loc.curveTarget(),
-			loc.segment(), front, player.getInventory().selected));
+		AllPackets.getChannel().sendToServer(new CurvedTrackSelectionPacket(be.getPos(), loc.curveTarget(),
+			loc.segment(), front, player.getInventory().selectedSlot));
 		return true;
 	}
 
@@ -181,7 +180,7 @@ public class TrackTargetingBlockItem extends BlockItem {
 
 	}
 
-	public static void withGraphLocation(Level level, BlockPos pos, boolean front,
+	public static void withGraphLocation(World level, BlockPos pos, boolean front,
 		BezierTrackPointLocation targetBezier, EdgePointType<?> type,
 		BiConsumer<OverlapResult, TrackGraphLocation> callback) {
 
@@ -192,7 +191,7 @@ public class TrackTargetingBlockItem extends BlockItem {
 			return;
 		}
 
-		List<Vec3> trackAxes = track.getTrackAxes(level, pos, state);
+		List<Vec3d> trackAxes = track.getTrackAxes(level, pos, state);
 		if (targetBezier == null && trackAxes.size() > 1) {
 			callback.accept(OverlapResult.JUNCTION, null);
 			return;

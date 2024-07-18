@@ -7,40 +7,39 @@ import com.mojang.brigadier.context.CommandContext;
 import com.simibubi.create.foundation.utility.Components;
 
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.common.accessor.ClientboundPlayerAbilitiesPacketAccessor;
-
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.network.protocol.game.ClientboundPlayerAbilitiesPacket;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.network.packet.s2c.play.PlayerAbilitiesS2CPacket;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class FlySpeedCommand {
 
-	public static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("flySpeed")
-			.requires(cs -> cs.hasPermission(2))
-			.then(Commands.argument("speed", FloatArgumentType.floatArg(0))
-				.then(Commands.argument("target", EntityArgument.player())
-					.executes(ctx -> sendFlySpeedUpdate(ctx, EntityArgument.getPlayer(ctx, "target"),
+	public static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("flySpeed")
+			.requires(cs -> cs.hasPermissionLevel(2))
+			.then(CommandManager.argument("speed", FloatArgumentType.floatArg(0))
+				.then(CommandManager.argument("target", EntityArgumentType.player())
+					.executes(ctx -> sendFlySpeedUpdate(ctx, EntityArgumentType.getPlayer(ctx, "target"),
 						FloatArgumentType.getFloat(ctx, "speed"))))
 				.executes(ctx -> sendFlySpeedUpdate(ctx, ctx.getSource()
-					.getPlayerOrException(), FloatArgumentType.getFloat(ctx, "speed"))))
-			.then(Commands.literal("reset")
-				.then(Commands.argument("target", EntityArgument.player())
-					.executes(ctx -> sendFlySpeedUpdate(ctx, EntityArgument.getPlayer(ctx, "target"), 0.05f)))
+					.getPlayerOrThrow(), FloatArgumentType.getFloat(ctx, "speed"))))
+			.then(CommandManager.literal("reset")
+				.then(CommandManager.argument("target", EntityArgumentType.player())
+					.executes(ctx -> sendFlySpeedUpdate(ctx, EntityArgumentType.getPlayer(ctx, "target"), 0.05f)))
 				.executes(ctx -> sendFlySpeedUpdate(ctx, ctx.getSource()
-					.getPlayerOrException(), 0.05f))
+					.getPlayerOrThrow(), 0.05f))
 
 			);
 	}
 
-	private static int sendFlySpeedUpdate(CommandContext<CommandSourceStack> ctx, ServerPlayer player, float speed) {
-		ClientboundPlayerAbilitiesPacket packet = new ClientboundPlayerAbilitiesPacket(player.getAbilities());
+	private static int sendFlySpeedUpdate(CommandContext<ServerCommandSource> ctx, ServerPlayerEntity player, float speed) {
+		PlayerAbilitiesS2CPacket packet = new PlayerAbilitiesS2CPacket(player.getAbilities());
 		((ClientboundPlayerAbilitiesPacketAccessor) packet).port_lib$setFlyingSpeed(speed);
-		player.connection.send(packet);
+		player.networkHandler.sendPacket(packet);
 
 		ctx.getSource()
-			.sendSuccess(() -> Components.literal("Temporarily set " + player.getName()
+			.sendFeedback(() -> Components.literal("Temporarily set " + player.getName()
 				.getString() + "'s Flying Speed to: " + speed), true);
 
 		return Command.SINGLE_SUCCESS;

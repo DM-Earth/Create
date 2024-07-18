@@ -22,7 +22,6 @@ import org.jetbrains.annotations.Nullable;
 import com.google.common.base.Predicates;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
@@ -55,69 +54,69 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.registry.LandPathNodeTypesRegistry;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.level.pathfinder.BlockPathTypes;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraft.world.ticks.LevelTickAccess;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.PathNodeType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.EnumProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
+import net.minecraft.world.tick.QueryableTickScheduler;
 
 public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrenchable, ITrackBlock, ISpecialBlockItemRequirement, ProperWaterloggedBlock, ReducedDestroyEffects, MultiPosDestructionHandler {
 
-	public static final EnumProperty<TrackShape> SHAPE = EnumProperty.create("shape", TrackShape.class);
-	public static final BooleanProperty HAS_BE = BooleanProperty.create("turn");
+	public static final EnumProperty<TrackShape> SHAPE = EnumProperty.of("shape", TrackShape.class);
+	public static final BooleanProperty HAS_BE = BooleanProperty.of("turn");
 
 	protected final TrackMaterial material;
 
-	public TrackBlock(Properties p_49795_, TrackMaterial material) {
+	public TrackBlock(Settings p_49795_, TrackMaterial material) {
 		super(p_49795_);
-		registerDefaultState(defaultBlockState().setValue(SHAPE, TrackShape.ZO)
-			.setValue(HAS_BE, false)
-			.setValue(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(SHAPE, TrackShape.ZO)
+			.with(HAS_BE, false)
+			.with(WATERLOGGED, false));
 		this.material = material;
-		LandPathNodeTypesRegistry.register(this, BlockPathTypes.RAIL, null);
+		LandPathNodeTypesRegistry.register(this, PathNodeType.RAIL, null);
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> p_49915_) {
-		super.createBlockStateDefinition(p_49915_.add(SHAPE, HAS_BE, WATERLOGGED));
+	protected void appendProperties(Builder<Block, BlockState> p_49915_) {
+		super.appendProperties(p_49915_.add(SHAPE, HAS_BE, WATERLOGGED));
 	}
 
 	@Override
@@ -126,18 +125,18 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext ctx) {
-		BlockState stateForPlacement = withWater(super.getStateForPlacement(ctx), ctx);
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockState stateForPlacement = withWater(super.getPlacementState(ctx), ctx);
 
 		if (ctx.getPlayer() == null)
 			return stateForPlacement;
 
-		Vec3 lookAngle = ctx.getPlayer()
-			.getLookAngle();
+		Vec3d lookAngle = ctx.getPlayer()
+			.getRotationVector();
 		lookAngle = lookAngle.multiply(1, 0, 1);
-		if (Mth.equal(lookAngle.length(), 0))
-			lookAngle = VecHelper.rotate(new Vec3(0, 0, 1), -ctx.getPlayer()
-				.getYRot(), Axis.Y);
+		if (MathHelper.approximatelyEquals(lookAngle.length(), 0))
+			lookAngle = VecHelper.rotate(new Vec3d(0, 0, 1), -ctx.getPlayer()
+				.getYaw(), Axis.Y);
 
 		lookAngle = lookAngle.normalize();
 
@@ -146,29 +145,29 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 		for (TrackShape shape : TrackShape.values()) {
 			if (shape.isJunction() || shape.isPortal())
 				continue;
-			Vec3 axis = shape.getAxes()
+			Vec3d axis = shape.getAxes()
 				.get(0);
-			double distance = Math.min(axis.distanceToSqr(lookAngle), axis.normalize()
-				.scale(-1)
-				.distanceToSqr(lookAngle));
+			double distance = Math.min(axis.squaredDistanceTo(lookAngle), axis.normalize()
+				.multiply(-1)
+				.squaredDistanceTo(lookAngle));
 			if (distance > bestValue)
 				continue;
 			bestValue = distance;
 			best = shape;
 		}
 
-		Level level = ctx.getLevel();
-		Vec3 bestAxis = best.getAxes()
+		World level = ctx.getWorld();
+		Vec3d bestAxis = best.getAxes()
 			.get(0);
-		if (bestAxis.lengthSqr() == 1)
+		if (bestAxis.lengthSquared() == 1)
 			for (boolean neg : Iterate.trueAndFalse) {
-				BlockPos offset = ctx.getClickedPos()
-					.offset(BlockPos.containing(bestAxis.scale(neg ? -1 : 1)));
+				BlockPos offset = ctx.getBlockPos()
+					.add(BlockPos.ofFloored(bestAxis.multiply(neg ? -1 : 1)));
 
 				if (level.getBlockState(offset)
-					.isFaceSturdy(level, offset, Direction.UP)
-					&& !level.getBlockState(offset.above())
-						.isFaceSturdy(level, offset, Direction.DOWN)) {
+					.isSideSolidFullSquare(level, offset, Direction.UP)
+					&& !level.getBlockState(offset.up())
+						.isSideSolidFullSquare(level, offset, Direction.DOWN)) {
 					if (best == TrackShape.XO)
 						best = neg ? TrackShape.AW : TrackShape.AE;
 					if (best == TrackShape.ZO)
@@ -176,13 +175,13 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 				}
 			}
 
-		return stateForPlacement.setValue(SHAPE, best);
+		return stateForPlacement.with(SHAPE, best);
 	}
 
 	@Override
-	public void playerWillDestroy(Level pLevel, BlockPos pPos, BlockState pState, Player pPlayer) {
-		super.playerWillDestroy(pLevel, pPos, pState, pPlayer);
-		if (pLevel.isClientSide())
+	public void onBreak(World pLevel, BlockPos pPos, BlockState pState, PlayerEntity pPlayer) {
+		super.onBreak(pLevel, pPos, pState, pPlayer);
+		if (pLevel.isClient())
 			return;
 		if (!pPlayer.isCreative())
 			return;
@@ -193,34 +192,34 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 	}
 
 	@Override
-	public void onPlace(BlockState pState, Level pLevel, BlockPos pPos, BlockState pOldState, boolean pIsMoving) {
-		if (pOldState.getBlock() == this && pState.setValue(HAS_BE, true) == pOldState.setValue(HAS_BE, true))
+	public void onBlockAdded(BlockState pState, World pLevel, BlockPos pPos, BlockState pOldState, boolean pIsMoving) {
+		if (pOldState.getBlock() == this && pState.with(HAS_BE, true) == pOldState.with(HAS_BE, true))
 			return;
-		if (pLevel.isClientSide)
+		if (pLevel.isClient)
 			return;
-		LevelTickAccess<Block> blockTicks = pLevel.getBlockTicks();
-		if (!blockTicks.hasScheduledTick(pPos, this))
-			pLevel.scheduleTick(pPos, this, 1);
+		QueryableTickScheduler<Block> blockTicks = pLevel.getBlockTickScheduler();
+		if (!blockTicks.isQueued(pPos, this))
+			pLevel.scheduleBlockTick(pPos, this, 1);
 		updateGirders(pState, pLevel, pPos, blockTicks);
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		withBlockEntityDo(pLevel, pPos, TrackBlockEntity::validateConnections);
 	}
 
 	@Override
-	public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource p_60465_) {
+	public void scheduledTick(BlockState state, ServerWorld level, BlockPos pos, Random p_60465_) {
 		TrackPropagator.onRailAdded(level, pos, state);
 		withBlockEntityDo(level, pos, tbe -> tbe.tilt.undoSmoothing());
-		if (!state.getValue(SHAPE)
+		if (!state.get(SHAPE)
 			.isPortal())
 			connectToPortal(level, pos, state);
 	}
 
-	protected void connectToPortal(ServerLevel level, BlockPos pos, BlockState state) {
-		TrackShape shape = state.getValue(TrackBlock.SHAPE);
+	protected void connectToPortal(ServerWorld level, BlockPos pos, BlockState state) {
+		TrackShape shape = state.get(TrackBlock.SHAPE);
 		Axis portalTest = shape == TrackShape.XO ? Axis.X : shape == TrackShape.ZO ? Axis.Z : null;
 		if (portalTest == null)
 			return;
@@ -230,39 +229,39 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 		BlockPos failPos = null;
 
 		for (Direction d : Iterate.directionsInAxis(portalTest)) {
-			BlockPos portalPos = pos.relative(d);
+			BlockPos portalPos = pos.offset(d);
 			BlockState portalState = level.getBlockState(portalPos);
 			if (!AllPortalTracks.isSupportedPortal(portalState))
 				continue;
 
 			pop = true;
-			Pair<ServerLevel, BlockFace> otherSide = AllPortalTracks.getOtherSide(level, new BlockFace(pos, d));
+			Pair<ServerWorld, BlockFace> otherSide = AllPortalTracks.getOtherSide(level, new BlockFace(pos, d));
 			if (otherSide == null) {
 				fail = "missing";
 				continue;
 			}
 
-			ServerLevel otherLevel = otherSide.getFirst();
+			ServerWorld otherLevel = otherSide.getFirst();
 			BlockFace otherTrack = otherSide.getSecond();
 			BlockPos otherTrackPos = otherTrack.getPos();
 			BlockState existing = otherLevel.getBlockState(otherTrackPos);
-			if (!existing.canBeReplaced()) {
+			if (!existing.isReplaceable()) {
 				fail = "blocked";
 				failPos = otherTrackPos;
 				continue;
 			}
 
-			level.setBlock(pos, state.setValue(SHAPE, TrackShape.asPortal(d))
-				.setValue(HAS_BE, true), 3);
+			level.setBlockState(pos, state.with(SHAPE, TrackShape.asPortal(d))
+				.with(HAS_BE, true), 3);
 			BlockEntity be = level.getBlockEntity(pos);
 			if (be instanceof TrackBlockEntity tbe)
-				tbe.bind(otherLevel.dimension(), otherTrackPos);
+				tbe.bind(otherLevel.getRegistryKey(), otherTrackPos);
 
-			otherLevel.setBlock(otherTrackPos, state.setValue(SHAPE, TrackShape.asPortal(otherTrack.getFace()))
-				.setValue(HAS_BE, true), 3);
+			otherLevel.setBlockState(otherTrackPos, state.with(SHAPE, TrackShape.asPortal(otherTrack.getFace()))
+				.with(HAS_BE, true), 3);
 			BlockEntity otherBE = otherLevel.getBlockEntity(otherTrackPos);
 			if (otherBE instanceof TrackBlockEntity tbe)
-				tbe.bind(level.dimension(), pos);
+				tbe.bind(level.getRegistryKey(), pos);
 
 			pop = false;
 		}
@@ -270,76 +269,76 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 		if (!pop)
 			return;
 
-		level.destroyBlock(pos, true);
+		level.breakBlock(pos, true);
 
 		if (fail == null)
 			return;
-		Player player = level.getNearestPlayer(pos.getX(), pos.getY(), pos.getZ(), 10, Predicates.alwaysTrue());
+		PlayerEntity player = level.getClosestPlayer(pos.getX(), pos.getY(), pos.getZ(), 10, Predicates.alwaysTrue());
 		if (player == null)
 			return;
-		player.displayClientMessage(Components.literal("<!> ")
+		player.sendMessage(Components.literal("<!> ")
 			.append(Lang.translateDirect("portal_track.failed"))
-			.withStyle(ChatFormatting.GOLD), false);
-		MutableComponent component = failPos != null
+			.formatted(Formatting.GOLD), false);
+		MutableText component = failPos != null
 			? Lang.translateDirect("portal_track." + fail, failPos.getX(), failPos.getY(), failPos.getZ())
 			: Lang.translateDirect("portal_track." + fail);
-		player.displayClientMessage(Components.literal(" - ")
-			.withStyle(ChatFormatting.GRAY)
-			.append(component.withStyle(st -> st.withColor(0xFFD3B4))), false);
+		player.sendMessage(Components.literal(" - ")
+			.formatted(Formatting.GRAY)
+			.append(component.styled(st -> st.withColor(0xFFD3B4))), false);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor level, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction pDirection, BlockState pNeighborState,
+		WorldAccess level, BlockPos pCurrentPos, BlockPos pNeighborPos) {
 		updateWater(level, state, pCurrentPos);
-		TrackShape shape = state.getValue(SHAPE);
+		TrackShape shape = state.get(SHAPE);
 		if (!shape.isPortal())
 			return state;
 
 		for (Direction d : Iterate.horizontalDirections) {
-			if (TrackShape.asPortal(d) != state.getValue(SHAPE))
+			if (TrackShape.asPortal(d) != state.get(SHAPE))
 				continue;
 			if (pDirection != d)
 				continue;
 
-			BlockPos portalPos = pCurrentPos.relative(d);
+			BlockPos portalPos = pCurrentPos.offset(d);
 			BlockState portalState = level.getBlockState(portalPos);
 			if (!AllPortalTracks.isSupportedPortal(portalState))
-				return Blocks.AIR.defaultBlockState();
+				return Blocks.AIR.getDefaultState();
 		}
 
 		return state;
 	}
 
 	@Override
-	public int getYOffsetAt(BlockGetter world, BlockPos pos, BlockState state, Vec3 end) {
+	public int getYOffsetAt(BlockView world, BlockPos pos, BlockState state, Vec3d end) {
 		return getBlockEntityOptional(world, pos).map(tbe -> tbe.tilt.getYOffsetForAxisEnd(end))
 			.orElse(0);
 	}
 
 	@Override
-	public Collection<DiscoveredLocation> getConnected(BlockGetter worldIn, BlockPos pos, BlockState state,
+	public Collection<DiscoveredLocation> getConnected(BlockView worldIn, BlockPos pos, BlockState state,
 		boolean linear, TrackNodeLocation connectedTo) {
 		Collection<DiscoveredLocation> list;
-		BlockGetter world = connectedTo != null && worldIn instanceof ServerLevel sl ? sl.getServer()
-			.getLevel(connectedTo.dimension) : worldIn;
+		BlockView world = connectedTo != null && worldIn instanceof ServerWorld sl ? sl.getServer()
+			.getWorld(connectedTo.dimension) : worldIn;
 
 		if (getTrackAxes(world, pos, state).size() > 1) {
-			Vec3 center = Vec3.atBottomCenterOf(pos)
+			Vec3d center = Vec3d.ofBottomCenter(pos)
 				.add(0, getElevationAtCenter(world, pos, state), 0);
-			TrackShape shape = state.getValue(TrackBlock.SHAPE);
+			TrackShape shape = state.get(TrackBlock.SHAPE);
 			list = new ArrayList<>();
-			for (Vec3 axis : getTrackAxes(world, pos, state))
+			for (Vec3d axis : getTrackAxes(world, pos, state))
 				for (boolean fromCenter : Iterate.trueAndFalse)
 					ITrackBlock.addToListIfConnected(connectedTo, list,
-						(d, b) -> axis.scale(b ? 0 : fromCenter ? -d : d)
+						(d, b) -> axis.multiply(b ? 0 : fromCenter ? -d : d)
 							.add(center),
-						b -> shape.getNormal(), b -> world instanceof Level l ? l.dimension() : Level.OVERWORLD, v -> 0,
+						b -> shape.getNormal(), b -> world instanceof World l ? l.getRegistryKey() : World.OVERWORLD, v -> 0,
 						axis, null, (b, v) -> ITrackBlock.getMaterialSimple(world, v));
 		} else
 			list = ITrackBlock.super.getConnected(world, pos, state, linear, connectedTo);
 
-		if (!state.getValue(HAS_BE))
+		if (!state.get(HAS_BE))
 			return list;
 		if (linear)
 			return list;
@@ -350,16 +349,16 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 
 		Map<BlockPos, BezierConnection> connections = trackBE.getConnections();
 		connections.forEach((connectedPos, bc) -> ITrackBlock.addToListIfConnected(connectedTo, list,
-			(d, b) -> d == 1 ? Vec3.atLowerCornerOf(bc.tePositions.get(b)) : bc.starts.get(b), bc.normals::get,
-			b -> world instanceof Level l ? l.dimension() : Level.OVERWORLD, bc::yOffsetAt, null, bc,
+			(d, b) -> d == 1 ? Vec3d.of(bc.tePositions.get(b)) : bc.starts.get(b), bc.normals::get,
+			b -> world instanceof World l ? l.getRegistryKey() : World.OVERWORLD, bc::yOffsetAt, null, bc,
 			(b, v) -> ITrackBlock.getMaterialSimple(world, v, bc.getMaterial())));
 
-		if (trackBE.boundLocation == null || !(world instanceof ServerLevel level))
+		if (trackBE.boundLocation == null || !(world instanceof ServerWorld level))
 			return list;
 
-		ResourceKey<Level> otherDim = trackBE.boundLocation.getFirst();
-		ServerLevel otherLevel = level.getServer()
-			.getLevel(otherDim);
+		RegistryKey<World> otherDim = trackBE.boundLocation.getFirst();
+		ServerWorld otherLevel = level.getServer()
+			.getWorld(otherDim);
 		if (otherLevel == null)
 			return list;
 		BlockPos boundPos = trackBE.boundLocation.getSecond();
@@ -367,29 +366,29 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 		if (!AllTags.AllBlockTags.TRACKS.matches(boundState))
 			return list;
 
-		Vec3 center = Vec3.atBottomCenterOf(pos)
+		Vec3d center = Vec3d.ofBottomCenter(pos)
 			.add(0, getElevationAtCenter(world, pos, state), 0);
-		Vec3 boundCenter = Vec3.atBottomCenterOf(boundPos)
+		Vec3d boundCenter = Vec3d.ofBottomCenter(boundPos)
 			.add(0, getElevationAtCenter(otherLevel, boundPos, boundState), 0);
-		TrackShape shape = state.getValue(TrackBlock.SHAPE);
-		TrackShape boundShape = boundState.getValue(TrackBlock.SHAPE);
-		Vec3 boundAxis = getTrackAxes(otherLevel, boundPos, boundState).get(0);
+		TrackShape shape = state.get(TrackBlock.SHAPE);
+		TrackShape boundShape = boundState.get(TrackBlock.SHAPE);
+		Vec3d boundAxis = getTrackAxes(otherLevel, boundPos, boundState).get(0);
 
 		getTrackAxes(world, pos, state).forEach(axis -> {
-			ITrackBlock.addToListIfConnected(connectedTo, list, (d, b) -> (b ? axis : boundAxis).scale(d)
+			ITrackBlock.addToListIfConnected(connectedTo, list, (d, b) -> (b ? axis : boundAxis).multiply(d)
 				.add(b ? center : boundCenter), b -> (b ? shape : boundShape).getNormal(),
-				b -> b ? level.dimension() : otherLevel.dimension(), v -> 0, axis, null,
+				b -> b ? level.getRegistryKey() : otherLevel.getRegistryKey(), v -> 0, axis, null,
 				(b, v) -> ITrackBlock.getMaterialSimple(b ? level : otherLevel, v));
 		});
 
 		return list;
 	}
 
-	public void animateTick(BlockState pState, Level pLevel, BlockPos pPos, RandomSource pRand) {
-		if (!pState.getValue(SHAPE)
+	public void randomDisplayTick(BlockState pState, World pLevel, BlockPos pPos, Random pRand) {
+		if (!pState.get(SHAPE)
 			.isPortal())
 			return;
-		Vec3 v = Vec3.atLowerCornerOf(pPos)
+		Vec3d v = Vec3d.of(pPos)
 			.subtract(.125f, 0, .125f);
 		CubeParticleData data =
 			new CubeParticleData(1, pRand.nextFloat(), 1, .0125f + .0625f * pRand.nextFloat(), 30, false);
@@ -398,77 +397,77 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 	}
 
 	@Override
-	public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
+	public void onStateReplaced(BlockState pState, World pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
 		boolean removeBE = false;
-		if (pState.getValue(HAS_BE) && (!pState.is(pNewState.getBlock()) || !pNewState.getValue(HAS_BE))) {
+		if (pState.get(HAS_BE) && (!pState.isOf(pNewState.getBlock()) || !pNewState.get(HAS_BE))) {
 			BlockEntity blockEntity = pLevel.getBlockEntity(pPos);
-			if (blockEntity instanceof TrackBlockEntity tbe && !pLevel.isClientSide) {
+			if (blockEntity instanceof TrackBlockEntity tbe && !pLevel.isClient) {
 				tbe.cancelDrops |= pNewState.getBlock() == this;
 				tbe.removeInboundConnections(true);
 			}
 			removeBE = true;
 		}
 
-		if (pNewState.getBlock() != this || pState.setValue(HAS_BE, true) != pNewState.setValue(HAS_BE, true))
+		if (pNewState.getBlock() != this || pState.with(HAS_BE, true) != pNewState.with(HAS_BE, true))
 			TrackPropagator.onRailRemoved(pLevel, pPos, pState);
 		if (removeBE)
 			pLevel.removeBlockEntity(pPos);
-		if (!pLevel.isClientSide)
-			updateGirders(pState, pLevel, pPos, pLevel.getBlockTicks());
+		if (!pLevel.isClient)
+			updateGirders(pState, pLevel, pPos, pLevel.getBlockTickScheduler());
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult hit) {
 
-		if (world.isClientSide)
-			return InteractionResult.SUCCESS;
-		for (Entry<BlockPos, BoundingBox> entry : StationBlockEntity.assemblyAreas.get(world)
+		if (world.isClient)
+			return ActionResult.SUCCESS;
+		for (Entry<BlockPos, BlockBox> entry : StationBlockEntity.assemblyAreas.get(world)
 			.entrySet()) {
 			if (!entry.getValue()
-				.isInside(pos))
+				.contains(pos))
 				continue;
 			if (world.getBlockEntity(entry.getKey()) instanceof StationBlockEntity station)
 				if (station.trackClicked(player, hand, this, state, pos))
-					return InteractionResult.SUCCESS;
+					return ActionResult.SUCCESS;
 		}
 
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
-	private void updateGirders(BlockState pState, Level pLevel, BlockPos pPos, LevelTickAccess<Block> blockTicks) {
-		for (Vec3 vec3 : getTrackAxes(pLevel, pPos, pState)) {
+	private void updateGirders(BlockState pState, World pLevel, BlockPos pPos, QueryableTickScheduler<Block> blockTicks) {
+		for (Vec3d vec3 : getTrackAxes(pLevel, pPos, pState)) {
 			if (vec3.length() > 1 || vec3.y != 0)
 				continue;
 			for (int side : Iterate.positiveAndNegative) {
-				BlockPos girderPos = pPos.below()
-					.offset(BlockPos.containing(vec3.z * side, 0, vec3.x * side));
+				BlockPos girderPos = pPos.down()
+					.add(BlockPos.ofFloored(vec3.z * side, 0, vec3.x * side));
 				BlockState girderState = pLevel.getBlockState(girderPos);
 				if (girderState.getBlock() instanceof GirderBlock girderBlock
-					&& !blockTicks.hasScheduledTick(girderPos, girderBlock))
-					pLevel.scheduleTick(girderPos, girderBlock, 1);
+					&& !blockTicks.isQueued(girderPos, girderBlock))
+					pLevel.scheduleBlockTick(girderPos, girderBlock, 1);
 			}
 		}
 	}
 
 	@Override
-	public boolean canSurvive(BlockState state, LevelReader reader, BlockPos pos) {
-		return reader.getBlockState(pos.below())
+	public boolean canPlaceAt(BlockState state, WorldView reader, BlockPos pos) {
+		return reader.getBlockState(pos.down())
 			.getBlock() != this;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter p_60556_, BlockPos p_60557_, CollisionContext p_60558_) {
+	public VoxelShape getOutlineShape(BlockState state, BlockView p_60556_, BlockPos p_60557_, ShapeContext p_60558_) {
 		return getFullShape(state);
 	}
 
 	@Override
-	public VoxelShape getInteractionShape(BlockState state, BlockGetter pLevel, BlockPos pPos) {
+	public VoxelShape getRaycastShape(BlockState state, BlockView pLevel, BlockPos pPos) {
 		return getFullShape(state);
 	}
 
 	private VoxelShape getFullShape(BlockState state) {
-		switch (state.getValue(SHAPE)) {
+		switch (state.get(SHAPE)) {
 		case AE:
 			return TRACK_ASC.get(Direction.EAST);
 		case AW:
@@ -512,19 +511,19 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 	}
 
 	@Override
-	public VoxelShape getCollisionShape(BlockState pState, BlockGetter pLevel, BlockPos pPos,
-		CollisionContext pContext) {
-		switch (pState.getValue(SHAPE)) {
+	public VoxelShape getCollisionShape(BlockState pState, BlockView pLevel, BlockPos pPos,
+		ShapeContext pContext) {
+		switch (pState.get(SHAPE)) {
 		case AE, AW, AN, AS:
-			return Shapes.empty();
+			return VoxelShapes.empty();
 		default:
 			return AllShapes.TRACK_COLLISION;
 		}
 	}
 
 	@Override
-	public BlockEntity newBlockEntity(BlockPos p_153215_, BlockState state) {
-		if (!state.getValue(HAS_BE))
+	public BlockEntity createBlockEntity(BlockPos p_153215_, BlockState state) {
+		if (!state.get(HAS_BE))
 			return null;
 		return AllBlockEntityTypes.TRACK.create(p_153215_, state);
 	}
@@ -540,36 +539,36 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 	}
 
 	@Override
-	public Vec3 getUpNormal(BlockGetter world, BlockPos pos, BlockState state) {
-		return state.getValue(SHAPE)
+	public Vec3d getUpNormal(BlockView world, BlockPos pos, BlockState state) {
+		return state.get(SHAPE)
 			.getNormal();
 	}
 
 	@Override
-	public List<Vec3> getTrackAxes(BlockGetter world, BlockPos pos, BlockState state) {
-		return state.getValue(SHAPE)
+	public List<Vec3d> getTrackAxes(BlockView world, BlockPos pos, BlockState state) {
+		return state.get(SHAPE)
 			.getAxes();
 	}
 
 	@Override
-	public Vec3 getCurveStart(BlockGetter world, BlockPos pos, BlockState state, Vec3 axis) {
+	public Vec3d getCurveStart(BlockView world, BlockPos pos, BlockState state, Vec3d axis) {
 		boolean vertical = axis.y != 0;
 		return VecHelper.getCenterOf(pos)
 			.add(0, (vertical ? 0 : -.5f), 0)
-			.add(axis.scale(.5));
+			.add(axis.multiply(.5));
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		return InteractionResult.SUCCESS;
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
-	public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
-		Player player = context.getPlayer();
-		Level level = context.getLevel();
-		if (!level.isClientSide && !player.isCreative() && state.getValue(HAS_BE)) {
-			BlockEntity blockEntity = level.getBlockEntity(context.getClickedPos());
+	public ActionResult onSneakWrenched(BlockState state, ItemUsageContext context) {
+		PlayerEntity player = context.getPlayer();
+		World level = context.getWorld();
+		if (!level.isClient && !player.isCreative() && state.get(HAS_BE)) {
+			BlockEntity blockEntity = level.getBlockEntity(context.getBlockPos());
 			if (blockEntity instanceof TrackBlockEntity trackBE) {
 				trackBE.cancelDrops = true;
 				trackBE.connections.values()
@@ -581,12 +580,12 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 	}
 
 	@Override
-	public BlockState overlay(BlockGetter world, BlockPos pos, BlockState existing, BlockState placed) {
+	public BlockState overlay(BlockView world, BlockPos pos, BlockState existing, BlockState placed) {
 		if (placed.getBlock() != this)
 			return existing;
 
-		TrackShape existingShape = existing.getValue(SHAPE);
-		TrackShape placedShape = placed.getValue(SHAPE);
+		TrackShape existingShape = existing.get(SHAPE);
+		TrackShape placedShape = placed.get(SHAPE);
 		TrackShape combinedShape = null;
 
 		for (boolean flip : Iterate.trueAndFalse) {
@@ -607,32 +606,32 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 		}
 
 		if (combinedShape != null)
-			existing = existing.setValue(SHAPE, combinedShape);
+			existing = existing.with(SHAPE, combinedShape);
 		return existing;
 	}
 
 	@Override
-	public BlockState rotate(BlockState state, Rotation pRotation) {
-		return state.setValue(SHAPE, state.getValue(SHAPE)
+	public BlockState rotate(BlockState state, BlockRotation pRotation) {
+		return state.with(SHAPE, state.get(SHAPE)
 			.rotate(pRotation));
 	}
 
 	@Override
-	public BlockState mirror(BlockState state, Mirror pMirror) {
-		return state.setValue(SHAPE, state.getValue(SHAPE)
+	public BlockState mirror(BlockState state, BlockMirror pMirror) {
+		return state.with(SHAPE, state.get(SHAPE)
 			.mirror(pMirror));
 	}
 
 	@Override
-	public BlockState getBogeyAnchor(BlockGetter world, BlockPos pos, BlockState state) {
+	public BlockState getBogeyAnchor(BlockView world, BlockPos pos, BlockState state) {
 		return AllBlocks.SMALL_BOGEY.getDefaultState()
-			.setValue(BlockStateProperties.HORIZONTAL_AXIS, state.getValue(SHAPE) == TrackShape.XO ? Axis.X : Axis.Z);
+			.with(Properties.HORIZONTAL_AXIS, state.get(SHAPE) == TrackShape.XO ? Axis.X : Axis.Z);
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public PartialModel prepareAssemblyOverlay(BlockGetter world, BlockPos pos, BlockState state, Direction direction,
-		PoseStack ms) {
+	public PartialModel prepareAssemblyOverlay(BlockView world, BlockPos pos, BlockState state, Direction direction,
+		MatrixStack ms) {
 		TransformStack.cast(ms)
 			.rotateCentered(Direction.UP, AngleHelper.rad(AngleHelper.horizontalAngle(direction)));
 		return AllPartialModels.TRACK_ASSEMBLING_OVERLAY;
@@ -640,19 +639,19 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public PartialModel prepareTrackOverlay(BlockGetter world, BlockPos pos, BlockState state,
-		BezierTrackPointLocation bezierPoint, AxisDirection direction, PoseStack ms, RenderedTrackOverlayType type) {
+	public PartialModel prepareTrackOverlay(BlockView world, BlockPos pos, BlockState state,
+		BezierTrackPointLocation bezierPoint, AxisDirection direction, MatrixStack ms, RenderedTrackOverlayType type) {
 		TransformStack msr = TransformStack.cast(ms);
 
-		Vec3 axis = null;
-		Vec3 diff = null;
-		Vec3 normal = null;
-		Vec3 offset = null;
+		Vec3d axis = null;
+		Vec3d diff = null;
+		Vec3d normal = null;
+		Vec3d offset = null;
 
 		if (bezierPoint != null && world.getBlockEntity(pos) instanceof TrackBlockEntity trackBE) {
 			BezierConnection bc = trackBE.connections.get(bezierPoint.curveTarget());
 			if (bc != null) {
-				double length = Mth.floor(bc.getLength() * 2);
+				double length = MathHelper.floor(bc.getLength() * 2);
 				int seg = bezierPoint.segment() + 1;
 				double t = seg / length;
 				double tpre = (seg - 1) / length;
@@ -664,22 +663,22 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 					.subtract(bc.getPosition(tpre))
 					.normalize();
 
-				msr.translate(offset.subtract(Vec3.atBottomCenterOf(pos)));
+				msr.translate(offset.subtract(Vec3d.ofBottomCenter(pos)));
 				msr.translate(0, -4 / 16f, 0);
 			} else
 				return null;
 		}
 
 		if (normal == null) {
-			axis = state.getValue(SHAPE)
+			axis = state.get(SHAPE)
 				.getAxes()
 				.get(0);
-			diff = axis.scale(direction.getStep())
+			diff = axis.multiply(direction.offset())
 				.normalize();
 			normal = getUpNormal(world, pos, state);
 		}
 
-		Vec3 angles = TrackRenderer.getModelAngles(normal, diff);
+		Vec3d angles = TrackRenderer.getModelAngles(normal, diff);
 
 		msr.centre()
 			.rotateYRadians(angles.y)
@@ -687,11 +686,11 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 			.unCentre();
 
 		if (axis != null)
-			msr.translate(0, axis.y != 0 ? 7 / 16f : 0, axis.y != 0 ? direction.getStep() * 2.5f / 16f : 0);
+			msr.translate(0, axis.y != 0 ? 7 / 16f : 0, axis.y != 0 ? direction.offset() * 2.5f / 16f : 0);
 		else {
 			msr.translate(0, 4 / 16f, 0);
 			if (direction == AxisDirection.NEGATIVE)
-				msr.rotateCentered(Direction.UP, Mth.PI);
+				msr.rotateCentered(Direction.UP, MathHelper.PI);
 		}
 
 		if (bezierPoint == null && world.getBlockEntity(pos) instanceof TrackBlockEntity trackTE
@@ -700,7 +699,7 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 			for (BezierConnection bc : trackTE.connections.values())
 				yOffset += bc.starts.getFirst().y - pos.getY();
 			msr.centre()
-				.rotateX(-direction.getStep() * trackTE.tilt.smoothingAngle.get())
+				.rotateX(-direction.offset() * trackTE.tilt.smoothingAngle.get())
 				.unCentre()
 				.translate(0, yOffset / 2, 0);
 		}
@@ -716,7 +715,7 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 	@Override
 	public boolean trackEquals(BlockState state1, BlockState state2) {
 		return state1.getBlock() == this && state2.getBlock() == this
-			&& state1.setValue(HAS_BE, false) == state2.setValue(HAS_BE, false);
+			&& state1.with(HAS_BE, false) == state2.with(HAS_BE, false);
 	}
 
 	@Override
@@ -769,7 +768,7 @@ public class TrackBlock extends Block implements IBE<TrackBlockEntity>, IWrencha
 		@Override
 		@Nullable
 		@Environment(EnvType.CLIENT)
-		public Set<BlockPos> getExtraPositions(ClientLevel level, BlockPos pos, BlockState blockState,
+		public Set<BlockPos> getExtraPositions(ClientWorld level, BlockPos pos, BlockState blockState,
 											   int progress) {
 			BlockEntity blockEntity = level.getBlockEntity(pos);
 			if (blockEntity instanceof TrackBlockEntity track) {

@@ -2,8 +2,7 @@ package com.simibubi.create.content.contraptions.piston;
 
 import com.jozufozu.flywheel.util.box.GridAlignedBB;
 import com.simibubi.create.content.contraptions.render.ContraptionLighter;
-
-import net.minecraft.core.Vec3i;
+import net.minecraft.util.math.Vec3i;
 
 public class PistonLighter extends ContraptionLighter<PistonContraption> {
     public PistonLighter(PistonContraption contraption) {
@@ -16,7 +15,7 @@ public class PistonLighter extends ContraptionLighter<PistonContraption> {
         bounds.translate(contraption.anchor);
 
         int length = contraption.extensionLength;
-        Vec3i direction = contraption.orientation.getNormal();
+        Vec3i direction = contraption.orientation.getVector();
 
         int shift = length / 2;
         int shiftX = direction.getX() * shift;

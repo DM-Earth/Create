@@ -2,13 +2,12 @@ package com.simibubi.create.foundation.blockEntity;
 
 import io.github.fabricators_of_create.porting_lib.transfer.fluid.FluidTank;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-
 import javax.annotation.Nullable;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public interface IMultiBlockEntityContainer {
 
@@ -31,17 +30,17 @@ public interface IMultiBlockEntityContainer {
 	// multiblock structural information
 	Direction.Axis getMainConnectionAxis();
 	default Direction.Axis getMainAxisOf (BlockEntity be) { // this feels redundant, but it gives us a default to use when defining ::getMainConnectionAxis
-		BlockState state = be.getBlockState();
+		BlockState state = be.getCachedState();
 
 		Direction.Axis axis;
-		if (state.hasProperty(BlockStateProperties.HORIZONTAL_AXIS)) {
-			axis = state.getValue(BlockStateProperties.HORIZONTAL_AXIS);
+		if (state.contains(Properties.HORIZONTAL_AXIS)) {
+			axis = state.get(Properties.HORIZONTAL_AXIS);
 		}
-		else if (state.hasProperty(BlockStateProperties.FACING)) {
-			axis = state.getValue(BlockStateProperties.FACING).getAxis();
+		else if (state.contains(Properties.FACING)) {
+			axis = state.get(Properties.FACING).getAxis();
 		}
-		else if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
-			axis = state.getValue(BlockStateProperties.HORIZONTAL_FACING).getAxis();
+		else if (state.contains(Properties.HORIZONTAL_FACING)) {
+			axis = state.get(Properties.HORIZONTAL_FACING).getAxis();
 		}
 		else axis = Direction.Axis.Y;
 

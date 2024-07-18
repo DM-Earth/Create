@@ -6,8 +6,6 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.equipment.blueprint.BlueprintEntity.BlueprintCraftingInventory;
@@ -31,26 +29,24 @@ import net.fabricmc.fabric.api.transfer.v1.item.PlayerInventoryStorage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.ResourceAmount;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.level.GameType;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.HitResult.Type;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.Window;
+import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.hit.HitResult.Type;
+import net.minecraft.world.GameMode;
 
 public class BlueprintOverlayRenderer {
 
@@ -66,17 +62,17 @@ public class BlueprintOverlayRenderer {
 	static boolean resultCraftable = false;
 
 	public static void tick() {
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 
 		BlueprintSection last = lastTargetedSection;
 		lastTargetedSection = null;
 		active = false;
 		noOutput = false;
 
-		if (mc.gameMode.getPlayerMode() == GameType.SPECTATOR)
+		if (mc.interactionManager.getCurrentGameMode() == GameMode.SPECTATOR)
 			return;
 
-		HitResult mouseOver = mc.hitResult;
+		HitResult mouseOver = mc.crosshairTarget;
 		if (mouseOver == null)
 			return;
 		if (mouseOver.getType() != Type.ENTITY)
@@ -87,13 +83,13 @@ public class BlueprintOverlayRenderer {
 			return;
 
 		BlueprintEntity blueprintEntity = (BlueprintEntity) entityRay.getEntity();
-		BlueprintSection sectionAt = blueprintEntity.getSectionAt(entityRay.getLocation()
-			.subtract(blueprintEntity.position()));
+		BlueprintSection sectionAt = blueprintEntity.getSectionAt(entityRay.getPos()
+			.subtract(blueprintEntity.getPos()));
 
 		lastTargetedSection = last;
 		active = true;
 
-		boolean sneak = mc.player.isShiftKeyDown();
+		boolean sneak = mc.player.isSneaking();
 		if (sectionAt != lastTargetedSection || AnimationTickHolder.getTicks() % 10 == 0 || lastSneakState != sneak)
 			rebuild(sectionAt, sneak);
 
@@ -144,7 +140,7 @@ public class BlueprintOverlayRenderer {
 
 		boolean firstPass = true;
 		boolean success = true;
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 		PlayerInventoryStorage playerInv = PlayerInventoryStorage.of(mc.player);
 
 		int amountCrafted = 0;
@@ -171,7 +167,7 @@ public class BlueprintOverlayRenderer {
 					}
 
 					ResourceAmount<ItemVariant> resource = StorageUtil.findExtractableContent(
-							playerInv, v -> requestedItem.test(mc.level, v.toStack()), t);
+							playerInv, v -> requestedItem.test(mc.world, v.toStack()), t);
 					if (resource != null) {
 						ItemStack currentItem = resource.resource().toStack(1);
 						craftingGrid.put(i, currentItem);
@@ -184,12 +180,12 @@ public class BlueprintOverlayRenderer {
 				}
 
 				if (success) {
-					CraftingContainer craftingInventory = new BlueprintCraftingInventory(craftingGrid);
+					RecipeInputInventory craftingInventory = new BlueprintCraftingInventory(craftingGrid);
 					if (!recipe.isPresent())
-						recipe = mc.level.getRecipeManager()
-								.getRecipeFor(RecipeType.CRAFTING, craftingInventory, mc.level);
-					ItemStack resultFromRecipe = recipe.filter(r -> r.matches(craftingInventory, mc.level))
-							.map(r -> r.assemble(craftingInventory, mc.level.registryAccess()))
+						recipe = mc.world.getRecipeManager()
+								.getFirstMatch(RecipeType.CRAFTING, craftingInventory, mc.world);
+					ItemStack resultFromRecipe = recipe.filter(r -> r.matches(craftingInventory, mc.world))
+							.map(r -> r.craft(craftingInventory, mc.world.getRegistryManager()))
 							.orElse(ItemStack.EMPTY);
 
 					if (resultFromRecipe.isEmpty()) {
@@ -203,7 +199,7 @@ public class BlueprintOverlayRenderer {
 						if (result.isEmpty())
 							result = resultFromRecipe.copy();
 						else
-							result.grow(resultFromRecipe.getCount());
+							result.increment(resultFromRecipe.getCount());
 						resultCraftable = true;
 						firstPass = false;
 					}
@@ -243,9 +239,9 @@ public class BlueprintOverlayRenderer {
 		}
 	}
 
-	public static void renderOverlay(GuiGraphics graphics, float partialTicks, Window window) {
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.options.hideGui)
+	public static void renderOverlay(DrawContext graphics, float partialTicks, Window window) {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc.options.hudHidden)
 			return;
 		if (!active || empty)
 			return;
@@ -255,14 +251,14 @@ public class BlueprintOverlayRenderer {
 		if (!noOutput)
 			w += 51;
 
-		int x = (window.getGuiScaledWidth() - w) / 2;
-		int y = (int) (window.getGuiScaledHeight() - 100);
+		int x = (window.getScaledWidth() - w) / 2;
+		int y = (int) (window.getScaledHeight() - 100);
 
 		for (Pair<ItemStack, Boolean> pair : ingredients) {
 			RenderSystem.enableBlend();
 			(pair.getSecond() ? AllGuiTextures.HOTSLOT_ACTIVE : AllGuiTextures.HOTSLOT).render(graphics, x, y);
 			ItemStack itemStack = pair.getFirst();
-			String count = pair.getSecond() ? null : ChatFormatting.GOLD.toString() + itemStack.getCount();
+			String count = pair.getSecond() ? null : Formatting.GOLD.toString() + itemStack.getCount();
 			drawItemStack(graphics, mc, x, y, itemStack, count);
 			x += 21;
 		}
@@ -288,9 +284,9 @@ public class BlueprintOverlayRenderer {
 		RenderSystem.disableBlend();
 	}
 
-	public static void drawItemStack(GuiGraphics graphics, Minecraft mc, int x, int y, ItemStack itemStack, String count) {
+	public static void drawItemStack(DrawContext graphics, MinecraftClient mc, int x, int y, ItemStack itemStack, String count) {
 		if (itemStack.getItem() instanceof FilterItem) {
-			int step = AnimationTickHolder.getTicks(mc.level) / 10;
+			int step = AnimationTickHolder.getTicks(mc.world) / 10;
 			ItemStack[] itemsMatchingFilter = getItemsMatchingFilter(itemStack);
 			if (itemsMatchingFilter.length > 0)
 				itemStack = itemsMatchingFilter[step % itemsMatchingFilter.length];
@@ -299,12 +295,12 @@ public class BlueprintOverlayRenderer {
 		GuiGameElement.of(itemStack)
 			.at(x + 3, y + 3)
 			.render(graphics);
-		graphics.renderItemDecorations(mc.font, itemStack, x + 3, y + 3, count);
+		graphics.drawItemInSlot(mc.textRenderer, itemStack, x + 3, y + 3, count);
 	}
 
 	private static ItemStack[] getItemsMatchingFilter(ItemStack filter) {
 		return cachedRenderedFilters.computeIfAbsent(filter, itemStack -> {
-			CompoundTag tag = itemStack.getOrCreateTag();
+			NbtCompound tag = itemStack.getOrCreateNbt();
 
 			if (AllItems.FILTER.isIn(itemStack) && !tag.getBoolean("Blacklist")) {
 				ItemStackHandler filterItems = FilterItem.getFilterItems(itemStack);
@@ -319,12 +315,12 @@ public class BlueprintOverlayRenderer {
 
 			if (AllItems.ATTRIBUTE_FILTER.isIn(itemStack)) {
 				WhitelistMode whitelistMode = WhitelistMode.values()[tag.getInt("WhitelistMode")];
-				ListTag attributes = tag.getList("MatchedAttributes", net.minecraft.nbt.Tag.TAG_COMPOUND);
+				NbtList attributes = tag.getList("MatchedAttributes", net.minecraft.nbt.NbtElement.COMPOUND_TYPE);
 				if (whitelistMode == WhitelistMode.WHITELIST_DISJ && attributes.size() == 1) {
-					ItemAttribute fromNBT = ItemAttribute.fromNBT((CompoundTag) attributes.get(0));
+					ItemAttribute fromNBT = ItemAttribute.fromNBT((NbtCompound) attributes.get(0));
 					if (fromNBT instanceof ItemAttribute.InTag inTag) {
 						List<ItemStack> stacks = new ArrayList<>();
-						for (Holder<Item> holder : BuiltInRegistries.ITEM.getTagOrEmpty(inTag.tag)) {
+						for (RegistryEntry<Item> holder : Registries.ITEM.iterateEntries(inTag.tag)) {
 							stacks.add(new ItemStack(holder.value()));
 						}
 						return stacks.toArray(ItemStack[]::new);

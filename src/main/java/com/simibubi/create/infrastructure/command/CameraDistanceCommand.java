@@ -4,18 +4,17 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.simibubi.create.AllPackets;
-
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class CameraDistanceCommand {
 
-	public static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("camera")
-				.then(Commands.literal("reset")
+	public static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("camera")
+				.then(CommandManager.literal("reset")
 						.executes(ctx -> {
-							ServerPlayer player = ctx.getSource().getPlayerOrException();
+							ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 							AllPackets.getChannel().sendToClient(
 									new SConfigureConfigPacket(SConfigureConfigPacket.Actions.zoomMultiplier.name(), "1"),
 									player
@@ -23,10 +22,10 @@ public class CameraDistanceCommand {
 
 							return Command.SINGLE_SUCCESS;
 						})
-				).then(Commands.argument("multiplier", FloatArgumentType.floatArg(0))
+				).then(CommandManager.argument("multiplier", FloatArgumentType.floatArg(0))
 						.executes(ctx -> {
 							float multiplier = FloatArgumentType.getFloat(ctx, "multiplier");
-							ServerPlayer player = ctx.getSource().getPlayerOrException();
+							ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 							AllPackets.getChannel().sendToClient(
 									new SConfigureConfigPacket(SConfigureConfigPacket.Actions.zoomMultiplier.name(), String.valueOf(multiplier)),
 									player

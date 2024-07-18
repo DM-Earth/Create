@@ -1,9 +1,6 @@
 package com.simibubi.create.compat.rei.category;
 
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.simibubi.create.compat.rei.category.animations.AnimatedKinetics;
 import com.simibubi.create.compat.rei.display.CreateDisplay;
 import com.simibubi.create.content.kinetics.deployer.ItemApplicationRecipe;
@@ -17,12 +14,14 @@ import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.client.util.ClientEntryStacks;
 import me.shedaniel.rei.api.common.entry.EntryIngredient;
 import me.shedaniel.rei.api.common.util.EntryIngredients;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.RotationAxis;
 
 public class ItemApplicationCategory extends CreateRecipeCategory<ItemApplicationRecipe> {
 
@@ -42,7 +41,7 @@ public class ItemApplicationCategory extends CreateRecipeCategory<ItemApplicatio
 		ClientEntryStacks.setTooltipProcessor(slot.getCurrentEntry(), (entryStack, tooltip) -> {
 			if (display.getRecipe().shouldKeepHeldItem())
 					tooltip.add(Lang.translateDirect("recipe.deploying.not_consumed")
-					.withStyle(ChatFormatting.GOLD));
+					.formatted(Formatting.GOLD));
 			return tooltip;
 		});
 		ingredients.add(slot);
@@ -57,7 +56,7 @@ public class ItemApplicationCategory extends CreateRecipeCategory<ItemApplicatio
 	}
 
 	@Override
-	public void draw(ItemApplicationRecipe recipe, CreateDisplay<ItemApplicationRecipe> display, GuiGraphics graphics,
+	public void draw(ItemApplicationRecipe recipe, CreateDisplay<ItemApplicationRecipe> display, DrawContext graphics,
 		double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SLOT.render(graphics, 50, 4);
 		AllGuiTextures.JEI_SLOT.render(graphics, 26, 37);
@@ -74,13 +73,13 @@ public class ItemApplicationCategory extends CreateRecipeCategory<ItemApplicatio
 			return;
 
 		BlockState state = blockItem.getBlock()
-			.defaultBlockState();
+			.getDefaultState();
 
-		PoseStack matrixStack = graphics.pose();
-		matrixStack.pushPose();
+		MatrixStack matrixStack = graphics.getMatrices();
+		matrixStack.push();
 		matrixStack.translate(74, 51, 100);
-		matrixStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
-		matrixStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 		int scale = 20;
 
 		GuiGameElement.of(state)
@@ -88,7 +87,7 @@ public class ItemApplicationCategory extends CreateRecipeCategory<ItemApplicatio
 			.scale(scale)
 			.render(graphics);
 
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 }

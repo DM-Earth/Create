@@ -11,28 +11,28 @@ import com.simibubi.create.infrastructure.debugInfo.element.DebugInfoSection;
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DyeColor;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.DyeColor;
 
 public class ServerDebugInfoPacket extends SimplePacketBase {
 
 	private final List<DebugInfoSection> serverInfo;
-	private final Player player;
+	private final PlayerEntity player;
 
-	public ServerDebugInfoPacket(Player player) {
+	public ServerDebugInfoPacket(PlayerEntity player) {
 		this.serverInfo = DebugInformation.getServerInfo();
 		this.player = player;
 	}
 
-	public ServerDebugInfoPacket(FriendlyByteBuf buffer) {
+	public ServerDebugInfoPacket(PacketByteBuf buffer) {
 		this.serverInfo = buffer.readList(DebugInfoSection::readDirect);
 		this.player = null;
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeCollection(this.serverInfo, (buf, section) -> section.write(player, buf));
 	}
 
@@ -42,7 +42,7 @@ public class ServerDebugInfoPacket extends SimplePacketBase {
 		return true;
 	}
 
-	private void printInfo(String side, Player player, List<DebugInfoSection> sections, StringBuilder output) {
+	private void printInfo(String side, PlayerEntity player, List<DebugInfoSection> sections, StringBuilder output) {
 		output.append("<details>");
 		output.append('\n');
 		output.append("<summary>")
@@ -72,7 +72,7 @@ public class ServerDebugInfoPacket extends SimplePacketBase {
 
 	@Environment(EnvType.CLIENT)
 	private void handleOnClient() {
-		Player player = Objects.requireNonNull(Minecraft.getInstance().player);
+		PlayerEntity player = Objects.requireNonNull(MinecraftClient.getInstance().player);
 		StringBuilder output = new StringBuilder();
 		List<DebugInfoSection> clientInfo = DebugInformation.getClientInfo();
 
@@ -81,7 +81,7 @@ public class ServerDebugInfoPacket extends SimplePacketBase {
 		printInfo("Server", player, serverInfo, output);
 
 		String text = output.toString();
-		Minecraft.getInstance().keyboardHandler.setClipboard(text);
+		MinecraftClient.getInstance().keyboard.setClipboard(text);
 		Lang.translate("command.debuginfo.saved_to_clipboard")
 			.color(DyeHelper.DYE_TABLE.get(DyeColor.LIME)
 				.getFirst())

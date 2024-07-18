@@ -1,25 +1,23 @@
 package com.simibubi.create.foundation.utility;
 
-import net.minecraft.core.Registry;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.EntityType;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.item.Item;
+import net.minecraft.particle.ParticleType;
+import net.minecraft.potion.Potion;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
-
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.material.Fluid;
 
 public final class RegisteredObjects {
 	// registry argument for easier porting to 1.19
 	@NotNull
-	public static <V> ResourceLocation getKeyOrThrow(Registry<V> registry, V value) {
-		ResourceLocation key = registry.getKey(value);
+	public static <V> Identifier getKeyOrThrow(Registry<V> registry, V value) {
+		Identifier key = registry.getId(value);
 		if (key == null) {
 			throw new IllegalArgumentException("Could not get key for value " + value + "!");
 		}
@@ -27,42 +25,42 @@ public final class RegisteredObjects {
 	}
 
 	@NotNull
-	public static ResourceLocation getKeyOrThrow(Block value) {
-		return getKeyOrThrow(BuiltInRegistries.BLOCK, value);
+	public static Identifier getKeyOrThrow(Block value) {
+		return getKeyOrThrow(Registries.BLOCK, value);
 	}
 
 	@NotNull
-	public static ResourceLocation getKeyOrThrow(Item value) {
-		return getKeyOrThrow(BuiltInRegistries.ITEM, value);
+	public static Identifier getKeyOrThrow(Item value) {
+		return getKeyOrThrow(Registries.ITEM, value);
 	}
 
 	@NotNull
-	public static ResourceLocation getKeyOrThrow(Fluid value) {
-		return getKeyOrThrow(BuiltInRegistries.FLUID, value);
+	public static Identifier getKeyOrThrow(Fluid value) {
+		return getKeyOrThrow(Registries.FLUID, value);
 	}
 
 	@NotNull
-	public static ResourceLocation getKeyOrThrow(EntityType<?> value) {
-		return getKeyOrThrow(BuiltInRegistries.ENTITY_TYPE, value);
+	public static Identifier getKeyOrThrow(EntityType<?> value) {
+		return getKeyOrThrow(Registries.ENTITY_TYPE, value);
 	}
 
 	@NotNull
-	public static ResourceLocation getKeyOrThrow(BlockEntityType<?> value) {
-		return getKeyOrThrow(BuiltInRegistries.BLOCK_ENTITY_TYPE, value);
+	public static Identifier getKeyOrThrow(BlockEntityType<?> value) {
+		return getKeyOrThrow(Registries.BLOCK_ENTITY_TYPE, value);
 	}
 
 	@NotNull
-	public static ResourceLocation getKeyOrThrow(Potion value) {
-		return getKeyOrThrow(BuiltInRegistries.POTION, value);
+	public static Identifier getKeyOrThrow(Potion value) {
+		return getKeyOrThrow(Registries.POTION, value);
 	}
 
 	@NotNull
-	public static ResourceLocation getKeyOrThrow(ParticleType<?> value) {
-		return getKeyOrThrow(BuiltInRegistries.PARTICLE_TYPE, value);
+	public static Identifier getKeyOrThrow(ParticleType<?> value) {
+		return getKeyOrThrow(Registries.PARTICLE_TYPE, value);
 	}
 
 	@NotNull
-	public static ResourceLocation getKeyOrThrow(RecipeSerializer<?> value) {
-		return getKeyOrThrow(BuiltInRegistries.RECIPE_SERIALIZER, value);
+	public static Identifier getKeyOrThrow(RecipeSerializer<?> value) {
+		return getKeyOrThrow(Registries.RECIPE_SERIALIZER, value);
 	}
 }

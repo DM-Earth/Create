@@ -9,10 +9,10 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import mezz.jei.api.fabric.ingredients.fluids.IJeiFluidIngredient;
 import mezz.jei.api.ingredients.subtypes.IIngredientSubtypeInterpreter;
 import mezz.jei.api.ingredients.subtypes.UidContext;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.PotionUtil;
 
 /* From JEI's Potion item subtype interpreter */
 public class PotionFluidSubtypeInterpreter implements IIngredientSubtypeInterpreter<IJeiFluidIngredient> {
@@ -22,21 +22,21 @@ public class PotionFluidSubtypeInterpreter implements IIngredientSubtypeInterpre
 		if (ingredient.getTag().isEmpty())
 			return IIngredientSubtypeInterpreter.NONE;
 
-		CompoundTag tag = ingredient.getTag().get();
-		Potion potionType = PotionUtils.getPotion(tag);
-		String potionTypeString = potionType.getName("");
+		NbtCompound tag = ingredient.getTag().get();
+		Potion potionType = PotionUtil.getPotion(tag);
+		String potionTypeString = potionType.finishTranslationKey("");
 		String bottleType = NBTHelper.readEnum(tag, "Bottle", BottleType.class)
 				.toString();
 
 		StringBuilder stringBuilder = new StringBuilder(potionTypeString);
-		List<MobEffectInstance> effects = PotionUtils.getCustomEffects(tag);
+		List<StatusEffectInstance> effects = PotionUtil.getCustomPotionEffects(tag);
 
 		stringBuilder.append(";")
 				.append(bottleType);
-		for (MobEffectInstance effect : potionType.getEffects())
+		for (StatusEffectInstance effect : potionType.getEffects())
 			stringBuilder.append(";")
 					.append(effect);
-		for (MobEffectInstance effect : effects)
+		for (StatusEffectInstance effect : effects)
 			stringBuilder.append(";")
 					.append(effect);
 		return stringBuilder.toString();

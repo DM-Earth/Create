@@ -3,11 +3,9 @@ package com.simibubi.create.content.kinetics.transmission.sequencer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
+import net.minecraft.text.Text;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.network.chat.Component;
 
 public enum InstructionSpeedModifiers {
 
@@ -17,9 +15,9 @@ public enum InstructionSpeedModifiers {
 
 	String translationKey;
 	int value;
-	Component label;
+	Text label;
 
-	private InstructionSpeedModifiers(int modifier, Component label) {
+	private InstructionSpeedModifiers(int modifier, Text label) {
 		this.label = label;
 		translationKey = "gui.sequenced_gearshift.speed." + Lang.asId(name());
 		value = modifier;
@@ -30,8 +28,8 @@ public enum InstructionSpeedModifiers {
 		value = modifier;
 	}
 
-	static List<Component> getOptions() {
-		List<Component> options = new ArrayList<>();
+	static List<Text> getOptions() {
+		List<Text> options = new ArrayList<>();
 		for (InstructionSpeedModifiers entry : values())
 			options.add(Lang.translateDirect(entry.translationKey));
 		return options;

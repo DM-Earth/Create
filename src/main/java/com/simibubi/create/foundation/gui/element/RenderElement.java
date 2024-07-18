@@ -1,12 +1,12 @@
 package com.simibubi.create.foundation.gui.element;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
 
 public abstract class RenderElement implements ScreenElement {
 
 	public static final RenderElement EMPTY = new RenderElement() {
 		@Override
-		public void render(GuiGraphics graphics) {
+		public void render(DrawContext graphics) {
 		}
 	};
 
@@ -66,10 +66,10 @@ public abstract class RenderElement implements ScreenElement {
 		return z;
 	}
 
-	public abstract void render(GuiGraphics graphics);
+	public abstract void render(DrawContext graphics);
 
 	@Override
-	public void render(GuiGraphics graphics, int x, int y) {
+	public void render(DrawContext graphics, int x, int y) {
 		this.at(x, y).render(graphics);
 	}
 
@@ -82,7 +82,7 @@ public abstract class RenderElement implements ScreenElement {
 		}
 
 		@Override
-		public void render(GuiGraphics graphics) {
+		public void render(DrawContext graphics) {
 			renderable.render(graphics, (int) x, (int) y);
 		}
 	}

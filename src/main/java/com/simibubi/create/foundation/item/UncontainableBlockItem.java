@@ -1,15 +1,15 @@
 package com.simibubi.create.foundation.item;
 
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
+import net.minecraft.item.BlockItem;
 
 public class UncontainableBlockItem extends BlockItem {
-	public UncontainableBlockItem(Block block, Properties properties) {
+	public UncontainableBlockItem(Block block, Settings properties) {
 		super(block, properties);
 	}
 
 	@Override
-	public boolean canFitInsideContainerItems() {
+	public boolean canBeNested() {
 		return false;
 	}
 }

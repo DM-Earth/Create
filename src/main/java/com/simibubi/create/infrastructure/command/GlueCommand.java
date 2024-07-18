@@ -2,29 +2,28 @@ package com.simibubi.create.infrastructure.command;
 
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.simibubi.create.content.contraptions.glue.SuperGlueEntity;
-
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.command.argument.BlockPosArgumentType;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 
 public class GlueCommand {
-	public static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("glue")
-			.requires(cs -> cs.hasPermission(2))
-			.then(Commands.argument("from", BlockPosArgument.blockPos())
-				.then(Commands.argument("to", BlockPosArgument.blockPos())
+	public static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("glue")
+			.requires(cs -> cs.hasPermissionLevel(2))
+			.then(CommandManager.argument("from", BlockPosArgumentType.blockPos())
+				.then(CommandManager.argument("to", BlockPosArgumentType.blockPos())
 					.executes(ctx -> {
-						BlockPos from = BlockPosArgument.getLoadedBlockPos(ctx, "from");
-						BlockPos to = BlockPosArgument.getLoadedBlockPos(ctx, "to");
+						BlockPos from = BlockPosArgumentType.getLoadedBlockPos(ctx, "from");
+						BlockPos to = BlockPosArgumentType.getLoadedBlockPos(ctx, "to");
 
-						ServerLevel world = ctx.getSource()
-							.getLevel();
+						ServerWorld world = ctx.getSource()
+							.getWorld();
 
 						SuperGlueEntity entity = new SuperGlueEntity(world, SuperGlueEntity.span(from, to));
 						entity.playPlaceSound();
-						world.addFreshEntity(entity);
+						world.spawnEntity(entity);
 						return 1;
 					})));
 

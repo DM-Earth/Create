@@ -9,17 +9,16 @@ import com.tterrag.registrate.util.nullness.NonNullBiConsumer;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
 import io.github.fabricators_of_create.porting_lib.models.generators.block.BlockModelBuilder;
-
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.item.Item;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
 
 public class FunnelGenerator extends SpecialBlockStateGen {
 
 	private String type;
-	private ResourceLocation blockTexture;
+	private Identifier blockTexture;
 	private boolean hasFilter;
 
 	public FunnelGenerator(String type, boolean hasFilter) {
@@ -30,22 +29,22 @@ public class FunnelGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getXRotation(BlockState state) {
-		return state.getValue(FunnelBlock.FACING) == Direction.DOWN ? 180 : 0;
+		return state.get(FunnelBlock.FACING) == Direction.DOWN ? 180 : 0;
 	}
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		return horizontalAngle(state.getValue(FunnelBlock.FACING)) + 180;
+		return horizontalAngle(state.get(FunnelBlock.FACING)) + 180;
 	}
 
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> c, RegistrateBlockstateProvider p,
 												BlockState s) {
 		String prefix = "block/funnel/";
-		String powered = s.getValue(FunnelBlock.POWERED) ? "_powered" : "_unpowered";
-		String closed = s.getValue(FunnelBlock.POWERED) ? "_closed" : "_open";
-		String extracting = s.getValue(FunnelBlock.EXTRACTING) ? "_push" : "_pull";
-		Direction facing = s.getValue(FunnelBlock.FACING);
+		String powered = s.get(FunnelBlock.POWERED) ? "_powered" : "_unpowered";
+		String closed = s.get(FunnelBlock.POWERED) ? "_closed" : "_open";
+		String extracting = s.get(FunnelBlock.EXTRACTING) ? "_push" : "_pull";
+		Direction facing = s.get(FunnelBlock.FACING);
 		boolean horizontal = facing.getAxis()
 			.isHorizontal();
 		String parent = horizontal ? "horizontal" : hasFilter ? "vertical" : "vertical_filterless";
@@ -68,7 +67,7 @@ public class FunnelGenerator extends SpecialBlockStateGen {
 	public static NonNullBiConsumer<DataGenContext<Item, FunnelItem>, RegistrateItemModelProvider> itemModel(
 		String type) {
 		String prefix = "block/funnel/";
-		ResourceLocation blockTexture = Create.asResource("block/" + type + "_block");
+		Identifier blockTexture = Create.asResource("block/" + type + "_block");
 		return (c, p) -> {
 			p.withExistingParent("item/" + type + "_funnel", p.modLoc("block/funnel/item"))
 				.texture("particle", blockTexture)

@@ -19,18 +19,18 @@ import io.github.fabricators_of_create.porting_lib.models.CustomParticleIconMode
 import net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
 import net.fabricmc.fabric.api.rendering.data.v1.RenderAttachedBlockView;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
 public abstract class CopycatModel extends ForwardingBakedModel implements CustomParticleIconModel {
 
@@ -38,14 +38,14 @@ public abstract class CopycatModel extends ForwardingBakedModel implements Custo
 		wrapped = originalModel;
 	}
 
-	private void gatherOcclusionData(BlockAndTintGetter world, BlockPos pos, BlockState state, BlockState material,
+	private void gatherOcclusionData(BlockRenderView world, BlockPos pos, BlockState state, BlockState material,
 		OcclusionData occlusionData, CopycatBlock copycatBlock) {
-		MutableBlockPos mutablePos = new MutableBlockPos();
+		Mutable mutablePos = new Mutable();
 		for (Direction face : Iterate.directions) {
 			if (!copycatBlock.canFaceBeOccluded(state, face))
 				continue;
-			MutableBlockPos neighbourPos = mutablePos.setWithOffset(pos, face);
-			if (!Block.shouldRenderFace(material, world, pos, face, neighbourPos))
+			Mutable neighbourPos = mutablePos.set(pos, face);
+			if (!Block.shouldDrawSide(material, world, pos, face, neighbourPos))
 				occlusionData.occlude(face);
 		}
 	}
@@ -56,7 +56,7 @@ public abstract class CopycatModel extends ForwardingBakedModel implements Custo
 	}
 
 	@Override
-	public void emitBlockQuads(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context) {
+	public void emitBlockQuads(BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context) {
 		BlockState material;
 		if (blockView instanceof RenderAttachedBlockView attachmentView
 				&& attachmentView.getBlockEntityRenderAttachment(pos) instanceof BlockState material1) {
@@ -93,10 +93,10 @@ public abstract class CopycatModel extends ForwardingBakedModel implements Custo
 			context.popTransform();
 	}
 
-	protected abstract void emitBlockQuadsInner(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context, BlockState material, CullFaceRemovalData cullFaceRemovalData, OcclusionData occlusionData);
+	protected abstract void emitBlockQuadsInner(BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context, BlockState material, CullFaceRemovalData cullFaceRemovalData, OcclusionData occlusionData);
 
 	@Override
-	public TextureAtlasSprite getParticleIcon(Object data) {
+	public Sprite getParticleIcon(Object data) {
 		if (data instanceof BlockState state) {
 			BlockState material = getMaterial(state);
 
@@ -106,10 +106,10 @@ public abstract class CopycatModel extends ForwardingBakedModel implements Custo
 		return CustomParticleIconModel.super.getParticleIcon(data);
 	}
 
-	public static TextureAtlasSprite getIcon(BakedModel model, @Nullable Object data) {
+	public static Sprite getIcon(BakedModel model, @Nullable Object data) {
 		if (model instanceof CustomParticleIconModel particleIconModel)
 			return particleIconModel.getParticleIcon(data);
-		return model.getParticleIcon();
+		return model.getParticleSprite();
 	}
 
 	@Nullable
@@ -118,9 +118,9 @@ public abstract class CopycatModel extends ForwardingBakedModel implements Custo
 	}
 
 	public static BakedModel getModelOf(BlockState state) {
-		return Minecraft.getInstance()
-			.getBlockRenderer()
-			.getBlockModel(state);
+		return MinecraftClient.getInstance()
+			.getBlockRenderManager()
+			.getModel(state);
 	}
 
 	protected static class OcclusionData {
@@ -131,11 +131,11 @@ public abstract class CopycatModel extends ForwardingBakedModel implements Custo
 		}
 
 		public void occlude(Direction face) {
-			occluded[face.get3DDataValue()] = true;
+			occluded[face.getId()] = true;
 		}
 
 		public boolean isOccluded(Direction face) {
-			return face == null ? false : occluded[face.get3DDataValue()];
+			return face == null ? false : occluded[face.getId()];
 		}
 	}
 
@@ -147,11 +147,11 @@ public abstract class CopycatModel extends ForwardingBakedModel implements Custo
 		}
 
 		public void remove(Direction face) {
-			shouldRemove[face.get3DDataValue()] = true;
+			shouldRemove[face.getId()] = true;
 		}
 
 		public boolean shouldRemove(Direction face) {
-			return face == null ? false : shouldRemove[face.get3DDataValue()];
+			return face == null ? false : shouldRemove[face.getId()];
 		}
 	}
 
@@ -166,7 +166,7 @@ public abstract class CopycatModel extends ForwardingBakedModel implements Custo
 		}
 
 		public static MaterialFixer create(BlockState materialState) {
-			RenderType type = ItemBlockRenderTypes.getChunkRenderType(materialState);
+			RenderLayer type = RenderLayers.getBlockLayer(materialState);
 			BlendMode blendMode = BlendMode.fromRenderLayer(type);
 			MaterialFinder finder = Objects.requireNonNull(RendererAccess.INSTANCE.getRenderer()).materialFinder();
 			RenderMaterial renderMaterial = finder.blendMode(0, blendMode).find();

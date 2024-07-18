@@ -8,31 +8,30 @@ import com.google.common.collect.ImmutableList;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 public interface IScheduleInput {
 
-	public abstract Pair<ItemStack, Component> getSummary();
+	public abstract Pair<ItemStack, Text> getSummary();
 
-	public abstract ResourceLocation getId();
+	public abstract Identifier getId();
 
-	public abstract CompoundTag getData();
+	public abstract NbtCompound getData();
 
-	public abstract void setData(CompoundTag data);
+	public abstract void setData(NbtCompound data);
 
 	public default int slotsTargeted() {
 		return 0;
 	}
 
-	public default List<Component> getTitleAs(String type) {
-		ResourceLocation id = getId();
+	public default List<Text> getTitleAs(String type) {
+		Identifier id = getId();
 		return ImmutableList
 			.of(Components.translatable(id.getNamespace() + ".schedule." + type + "." + id.getPath()));
 	}
@@ -48,7 +47,7 @@ public interface IScheduleInput {
 	}
 
 	@Nullable
-	public default List<Component> getSecondLineTooltip(int slot) {
+	public default List<Text> getSecondLineTooltip(int slot) {
 		return null;
 	}
 
@@ -56,7 +55,7 @@ public interface IScheduleInput {
 	public default void initConfigurationWidgets(ModularGuiLineBuilder builder) {};
 
 	@Environment(EnvType.CLIENT)
-	public default boolean renderSpecialIcon(GuiGraphics graphics, int x, int y) {
+	public default boolean renderSpecialIcon(DrawContext graphics, int x, int y) {
 		return false;
 	}
 

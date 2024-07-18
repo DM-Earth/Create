@@ -1,13 +1,11 @@
 package com.simibubi.create.foundation.networking;
 
 import java.util.HashSet;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
 import com.simibubi.create.AllPackets;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.Entity;
 
 public interface ISyncPersistentData {
 
@@ -21,20 +19,20 @@ public interface ISyncPersistentData {
 
 		private int entityId;
 		private Entity entity;
-		private CompoundTag readData;
+		private NbtCompound readData;
 
 		public PersistentDataPacket(Entity entity) {
 			this.entity = entity;
 			this.entityId = entity.getId();
 		}
 
-		public PersistentDataPacket(FriendlyByteBuf buffer) {
+		public PersistentDataPacket(PacketByteBuf buffer) {
 			entityId = buffer.readInt();
 			readData = buffer.readNbt();
 		}
 
 		@Override
-		public void write(FriendlyByteBuf buffer) {
+		public void write(PacketByteBuf buffer) {
 			buffer.writeInt(entityId);
 			buffer.writeNbt(entity.getCustomData());
 		}
@@ -42,10 +40,10 @@ public interface ISyncPersistentData {
 		@Override
 		public boolean handle(Context context) {
 			context.enqueueWork(() -> {
-				Entity entityByID = Minecraft.getInstance().level.getEntity(entityId);
-				CompoundTag data = entityByID.getCustomData();
-				new HashSet<>(data.getAllKeys()).forEach(data::remove);
-				data.merge(readData);
+				Entity entityByID = MinecraftClient.getInstance().world.getEntityById(entityId);
+				NbtCompound data = entityByID.getCustomData();
+				new HashSet<>(data.getKeys()).forEach(data::remove);
+				data.copyFrom(readData);
 				if (!(entityByID instanceof ISyncPersistentData))
 					return;
 				((ISyncPersistentData) entityByID).onPersistentDataUpdated();

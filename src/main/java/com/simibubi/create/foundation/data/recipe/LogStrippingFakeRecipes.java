@@ -2,7 +2,16 @@ package com.simibubi.create.foundation.data.recipe;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemStack.TooltipSection;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.util.Identifier;
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.common.accessor.AxeItemAccessor;
 
 import org.jetbrains.annotations.Nullable;
@@ -12,18 +21,6 @@ import com.simibubi.create.content.processing.recipe.ProcessingRecipeBuilder;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStack.TooltipPart;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Just in case players don't know about that vanilla feature
@@ -36,11 +33,11 @@ public class LogStrippingFakeRecipes {
 			return recipes;
 
 		ItemStack axe = new ItemStack(Items.IRON_AXE);
-		axe.hideTooltipPart(TooltipPart.MODIFIERS);
-		axe.setHoverName(Lang.translateDirect("recipe.item_application.any_axe")
-			.withStyle(style -> style.withItalic(false)));
+		axe.addHideFlag(TooltipSection.MODIFIERS);
+		axe.setCustomName(Lang.translateDirect("recipe.item_application.any_axe")
+			.styled(style -> style.withItalic(false)));
 		// fabric: tag may not exist yet with JEI, #773
-		BuiltInRegistries.ITEM.getTagOrEmpty(ItemTags.LOGS)
+		Registries.ITEM.iterateEntries(ItemTags.LOGS)
 			.forEach(stack -> process(stack.value(), recipes, axe));
 		return recipes;
 	}
@@ -49,7 +46,7 @@ public class LogStrippingFakeRecipes {
 		if (!(item instanceof BlockItem blockItem))
 			return;
 		BlockState state = blockItem.getBlock()
-			.defaultBlockState();
+			.getDefaultState();
 		BlockState strippedState = getStrippedState(state);
 		if (strippedState == null)
 			return;
@@ -61,10 +58,10 @@ public class LogStrippingFakeRecipes {
 	}
 
 	private static ManualApplicationRecipe create(Item fromItem, Item toItem, ItemStack axe) {
-		ResourceLocation rn = RegisteredObjects.getKeyOrThrow(toItem);
+		Identifier rn = RegisteredObjects.getKeyOrThrow(toItem);
 		return new ProcessingRecipeBuilder<>(ManualApplicationRecipe::new,
-			new ResourceLocation(rn.getNamespace(), rn.getPath() + "_via_vanilla_stripping")).require(fromItem)
-				.require(Ingredient.of(axe))
+			new Identifier(rn.getNamespace(), rn.getPath() + "_via_vanilla_stripping")).require(fromItem)
+				.require(Ingredient.ofStacks(axe))
 				.output(toItem)
 				.build();
 	}

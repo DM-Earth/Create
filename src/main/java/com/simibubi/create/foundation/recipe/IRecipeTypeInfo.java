@@ -1,12 +1,12 @@
 package com.simibubi.create.foundation.recipe;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.util.Identifier;
 
 public interface IRecipeTypeInfo {
 
-	ResourceLocation getId();
+	Identifier getId();
 
 	<T extends RecipeSerializer<?>> T getSerializer();
 

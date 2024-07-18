@@ -10,12 +10,11 @@ import com.simibubi.create.content.logistics.filter.ItemAttribute;
 
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.material.Fluid;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 public class FluidContentsAttribute implements ItemAttribute {
 	public static final FluidContentsAttribute EMPTY = new FluidContentsAttribute(null);
@@ -50,18 +49,18 @@ public class FluidContentsAttribute implements ItemAttribute {
 	}
 
 	@Override
-	public void writeNBT(CompoundTag nbt) {
+	public void writeNBT(NbtCompound nbt) {
 		if (fluid == null)
 			return;
-		ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid);
+		Identifier id = Registries.FLUID.getId(fluid);
 		if (id == null)
 			return;
 		nbt.putString("id", id.toString());
 	}
 
 	@Override
-	public ItemAttribute readNBT(CompoundTag nbt) {
-		return nbt.contains("id") ? new FluidContentsAttribute(BuiltInRegistries.FLUID.get(ResourceLocation.tryParse(nbt.getString("id")))) : EMPTY;
+	public ItemAttribute readNBT(NbtCompound nbt) {
+		return nbt.contains("id") ? new FluidContentsAttribute(Registries.FLUID.get(Identifier.tryParse(nbt.getString("id")))) : EMPTY;
 	}
 
 	private List<Fluid> extractFluids(ItemStack stack) {

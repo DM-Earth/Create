@@ -4,20 +4,17 @@ import static com.simibubi.create.content.decoration.palettes.PaletteBlockPatter
 import static com.simibubi.create.content.decoration.palettes.PaletteBlockPattern.VANILLA_RANGE;
 
 import java.util.function.Function;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.MapColor;
+import net.minecraft.item.Item;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.tag.TagKey;
 import com.simibubi.create.AllTags;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.utility.Lang;
 import com.tterrag.registrate.util.nullness.NonNullSupplier;
-
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.MapColor;
 
 public enum AllPaletteStoneTypes {
 
@@ -30,27 +27,27 @@ public enum AllPaletteStoneTypes {
 	TUFF(VANILLA_RANGE, r -> () -> Blocks.TUFF),
 
 	ASURINE(STANDARD_RANGE, r -> r.paletteStoneBlock("asurine", () -> Blocks.DEEPSLATE, true, true)
-		.properties(p -> p.destroyTime(1.25f)
-			.mapColor(MapColor.COLOR_BLUE))
+		.properties(p -> p.hardness(1.25f)
+			.mapColor(MapColor.BLUE))
 		.register()),
 
 	CRIMSITE(STANDARD_RANGE, r -> r.paletteStoneBlock("crimsite", () -> Blocks.DEEPSLATE, true, true)
-		.properties(p -> p.destroyTime(1.25f)
-			.mapColor(MapColor.COLOR_RED))
+		.properties(p -> p.hardness(1.25f)
+			.mapColor(MapColor.RED))
 		.register()),
 
 	LIMESTONE(STANDARD_RANGE, r -> r.paletteStoneBlock("limestone", () -> Blocks.SANDSTONE, true, false)
-		.properties(p -> p.destroyTime(1.25f)
-			.mapColor(MapColor.SAND))
+		.properties(p -> p.hardness(1.25f)
+			.mapColor(MapColor.PALE_YELLOW))
 		.register()),
 
 	OCHRUM(STANDARD_RANGE, r -> r.paletteStoneBlock("ochrum", () -> Blocks.CALCITE, true, true)
-		.properties(p -> p.destroyTime(1.25f)
+		.properties(p -> p.hardness(1.25f)
 			.mapColor(MapColor.TERRACOTTA_YELLOW))
 		.register()),
 
 	SCORIA(STANDARD_RANGE, r -> r.paletteStoneBlock("scoria", () -> Blocks.BLACKSTONE, true, false)
-		.properties(p -> p.mapColor(MapColor.COLOR_BROWN))
+		.properties(p -> p.mapColor(MapColor.BROWN))
 		.register()),
 
 	SCORCHIA(STANDARD_RANGE, r -> r.paletteStoneBlock("scorchia", () -> Blocks.BLACKSTONE, true, false)
@@ -58,8 +55,8 @@ public enum AllPaletteStoneTypes {
 		.register()),
 
 	VERIDIUM(STANDARD_RANGE, r -> r.paletteStoneBlock("veridium", () -> Blocks.TUFF, true, true)
-		.properties(p -> p.destroyTime(1.25f)
-			.mapColor(MapColor.WARPED_NYLIUM))
+		.properties(p -> p.hardness(1.25f)
+			.mapColor(MapColor.TEAL))
 		.register())
 
 	;
@@ -91,7 +88,7 @@ public enum AllPaletteStoneTypes {
 			paletteStoneVariants.baseBlock = baseBlock;
 			String id = Lang.asId(paletteStoneVariants.name());
 			paletteStoneVariants.materialTag =
-				AllTags.optionalTag(BuiltInRegistries.ITEM, Create.asResource("stone_types/" + id));
+				AllTags.optionalTag(Registries.ITEM, Create.asResource("stone_types/" + id));
 			paletteStoneVariants.variants = new PalettesVariantEntry(id, paletteStoneVariants);
 		}
 	}

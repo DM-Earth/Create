@@ -1,24 +1,21 @@
 package com.simibubi.create.foundation.outliner;
 
 import java.util.Optional;
-
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllSpecialTextures;
 import com.simibubi.create.foundation.render.RenderTypes;
 import com.simibubi.create.foundation.render.SuperRenderTypeBuffer;
 
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.Direction;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-
 public class AABBOutline extends Outline {
 
-	protected AABB bb;
+	protected Box bb;
 
 	protected final Vector3f minPosTemp1 = new Vector3f();
 	protected final Vector3f maxPosTemp1 = new Vector3f();
@@ -31,20 +28,20 @@ public class AABBOutline extends Outline {
 	protected final Vector3f normalTemp = new Vector3f();
 	protected final Vector3f originTemp = new Vector3f();
 
-	public AABBOutline(AABB bb) {
+	public AABBOutline(Box bb) {
 		setBounds(bb);
 	}
 
-	public AABB getBounds() {
+	public Box getBounds() {
 		return bb;
 	}
 
-	public void setBounds(AABB bb) {
+	public void setBounds(Box bb) {
 		this.bb = bb;
 	}
 
 	@Override
-	public void render(PoseStack ms, SuperRenderTypeBuffer buffer, Vec3 camera, float pt) {
+	public void render(MatrixStack ms, SuperRenderTypeBuffer buffer, Vec3d camera, float pt) {
 		params.loadColor(colorTemp);
 		Vector4f color = colorTemp;
 		int lightmap = params.lightmap;
@@ -52,7 +49,7 @@ public class AABBOutline extends Outline {
 		renderBox(ms, buffer, camera, bb, color, lightmap, disableLineNormals);
 	}
 
-	protected void renderBox(PoseStack ms, SuperRenderTypeBuffer buffer, Vec3 camera, AABB box, Vector4f color, int lightmap, boolean disableLineNormals) {
+	protected void renderBox(MatrixStack ms, SuperRenderTypeBuffer buffer, Vec3d camera, Box box, Vector4f color, int lightmap, boolean disableLineNormals) {
 		Vector3f minPos = minPosTemp1;
 		Vector3f maxPos = maxPosTemp1;
 
@@ -60,7 +57,7 @@ public class AABBOutline extends Outline {
 		boolean cull = !cameraInside && !params.disableCull;
 		float inflate = cameraInside ? -1 / 128f : 1 / 128f;
 		
-		box = box.move(camera.scale(-1));
+		box = box.offset(camera.multiply(-1));
 		minPos.set((float) box.minX - inflate, (float) box.minY - inflate, (float) box.minZ - inflate);
 		maxPos.set((float) box.maxX + inflate, (float) box.maxY + inflate, (float) box.maxZ + inflate);
 
@@ -74,8 +71,8 @@ public class AABBOutline extends Outline {
 		renderBoxEdges(ms, consumer, minPos, maxPos, lineWidth, color, lightmap, disableLineNormals);
 	}
 
-	protected void renderBoxFaces(PoseStack ms, SuperRenderTypeBuffer buffer, boolean cull, Direction highlightedFace, Vector3f minPos, Vector3f maxPos, Vector4f color, int lightmap) {
-		PoseStack.Pose pose = ms.last();
+	protected void renderBoxFaces(MatrixStack ms, SuperRenderTypeBuffer buffer, boolean cull, Direction highlightedFace, Vector3f minPos, Vector3f maxPos, Vector4f color, int lightmap) {
+		MatrixStack.Entry pose = ms.peek();
 		renderBoxFace(pose, buffer, cull, highlightedFace, minPos, maxPos, Direction.DOWN, color, lightmap);
 		renderBoxFace(pose, buffer, cull, highlightedFace, minPos, maxPos, Direction.UP, color, lightmap);
 		renderBoxFace(pose, buffer, cull, highlightedFace, minPos, maxPos, Direction.NORTH, color, lightmap);
@@ -84,7 +81,7 @@ public class AABBOutline extends Outline {
 		renderBoxFace(pose, buffer, cull, highlightedFace, minPos, maxPos, Direction.EAST, color, lightmap);
 	}
 
-	protected void renderBoxFace(PoseStack.Pose pose, SuperRenderTypeBuffer buffer, boolean cull, Direction highlightedFace, Vector3f minPos, Vector3f maxPos, Direction face, Vector4f color, int lightmap) {
+	protected void renderBoxFace(MatrixStack.Entry pose, SuperRenderTypeBuffer buffer, boolean cull, Direction highlightedFace, Vector3f minPos, Vector3f maxPos, Direction face, Vector4f color, int lightmap) {
 		boolean highlighted = face == highlightedFace;
 
 		// TODO: Presumably, the other texture should be used, but this was not noticed before so fixing it may lead to suboptimal visuals.
@@ -94,7 +91,7 @@ public class AABBOutline extends Outline {
 			return;
 		AllSpecialTextures faceTexture = optionalFaceTexture.get();
 
-		RenderType renderType = RenderTypes.getOutlineTranslucent(faceTexture.getLocation(), cull);
+		RenderLayer renderType = RenderTypes.getOutlineTranslucent(faceTexture.getLocation(), cull);
 		VertexConsumer consumer = buffer.getLateBuffer(renderType);
 
 		float alphaMult = highlighted ? 1 : 0.5f;
@@ -104,7 +101,7 @@ public class AABBOutline extends Outline {
 		renderBoxFace(pose, consumer, minPos, maxPos, face, color, lightmap);
 	}
 
-	protected void renderBoxFace(PoseStack.Pose pose, VertexConsumer consumer, Vector3f minPos, Vector3f maxPos, Direction face, Vector4f color, int lightmap) {
+	protected void renderBoxFace(MatrixStack.Entry pose, VertexConsumer consumer, Vector3f minPos, Vector3f maxPos, Direction face, Vector4f color, int lightmap) {
 		Vector3f pos0 = pos0Temp;
 		Vector3f pos1 = pos1Temp;
 		Vector3f pos2 = pos2Temp;
@@ -191,10 +188,10 @@ public class AABBOutline extends Outline {
 		bufferQuad(pose, consumer, pos0, pos1, pos2, pos3, color, 0, 0, maxU, maxV, lightmap, normal);
 	}
 
-	protected void renderBoxEdges(PoseStack ms, VertexConsumer consumer, Vector3f minPos, Vector3f maxPos, float lineWidth, Vector4f color, int lightmap, boolean disableNormals) {
+	protected void renderBoxEdges(MatrixStack ms, VertexConsumer consumer, Vector3f minPos, Vector3f maxPos, float lineWidth, Vector4f color, int lightmap, boolean disableNormals) {
 		Vector3f origin = originTemp;
 
-		PoseStack.Pose pose = ms.last();
+		MatrixStack.Entry pose = ms.peek();
 
 		float lineLengthX = maxPos.x() - minPos.x();
 		float lineLengthY = maxPos.y() - minPos.y();

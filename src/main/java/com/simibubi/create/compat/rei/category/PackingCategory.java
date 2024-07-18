@@ -1,8 +1,6 @@
 package com.simibubi.create.compat.rei.category;
 
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.compat.rei.category.animations.AnimatedBlazeBurner;
 import com.simibubi.create.compat.rei.category.animations.AnimatedPress;
 import com.simibubi.create.compat.rei.display.CreateDisplay;
@@ -13,9 +11,9 @@ import com.simibubi.create.foundation.gui.AllGuiTextures;
 import me.shedaniel.math.Point;
 import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.common.util.EntryIngredients;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.collection.DefaultedList;
 
 public class PackingCategory extends BasinCategory {
 
@@ -50,7 +48,7 @@ public class PackingCategory extends BasinCategory {
 
 		int i = 0;
 
-		NonNullList<Ingredient> ingredients2 = recipe.getIngredients();
+		DefaultedList<Ingredient> ingredients2 = recipe.getIngredients();
 		int size = ingredients2.size();
 		int rows = size == 4 ? 2 : 3;
 		while (i < size) {
@@ -67,12 +65,12 @@ public class PackingCategory extends BasinCategory {
 	}
 
 	@Override
-	public void draw(BasinRecipe recipe, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(BasinRecipe recipe, DrawContext graphics, double mouseX, double mouseY) {
 		if (type == PackingType.COMPACTING) {
 			super.draw(recipe, graphics, mouseX, mouseY);
 
 		} else {
-			NonNullList<Ingredient> ingredients2 = recipe.getIngredients();
+			DefaultedList<Ingredient> ingredients2 = recipe.getIngredients();
 			int size = ingredients2.size();
 			int rows = size == 4 ? 2 : 3;
 			for (int i = 0; i < size; i++)

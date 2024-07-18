@@ -1,28 +1,27 @@
 package com.simibubi.create.content.logistics.funnel;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock.Shape;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
 
 public class FunnelFilterSlotPositioning extends ValueBoxTransform.Sided {
 
 	@Override
-	public Vec3 getLocalOffset(BlockState state) {
+	public Vec3d getLocalOffset(BlockState state) {
 		Direction side = getSide();
 		float horizontalAngle = AngleHelper.horizontalAngle(side);
 		Direction funnelFacing = FunnelBlock.getFunnelFacing(state);
 		float stateAngle = AngleHelper.horizontalAngle(funnelFacing);
 
 		if (state.getBlock() instanceof BeltFunnelBlock) {
-			switch (state.getValue(BeltFunnelBlock.SHAPE)) {
+			switch (state.get(BeltFunnelBlock.SHAPE)) {
 
 			case EXTENDED:
 				return VecHelper.rotateCentered(VecHelper.voxelSpace(8, 15.5f, 13), stateAngle, Axis.Y);
@@ -37,7 +36,7 @@ public class FunnelFilterSlotPositioning extends ValueBoxTransform.Sided {
 
 		if (!funnelFacing.getAxis()
 			.isHorizontal()) {
-			Vec3 southLocation = VecHelper.voxelSpace(8, funnelFacing == Direction.DOWN ? 14 : 2, 15.5f);
+			Vec3d southLocation = VecHelper.voxelSpace(8, funnelFacing == Direction.DOWN ? 14 : 2, 15.5f);
 			return VecHelper.rotateCentered(southLocation, horizontalAngle, Axis.Y);
 		}
 
@@ -45,7 +44,7 @@ public class FunnelFilterSlotPositioning extends ValueBoxTransform.Sided {
 	}
 
 	@Override
-	public void rotate(BlockState state, PoseStack ms) {
+	public void rotate(BlockState state, MatrixStack ms) {
 		Direction facing = FunnelBlock.getFunnelFacing(state);
 
 		if (facing.getAxis()
@@ -55,8 +54,8 @@ public class FunnelFilterSlotPositioning extends ValueBoxTransform.Sided {
 		}
 
 		boolean isBeltFunnel = state.getBlock() instanceof BeltFunnelBlock;
-		if (isBeltFunnel && state.getValue(BeltFunnelBlock.SHAPE) != Shape.EXTENDED) {
-			Shape shape = state.getValue(BeltFunnelBlock.SHAPE);
+		if (isBeltFunnel && state.get(BeltFunnelBlock.SHAPE) != Shape.EXTENDED) {
+			Shape shape = state.get(BeltFunnelBlock.SHAPE);
 			super.rotate(state, ms);
 			if (shape == Shape.PULLING || shape == Shape.PUSHING)
 				TransformStack.cast(ms)
@@ -88,14 +87,14 @@ public class FunnelFilterSlotPositioning extends ValueBoxTransform.Sided {
 			.isVertical())
 			return direction.getAxis()
 				.isHorizontal();
-		if (state.getBlock() instanceof BeltFunnelBlock && state.getValue(BeltFunnelBlock.SHAPE) == Shape.EXTENDED)
+		if (state.getBlock() instanceof BeltFunnelBlock && state.get(BeltFunnelBlock.SHAPE) == Shape.EXTENDED)
 			return direction == Direction.UP;
 		return direction == facing;
 	}
 
 	@Override
-	protected Vec3 getSouthLocation() {
-		return Vec3.ZERO;
+	protected Vec3d getSouthLocation() {
+		return Vec3d.ZERO;
 	}
 
 }

@@ -2,9 +2,6 @@ package com.simibubi.create.foundation.gui;
 
 import java.util.Collection;
 import java.util.List;
-
-import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.gui.widget.AbstractSimiWidget;
 import com.simibubi.create.foundation.utility.Components;
 
@@ -12,14 +9,16 @@ import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.access
 import io.github.fabricators_of_create.porting_lib.util.KeyBindingHelper;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Renderable;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.narration.NarratableEntry;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.Drawable;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.Selectable;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
 public abstract class AbstractSimiScreen extends Screen {
@@ -28,7 +27,7 @@ public abstract class AbstractSimiScreen extends Screen {
 	protected int windowXOffset, windowYOffset;
 	protected int guiLeft, guiTop;
 
-	protected AbstractSimiScreen(Component title) {
+	protected AbstractSimiScreen(Text title) {
 		super(title);
 	}
 
@@ -62,7 +61,7 @@ public abstract class AbstractSimiScreen extends Screen {
 
 	@Override
 	public void tick() {
-		for (GuiEventListener listener : children()) {
+		for (Element listener : children()) {
 			if (listener instanceof TickableGuiEventListener tickable) {
 				tickable.tick();
 			}
@@ -77,41 +76,41 @@ public abstract class AbstractSimiScreen extends Screen {
 	}
 
 	@Override
-	public boolean isPauseScreen() {
+	public boolean shouldPause() {
 		return false;
 	}
 
 	@SuppressWarnings("unchecked")
-	protected <W extends GuiEventListener & Renderable & NarratableEntry> void addRenderableWidgets(W... widgets) {
+	protected <W extends Element & Drawable & Selectable> void addRenderableWidgets(W... widgets) {
 		for (W widget : widgets) {
-			addRenderableWidget(widget);
+			addDrawableChild(widget);
 		}
 	}
 
-	protected <W extends GuiEventListener & Renderable & NarratableEntry> void addRenderableWidgets(Collection<W> widgets) {
+	protected <W extends Element & Drawable & Selectable> void addRenderableWidgets(Collection<W> widgets) {
 		for (W widget : widgets) {
-			addRenderableWidget(widget);
+			addDrawableChild(widget);
 		}
 	}
 
-	protected void removeWidgets(GuiEventListener... widgets) {
-		for (GuiEventListener widget : widgets) {
-			removeWidget(widget);
+	protected void removeWidgets(Element... widgets) {
+		for (Element widget : widgets) {
+			remove(widget);
 		}
 	}
 
-	protected void removeWidgets(Collection<? extends GuiEventListener> widgets) {
-		for (GuiEventListener widget : widgets) {
-			removeWidget(widget);
+	protected void removeWidgets(Collection<? extends Element> widgets) {
+		for (Element widget : widgets) {
+			remove(widget);
 		}
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-		partialTicks = minecraft.getFrameTime();
-		PoseStack ms = graphics.pose();
+	public void render(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
+		partialTicks = client.getTickDelta();
+		MatrixStack ms = graphics.getMatrices();
 
-		ms.pushPose();
+		ms.push();
 
 		prepareFrame();
 
@@ -122,18 +121,18 @@ public abstract class AbstractSimiScreen extends Screen {
 
 		endFrame();
 
-		ms.popPose();
+		ms.pop();
 	}
 
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		boolean keyPressed = super.keyPressed(keyCode, scanCode, modifiers);
-		if (keyPressed || getFocused() instanceof EditBox)
+		if (keyPressed || getFocused() instanceof TextFieldWidget)
 			return keyPressed;
 
-		InputConstants.Key mouseKey = InputConstants.getKey(keyCode, scanCode);
-		if (KeyBindingHelper.isActiveAndMatches(this.minecraft.options.keyInventory, mouseKey)) {
-			this.onClose();
+		InputUtil.Key mouseKey = InputUtil.fromKeyCode(keyCode, scanCode);
+		if (KeyBindingHelper.isActiveAndMatches(this.client.options.inventoryKey, mouseKey)) {
+			this.close();
 			return true;
 		}
 
@@ -143,22 +142,22 @@ public abstract class AbstractSimiScreen extends Screen {
 	protected void prepareFrame() {
 	}
 
-	protected void renderWindowBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindowBackground(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		renderBackground(graphics);
 	}
 
-	protected abstract void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks);
+	protected abstract void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks);
 
-	protected void renderWindowForeground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-		for (Renderable widget : ((ScreenAccessor) this).port_lib$getRenderables()) {
+	protected void renderWindowForeground(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
+		for (Drawable widget : ((ScreenAccessor) this).port_lib$getRenderables()) {
 			if (widget instanceof AbstractSimiWidget simiWidget && simiWidget.isMouseOver(mouseX, mouseY)
 					&& simiWidget.visible) {
-				List<Component> tooltip = simiWidget.getToolTip();
+				List<Text> tooltip = simiWidget.getToolTip();
 				if (tooltip.isEmpty())
 					continue;
 				int ttx = simiWidget.lockedTooltipX == -1 ? mouseX : simiWidget.lockedTooltipX + simiWidget.getX();
 				int tty = simiWidget.lockedTooltipY == -1 ? mouseY : simiWidget.lockedTooltipY + simiWidget.getY();
-				graphics.renderComponentTooltip(font, tooltip, ttx, tty);
+				graphics.drawTooltip(textRenderer, tooltip, ttx, tty);
 			}
 		}
 	}
@@ -167,14 +166,14 @@ public abstract class AbstractSimiScreen extends Screen {
 	}
 
 	@Deprecated
-	protected void debugWindowArea(GuiGraphics graphics) {
+	protected void debugWindowArea(DrawContext graphics) {
 		graphics.fill(guiLeft + windowWidth, guiTop + windowHeight, guiLeft, guiTop, 0xD3D3D3D3);
 	}
 
 	@Override
-	public GuiEventListener getFocused() {
-		GuiEventListener focused = super.getFocused();
-		if (focused instanceof AbstractWidget && !((AbstractWidget) focused).isFocused())
+	public Element getFocused() {
+		Element focused = super.getFocused();
+		if (focused instanceof ClickableWidget && !((ClickableWidget) focused).isFocused())
 			focused = null;
 		setFocused(focused);
 		return focused;

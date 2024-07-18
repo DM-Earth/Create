@@ -3,15 +3,15 @@ package com.simibubi.create.foundation.utility;
 import java.util.List;
 
 import joptsimple.internal.Strings;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public class LangBuilder {
 
 	String namespace;
-	MutableComponent component;
+	MutableText component;
 
 	public LangBuilder(String namespace) {
 		this.namespace = namespace;
@@ -55,8 +55,8 @@ public class LangBuilder {
 	 * @param literalText
 	 * @return
 	 */
-	public LangBuilder text(ChatFormatting format, String literalText) {
-		return add(Components.literal(literalText).withStyle(format));
+	public LangBuilder text(Formatting format, String literalText) {
+		return add(Components.literal(literalText).formatted(format));
 	}
 
 	/**
@@ -67,7 +67,7 @@ public class LangBuilder {
 	 * @return
 	 */
 	public LangBuilder text(int color, String literalText) {
-		return add(Components.literal(literalText).withStyle(s -> s.withColor(color)));
+		return add(Components.literal(literalText).styled(s -> s.withColor(color)));
 	}
 
 	/**
@@ -86,7 +86,7 @@ public class LangBuilder {
 	 * @param customComponent
 	 * @return
 	 */
-	public LangBuilder add(MutableComponent customComponent) {
+	public LangBuilder add(MutableText customComponent) {
 		component = component == null ? customComponent : component.append(customComponent);
 		return this;
 	}
@@ -99,9 +99,9 @@ public class LangBuilder {
 	 * @param format
 	 * @return
 	 */
-	public LangBuilder style(ChatFormatting format) {
+	public LangBuilder style(Formatting format) {
 		assertComponent();
-		component = component.withStyle(format);
+		component = component.formatted(format);
 		return this;
 	}
 
@@ -113,13 +113,13 @@ public class LangBuilder {
 	 */
 	public LangBuilder color(int color) {
 		assertComponent();
-		component = component.withStyle(s -> s.withColor(color));
+		component = component.styled(s -> s.withColor(color));
 		return this;
 	}
 
 	//
 
-	public MutableComponent component() {
+	public MutableText component() {
 		assertComponent();
 		return component;
 	}
@@ -129,26 +129,26 @@ public class LangBuilder {
 	}
 
 	public String json() {
-		return Component.Serializer.toJson(component());
+		return Text.Serializer.toJson(component());
 	}
 
-	public void sendStatus(Player player) {
-		player.displayClientMessage(component(), true);
+	public void sendStatus(PlayerEntity player) {
+		player.sendMessage(component(), true);
 	}
 
-	public void sendChat(Player player) {
-		player.displayClientMessage(component(), false);
+	public void sendChat(PlayerEntity player) {
+		player.sendMessage(component(), false);
 	}
 
-	public void addTo(List<? super MutableComponent> tooltip) {
+	public void addTo(List<? super MutableText> tooltip) {
 		tooltip.add(component());
 	}
 
-	public void forGoggles(List<? super MutableComponent> tooltip) {
+	public void forGoggles(List<? super MutableText> tooltip) {
 		forGoggles(tooltip, 0);
 	}
 
-	public void forGoggles(List<? super MutableComponent> tooltip, int indents) {
+	public void forGoggles(List<? super MutableText> tooltip, int indents) {
 		tooltip.add(Lang.builder()
 			.text(Strings.repeat(' ', 4 + indents))
 			.add(this)

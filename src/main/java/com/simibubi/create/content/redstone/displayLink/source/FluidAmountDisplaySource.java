@@ -19,13 +19,13 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.text.MutableText;
 
 public class FluidAmountDisplaySource extends SingleLineDisplaySource {
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
 		BlockEntity sourceBE = context.getSourceBlockEntity();
 		if (!(sourceBE instanceof SmartObserverBlockEntity cobe))
 			return EMPTY_LINE;

@@ -5,18 +5,18 @@ import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeBuilder.ProcessingRecipeParams;
 
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.world.Container;
-import net.minecraft.world.level.Level;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.world.World;
 
-public class EmptyingRecipe extends ProcessingRecipe<Container> {
+public class EmptyingRecipe extends ProcessingRecipe<Inventory> {
 
 	public EmptyingRecipe(ProcessingRecipeParams params) {
 		super(AllRecipeTypes.EMPTYING, params);
 	}
 
 	@Override
-	public boolean matches(Container inv, Level p_77569_2_) {
-		return ingredients.get(0).test(inv.getItem(0));
+	public boolean matches(Inventory inv, World p_77569_2_) {
+		return ingredients.get(0).test(inv.getStack(0));
 	}
 
 	@Override

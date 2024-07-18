@@ -6,9 +6,9 @@ import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.BlockPos;
 
 public interface MultiPosDestructionHandler {
 	/**
@@ -16,5 +16,5 @@ public interface MultiPosDestructionHandler {
 	 */
 	@Nullable
 	@Environment(EnvType.CLIENT)
-	Set<BlockPos> getExtraPositions(ClientLevel level, BlockPos pos, BlockState blockState, int progress);
+	Set<BlockPos> getExtraPositions(ClientWorld level, BlockPos pos, BlockState blockState, int progress);
 }

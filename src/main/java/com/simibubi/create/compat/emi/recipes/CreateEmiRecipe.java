@@ -3,7 +3,12 @@ package com.simibubi.create.compat.emi.recipes;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.util.Identifier;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,17 +33,11 @@ import dev.emi.emi.api.widget.SlotWidget;
 import dev.emi.emi.api.widget.TextureWidget;
 import dev.emi.emi.api.widget.WidgetHolder;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
 
 public abstract class CreateEmiRecipe<T extends Recipe<?>> implements EmiRecipe {
 	protected final EmiRecipeCategory category;
 	protected final T recipe;
-	protected ResourceLocation id;
+	protected Identifier id;
 	protected List<EmiIngredient> input;
 	protected List<EmiStack> output;
 	protected int width, height;
@@ -114,7 +113,7 @@ public abstract class CreateEmiRecipe<T extends Recipe<?>> implements EmiRecipe 
 	}
 
 	@Override
-	public @Nullable ResourceLocation getId() {
+	public @Nullable Identifier getId() {
 		return id;
 	}
 
@@ -172,10 +171,10 @@ public abstract class CreateEmiRecipe<T extends Recipe<?>> implements EmiRecipe 
 	}
 
 	public static ItemStack getResultItem(Recipe<?> recipe) {
-		ClientLevel level = Minecraft.getInstance().level;
+		ClientWorld level = MinecraftClient.getInstance().world;
 		if (level == null)
 			return ItemStack.EMPTY;
-		return recipe.getResultItem(level.registryAccess());
+		return recipe.getOutput(level.getRegistryManager());
 	}
 
 	public static EmiStack getResultEmi(Recipe<?> recipe) {

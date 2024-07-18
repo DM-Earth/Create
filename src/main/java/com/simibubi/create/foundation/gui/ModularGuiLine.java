@@ -3,23 +3,21 @@ package com.simibubi.create.foundation.gui;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.Drawable;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.Selectable;
+import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.nbt.NbtCompound;
 import com.simibubi.create.foundation.gui.widget.ScrollInput;
 import com.simibubi.create.foundation.gui.widget.TooltipArea;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Pair;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Renderable;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.narration.NarratableEntry;
-import net.minecraft.nbt.CompoundTag;
-
 public class ModularGuiLine {
 
-	List<Pair<AbstractWidget, String>> widgets;
+	List<Pair<ClickableWidget, String>> widgets;
 	List<Couple<Integer>> customBoxes;
 	boolean speechBubble;
 
@@ -29,7 +27,7 @@ public class ModularGuiLine {
 		speechBubble = false;
 	}
 
-	public void renderWidgetBG(int guiLeft, GuiGraphics graphics) {
+	public void renderWidgetBG(int guiLeft, DrawContext graphics) {
 		boolean first = true;
 
 		if (!customBoxes.isEmpty()) {
@@ -42,16 +40,16 @@ public class ModularGuiLine {
 			return;
 		}
 
-		for (Pair<AbstractWidget, String> pair : widgets) {
+		for (Pair<ClickableWidget, String> pair : widgets) {
 			if (pair.getSecond()
 				.equals("Dummy"))
 				continue;
 
-			AbstractWidget aw = pair.getFirst();
+			ClickableWidget aw = pair.getFirst();
 			int x = aw.getX();
 			int width = aw.getWidth();
 
-			if (aw instanceof EditBox) {
+			if (aw instanceof TextFieldWidget) {
 				x -= 5;
 				width += 9;
 			}
@@ -61,7 +59,7 @@ public class ModularGuiLine {
 		}
 	}
 
-	private void box(GuiGraphics graphics, int x, int width, boolean b) {
+	private void box(DrawContext graphics, int x, int width, boolean b) {
 		UIRenderHelper.drawStretched(graphics, x, 0, width, 18, 0, AllGuiTextures.DATA_AREA);
 		if (b)
 			AllGuiTextures.DATA_AREA_SPEECH.render(graphics, x - 3, 0);
@@ -70,25 +68,25 @@ public class ModularGuiLine {
 		AllGuiTextures.DATA_AREA_END.render(graphics, x + width - 2, 0);
 	}
 
-	public void saveValues(CompoundTag data) {
-		for (Pair<AbstractWidget, String> pair : widgets) {
-			AbstractWidget w = pair.getFirst();
+	public void saveValues(NbtCompound data) {
+		for (Pair<ClickableWidget, String> pair : widgets) {
+			ClickableWidget w = pair.getFirst();
 			String key = pair.getSecond();
-			if (w instanceof EditBox eb)
-				data.putString(key, eb.getValue());
+			if (w instanceof TextFieldWidget eb)
+				data.putString(key, eb.getText());
 			if (w instanceof ScrollInput si)
 				data.putInt(key, si.getState());
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T extends GuiEventListener & Renderable & NarratableEntry> void loadValues(CompoundTag data,
+	public <T extends Element & Drawable & Selectable> void loadValues(NbtCompound data,
 		Consumer<T> addRenderable, Consumer<T> addRenderableOnly) {
-		for (Pair<AbstractWidget, String> pair : widgets) {
-			AbstractWidget w = pair.getFirst();
+		for (Pair<ClickableWidget, String> pair : widgets) {
+			ClickableWidget w = pair.getFirst();
 			String key = pair.getSecond();
-			if (w instanceof EditBox eb)
-				eb.setValue(data.getString(key));
+			if (w instanceof TextFieldWidget eb)
+				eb.setText(data.getString(key));
 			if (w instanceof ScrollInput si)
 				si.setState(data.getInt(key));
 
@@ -99,7 +97,7 @@ public class ModularGuiLine {
 		}
 	}
 
-	public void forEach(Consumer<GuiEventListener> callback) {
+	public void forEach(Consumer<Element> callback) {
 		widgets.forEach(p -> callback.accept(p.getFirst()));
 	}
 
@@ -108,7 +106,7 @@ public class ModularGuiLine {
 		customBoxes.clear();
 	}
 
-	public void add(Pair<AbstractWidget, String> pair) {
+	public void add(Pair<ClickableWidget, String> pair) {
 		widgets.add(pair);
 	}
 

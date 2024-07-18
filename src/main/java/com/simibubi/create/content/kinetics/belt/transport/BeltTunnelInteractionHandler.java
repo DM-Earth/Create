@@ -15,13 +15,12 @@ import com.simibubi.create.content.redstone.displayLink.source.AccumulatedItemCo
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.Iterate;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class BeltTunnelInteractionHandler {
 
@@ -42,8 +41,8 @@ public class BeltTunnelInteractionHandler {
 			return true;
 		}
 
-		Level world = beltInventory.belt.getLevel();
-		boolean onServer = !world.isClientSide || beltInventory.belt.isVirtual();
+		World world = beltInventory.belt.getWorld();
+		boolean onServer = !world.isClient || beltInventory.belt.isVirtual();
 		boolean removed = false;
 		BeltTunnelBlockEntity nextTunnel = getTunnelOnSegment(beltInventory, upcomingSegment);
 		int transferred = current.stack.getCount();
@@ -57,25 +56,25 @@ public class BeltTunnelInteractionHandler {
 					brassTunnel.setStackToDistribute(current.stack, movementFacing.getOpposite(), null);
 					current.stack = ItemStack.EMPTY;
 					beltInventory.belt.sendData();
-					beltInventory.belt.setChanged();
+					beltInventory.belt.markDirty();
 				}
 				removed = true;
 			}
 		} else if (nextTunnel != null) {
-			BlockState blockState = nextTunnel.getBlockState();
+			BlockState blockState = nextTunnel.getCachedState();
 			if (current.stack.getCount() > 1 && AllBlocks.ANDESITE_TUNNEL.has(blockState)
 				&& BeltTunnelBlock.isJunction(blockState)
-				&& movementFacing.getAxis() == blockState.getValue(BeltTunnelBlock.HORIZONTAL_AXIS)) {
+				&& movementFacing.getAxis() == blockState.get(BeltTunnelBlock.HORIZONTAL_AXIS)) {
 
 				for (Direction d : Iterate.horizontalDirections) {
-					if (d.getAxis() == blockState.getValue(BeltTunnelBlock.HORIZONTAL_AXIS))
+					if (d.getAxis() == blockState.get(BeltTunnelBlock.HORIZONTAL_AXIS))
 						continue;
 					if (!nextTunnel.flaps.containsKey(d))
 						continue;
-					BlockPos outpos = nextTunnel.getBlockPos()
-						.below()
-						.relative(d);
-					if (!world.isLoaded(outpos))
+					BlockPos outpos = nextTunnel.getPos()
+						.down()
+						.offset(d);
+					if (!world.canSetBlock(outpos))
 						return true;
 					DirectBeltInputBehaviour behaviour =
 						BlockEntityBehaviour.get(world, outpos, DirectBeltInputBehaviour.TYPE);
@@ -91,7 +90,7 @@ public class BeltTunnelInteractionHandler {
 					if (onServer)
 						flapTunnel(beltInventory, upcomingSegment, d, false);
 
-					current.stack.shrink(1);
+					current.stack.decrement(1);
 					beltInventory.belt.sendData();
 					if (current.stack.getCount() <= 1)
 						break;
@@ -104,7 +103,7 @@ public class BeltTunnelInteractionHandler {
 			flapTunnel(beltInventory, upcomingSegment, movementFacing.getOpposite(), true);
 
 			if (nextTunnel != null)
-				DisplayLinkBlock.sendToGatherers(world, nextTunnel.getBlockPos(),
+				DisplayLinkBlock.sendToGatherers(world, nextTunnel.getPos(),
 					(dgte, b) -> b.itemReceived(dgte, transferred), AccumulatedItemCountDisplaySource.class);
 		}
 
@@ -118,12 +117,12 @@ public class BeltTunnelInteractionHandler {
 		Direction movementDirection) {
 		BeltBlockEntity belt = beltInventory.belt;
 		BlockPos pos = BeltHelper.getPositionForOffset(belt, offset)
-			.above();
-		if (!(belt.getLevel()
+			.up();
+		if (!(belt.getWorld()
 			.getBlockState(pos)
 			.getBlock() instanceof BrassTunnelBlock))
 			return false;
-		BlockEntity be = belt.getLevel()
+		BlockEntity be = belt.getWorld()
 			.getBlockEntity(pos);
 		if (be == null || !(be instanceof BrassTunnelBlockEntity))
 			return false;
@@ -140,14 +139,14 @@ public class BeltTunnelInteractionHandler {
 
 	protected static BeltTunnelBlockEntity getTunnelOnSegment(BeltInventory beltInventory, int offset) {
 		BeltBlockEntity belt = beltInventory.belt;
-		if (belt.getBlockState()
-			.getValue(BeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
+		if (belt.getCachedState()
+			.get(BeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
 			return null;
-		return getTunnelOnPosition(belt.getLevel(), BeltHelper.getPositionForOffset(belt, offset));
+		return getTunnelOnPosition(belt.getWorld(), BeltHelper.getPositionForOffset(belt, offset));
 	}
 
-	public static BeltTunnelBlockEntity getTunnelOnPosition(Level world, BlockPos pos) {
-		pos = pos.above();
+	public static BeltTunnelBlockEntity getTunnelOnPosition(World world, BlockPos pos) {
+		pos = pos.up();
 		if (!(world.getBlockState(pos)
 			.getBlock() instanceof BeltTunnelBlock))
 			return null;

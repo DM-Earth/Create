@@ -4,12 +4,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.simibubi.create.content.processing.recipe.ProcessingOutput;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.JsonHelper;
 
 public class SequencedAssemblyRecipeSerializer implements RecipeSerializer<SequencedAssemblyRecipe> {
 
@@ -27,22 +26,22 @@ public class SequencedAssemblyRecipeSerializer implements RecipeSerializer<Seque
 		json.addProperty("loops", recipe.loops);
 	}
 
-	protected SequencedAssemblyRecipe readFromJson(ResourceLocation recipeId, JsonObject json) {
+	protected SequencedAssemblyRecipe readFromJson(Identifier recipeId, JsonObject json) {
 		SequencedAssemblyRecipe recipe = new SequencedAssemblyRecipe(recipeId, this);
 		recipe.ingredient = Ingredient.fromJson(json.get("ingredient"));
-		recipe.transitionalItem = ProcessingOutput.deserialize(GsonHelper.getAsJsonObject(json, "transitionalItem"));
+		recipe.transitionalItem = ProcessingOutput.deserialize(JsonHelper.getObject(json, "transitionalItem"));
 		int i = 0;
-		for (JsonElement je : GsonHelper.getAsJsonArray(json, "sequence"))
+		for (JsonElement je : JsonHelper.getArray(json, "sequence"))
 			recipe.getSequence().add(SequencedRecipe.fromJson(je.getAsJsonObject(), recipe, i++));
-		for (JsonElement je : GsonHelper.getAsJsonArray(json, "results"))
+		for (JsonElement je : JsonHelper.getArray(json, "results"))
 			recipe.resultPool.add(ProcessingOutput.deserialize(je));
-		if (GsonHelper.isValidNode(json, "loops"))
-			recipe.loops = GsonHelper.getAsInt(json, "loops");
+		if (JsonHelper.hasElement(json, "loops"))
+			recipe.loops = JsonHelper.getInt(json, "loops");
 		return recipe;
 	}
 
-	protected void writeToBuffer(FriendlyByteBuf buffer, SequencedAssemblyRecipe recipe) {
-		recipe.getIngredient().toNetwork(buffer);
+	protected void writeToBuffer(PacketByteBuf buffer, SequencedAssemblyRecipe recipe) {
+		recipe.getIngredient().write(buffer);
 		buffer.writeVarInt(recipe.getSequence().size());
 		recipe.getSequence().forEach(sr -> sr.writeToBuffer(buffer));
 		buffer.writeVarInt(recipe.resultPool.size());
@@ -51,9 +50,9 @@ public class SequencedAssemblyRecipeSerializer implements RecipeSerializer<Seque
 		buffer.writeInt(recipe.loops);
 	}
 
-	protected SequencedAssemblyRecipe readFromBuffer(ResourceLocation recipeId, FriendlyByteBuf buffer) {
+	protected SequencedAssemblyRecipe readFromBuffer(Identifier recipeId, PacketByteBuf buffer) {
 		SequencedAssemblyRecipe recipe = new SequencedAssemblyRecipe(recipeId, this);
-		recipe.ingredient = Ingredient.fromNetwork(buffer);
+		recipe.ingredient = Ingredient.fromPacket(buffer);
 		int size = buffer.readVarInt();
 		for (int i = 0; i < size; i++)
 			recipe.getSequence().add(SequencedRecipe.readFromBuffer(buffer));
@@ -70,17 +69,17 @@ public class SequencedAssemblyRecipeSerializer implements RecipeSerializer<Seque
 	}
 
 	@Override
-	public final SequencedAssemblyRecipe fromJson(ResourceLocation id, JsonObject json) {
+	public final SequencedAssemblyRecipe read(Identifier id, JsonObject json) {
 		return readFromJson(id, json);
 	}
 
 	@Override
-	public final void toNetwork(FriendlyByteBuf buffer, SequencedAssemblyRecipe recipe) {
+	public final void write(PacketByteBuf buffer, SequencedAssemblyRecipe recipe) {
 		writeToBuffer(buffer, recipe);
 	}
 
 	@Override
-	public final SequencedAssemblyRecipe fromNetwork(ResourceLocation id, FriendlyByteBuf buffer) {
+	public final SequencedAssemblyRecipe read(Identifier id, PacketByteBuf buffer) {
 		return readFromBuffer(id, buffer);
 	}
 

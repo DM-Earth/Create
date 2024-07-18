@@ -3,7 +3,25 @@ package com.simibubi.create.content.logistics.chute;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.foundation.advancement.AdvancementBehaviour;
@@ -13,29 +31,9 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.Iterate;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-
 public abstract class AbstractChuteBlock extends Block implements IWrenchable, IBE<ChuteBlockEntity>, ReducedDestroyEffects {
 
-	public AbstractChuteBlock(Properties p_i48440_1_) {
+	public AbstractChuteBlock(Settings p_i48440_1_) {
 		super(p_i48440_1_);
 	}
 
@@ -74,24 +72,24 @@ public abstract class AbstractChuteBlock extends Block implements IWrenchable, I
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		AdvancementBehaviour.setPlacedBy(pLevel, pPos, pPlacer);
 	}
 
 	@Override
-	public void updateEntityAfterFallOn(BlockGetter worldIn, Entity entityIn) {
-		super.updateEntityAfterFallOn(worldIn, entityIn);
+	public void onEntityLand(BlockView worldIn, Entity entityIn) {
+		super.onEntityLand(worldIn, entityIn);
 		if (!(entityIn instanceof ItemEntity))
 			return;
-		if (entityIn.level().isClientSide)
+		if (entityIn.getWorld().isClient)
 			return;
 		if (!entityIn.isAlive())
 			return;
-		DirectBeltInputBehaviour input = BlockEntityBehaviour.get(entityIn.level(),
-			BlockPos.containing(entityIn.position()
+		DirectBeltInputBehaviour input = BlockEntityBehaviour.get(entityIn.getWorld(),
+			BlockPos.ofFloored(entityIn.getPos()
 				.add(0, 0.5f, 0))
-				.below(),
+				.down(),
 			DirectBeltInputBehaviour.TYPE);
 		if (input == null)
 			return;
@@ -99,65 +97,65 @@ public abstract class AbstractChuteBlock extends Block implements IWrenchable, I
 			return;
 
 		ItemEntity itemEntity = (ItemEntity) entityIn;
-		ItemStack toInsert = itemEntity.getItem();
+		ItemStack toInsert = itemEntity.getStack();
 		ItemStack remainder = input.handleInsertion(toInsert, Direction.UP, false);
 
 		if (remainder.isEmpty())
 			itemEntity.discard();
 		if (remainder.getCount() < toInsert.getCount())
-			itemEntity.setItem(remainder);
+			itemEntity.setStack(remainder);
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level world, BlockPos pos, BlockState p_220082_4_, boolean p_220082_5_) {
+	public void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState p_220082_4_, boolean p_220082_5_) {
 		withBlockEntityDo(world, pos, ChuteBlockEntity::onAdded);
 		updateDiagonalNeighbour(state, world, pos);
 	}
 
-	protected void updateDiagonalNeighbour(BlockState state, Level world, BlockPos pos) {
+	protected void updateDiagonalNeighbour(BlockState state, World world, BlockPos pos) {
 		if (!isChute(state))
 			return;
 		AbstractChuteBlock block = (AbstractChuteBlock) state.getBlock();
 		Direction facing = block.getFacing(state);
-		BlockPos toUpdate = pos.below();
+		BlockPos toUpdate = pos.down();
 		if (facing.getAxis()
 			.isHorizontal())
-			toUpdate = toUpdate.relative(facing.getOpposite());
+			toUpdate = toUpdate.offset(facing.getOpposite());
 
 		BlockState stateToUpdate = world.getBlockState(toUpdate);
-		if (isChute(stateToUpdate) && !world.getBlockTicks()
-			.hasScheduledTick(toUpdate, stateToUpdate.getBlock()))
-			world.scheduleTick(toUpdate, stateToUpdate.getBlock(), 1);
+		if (isChute(stateToUpdate) && !world.getBlockTickScheduler()
+			.isQueued(toUpdate, stateToUpdate.getBlock()))
+			world.scheduleBlockTick(toUpdate, stateToUpdate.getBlock(), 1);
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level world, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean isMoving) {
 		IBE.onRemove(state, world, pos, newState);
 
-		if (state.is(newState.getBlock()))
+		if (state.isOf(newState.getBlock()))
 			return;
 
 		updateDiagonalNeighbour(state, world, pos);
 
 		for (Direction direction : Iterate.horizontalDirections) {
-			BlockPos toUpdate = pos.above()
-				.relative(direction);
+			BlockPos toUpdate = pos.up()
+				.offset(direction);
 			BlockState stateToUpdate = world.getBlockState(toUpdate);
-			if (isChute(stateToUpdate) && !world.getBlockTicks()
-				.hasScheduledTick(toUpdate, stateToUpdate.getBlock()))
-				world.scheduleTick(toUpdate, stateToUpdate.getBlock(), 1);
+			if (isChute(stateToUpdate) && !world.getBlockTickScheduler()
+				.isQueued(toUpdate, stateToUpdate.getBlock()))
+				world.scheduleBlockTick(toUpdate, stateToUpdate.getBlock(), 1);
 		}
 	}
 
 	@Override
-	public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
-		BlockState updated = updateChuteState(pState, pLevel.getBlockState(pPos.above()), pLevel, pPos);
+	public void scheduledTick(BlockState pState, ServerWorld pLevel, BlockPos pPos, Random pRandom) {
+		BlockState updated = updateChuteState(pState, pLevel.getBlockState(pPos.up()), pLevel, pPos);
 		if (pState != updated)
-			pLevel.setBlockAndUpdate(pPos, updated);
+			pLevel.setBlockState(pPos, updated);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction direction, BlockState above, LevelAccessor world,
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState above, WorldAccess world,
 		BlockPos pos, BlockPos p_196271_6_) {
 		if (direction != Direction.UP)
 			return state;
@@ -165,9 +163,9 @@ public abstract class AbstractChuteBlock extends Block implements IWrenchable, I
 	}
 
 	@Override
-	public void neighborChanged(BlockState p_220069_1_, Level world, BlockPos pos, Block p_220069_4_,
+	public void neighborUpdate(BlockState p_220069_1_, World world, BlockPos pos, Block p_220069_4_,
 		BlockPos neighbourPos, boolean p_220069_6_) {
-		if (pos.below()
+		if (pos.down()
 			.equals(neighbourPos))
 			withBlockEntityDo(world, pos, ChuteBlockEntity::blockBelowChanged);
 		// fabric: unnecessary, not how it works here
@@ -176,17 +174,17 @@ public abstract class AbstractChuteBlock extends Block implements IWrenchable, I
 //			withBlockEntityDo(world, pos, chute -> chute.capAbove = LazyOptional.empty());
 	}
 
-	public abstract BlockState updateChuteState(BlockState state, BlockState above, BlockGetter world, BlockPos pos);
+	public abstract BlockState updateChuteState(BlockState state, BlockState above, BlockView world, BlockPos pos);
 
 	@Override
-	public VoxelShape getShape(BlockState p_220053_1_, BlockGetter p_220053_2_, BlockPos p_220053_3_,
-		CollisionContext p_220053_4_) {
+	public VoxelShape getOutlineShape(BlockState p_220053_1_, BlockView p_220053_2_, BlockPos p_220053_3_,
+		ShapeContext p_220053_4_) {
 		return ChuteShapes.getShape(p_220053_1_);
 	}
 
 	@Override
-	public VoxelShape getCollisionShape(BlockState p_220071_1_, BlockGetter p_220071_2_, BlockPos p_220071_3_,
-		CollisionContext p_220071_4_) {
+	public VoxelShape getCollisionShape(BlockState p_220071_1_, BlockView p_220071_2_, BlockPos p_220071_3_,
+		ShapeContext p_220071_4_) {
 		return ChuteShapes.getCollisionShape(p_220071_1_);
 	}
 
@@ -196,23 +194,23 @@ public abstract class AbstractChuteBlock extends Block implements IWrenchable, I
 	}
 
 	@Override
-	public InteractionResult use(BlockState p_225533_1_, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState p_225533_1_, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult p_225533_6_) {
 		if (AdventureUtil.isAdventure(player))
-			return InteractionResult.PASS;
-		if (!player.getItemInHand(hand)
+			return ActionResult.PASS;
+		if (!player.getStackInHand(hand)
 			.isEmpty())
-			return InteractionResult.PASS;
-		if (world.isClientSide)
-			return InteractionResult.SUCCESS;
+			return ActionResult.PASS;
+		if (world.isClient)
+			return ActionResult.SUCCESS;
 
 		return onBlockEntityUse(world, pos, be -> {
 			if (be.item.isEmpty())
-				return InteractionResult.PASS;
+				return ActionResult.PASS;
 			player.getInventory()
-				.placeItemBackInInventory(be.item);
+				.offerOrDrop(be.item);
 			be.setItem(ItemStack.EMPTY);
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		});
 	}
 

@@ -13,7 +13,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.Create;
@@ -25,28 +32,19 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 import com.simibubi.create.infrastructure.config.CSchematics;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-
 public class ServerSchematicLoader {
 
 	private Map<String, SchematicUploadEntry> activeUploads;
 
 	public class SchematicUploadEntry {
-		public Level world;
+		public World world;
 		public BlockPos tablePos;
 		public OutputStream stream;
 		public long bytesUploaded;
 		public long totalBytes;
 		public int idleTime;
 
-		public SchematicUploadEntry(OutputStream stream, long totalBytes, Level world, BlockPos tablePos) {
+		public SchematicUploadEntry(OutputStream stream, long totalBytes, World world, BlockPos tablePos) {
 			this.stream = stream;
 			this.totalBytes = totalBytes;
 			this.tablePos = tablePos;
@@ -86,7 +84,7 @@ public class ServerSchematicLoader {
 		new HashSet<>(activeUploads.keySet()).forEach(this::cancelUpload);
 	}
 
-	public void handleNewUpload(ServerPlayer player, String schematic, long size, BlockPos pos) {
+	public void handleNewUpload(ServerPlayerEntity player, String schematic, long size, BlockPos pos) {
 		String playerPath = getSchematicPath() + "/" + player.getGameProfile()
 			.getName();
 		String playerSchematicId = player.getGameProfile()
@@ -120,7 +118,7 @@ public class ServerSchematicLoader {
 
 		try {
 			// Validate Referenced Block
-			SchematicTableBlockEntity table = getTable(player.getCommandSenderWorld(), pos);
+			SchematicTableBlockEntity table = getTable(player.getEntityWorld(), pos);
 			if (table == null)
 				return;
 
@@ -146,7 +144,7 @@ public class ServerSchematicLoader {
 
 			// Open Stream
 			OutputStream writer = Files.newOutputStream(uploadPath);
-			activeUploads.put(playerSchematicId, new SchematicUploadEntry(writer, size, player.level(), pos));
+			activeUploads.put(playerSchematicId, new SchematicUploadEntry(writer, size, player.getWorld(), pos));
 
 			// Notify Block Entity
 			table.startUpload(schematic);
@@ -157,12 +155,12 @@ public class ServerSchematicLoader {
 		}
 	}
 
-	protected boolean validateSchematicSizeOnServer(ServerPlayer player, long size) {
+	protected boolean validateSchematicSizeOnServer(ServerPlayerEntity player, long size) {
 		Integer maxFileSize = getConfig().maxTotalSchematicSize.get();
 		if (size > maxFileSize * 1000) {
-			player.sendSystemMessage(Lang.translateDirect("schematics.uploadTooLarge")
+			player.sendMessage(Lang.translateDirect("schematics.uploadTooLarge")
 				.append(Components.literal(" (" + size / 1000 + " KB).")));
-			player.sendSystemMessage(Lang.translateDirect("schematics.maxAllowedSize")
+			player.sendMessage(Lang.translateDirect("schematics.maxAllowedSize")
 				.append(Components.literal(" " + maxFileSize + " KB")));
 			return false;
 		}
@@ -173,7 +171,7 @@ public class ServerSchematicLoader {
 		return AllConfigs.server().schematics;
 	}
 
-	public void handleWriteRequest(ServerPlayer player, String schematic, byte[] data) {
+	public void handleWriteRequest(ServerPlayerEntity player, String schematic, byte[] data) {
 		String playerSchematicId = player.getGameProfile()
 			.getName() + "/" + schematic;
 
@@ -236,7 +234,7 @@ public class ServerSchematicLoader {
 			table.finishUpload();
 	}
 
-	public SchematicTableBlockEntity getTable(Level world, BlockPos pos) {
+	public SchematicTableBlockEntity getTable(World world, BlockPos pos) {
 		BlockEntity be = world.getBlockEntity(pos);
 		if (!(be instanceof SchematicTableBlockEntity))
 			return null;
@@ -244,7 +242,7 @@ public class ServerSchematicLoader {
 		return table;
 	}
 
-	public void handleFinishedUpload(ServerPlayer player, String schematic) {
+	public void handleFinishedUpload(ServerPlayerEntity player, String schematic) {
 		String playerSchematicId = player.getGameProfile()
 			.getName() + "/" + schematic;
 
@@ -252,7 +250,7 @@ public class ServerSchematicLoader {
 			try {
 				activeUploads.get(playerSchematicId).stream.close();
 				SchematicUploadEntry removed = activeUploads.remove(playerSchematicId);
-				Level world = removed.world;
+				World world = removed.world;
 				BlockPos pos = removed.tablePos;
 
 				Create.LOGGER.info("New Schematic Uploaded: " + playerSchematicId);
@@ -267,7 +265,7 @@ public class ServerSchematicLoader {
 				if (table == null)
 					return;
 				table.finishUpload();
-				table.inventory.setStackInSlot(1, SchematicItem.create(world.holderLookup(Registries.BLOCK), schematic, player.getGameProfile()
+				table.inventory.setStackInSlot(1, SchematicItem.create(world.createCommandRegistryWrapper(RegistryKeys.BLOCK), schematic, player.getGameProfile()
 					.getName()));
 
 			} catch (IOException e) {
@@ -277,7 +275,7 @@ public class ServerSchematicLoader {
 		}
 	}
 
-	public void handleInstantSchematic(ServerPlayer player, String schematic, Level world, BlockPos pos,
+	public void handleInstantSchematic(ServerPlayerEntity player, String schematic, World world, BlockPos pos,
 		BlockPos bounds) {
 		String playerName = player.getGameProfile().getName();
 		String playerPath = getSchematicPath() + "/" + playerName;
@@ -301,7 +299,7 @@ public class ServerSchematicLoader {
 		}
 
 		// Not holding S&Q
-		if (!AllItems.SCHEMATIC_AND_QUILL.isIn(player.getMainHandItem()))
+		if (!AllItems.SCHEMATIC_AND_QUILL.isIn(player.getMainHandStack()))
 			return;
 
 		// if there's too many schematics, delete oldest
@@ -312,14 +310,14 @@ public class ServerSchematicLoader {
 
 		SchematicExportResult result = SchematicExport.saveSchematic(
 				playerSchematics, schematic, true,
-				world, pos, pos.offset(bounds).offset(-1, -1, -1)
+				world, pos, pos.add(bounds).add(-1, -1, -1)
 		);
 		if (result != null)
-			player.setItemInHand(InteractionHand.MAIN_HAND,
-				SchematicItem.create(world.holderLookup(Registries.BLOCK), schematic, playerName));
+			player.setStackInHand(Hand.MAIN_HAND,
+				SchematicItem.create(world.createCommandRegistryWrapper(RegistryKeys.BLOCK), schematic, playerName));
 		else
 			Lang.translate("schematicAndQuill.instant_failed")
-				.style(ChatFormatting.RED)
+				.style(Formatting.RED)
 				.sendStatus(player);
 	}
 

@@ -1,7 +1,12 @@
 package com.simibubi.create.content.fluids.pipes.valve;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.content.fluids.FluidPropagator;
@@ -14,12 +19,6 @@ import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
 
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class FluidValveBlockEntity extends KineticBlockEntity implements PipeAttachmentBlockEntity {
 
@@ -45,36 +44,36 @@ public class FluidValveBlockEntity extends KineticBlockEntity implements PipeAtt
 		super.tick();
 		pointer.tickChaser();
 
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!(blockState.getBlock() instanceof FluidValveBlock))
 			return;
-		boolean stateOpen = blockState.getValue(FluidValveBlock.ENABLED);
+		boolean stateOpen = blockState.get(FluidValveBlock.ENABLED);
 
 		if (stateOpen && pointer.getValue() == 0) {
-			switchToBlockState(level, worldPosition, blockState.setValue(FluidValveBlock.ENABLED, false));
+			switchToBlockState(world, pos, blockState.with(FluidValveBlock.ENABLED, false));
 			return;
 		}
 		if (!stateOpen && pointer.getValue() == 1) {
-			switchToBlockState(level, worldPosition, blockState.setValue(FluidValveBlock.ENABLED, true));
+			switchToBlockState(world, pos, blockState.with(FluidValveBlock.ENABLED, true));
 			return;
 		}
 	}
 
 	private float getChaseSpeed() {
-		return Mth.clamp(Math.abs(getSpeed()) / 16 / 20, 0, 1);
+		return MathHelper.clamp(Math.abs(getSpeed()) / 16 / 20, 0, 1);
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		compound.put("Pointer", pointer.writeNBT());
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		pointer.readNBT(compound.getCompound("Pointer"), clientPacket);
 	}
@@ -104,7 +103,7 @@ public class FluidValveBlockEntity extends KineticBlockEntity implements PipeAtt
 
 		@Override
 		public boolean canPullFluidFrom(FluidStack fluid, BlockState state, Direction direction) {
-			if (state.hasProperty(FluidValveBlock.ENABLED) && state.getValue(FluidValveBlock.ENABLED))
+			if (state.contains(FluidValveBlock.ENABLED) && state.get(FluidValveBlock.ENABLED))
 				return super.canPullFluidFrom(fluid, state, direction);
 			return false;
 		}

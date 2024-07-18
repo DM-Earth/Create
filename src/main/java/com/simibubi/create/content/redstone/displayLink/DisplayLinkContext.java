@@ -1,23 +1,23 @@
 package com.simibubi.create.content.redstone.displayLink;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class DisplayLinkContext {
 
-	private Level level;
+	private World level;
 	private DisplayLinkBlockEntity blockEntity;
 
 	public Object flapDisplayContext;
 
-	public DisplayLinkContext(Level level, DisplayLinkBlockEntity blockEntity) {
+	public DisplayLinkContext(World level, DisplayLinkBlockEntity blockEntity) {
 		this.level = level;
 		this.blockEntity = blockEntity;
 	}
 
-	public Level level() {
+	public World level() {
 		return level;
 	}
 
@@ -41,7 +41,7 @@ public class DisplayLinkContext {
 		return blockEntity.getTargetPosition();
 	}
 
-	public CompoundTag sourceConfig() {
+	public NbtCompound sourceConfig() {
 		return blockEntity.getSourceConfig();
 	}
 

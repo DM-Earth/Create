@@ -11,16 +11,15 @@ import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.util.math.Direction;
 
 public class DrillRenderer extends KineticBlockEntityRenderer<DrillBlockEntity> {
 
-	public DrillRenderer(BlockEntityRendererProvider.Context context) {
+	public DrillRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
@@ -30,10 +29,10 @@ public class DrillRenderer extends KineticBlockEntityRenderer<DrillBlockEntity> 
 	}
 
 	public static void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
 		BlockState state = context.state;
 		SuperByteBuffer superBuffer = CachedBufferer.partial(AllPartialModels.DRILL_HEAD, state);
-		Direction facing = state.getValue(DrillBlock.FACING);
+		Direction facing = state.get(DrillBlock.FACING);
 
 		float speed = (float) (context.contraption.stalled
 				|| !VecHelper.isVecPointingTowards(context.relativeMotion, facing
@@ -50,7 +49,7 @@ public class DrillRenderer extends KineticBlockEntityRenderer<DrillBlockEntity> 
 			.unCentre()
 			.light(matrices.getWorld(),
 					ContraptionRenderDispatcher.getContraptionWorldLight(context, renderWorld))
-			.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderType.solid()));
+			.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderLayer.getSolid()));
 	}
 
 }

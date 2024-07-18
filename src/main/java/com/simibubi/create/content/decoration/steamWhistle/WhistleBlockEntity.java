@@ -21,21 +21,20 @@ import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
 
 import com.tterrag.registrate.fabric.EnvExecutor;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class WhistleBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
@@ -55,17 +54,17 @@ public class WhistleBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 	}
 
 	public void updatePitch() {
-		BlockPos currentPos = worldPosition.above();
+		BlockPos currentPos = pos.up();
 		int newPitch;
 		for (newPitch = 0; newPitch <= 24; newPitch += 2) {
-			BlockState blockState = level.getBlockState(currentPos);
+			BlockState blockState = world.getBlockState(currentPos);
 			if (!AllBlocks.STEAM_WHISTLE_EXTENSION.has(blockState))
 				break;
-			if (blockState.getValue(WhistleExtenderBlock.SHAPE) == WhistleExtenderShape.SINGLE) {
+			if (blockState.get(WhistleExtenderBlock.SHAPE) == WhistleExtenderShape.SINGLE) {
 				newPitch++;
 				break;
 			}
-			currentPos = currentPos.above();
+			currentPos = currentPos.up();
 		}
 		if (pitch == newPitch)
 			return;
@@ -81,7 +80,7 @@ public class WhistleBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 	@Override
 	public void tick() {
 		super.tick();
-		if (!level.isClientSide()) {
+		if (!world.isClient()) {
 			if (isPowered())
 				award(AllAdvancements.STEAM_WHISTLE);
 			return;
@@ -97,34 +96,34 @@ public class WhistleBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		tag.putInt("Pitch", pitch);
 		super.write(tag, clientPacket);
 	}
 
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		pitch = tag.getInt("Pitch");
 		super.read(tag, clientPacket);
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		String[] pitches = Lang.translateDirect("generic.notes")
 			.getString()
 			.split(";");
-		MutableComponent textComponent = Components.literal(spacing);
+		MutableText textComponent = Components.literal(spacing);
 		tooltip.add(textComponent.append(Lang.translateDirect("generic.pitch", pitches[pitch % pitches.length])));
 		return true;
 	}
 
 	protected boolean isPowered() {
-		return getBlockState().getOptionalValue(WhistleBlock.POWERED)
+		return getCachedState().getOrEmpty(WhistleBlock.POWERED)
 			.orElse(false);
 	}
 
 	protected WhistleSize getOctave() {
-		return getBlockState().getOptionalValue(WhistleBlock.SIZE)
+		return getCachedState().getOrEmpty(WhistleBlock.SIZE)
 			.orElse(WhistleSize.MEDIUM);
 	}
 
@@ -142,15 +141,15 @@ public class WhistleBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 		}
 
 		float f = (float) Math.pow(2, -pitch / 12.0);
-		boolean particle = level.getGameTime() % 8 == 0;
-		Vec3 eyePosition = Minecraft.getInstance().cameraEntity.getEyePosition();
-		float maxVolume = (float) Mth.clamp((64 - eyePosition.distanceTo(Vec3.atCenterOf(worldPosition))) / 64, 0, 1);
+		boolean particle = world.getTime() % 8 == 0;
+		Vec3d eyePosition = MinecraftClient.getInstance().cameraEntity.getEyePos();
+		float maxVolume = (float) MathHelper.clamp((64 - eyePosition.distanceTo(Vec3d.ofCenter(pos))) / 64, 0, 1);
 
-		if (soundInstance == null || soundInstance.isStopped() || soundInstance.getOctave() != size) {
-			Minecraft.getInstance()
+		if (soundInstance == null || soundInstance.isDone() || soundInstance.getOctave() != size) {
+			MinecraftClient.getInstance()
 				.getSoundManager()
-				.play(soundInstance = new WhistleSoundInstance(size, worldPosition));
-			AllSoundEvents.WHISTLE_CHIFF.playAt(level, worldPosition, maxVolume * .175f,
+				.play(soundInstance = new WhistleSoundInstance(size, pos));
+			AllSoundEvents.WHISTLE_CHIFF.playAt(world, pos, maxVolume * .175f,
 				size == WhistleSize.SMALL ? f + .75f : f, false);
 			particle = true;
 		}
@@ -161,21 +160,21 @@ public class WhistleBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 		if (!particle)
 			return;
 
-		Direction facing = getBlockState().getOptionalValue(WhistleBlock.FACING)
+		Direction facing = getCachedState().getOrEmpty(WhistleBlock.FACING)
 			.orElse(Direction.SOUTH);
 		float angle = 180 + AngleHelper.horizontalAngle(facing);
-		Vec3 sizeOffset = VecHelper.rotate(new Vec3(0, -0.4f, 1 / 16f * size.ordinal()), angle, Axis.Y);
-		Vec3 offset = VecHelper.rotate(new Vec3(0, 1, 0.75f), angle, Axis.Y);
-		Vec3 v = offset.scale(.45f)
+		Vec3d sizeOffset = VecHelper.rotate(new Vec3d(0, -0.4f, 1 / 16f * size.ordinal()), angle, Axis.Y);
+		Vec3d offset = VecHelper.rotate(new Vec3d(0, 1, 0.75f), angle, Axis.Y);
+		Vec3d v = offset.multiply(.45f)
 			.add(sizeOffset)
-			.add(Vec3.atCenterOf(worldPosition));
-		Vec3 m = offset.subtract(Vec3.atLowerCornerOf(facing.getNormal())
-			.scale(.75f));
-		level.addParticle(new SteamJetParticleData(1), v.x, v.y, v.z, m.x, m.y, m.z);
+			.add(Vec3d.ofCenter(pos));
+		Vec3d m = offset.subtract(Vec3d.of(facing.getVector())
+			.multiply(.75f));
+		world.addParticle(new SteamJetParticleData(1), v.x, v.y, v.z, m.x, m.y, m.z);
 	}
 
 	public int getPitchId() {
-		return pitch + 100 * getBlockState().getOptionalValue(WhistleBlock.SIZE)
+		return pitch + 100 * getCachedState().getOrEmpty(WhistleBlock.SIZE)
 			.orElse(WhistleSize.MEDIUM)
 			.ordinal();
 	}
@@ -185,8 +184,8 @@ public class WhistleBlockEntity extends SmartBlockEntity implements IHaveGoggleI
 		if (tank == null || tank.isRemoved()) {
 			if (tank != null)
 				source = new WeakReference<>(null);
-			Direction facing = WhistleBlock.getAttachedDirection(getBlockState());
-			BlockEntity be = level.getBlockEntity(worldPosition.relative(facing));
+			Direction facing = WhistleBlock.getAttachedDirection(getCachedState());
+			BlockEntity be = world.getBlockEntity(pos.offset(facing));
 			if (be instanceof FluidTankBlockEntity tankBe)
 				source = new WeakReference<>(tank = tankBe);
 		}

@@ -2,8 +2,6 @@ package com.simibubi.create.compat.rei.category;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.compat.rei.category.BlockCuttingCategory.CondensedBlockCuttingRecipe;
 import com.simibubi.create.compat.rei.category.animations.AnimatedSaw;
 import com.simibubi.create.compat.rei.display.CreateDisplay;
@@ -13,13 +11,12 @@ import com.simibubi.create.foundation.item.ItemHelper;
 import me.shedaniel.math.Point;
 import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.common.util.EntryIngredients;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.StonecutterRecipe;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.StonecuttingRecipe;
+import net.minecraft.util.Identifier;
 
 public class BlockCuttingCategory extends CreateRecipeCategory<CondensedBlockCuttingRecipe> {
 
@@ -47,7 +44,7 @@ public class BlockCuttingCategory extends CreateRecipeCategory<CondensedBlockCut
 	}
 
 	@Override
-	public void draw(CondensedBlockCuttingRecipe recipe, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(CondensedBlockCuttingRecipe recipe, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SLOT.render(graphics, 4, 4);
 		int size = Math.min(recipe.getOutputs().size(), 15);
 		for (int i = 0; i < size; i++) {
@@ -60,12 +57,12 @@ public class BlockCuttingCategory extends CreateRecipeCategory<CondensedBlockCut
 		saw.draw(graphics, 33, 37);
 	}
 
-	public static class CondensedBlockCuttingRecipe extends StonecutterRecipe {
+	public static class CondensedBlockCuttingRecipe extends StonecuttingRecipe {
 
 		List<ItemStack> outputs = new ArrayList<>();
 
 		public CondensedBlockCuttingRecipe(Ingredient ingredient) {
-			super(new ResourceLocation(""), "", ingredient, ItemStack.EMPTY);
+			super(new Identifier(""), "", ingredient, ItemStack.EMPTY);
 		}
 
 		public void addOutput(ItemStack stack) {
@@ -94,7 +91,7 @@ public class BlockCuttingCategory extends CreateRecipeCategory<CondensedBlockCut
 		}
 
 		@Override
-		public boolean isSpecial() {
+		public boolean isIgnoredInRecipeBook() {
 			return true;
 		}
 

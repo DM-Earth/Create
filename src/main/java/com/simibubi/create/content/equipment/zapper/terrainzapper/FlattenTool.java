@@ -4,15 +4,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.FluidBlock;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 import org.apache.commons.lang3.tuple.Pair;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.LiquidBlock;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class FlattenTool {
 
@@ -47,16 +45,16 @@ public class FlattenTool {
 						newValue += kernel[iOffset + 2][jOffset + 2] * ref;
 					}
 				}
-				result[i][j] = Mth.floor(newValue + .5f);
+				result[i][j] = MathHelper.floor(newValue + .5f);
 			}
 		}
 		return result;
 	}
 
-	public static void apply(Level world, List<BlockPos> targetPositions, Direction facing) {
+	public static void apply(World world, List<BlockPos> targetPositions, Direction facing) {
 		List<BlockPos> surfaces = new ArrayList<>();
 		Map<Pair<Integer, Integer>, Integer> heightMap = new HashMap<>();
-		int offset = facing.getAxisDirection().getStep();
+		int offset = facing.getDirection().offset();
 
 		int minEntry = Integer.MAX_VALUE;
 		int minCoord1 = Integer.MAX_VALUE;
@@ -80,7 +78,7 @@ public class FlattenTool {
 				continue;
 			}
 
-			p = p.relative(facing);
+			p = p.offset(facing);
 			BlockState surface = world.getBlockState(p);
 
 			if (!TerrainTools.isReplaceable(surface)) {
@@ -141,10 +139,10 @@ public class FlattenTool {
 			BlockState blockState = world.getBlockState(p);
 			int timeOut = 1000;
 			while (surfaceCoord > targetCoord) {
-				BlockPos below = p.relative(facing.getOpposite());
-				world.setBlockAndUpdate(below, blockState);
-				world.setBlockAndUpdate(p, blockState.getFluidState().createLegacyBlock());
-				p = p.relative(facing.getOpposite());
+				BlockPos below = p.offset(facing.getOpposite());
+				world.setBlockState(below, blockState);
+				world.setBlockState(p, blockState.getFluidState().getBlockState());
+				p = p.offset(facing.getOpposite());
 				surfaceCoord--;
 				if (timeOut-- <= 0)
 					break;
@@ -152,11 +150,11 @@ public class FlattenTool {
 
 			// Raise surface
 			while (surfaceCoord < targetCoord) {
-				BlockPos above = p.relative(facing);
-				if (!(blockState.getBlock() instanceof LiquidBlock))
-					world.setBlockAndUpdate(above, blockState);
-				world.setBlockAndUpdate(p, world.getBlockState(p.relative(facing.getOpposite())));
-				p = p.relative(facing);
+				BlockPos above = p.offset(facing);
+				if (!(blockState.getBlock() instanceof FluidBlock))
+					world.setBlockState(above, blockState);
+				world.setBlockState(p, world.getBlockState(p.offset(facing.getOpposite())));
+				p = p.offset(facing);
 				surfaceCoord++;
 				if (timeOut-- <= 0)
 					break;

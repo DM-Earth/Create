@@ -3,13 +3,11 @@ package com.simibubi.create.foundation.utility;
 import java.util.function.UnaryOperator;
 
 import javax.annotation.Nonnull;
-
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 
 import com.google.common.hash.Hashing;
-
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 
 public class Color {
 	public final static Color TRANSPARENT_BLACK = new Color(0, 0, 0, 0).setImmutable();
@@ -35,10 +33,10 @@ public class Color {
 
 	public Color(float r, float g, float b, float a) {
 		this(
-				(int) (0.5 + 0xff * Mth.clamp(r, 0, 1)),
-				(int) (0.5 + 0xff * Mth.clamp(g, 0, 1)),
-				(int) (0.5 + 0xff * Mth.clamp(b, 0, 1)),
-				(int) (0.5 + 0xff * Mth.clamp(a, 0, 1))
+				(int) (0.5 + 0xff * MathHelper.clamp(r, 0, 1)),
+				(int) (0.5 + 0xff * MathHelper.clamp(g, 0, 1)),
+				(int) (0.5 + 0xff * MathHelper.clamp(b, 0, 1)),
+				(int) (0.5 + 0xff * MathHelper.clamp(a, 0, 1))
 		);
 	}
 
@@ -143,8 +141,8 @@ public class Color {
 		return value;
 	}
 
-	public Vec3 asVector() {
-		return new Vec3(getRedAsFloat(), getGreenAsFloat(), getBlueAsFloat());
+	public Vec3d asVector() {
+		return new Vec3d(getRedAsFloat(), getGreenAsFloat(), getBlueAsFloat());
 	}
 
 	public Vector3f asVectorF() {
@@ -168,23 +166,23 @@ public class Color {
 	}
 
 	public Color setRed(float r) {
-		return ensureMutable().setRedUnchecked((int) (0xff * Mth.clamp(r, 0, 1)));
+		return ensureMutable().setRedUnchecked((int) (0xff * MathHelper.clamp(r, 0, 1)));
 	}
 
 	public Color setGreen(float g) {
-		return ensureMutable().setGreenUnchecked((int) (0xff * Mth.clamp(g, 0, 1)));
+		return ensureMutable().setGreenUnchecked((int) (0xff * MathHelper.clamp(g, 0, 1)));
 	}
 
 	public Color setBlue(float b) {
-		return ensureMutable().setBlueUnchecked((int) (0xff * Mth.clamp(b, 0, 1)));
+		return ensureMutable().setBlueUnchecked((int) (0xff * MathHelper.clamp(b, 0, 1)));
 	}
 
 	public Color setAlpha(float a) {
-		return ensureMutable().setAlphaUnchecked((int) (0xff * Mth.clamp(a, 0, 1)));
+		return ensureMutable().setAlphaUnchecked((int) (0xff * MathHelper.clamp(a, 0, 1)));
 	}
 
 	public Color scaleAlpha(float factor) {
-		return ensureMutable().setAlphaUnchecked((int) (getAlpha() * Mth.clamp(factor, 0, 1)));
+		return ensureMutable().setAlphaUnchecked((int) (getAlpha() * MathHelper.clamp(factor, 0, 1)));
 	}
 
 	public Color mixWith(Color other, float weight) {

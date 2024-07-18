@@ -1,15 +1,15 @@
 package com.simibubi.create.content.equipment.clipboard;
 
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.Direction;
 
 public interface ClipboardCloneable {
 
 	public String getClipboardKey();
 	
-	public boolean writeToClipboard(CompoundTag tag, Direction side);
+	public boolean writeToClipboard(NbtCompound tag, Direction side);
 	
-	public boolean readFromClipboard(CompoundTag tag, Player player, Direction side, boolean simulate);
+	public boolean readFromClipboard(NbtCompound tag, PlayerEntity player, Direction side, boolean simulate);
 	
 }

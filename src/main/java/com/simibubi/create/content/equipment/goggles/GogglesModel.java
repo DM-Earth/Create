@@ -1,12 +1,12 @@
 package com.simibubi.create.content.equipment.goggles;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 
 import io.github.fabricators_of_create.porting_lib.models.TransformTypeDependentItemBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
 
 public class GogglesModel extends ForwardingBakedModel implements TransformTypeDependentItemBakedModel {
 	protected BakedModel itemModel;
@@ -16,8 +16,8 @@ public class GogglesModel extends ForwardingBakedModel implements TransformTypeD
 	}
 
 	@Override
-	public BakedModel applyTransform(ItemDisplayContext cameraItemDisplayContext, PoseStack mat, boolean leftHanded, DefaultTransform defaultTransform) {
-		if (cameraItemDisplayContext == ItemDisplayContext.HEAD) {
+	public BakedModel applyTransform(ModelTransformationMode cameraItemDisplayContext, MatrixStack mat, boolean leftHanded, DefaultTransform defaultTransform) {
+		if (cameraItemDisplayContext == ModelTransformationMode.HEAD) {
 			BakedModel headGoggles = AllPartialModels.GOGGLES.get();
 			defaultTransform.apply(headGoggles);
 			return headGoggles;

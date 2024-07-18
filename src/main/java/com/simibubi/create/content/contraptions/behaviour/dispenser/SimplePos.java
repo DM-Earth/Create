@@ -1,6 +1,6 @@
 package com.simibubi.create.content.contraptions.behaviour.dispenser;
 
-import net.minecraft.core.Position;
+import net.minecraft.util.math.Position;
 
 public class SimplePos implements Position {
 	private final double x;
@@ -14,17 +14,17 @@ public class SimplePos implements Position {
 	}
 
 	@Override
-	public double x() {
+	public double getX() {
 		return x;
 	}
 
 	@Override
-	public double y() {
+	public double getY() {
 		return y;
 	}
 
 	@Override
-	public double z() {
+	public double getZ() {
 		return z;
 	}
 }

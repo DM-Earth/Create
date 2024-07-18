@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.UUID;
-
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.GlobalRailwayManager;
 import com.simibubi.create.content.trains.signal.TrackEdgePoint;
@@ -17,12 +18,9 @@ import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Pair;
 import com.simibubi.create.foundation.utility.VecHelper;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.phys.Vec3;
-
 public class TrackGraphSyncPacket extends TrackGraphPacket {
 
-	Map<Integer, Pair<TrackNodeLocation, Vec3>> addedNodes;
+	Map<Integer, Pair<TrackNodeLocation, Vec3d>> addedNodes;
 	List<Pair<Pair<Couple<Integer>, TrackMaterial>, BezierConnection>> addedEdges;
 	List<Integer> removedNodes;
 	List<TrackEdgePoint> addedEdgePoints;
@@ -47,10 +45,10 @@ public class TrackGraphSyncPacket extends TrackGraphPacket {
 		packetDeletesGraph = false;
 	}
 
-	public TrackGraphSyncPacket(FriendlyByteBuf buffer) {
+	public TrackGraphSyncPacket(PacketByteBuf buffer) {
 		int size;
 
-		graphId = buffer.readUUID();
+		graphId = buffer.readUuid();
 		netId = buffer.readInt();
 		packetDeletesGraph = buffer.readBoolean();
 		fullWipe = buffer.readBoolean();
@@ -80,7 +78,7 @@ public class TrackGraphSyncPacket extends TrackGraphPacket {
 		size = buffer.readVarInt();
 		for (int i = 0; i < size; i++)
 			addedEdges.add(
-				Pair.of(Pair.of(Couple.create(buffer::readVarInt), TrackMaterial.deserialize(buffer.readUtf())), buffer.readBoolean() ? new BezierConnection(buffer) : null));
+				Pair.of(Pair.of(Couple.create(buffer::readVarInt), TrackMaterial.deserialize(buffer.readString())), buffer.readBoolean() ? new BezierConnection(buffer) : null));
 
 		size = buffer.readVarInt();
 		for (int i = 0; i < size; i++)
@@ -88,7 +86,7 @@ public class TrackGraphSyncPacket extends TrackGraphPacket {
 
 		size = buffer.readVarInt();
 		for (int i = 0; i < size; i++)
-			removedEdgePoints.add(buffer.readUUID());
+			removedEdgePoints.add(buffer.readUuid());
 
 		size = buffer.readVarInt();
 		for (int i = 0; i < size; i++) {
@@ -97,18 +95,18 @@ public class TrackGraphSyncPacket extends TrackGraphPacket {
 			Pair<Integer, List<UUID>> entry = Pair.of(buffer.readVarInt(), list);
 			int size2 = buffer.readVarInt();
 			for (int j = 0; j < size2; j++)
-				list.add(buffer.readUUID());
+				list.add(buffer.readUuid());
 			updatedEdgeData.put(key, entry);
 		}
 
 		size = buffer.readVarInt();
 		for (int i = 0; i < size; i++)
-			splitSubGraphs.put(buffer.readVarInt(), Pair.of(buffer.readInt(), buffer.readUUID()));
+			splitSubGraphs.put(buffer.readVarInt(), Pair.of(buffer.readInt(), buffer.readUuid()));
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeUUID(graphId);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeUuid(graphId);
 		buffer.writeInt(netId);
 		buffer.writeBoolean(packetDeletesGraph);
 		buffer.writeBoolean(fullWipe);
@@ -137,7 +135,7 @@ public class TrackGraphSyncPacket extends TrackGraphPacket {
 		addedEdges.forEach(pair -> {
 			pair.getFirst().getFirst()
 				.forEach(buffer::writeVarInt);
-			buffer.writeUtf(pair.getFirst().getSecond().id.toString());
+			buffer.writeString(pair.getFirst().getSecond().id.toString());
 			BezierConnection turn = pair.getSecond();
 			buffer.writeBoolean(turn != null);
 			if (turn != null)
@@ -148,7 +146,7 @@ public class TrackGraphSyncPacket extends TrackGraphPacket {
 		addedEdgePoints.forEach(ep -> ep.write(buffer, dimensions));
 
 		buffer.writeVarInt(removedEdgePoints.size());
-		removedEdgePoints.forEach(buffer::writeUUID);
+		removedEdgePoints.forEach(buffer::writeUuid);
 
 		buffer.writeVarInt(updatedEdgeData.size());
 		for (Entry<Couple<Integer>, Pair<Integer, List<UUID>>> entry : updatedEdgeData.entrySet()) {
@@ -158,14 +156,14 @@ public class TrackGraphSyncPacket extends TrackGraphPacket {
 			buffer.writeVarInt(pair.getFirst());
 			List<UUID> list = pair.getSecond();
 			buffer.writeVarInt(list.size());
-			list.forEach(buffer::writeUUID);
+			list.forEach(buffer::writeUuid);
 		}
 
 		buffer.writeVarInt(splitSubGraphs.size());
 		splitSubGraphs.forEach((node, p) -> {
 			buffer.writeVarInt(node);
 			buffer.writeInt(p.getFirst());
-			buffer.writeUUID(p.getSecond());
+			buffer.writeUuid(p.getSecond());
 		});
 	}
 
@@ -188,9 +186,9 @@ public class TrackGraphSyncPacket extends TrackGraphPacket {
 				graph.removeNode(null, node.getLocation());
 		}
 
-		for (Entry<Integer, Pair<TrackNodeLocation, Vec3>> entry : addedNodes.entrySet()) {
+		for (Entry<Integer, Pair<TrackNodeLocation, Vec3d>> entry : addedNodes.entrySet()) {
 			Integer nodeId = entry.getKey();
-			Pair<TrackNodeLocation, Vec3> nodeLocation = entry.getValue();
+			Pair<TrackNodeLocation, Vec3d> nodeLocation = entry.getValue();
 			graph.loadNode(nodeLocation.getFirst(), nodeId, nodeLocation.getSecond());
 		}
 

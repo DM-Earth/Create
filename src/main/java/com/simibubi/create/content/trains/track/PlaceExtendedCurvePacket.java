@@ -2,12 +2,11 @@ package com.simibubi.create.content.trains.track;
 
 import com.simibubi.create.AllTags;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Hand;
 
 public class PlaceExtendedCurvePacket extends SimplePacketBase {
 
@@ -19,13 +18,13 @@ public class PlaceExtendedCurvePacket extends SimplePacketBase {
 		this.ctrlDown = ctrlDown;
 	}
 
-	public PlaceExtendedCurvePacket(FriendlyByteBuf buffer) {
+	public PlaceExtendedCurvePacket(PacketByteBuf buffer) {
 		mainHand = buffer.readBoolean();
 		ctrlDown = buffer.readBoolean();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBoolean(mainHand);
 		buffer.writeBoolean(ctrlDown);
 	}
@@ -33,13 +32,13 @@ public class PlaceExtendedCurvePacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer sender = context.getSender();
-			ItemStack stack = sender.getItemInHand(mainHand ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
-			if (!AllTags.AllBlockTags.TRACKS.matches(stack) || !stack.hasTag())
+			ServerPlayerEntity sender = context.getSender();
+			ItemStack stack = sender.getStackInHand(mainHand ? Hand.MAIN_HAND : Hand.OFF_HAND);
+			if (!AllTags.AllBlockTags.TRACKS.matches(stack) || !stack.hasNbt())
 				return;
-			CompoundTag tag = stack.getTag();
+			NbtCompound tag = stack.getNbt();
 			tag.putBoolean("ExtendCurve", true);
-			stack.setTag(tag);
+			stack.setNbt(tag);
 		});
 		return true;
 	}

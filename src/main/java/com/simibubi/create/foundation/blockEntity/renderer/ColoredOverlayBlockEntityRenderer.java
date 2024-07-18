@@ -1,27 +1,26 @@
 package com.simibubi.create.foundation.blockEntity.renderer;
 
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
 
 public abstract class ColoredOverlayBlockEntityRenderer<T extends BlockEntity> extends SafeBlockEntityRenderer<T> {
 
-	public ColoredOverlayBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
+	public ColoredOverlayBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
 	}
 
 	@Override
-	protected void renderSafe(T be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(T be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 			int light, int overlay) {
 
-		if (Backend.canUseInstancing(be.getLevel())) return;
+		if (Backend.canUseInstancing(be.getWorld())) return;
 
 		SuperByteBuffer render = render(getOverlayBuffer(be), getColor(be, partialTicks), light);
-		render.renderInto(ms, buffer.getBuffer(RenderType.solid()));
+		render.renderInto(ms, buffer.getBuffer(RenderLayer.getSolid()));
 	}
 
 	protected abstract int getColor(T be, float partialTicks);

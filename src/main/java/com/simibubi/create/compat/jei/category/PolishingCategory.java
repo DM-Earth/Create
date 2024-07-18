@@ -13,11 +13,11 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.NonNullList;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.collection.DefaultedList;
 
 @ParametersAreNonnullByDefault
 public class PolishingCategory extends CreateRecipeCategory<SandPaperPolishingRecipe> {
@@ -45,18 +45,18 @@ public class PolishingCategory extends CreateRecipeCategory<SandPaperPolishingRe
 	}
 
 	@Override
-	public void draw(SandPaperPolishingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(SandPaperPolishingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SHADOW.render(graphics, 61, 21);
 		AllGuiTextures.JEI_LONG_ARROW.render(graphics, 52, 32);
 
-		NonNullList<Ingredient> ingredients = recipe.getIngredients();
+		DefaultedList<Ingredient> ingredients = recipe.getIngredients();
 		ItemStack[] matchingStacks = ingredients.get(0)
-			.getItems();
+			.getMatchingStacks();
 		if (matchingStacks.length == 0)
 			return;
 
 
-		CompoundTag tag = renderedSandpaper.getOrCreateTag();
+		NbtCompound tag = renderedSandpaper.getOrCreateNbt();
 		tag.put("Polishing", NBTSerializer.serializeNBTCompound(matchingStacks[0]));
 		tag.putBoolean("JEI", true);
 		GuiGameElement.of(renderedSandpaper)

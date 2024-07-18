@@ -2,9 +2,8 @@ package com.simibubi.create.foundation.utility;
 
 import java.text.NumberFormat;
 import java.util.Locale;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.util.Mth;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.MathHelper;
 
 public class LangNumberFormat {
 
@@ -16,7 +15,7 @@ public class LangNumberFormat {
 	}
 
 	public void update() {
-		format = NumberFormat.getInstance(Minecraft.getInstance()
+		format = NumberFormat.getInstance(MinecraftClient.getInstance()
 				.getLanguageManager()
 				.getSelectedJavaLocale());
 		format.setMaximumFractionDigits(2);
@@ -25,7 +24,7 @@ public class LangNumberFormat {
 	}
 
 	public static String format(double d) {
-		if (Mth.equal(d, 0))
+		if (MathHelper.approximatelyEquals(d, 0))
 			d = 0;
 		return numberFormat.get()
 			.format(d)

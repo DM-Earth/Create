@@ -2,12 +2,22 @@ package com.simibubi.create.compat.emi;
 
 import java.util.List;
 import java.util.function.Consumer;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.DiffuseLighting;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
 import com.jozufozu.flywheel.core.PartialModel;
-import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.AllSpriteShifts;
@@ -25,20 +35,9 @@ import com.simibubi.create.foundation.utility.AnimationTickHolder;
 
 import dev.emi.emi.api.widget.WidgetHolder;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 public class CreateEmiAnimations {
-	private static final BlockState WHEEL = AllBlocks.CRUSHING_WHEEL.getDefaultState().setValue(BlockStateProperties.AXIS, Axis.X);
+	private static final BlockState WHEEL = AllBlocks.CRUSHING_WHEEL.getDefaultState().with(Properties.AXIS, Axis.X);
 	public static final ILightingSettings DEFAULT_LIGHTING = CustomLightingSettings.builder()
 		.firstLightRotation(12.5f, 45.0f)
 		.secondLightRotation(-20.0f, 50.0f)
@@ -60,7 +59,7 @@ public class CreateEmiAnimations {
 	}
 
 	public static BlockState shaft(Axis axis) {
-		return AllBlocks.SHAFT.getDefaultState().setValue(BlockStateProperties.AXIS, axis);
+		return AllBlocks.SHAFT.getDefaultState().with(Properties.AXIS, axis);
 	}
 
 	public static PartialModel cogwheel() {
@@ -81,11 +80,11 @@ public class CreateEmiAnimations {
 		});
 	}
 
-	public static void renderPress(GuiGraphics graphics, int offset, boolean basin) {
-		PoseStack matrices = graphics.pose();
+	public static void renderPress(DrawContext graphics, int offset, boolean basin) {
+		MatrixStack matrices = graphics.getMatrices();
 		matrices.translate(0, 0, 200);
-		matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-		matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f));
+		matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 		int scale = basin ? 23 : 24;
 
 		blockElement(shaft(Axis.Z))
@@ -125,13 +124,13 @@ public class CreateEmiAnimations {
 
 	public static void addBlazeBurner(WidgetHolder widgets, int x, int y, HeatLevel heatLevel) {
 		widgets.addDrawable(x, y, 0, 0, (graphics, mouseX, mouseY, delta) -> {
-			PoseStack matrixStack = graphics.pose();
+			MatrixStack matrixStack = graphics.getMatrices();
 			matrixStack.translate(0, 0, 200);
-			matrixStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-			matrixStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f));
+			matrixStack.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+			matrixStack.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 			int scale = 23;
 
-			float offset = (Mth.sin(AnimationTickHolder.getRenderTime() / 16f) + 0.5f) / 16f;
+			float offset = (MathHelper.sin(AnimationTickHolder.getRenderTime() / 16f) + 0.5f) / 16f;
 
 			blockElement(AllBlocks.BLAZE_BURNER.getDefaultState()).atLocal(0, 1.65, 0)
 					.scale(scale)
@@ -158,16 +157,16 @@ public class CreateEmiAnimations {
 					heatLevel == HeatLevel.SEETHING ? AllSpriteShifts.SUPER_BURNER_FLAME : AllSpriteShifts.BURNER_FLAME;
 
 			float spriteWidth = spriteShift.getTarget()
-					.getU1()
+					.getMaxU()
 					- spriteShift.getTarget()
-					.getU0();
+					.getMinU();
 
 			float spriteHeight = spriteShift.getTarget()
-					.getV1()
+					.getMaxV()
 					- spriteShift.getTarget()
-					.getV0();
+					.getMinV();
 
-			float time = AnimationTickHolder.getRenderTime(Minecraft.getInstance().level);
+			float time = AnimationTickHolder.getRenderTime(MinecraftClient.getInstance().world);
 			float speed = 1 / 32f + 1 / 64f * heatLevel.ordinal();
 
 			double vScroll = speed * time;
@@ -178,23 +177,23 @@ public class CreateEmiAnimations {
 			uScroll = uScroll - Math.floor(uScroll);
 			uScroll = uScroll * spriteWidth / 2;
 
-			Minecraft mc = Minecraft.getInstance();
-			MultiBufferSource.BufferSource buffer = mc.renderBuffers()
-					.bufferSource();
-			VertexConsumer vb = buffer.getBuffer(RenderType.cutoutMipped());
-			CachedBufferer.partial(AllPartialModels.BLAZE_BURNER_FLAME, Blocks.AIR.defaultBlockState())
+			MinecraftClient mc = MinecraftClient.getInstance();
+			VertexConsumerProvider.Immediate buffer = mc.getBufferBuilders()
+					.getEntityVertexConsumers();
+			VertexConsumer vb = buffer.getBuffer(RenderLayer.getCutoutMipped());
+			CachedBufferer.partial(AllPartialModels.BLAZE_BURNER_FLAME, Blocks.AIR.getDefaultState())
 					.shiftUVScrolling(spriteShift, (float) uScroll, (float) vScroll)
-					.light(LightTexture.FULL_BRIGHT)
+					.light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
 					.renderInto(matrixStack, vb);
 		});
 	}
 
 	public static void addMixer(WidgetHolder widgets, int x, int y) {
 		widgets.addDrawable(x, y, 0, 0, (graphics, mouseX, mouseY, delta) -> {
-			PoseStack matrices = graphics.pose();
+			MatrixStack matrices = graphics.getMatrices();
 			matrices.translate(0, 0, 200);
-			matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-			matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f));
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 			int scale = 23;
 
 			blockElement(cogwheel())
@@ -208,7 +207,7 @@ public class CreateEmiAnimations {
 				.scale(scale)
 				.render(graphics);
 
-			float animation = ((Mth.sin(AnimationTickHolder.getRenderTime() / 32f) + 1) / 5) + .5f;
+			float animation = ((MathHelper.sin(AnimationTickHolder.getRenderTime() / 32f) + 1) / 5) + .5f;
 
 			blockElement(AllPartialModels.MECHANICAL_MIXER_POLE)
 				.atLocal(0, animation, 0)
@@ -234,12 +233,12 @@ public class CreateEmiAnimations {
 		});
 	}
 
-	public static void renderSaw(GuiGraphics graphics, int offset) {
-		PoseStack matrices = graphics.pose();
+	public static void renderSaw(DrawContext graphics, int offset) {
+		MatrixStack matrices = graphics.getMatrices();
 		matrices.translate(0, 0, 200);
 		matrices.translate(2, 22, 0);
-		matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-		matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f + 90));
+		matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f + 90));
 		int scale = 25;
 
 		blockElement(shaft(Axis.X))
@@ -248,7 +247,7 @@ public class CreateEmiAnimations {
 			.render(graphics);
 
 		blockElement(AllBlocks.MECHANICAL_SAW.getDefaultState()
-			.setValue(SawBlock.FACING, Direction.UP))
+			.with(SawBlock.FACING, Direction.UP))
 			.rotateBlock(0, 0, 0)
 			.scale(scale)
 			.render(graphics);
@@ -277,9 +276,9 @@ public class CreateEmiAnimations {
 
 	public static void addCrushingWheels(WidgetHolder widgets, int x, int y) {
 		widgets.addDrawable(x, y, 0, 0, (graphics, mouseX, mouseY, delta) -> {
-			PoseStack matrices = graphics.pose();
+			MatrixStack matrices = graphics.getMatrices();
 			matrices.translate(0, 0, 100);
-			matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-22.5f));
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(-22.5f));
 			int scale = 22;
 
 			blockElement(WHEEL)
@@ -295,12 +294,12 @@ public class CreateEmiAnimations {
 		});
 	}
 
-	public static void addFan(WidgetHolder widgets, int x, int y, Consumer<GuiGraphics> renderAttachedBlock) {
+	public static void addFan(WidgetHolder widgets, int x, int y, Consumer<DrawContext> renderAttachedBlock) {
 		widgets.addDrawable(x, y, 0, 0, (graphics, mouseX, mouseY, delta) -> {
-			PoseStack matrices = graphics.pose();
+			MatrixStack matrices = graphics.getMatrices();
 			matrices.translate(0, 0, 200);
-			matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-12.5f));
-			matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f));
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-12.5f));
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 			int scale = 24;
 
 			defaultBlockElement(AllPartialModels.ENCASED_FAN_INNER)
@@ -324,11 +323,11 @@ public class CreateEmiAnimations {
 		});
 	}
 
-	public static void renderDeployer(GuiGraphics graphics, int offset) {
-		PoseStack matrices = graphics.pose();
+	public static void renderDeployer(DrawContext graphics, int offset) {
+		MatrixStack matrices = graphics.getMatrices();
 		matrices.translate(0, 0, 100);
-		matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-		matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f));
+		matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 		int scale = 20;
 
 		blockElement(shaft(Axis.Z))
@@ -337,15 +336,15 @@ public class CreateEmiAnimations {
 			.render(graphics);
 
 		blockElement(AllBlocks.DEPLOYER.getDefaultState()
-			.setValue(DeployerBlock.FACING, Direction.DOWN)
-			.setValue(DeployerBlock.AXIS_ALONG_FIRST_COORDINATE, false))
+			.with(DeployerBlock.FACING, Direction.DOWN)
+			.with(DeployerBlock.AXIS_ALONG_FIRST_COORDINATE, false))
 			.scale(scale)
 			.render(graphics);
 
 		float cycle = (AnimationTickHolder.getRenderTime() - offset * 8) % 30;
 		float off = cycle < 10 ? cycle / 10f : cycle < 20 ? (20 - cycle) / 10f : 0;
 
-		matrices.pushPose();
+		matrices.push();
 
 		matrices.translate(0, off * 17, 0);
 		blockElement(AllPartialModels.DEPLOYER_POLE)
@@ -357,7 +356,7 @@ public class CreateEmiAnimations {
 			.scale(scale)
 			.render(graphics);
 
-		matrices.popPose();
+		matrices.pop();
 
 		blockElement(AllBlocks.DEPOT.getDefaultState())
 			.atLocal(0, 2, 0)
@@ -371,11 +370,11 @@ public class CreateEmiAnimations {
 		});
 	}
 
-	public static void renderSpout(GuiGraphics graphics, int offset, List<FluidStack> fluids) {
-		PoseStack matrices = graphics.pose();
+	public static void renderSpout(DrawContext graphics, int offset, List<FluidStack> fluids) {
+		MatrixStack matrices = graphics.getMatrices();
 		matrices.translate(0, 0, 100);
-		matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-		matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f));
+		matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 		int scale = 20;
 
 		blockElement(AllBlocks.SPOUT.getDefaultState())
@@ -383,10 +382,10 @@ public class CreateEmiAnimations {
 			.render(graphics);
 
 		float cycle = (AnimationTickHolder.getRenderTime() - offset * 8) % 30;
-		float squeeze = cycle < 20 ? Mth.sin((float) (cycle / 20f * Math.PI)) : 0;
+		float squeeze = cycle < 20 ? MathHelper.sin((float) (cycle / 20f * Math.PI)) : 0;
 		squeeze *= 20;
 
-		matrices.pushPose();
+		matrices.push();
 
 		blockElement(AllPartialModels.SPOUT_TOP)
 			.scale(scale)
@@ -401,7 +400,7 @@ public class CreateEmiAnimations {
 			.render(graphics);
 		matrices.translate(0, -3 * squeeze / 32f, 0);
 
-		matrices.popPose();
+		matrices.pop();
 
 		blockElement(AllBlocks.DEPOT.getDefaultState())
 			.atLocal(0, 2, 0)
@@ -409,15 +408,15 @@ public class CreateEmiAnimations {
 			.render(graphics);
 
 		DEFAULT_LIGHTING.applyLighting();
-		MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
-		matrices.pushPose();
+		VertexConsumerProvider.Immediate buffer = VertexConsumerProvider.immediate(Tessellator.getInstance().getBuffer());
+		matrices.push();
 		UIRenderHelper.flipForGuiRender(matrices);
 		matrices.scale(16, 16, 16);
 		float from = 3f / 16f;
 		float to = 17f / 16f;
 		FluidRenderer.renderFluidBox(fluids.get(0), from, from, from, to, to, to, buffer, matrices,
-			LightTexture.FULL_BRIGHT, false);
-		matrices.popPose();
+			LightmapTextureManager.MAX_LIGHT_COORDINATE, false);
+		matrices.pop();
 
 		float width = 1 / 128f * squeeze;
 		matrices.translate(scale / 2f, scale * 1.5f, scale / 2f);
@@ -427,40 +426,40 @@ public class CreateEmiAnimations {
 		from = -width / 2 + 0.5f;
 		to = width / 2 + 0.5f;
 		FluidRenderer.renderFluidBox(fluids.get(0), from, 0, from, to, 2, to, buffer, matrices,
-			LightTexture.FULL_BRIGHT, false);
-		buffer.endBatch();
-		Lighting.setupFor3DItems();
+			LightmapTextureManager.MAX_LIGHT_COORDINATE, false);
+		buffer.draw();
+		DiffuseLighting.enableGuiDepthLighting();
 	}
 
 	public static void addDrain(WidgetHolder widgets, int x, int y, FluidStack fluid) {
 		widgets.addDrawable(x, y, 0, 0, (graphics, mouseX, mouseY, delta) -> {
-			PoseStack matrices = graphics.pose();
+			MatrixStack matrices = graphics.getMatrices();
 			matrices.translate(0, 0, 100);
-			matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-			matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f));
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 			int scale = 20;
 
 			blockElement(AllBlocks.ITEM_DRAIN.getDefaultState())
 				.scale(scale)
 				.render(graphics);
 
-			MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+			VertexConsumerProvider.Immediate buffer = VertexConsumerProvider.immediate(Tessellator.getInstance().getBuffer());
 			//MatrixStack ms = new MatrixStack();
 			UIRenderHelper.flipForGuiRender(matrices);
 			matrices.scale(scale, scale, scale);
 			float from = 2 / 16f;
 			float to = 1f - from;
 			FluidRenderer.renderFluidBox(fluid, from, from, from, to, 3/4f, to, buffer, matrices,
-				LightTexture.FULL_BRIGHT, false);
-			buffer.endBatch();
+				LightmapTextureManager.MAX_LIGHT_COORDINATE, false);
+			buffer.draw();
 		});
 	}
 
 	public static void addCrafter(WidgetHolder widgets, int x, int y) {
 		widgets.addDrawable(x, y, 0, 0, (graphics, mouseX, mouseY, delta) -> {
-			PoseStack matrices = graphics.pose();
-			matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-			matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-22.5f));
+			MatrixStack matrices = graphics.getMatrices();
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+			matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(-22.5f));
 			int scale = 22;
 
 			blockElement(cogwheel())

@@ -7,13 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
+import net.minecraft.network.PacketByteBuf;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.GlobalRailwayManager;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.network.FriendlyByteBuf;
 
 public class TrackGraphRollCallPacket extends SimplePacketBase {
 
@@ -30,14 +28,14 @@ public class TrackGraphRollCallPacket extends SimplePacketBase {
 		}
 	}
 
-	public TrackGraphRollCallPacket(FriendlyByteBuf buffer) {
+	public TrackGraphRollCallPacket(PacketByteBuf buffer) {
 		ints = new int[buffer.readVarInt()];
 		for (int i = 0; i < ints.length; i++)
 			ints[i] = buffer.readInt();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeVarInt(ints.length);
 		for (int i : ints)
 			buffer.writeInt(i);

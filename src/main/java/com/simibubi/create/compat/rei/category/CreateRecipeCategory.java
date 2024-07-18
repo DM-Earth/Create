@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllFluids;
 import com.simibubi.create.compat.rei.display.CreateDisplay;
 import com.simibubi.create.content.fluids.potion.PotionFluidHandler;
@@ -35,18 +33,19 @@ import me.shedaniel.rei.api.common.category.CategoryIdentifier;
 import me.shedaniel.rei.api.common.entry.EntryStack;
 import me.shedaniel.rei.api.common.entry.type.VanillaEntryTypes;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public abstract class CreateRecipeCategory<T extends Recipe<?>> implements DisplayCategory<CreateDisplay<T>> {
 
 	protected final CategoryIdentifier<CreateDisplay<T>> type;
-	protected final Component title;
+	protected final Text title;
 	protected final Renderer background;
 	protected final Renderer icon;
 
@@ -86,7 +85,7 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements Displ
 	}
 
 	@Override
-	public Component getTitle() {
+	public Text getTitle() {
 		return title;
 	}
 
@@ -125,7 +124,7 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements Displ
 			float chance = output.getChance();
 			if (chance != 1)
 				tooltip.add(Lang.translateDirect("recipe.processing.chance", chance < 0.01 ? "<1" : (int) (chance * 100))
-						.withStyle(ChatFormatting.GOLD));
+						.formatted(Formatting.GOLD));
 			return tooltip;
 		});
 	}
@@ -139,10 +138,10 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements Displ
 	}
 
 	public static ItemStack getResultItem(Recipe<?> recipe) {
-		ClientLevel level = Minecraft.getInstance().level;
+		ClientWorld level = MinecraftClient.getInstance().world;
 		if (level == null)
 			return ItemStack.EMPTY;
-		return recipe.getResultItem(level.registryAccess());
+		return recipe.getOutput(level.getRegistryManager());
 	}
 
 	public static List<FluidStack> withImprovedVisibility(List<FluidStack> stacks) {
@@ -192,14 +191,14 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements Displ
 				dev.architectury.fluid.FluidStack fluidStack = entryStack.castValue();
 				FluidStack fluid = new FluidStack(fluidStack.getFluid(), fluidStack.getAmount(), fluidStack.getTag());
 				if (fluid.getFluid()
-						.isSame(AllFluids.POTION.get())) {
-					Component name = fluid.getDisplayName();
+						.matchesType(AllFluids.POTION.get())) {
+					Text name = fluid.getDisplayName();
 					if (tooltip.entries().isEmpty())
 						tooltip.entries().add(0, Tooltip.entry(name));
 					else
 						tooltip.entries().set(0, Tooltip.entry(name));
 
-					ArrayList<Component> potionTooltip = new ArrayList<>();
+					ArrayList<Text> potionTooltip = new ArrayList<>();
 					PotionFluidHandler.addPotionTooltip(fluid, potionTooltip, 1);
 					ArrayList<Tooltip.Entry> potionEntries = new ArrayList<>();
 					potionTooltip.forEach(component -> potionEntries.add(Tooltip.entry(component)));
@@ -209,12 +208,12 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements Displ
 
 				FluidUnit unit = AllConfigs.client().fluidUnitType.get();
 				String amount = FluidTextUtil.getUnicodeMillibuckets(amounts.get(0), unit, AllConfigs.client().simplifyFluidUnit.get());
-				Component text = Component.literal(String.valueOf(amount)).append(Lang.translateDirect(unit.getTranslationKey())).withStyle(ChatFormatting.GOLD);
+				Text text = Text.literal(String.valueOf(amount)).append(Lang.translateDirect(unit.getTranslationKey())).formatted(Formatting.GOLD);
 				if (tooltip.entries().isEmpty())
 					tooltip.entries().add(0, Tooltip.entry(text));
 				else {
-					List<Component> siblings = tooltip.entries().get(0).getAsText().getSiblings();
-					siblings.add(Component.literal(" "));
+					List<Text> siblings = tooltip.entries().get(0).getAsText().getSiblings();
+					siblings.add(Text.literal(" "));
 					siblings.add(text);
 				}
 				tooltip.entries().remove(1); // Remove REI added amount
@@ -228,14 +227,14 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements Displ
 			dev.architectury.fluid.FluidStack fluidStack = entryStack.castValue();
 			FluidStack fluid = new FluidStack(fluidStack.getFluid(), fluidStack.getAmount(), fluidStack.getTag());
 			if (fluid.getFluid()
-					.isSame(AllFluids.POTION.get())) {
-				Component name = fluid.getDisplayName();
+					.matchesType(AllFluids.POTION.get())) {
+				Text name = fluid.getDisplayName();
 				if (tooltip.entries().isEmpty())
 					tooltip.entries().add(0, Tooltip.entry(name));
 				else
 					tooltip.entries().set(0, Tooltip.entry(name));
 
-				ArrayList<Component> potionTooltip = new ArrayList<>();
+				ArrayList<Text> potionTooltip = new ArrayList<>();
 				PotionFluidHandler.addPotionTooltip(fluid, potionTooltip, 1);
 				ArrayList<Tooltip.Entry> potionEntries = new ArrayList<>();
 				potionTooltip.forEach(component -> potionEntries.add(Tooltip.entry(component)));
@@ -244,12 +243,12 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements Displ
 
 			FluidUnit unit = AllConfigs.client().fluidUnitType.get();
 			String amount = FluidTextUtil.getUnicodeMillibuckets(fluid.getAmount(), unit, AllConfigs.client().simplifyFluidUnit.get());
-			Component text = Component.literal(String.valueOf(amount)).append(Lang.translateDirect(unit.getTranslationKey())).withStyle(ChatFormatting.GOLD);
+			Text text = Text.literal(String.valueOf(amount)).append(Lang.translateDirect(unit.getTranslationKey())).formatted(Formatting.GOLD);
 			if (tooltip.entries().isEmpty())
 				tooltip.entries().add(0, Tooltip.entry(text));
 			else {
-				List<Component> siblings = tooltip.entries().get(0).getAsText().getSiblings();
-				siblings.add(Component.literal(" "));
+				List<Text> siblings = tooltip.entries().get(0).getAsText().getSiblings();
+				siblings.add(Text.literal(" "));
 				siblings.add(text);
 			}
 			return tooltip;
@@ -273,25 +272,25 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements Displ
 		List<Widget> widgets = new ArrayList<>();
 		widgets.add(Widgets.createRecipeBase(bounds));
 		widgets.add(Widgets.createDrawableWidget((graphics, mouseX, mouseY, partialTick) -> {
-			PoseStack poseStack = graphics.pose();
-			poseStack.pushPose();
+			MatrixStack poseStack = graphics.getMatrices();
+			poseStack.push();
 			poseStack.translate(bounds.getX(), bounds.getY() + 4, 0);
 			draw(display.getRecipe(), graphics, mouseX, mouseY);
 			draw(display.getRecipe(), display, graphics, mouseX, mouseY);
-			poseStack.popPose();
+			poseStack.pop();
 		}));
 		addWidgets(display, widgets, new Point(bounds.getX(), bounds.getY() + 4));
 		addWidgets(display, widgets, new Point(bounds.getX(), bounds.getY() + 4), bounds);
 		return widgets;
 	}
 
-	public void draw(T recipe, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(T recipe, DrawContext graphics, double mouseX, double mouseY) {
 	}
 
-	public void draw(T recipe, CreateDisplay<T> display, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(T recipe, CreateDisplay<T> display, DrawContext graphics, double mouseX, double mouseY) {
 	}
 
-	public record Info<T extends Recipe<?>>(CategoryIdentifier<CreateDisplay<T>> recipeType, Component title,
+	public record Info<T extends Recipe<?>>(CategoryIdentifier<CreateDisplay<T>> recipeType, Text title,
 											Renderer background, Renderer icon, Supplier<List<T>> recipes,
 											List<Supplier<? extends ItemStack>> catalysts, int width, int height,
 											Function<T, ? extends CreateDisplay<T>> displayFactory) {

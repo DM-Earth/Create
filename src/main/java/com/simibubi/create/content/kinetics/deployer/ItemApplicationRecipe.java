@@ -4,14 +4,13 @@ import com.google.gson.JsonObject;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeBuilder.ProcessingRecipeParams;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.JsonHelper;
+import net.minecraft.world.World;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.Level;
-
-public class ItemApplicationRecipe extends ProcessingRecipe<Container> {
+public class ItemApplicationRecipe extends ProcessingRecipe<Inventory> {
 
 	private boolean keepHeldItem;
 
@@ -21,11 +20,11 @@ public class ItemApplicationRecipe extends ProcessingRecipe<Container> {
 	}
 
 	@Override
-	public boolean matches(Container inv, Level p_77569_2_) {
+	public boolean matches(Inventory inv, World p_77569_2_) {
 		return ingredients.get(0)
-			.test(inv.getItem(0))
+			.test(inv.getStack(0))
 			&& ingredients.get(1)
-				.test(inv.getItem(1));
+				.test(inv.getStack(1));
 	}
 
 	@Override
@@ -57,7 +56,7 @@ public class ItemApplicationRecipe extends ProcessingRecipe<Container> {
 	@Override
 	public void readAdditional(JsonObject json) {
 		super.readAdditional(json);
-		keepHeldItem = GsonHelper.getAsBoolean(json, "keepHeldItem", false);
+		keepHeldItem = JsonHelper.getBoolean(json, "keepHeldItem", false);
 	}
 
 	@Override
@@ -68,13 +67,13 @@ public class ItemApplicationRecipe extends ProcessingRecipe<Container> {
 	}
 
 	@Override
-	public void readAdditional(FriendlyByteBuf buffer) {
+	public void readAdditional(PacketByteBuf buffer) {
 		super.readAdditional(buffer);
 		keepHeldItem = buffer.readBoolean();
 	}
 
 	@Override
-	public void writeAdditional(FriendlyByteBuf buffer) {
+	public void writeAdditional(PacketByteBuf buffer) {
 		super.writeAdditional(buffer);
 		buffer.writeBoolean(keepHeldItem);
 	}

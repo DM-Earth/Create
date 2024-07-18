@@ -3,16 +3,14 @@ package com.simibubi.create.content.trains.station;
 import java.lang.ref.WeakReference;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
 import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.content.trains.graph.DimensionPalette;
 import com.simibubi.create.content.trains.graph.TrackNode;
 import com.simibubi.create.content.trains.signal.SingleBlockEntityEdgePoint;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class GlobalStation extends SingleBlockEntityEdgePoint {
 
@@ -28,13 +26,13 @@ public class GlobalStation extends SingleBlockEntityEdgePoint {
 	@Override
 	public void blockEntityAdded(BlockEntity blockEntity, boolean front) {
 		super.blockEntityAdded(blockEntity, front);
-		BlockState state = blockEntity.getBlockState();
+		BlockState state = blockEntity.getCachedState();
 		assembling =
-			state != null && state.hasProperty(StationBlock.ASSEMBLING) && state.getValue(StationBlock.ASSEMBLING);
+			state != null && state.contains(StationBlock.ASSEMBLING) && state.get(StationBlock.ASSEMBLING);
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean migration, DimensionPalette dimensions) {
+	public void read(NbtCompound nbt, boolean migration, DimensionPalette dimensions) {
 		super.read(nbt, migration, dimensions);
 		name = nbt.getString("Name");
 		assembling = nbt.getBoolean("Assembling");
@@ -42,25 +40,25 @@ public class GlobalStation extends SingleBlockEntityEdgePoint {
 	}
 
 	@Override
-	public void read(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+	public void read(PacketByteBuf buffer, DimensionPalette dimensions) {
 		super.read(buffer, dimensions);
-		name = buffer.readUtf();
+		name = buffer.readString();
 		assembling = buffer.readBoolean();
 		if (buffer.readBoolean())
 			blockEntityPos = buffer.readBlockPos();
 	}
 
 	@Override
-	public void write(CompoundTag nbt, DimensionPalette dimensions) {
+	public void write(NbtCompound nbt, DimensionPalette dimensions) {
 		super.write(nbt, dimensions);
 		nbt.putString("Name", name);
 		nbt.putBoolean("Assembling", assembling);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+	public void write(PacketByteBuf buffer, DimensionPalette dimensions) {
 		super.write(buffer, dimensions);
-		buffer.writeUtf(name);
+		buffer.writeString(name);
 		buffer.writeBoolean(assembling);
 		buffer.writeBoolean(blockEntityPos != null);
 		if (blockEntityPos != null)

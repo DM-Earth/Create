@@ -4,12 +4,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class LinkedControllerInputPacket extends LinkedControllerPacketBase {
 
@@ -26,7 +25,7 @@ public class LinkedControllerInputPacket extends LinkedControllerPacketBase {
 		this.press = press;
 	}
 
-	public LinkedControllerInputPacket(FriendlyByteBuf buffer) {
+	public LinkedControllerInputPacket(PacketByteBuf buffer) {
 		super(buffer);
 		activatedButtons = new ArrayList<>();
 		press = buffer.readBoolean();
@@ -36,7 +35,7 @@ public class LinkedControllerInputPacket extends LinkedControllerPacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		super.write(buffer);
 		buffer.writeBoolean(press);
 		buffer.writeVarInt(activatedButtons.size());
@@ -44,16 +43,16 @@ public class LinkedControllerInputPacket extends LinkedControllerPacketBase {
 	}
 
 	@Override
-	protected void handleLectern(ServerPlayer player, LecternControllerBlockEntity lectern) {
+	protected void handleLectern(ServerPlayerEntity player, LecternControllerBlockEntity lectern) {
 		if (lectern.isUsedBy(player))
 			handleItem(player, lectern.getController());
 	}
 
 	@Override
-	protected void handleItem(ServerPlayer player, ItemStack heldItem) {
-		Level world = player.getCommandSenderWorld();
-		UUID uniqueID = player.getUUID();
-		BlockPos pos = player.blockPosition();
+	protected void handleItem(ServerPlayerEntity player, ItemStack heldItem) {
+		World world = player.getEntityWorld();
+		UUID uniqueID = player.getUuid();
+		BlockPos pos = player.getBlockPos();
 
 		if (player.isSpectator() && press)
 			return;

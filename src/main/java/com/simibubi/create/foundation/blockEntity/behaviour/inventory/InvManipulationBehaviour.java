@@ -18,9 +18,9 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class InvManipulationBehaviour extends CapManipulationBehaviourBase<ItemVariant, InvManipulationBehaviour> {
 
@@ -68,7 +68,7 @@ public class InvManipulationBehaviour extends CapManipulationBehaviourBase<ItemV
 		boolean shouldSimulate = simulateNext;
 		simulateNext = false;
 
-		if (getWorld().isClientSide || !hasInventory())
+		if (getWorld().isClient || !hasInventory())
 			return ItemStack.EMPTY;
 		Storage<ItemVariant> inventory = getInventory();
 		if (inventory == null)
@@ -113,7 +113,7 @@ public class InvManipulationBehaviour extends CapManipulationBehaviourBase<ItemV
 	}
 
 	public static class UnsidedItemStorageProvider extends UnsidedStorageProvider<ItemVariant> {
-		protected UnsidedItemStorageProvider(Level level, BlockPos pos) {
+		protected UnsidedItemStorageProvider(World level, BlockPos pos) {
 			super(ItemStorage.SIDED, level, pos);
 		}
 

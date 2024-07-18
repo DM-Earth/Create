@@ -19,23 +19,22 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.tags.TagKey;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.material.FlowingFluid;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FlowableFluid;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.JsonHelper;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class FluidHelper {
 
@@ -53,11 +52,11 @@ public class FluidHelper {
 
 	@SuppressWarnings("deprecation")
 	public static boolean isTag(Fluid fluid, TagKey<Fluid> tag) {
-		return fluid.is(tag);
+		return fluid.isIn(tag);
 	}
 
 	public static boolean isTag(FluidState fluid, TagKey<Fluid> tag) {
-		return fluid.is(tag);
+		return fluid.isIn(tag);
 	}
 
 	public static boolean isTag(FluidStack fluid, TagKey<Fluid> tag) {
@@ -73,7 +72,7 @@ public class FluidHelper {
 	}
 
 	public static boolean hasBlockState(Fluid fluid) {
-		return !fluid.defaultFluidState().createLegacyBlock().isAir();
+		return !fluid.getDefaultState().getBlockState().isAir();
 	}
 
 	public static FluidStack copyStackWithAmount(FluidStack fs, long amount) {
@@ -91,8 +90,8 @@ public class FluidHelper {
 			return Fluids.FLOWING_WATER;
 		if (fluid == Fluids.LAVA)
 			return Fluids.FLOWING_LAVA;
-		if (fluid instanceof FlowingFluid)
-			return ((FlowingFluid) fluid).getFlowing();
+		if (fluid instanceof FlowableFluid)
+			return ((FlowableFluid) fluid).getFlowing();
 		return fluid;
 	}
 
@@ -101,8 +100,8 @@ public class FluidHelper {
 			return Fluids.WATER;
 		if (fluid == Fluids.FLOWING_LAVA)
 			return Fluids.LAVA;
-		if (fluid instanceof FlowingFluid)
-			return ((FlowingFluid) fluid).getSource();
+		if (fluid instanceof FlowableFluid)
+			return ((FlowableFluid) fluid).getStill();
 		return fluid;
 	}
 
@@ -118,37 +117,37 @@ public class FluidHelper {
 	}
 
 	public static FluidStack deserializeFluidStack(JsonObject json) {
-		ResourceLocation id = new ResourceLocation(GsonHelper.getAsString(json, "fluid"));
-		Fluid fluid = BuiltInRegistries.FLUID.get(id);
+		Identifier id = new Identifier(JsonHelper.getString(json, "fluid"));
+		Fluid fluid = Registries.FLUID.get(id);
 		if (fluid == null)
 			throw new JsonSyntaxException("Unknown fluid '" + id + "'");
-		int amount = GsonHelper.getAsInt(json, "amount");
+		int amount = JsonHelper.getInt(json, "amount");
 		if (!json.has("nbt"))
 			return new FluidStack(fluid, amount);
 
 		try {
 			JsonElement element = json.get("nbt");
-			CompoundTag nbt = TagParser.parseTag(
-					element.isJsonObject() ? Create.GSON.toJson(element) : GsonHelper.convertToString(element, "nbt"));
+			NbtCompound nbt = StringNbtReader.parse(
+					element.isJsonObject() ? Create.GSON.toJson(element) : JsonHelper.asString(element, "nbt"));
 			return new FluidStack(FluidVariant.of(fluid, nbt), amount, nbt);
 		} catch (CommandSyntaxException e) {
 			throw new JsonSyntaxException("Failed to read NBT", e);
 		}
 	}
 
-	public static boolean tryEmptyItemIntoBE(Level worldIn, Player player, InteractionHand handIn, ItemStack heldItem,
+	public static boolean tryEmptyItemIntoBE(World worldIn, PlayerEntity player, Hand handIn, ItemStack heldItem,
 		SmartBlockEntity be, Direction side) {
 		if (!GenericItemEmptying.canItemBeEmptied(worldIn, heldItem))
 			return false;
 
 		Pair<FluidStack, ItemStack> emptyingResult = GenericItemEmptying.emptyItem(worldIn, heldItem, true);
 
-		Storage<FluidVariant> tank = FluidStorage.SIDED.find(worldIn, be.getBlockPos(), null, be, side);
+		Storage<FluidVariant> tank = FluidStorage.SIDED.find(worldIn, be.getPos(), null, be, side);
 		FluidStack fluidStack = emptyingResult.getFirst();
 
 		if (tank == null)
 			return false;
-		if (worldIn.isClientSide)
+		if (worldIn.isClient)
 			return true;
 
 		try (Transaction t = TransferUtil.getTransaction()) {
@@ -162,22 +161,22 @@ public class FluidHelper {
 
 			if (!player.isCreative() && !(be instanceof CreativeFluidTankBlockEntity)) {
 				if (copyOfHeld.isEmpty())
-					player.setItemInHand(handIn, emptyingResult.getSecond());
+					player.setStackInHand(handIn, emptyingResult.getSecond());
 				else {
-					player.setItemInHand(handIn, copyOfHeld);
-					player.getInventory().placeItemBackInInventory(emptyingResult.getSecond());
+					player.setStackInHand(handIn, copyOfHeld);
+					player.getInventory().offerOrDrop(emptyingResult.getSecond());
 				}
 			}
 			return true;
 		}
 	}
 
-	public static boolean tryFillItemFromBE(Level world, Player player, InteractionHand handIn, ItemStack heldItem,
+	public static boolean tryFillItemFromBE(World world, PlayerEntity player, Hand handIn, ItemStack heldItem,
 		SmartBlockEntity be, Direction side) {
 		if (!GenericItemFilling.canItemBeFilled(world, heldItem))
 			return false;
 
-		Storage<FluidVariant> tank = FluidStorage.SIDED.find(world, be.getBlockPos(), null, be, side);
+		Storage<FluidVariant> tank = FluidStorage.SIDED.find(world, be.getPos(), null, be, side);
 
 		if (tank == null)
 			return false;
@@ -192,7 +191,7 @@ public class FluidHelper {
 				if (requiredAmountForItem > fluid.getAmount())
 					continue;
 
-				if (world.isClientSide)
+				if (world.isClient)
 					return true;
 
 				if (player.isCreative() || be instanceof CreativeFluidTankBlockEntity)
@@ -205,7 +204,7 @@ public class FluidHelper {
 				t.commit();
 
 				if (!player.isCreative())
-					player.getInventory().placeItemBackInInventory(out);
+					player.getInventory().offerOrDrop(out);
 				be.notifyUpdate();
 				return true;
 			}

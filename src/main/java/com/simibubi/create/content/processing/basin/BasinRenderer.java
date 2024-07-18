@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Random;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTankBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTankBehaviour.TankSegment;
 import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
@@ -20,42 +19,42 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class BasinRenderer extends SmartBlockEntityRenderer<BasinBlockEntity> {
 
-	public BasinRenderer(BlockEntityRendererProvider.Context context) {
+	public BasinRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	protected void renderSafe(BasinBlockEntity basin, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(BasinBlockEntity basin, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 		super.renderSafe(basin, partialTicks, ms, buffer, light, overlay);
 
 		float fluidLevel = renderFluids(basin, partialTicks, ms, buffer, light, overlay);
-		float level = Mth.clamp(fluidLevel - .3f, .125f, .6f);
+		float level = MathHelper.clamp(fluidLevel - .3f, .125f, .6f);
 
-		ms.pushPose();
+		ms.push();
 
-		BlockPos pos = basin.getBlockPos();
+		BlockPos pos = basin.getPos();
 		ms.translate(.5, .2f, .5);
 		TransformStack.cast(ms)
 			.rotateY(basin.ingredientRotation.getValue(partialTicks));
 
-		RandomSource r = RandomSource.create(pos.hashCode());
-		Vec3 baseVector = new Vec3(.125, level, 0);
+		net.minecraft.util.math.random.Random r = net.minecraft.util.math.random.Random.create(pos.hashCode());
+		Vec3d baseVector = new Vec3d(.125, level, 0);
 
 		Storage<ItemVariant> inv = basin.itemCapability;
 		if (inv != null) {
@@ -64,57 +63,57 @@ public class BasinRenderer extends SmartBlockEntityRenderer<BasinBlockEntity> {
 			itemCount = stacks.size();
 
 			if (itemCount == 1)
-				baseVector = new Vec3(0, level, 0);
+				baseVector = new Vec3d(0, level, 0);
 
 			float anglePartition = 360f / itemCount;
 			for (ItemStack stack : stacks) {
 
-				ms.pushPose();
+				ms.push();
 
 				if (fluidLevel > 0) {
 					ms.translate(0,
-							(Mth.sin(
-									AnimationTickHolder.getRenderTime(basin.getLevel()) / 12f + anglePartition * itemCount) + 1.5f)
+							(MathHelper.sin(
+									AnimationTickHolder.getRenderTime(basin.getWorld()) / 12f + anglePartition * itemCount) + 1.5f)
 									* 1 / 32f,
 							0);
 				}
 
-				Vec3 itemPosition = VecHelper.rotate(baseVector, anglePartition * itemCount, Axis.Y);
+				Vec3d itemPosition = VecHelper.rotate(baseVector, anglePartition * itemCount, Axis.Y);
 				ms.translate(itemPosition.x, itemPosition.y, itemPosition.z);
 				TransformStack.cast(ms)
 						.rotateY(anglePartition * itemCount + 35)
 						.rotateX(65);
 
 				for (int i = 0; i <= stack.getCount() / 8; i++) {
-					ms.pushPose();
+					ms.push();
 
-					Vec3 vec = VecHelper.offsetRandomly(Vec3.ZERO, r, 1 / 16f);
+					Vec3d vec = VecHelper.offsetRandomly(Vec3d.ZERO, r, 1 / 16f);
 
 					ms.translate(vec.x, vec.y, vec.z);
 					renderItem(ms, buffer, light, overlay, stack);
-					ms.popPose();
+					ms.pop();
 				}
-				ms.popPose();
+				ms.pop();
 
 				itemCount--;
 			}
 		}
-		ms.popPose();
+		ms.pop();
 
-		BlockState blockState = basin.getBlockState();
+		BlockState blockState = basin.getCachedState();
 		if (!(blockState.getBlock() instanceof BasinBlock))
 			return;
-		Direction direction = blockState.getValue(BasinBlock.FACING);
+		Direction direction = blockState.get(BasinBlock.FACING);
 		if (direction == Direction.DOWN)
 			return;
-		Vec3 directionVec = Vec3.atLowerCornerOf(direction.getNormal());
-		Vec3 outVec = VecHelper.getCenterOf(BlockPos.ZERO)
-			.add(directionVec.scale(.55)
+		Vec3d directionVec = Vec3d.of(direction.getVector());
+		Vec3d outVec = VecHelper.getCenterOf(BlockPos.ORIGIN)
+			.add(directionVec.multiply(.55)
 				.subtract(0, 1 / 2f, 0));
 
-		boolean outToBasin = basin.getLevel()
-			.getBlockState(basin.getBlockPos()
-				.relative(direction))
+		boolean outToBasin = basin.getWorld()
+			.getBlockState(basin.getPos()
+				.offset(direction))
 			.getBlock() instanceof BasinBlock;
 
 		for (LongAttached<ItemStack> LongAttached : basin.visualizedOutputItems) {
@@ -123,25 +122,25 @@ public class BasinRenderer extends SmartBlockEntityRenderer<BasinBlockEntity> {
 			if (!outToBasin && progress > .35f)
 				continue;
 
-			ms.pushPose();
+			ms.push();
             TransformStack.cast(ms)
 				.translate(outVec)
-				.translate(new Vec3(0, Math.max(-.55f, -(progress * progress * 2)), 0))
-				.translate(directionVec.scale(progress * .5f))
+				.translate(new Vec3d(0, Math.max(-.55f, -(progress * progress * 2)), 0))
+				.translate(directionVec.multiply(progress * .5f))
 				.rotateY(AngleHelper.horizontalAngle(direction))
 				.rotateX(progress * 180);
 			renderItem(ms, buffer, light, overlay, LongAttached.getValue());
-			ms.popPose();
+			ms.pop();
 		}
 	}
 
-	protected void renderItem(PoseStack ms, MultiBufferSource buffer, int light, int overlay, ItemStack stack) {
-		Minecraft mc = Minecraft.getInstance();
+	protected void renderItem(MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay, ItemStack stack) {
+		MinecraftClient mc = MinecraftClient.getInstance();
 		mc.getItemRenderer()
-			.renderStatic(stack, ItemDisplayContext.GROUND, light, overlay, ms, buffer, mc.level, 0);
+			.renderItem(stack, ModelTransformationMode.GROUND, light, overlay, ms, buffer, mc.world, 0);
 	}
 
-	protected float renderFluids(BasinBlockEntity basin, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected float renderFluids(BasinBlockEntity basin, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 		SmartFluidTankBehaviour inputFluids = basin.getBehaviour(SmartFluidTankBehaviour.INPUT);
 		SmartFluidTankBehaviour outputFluids = basin.getBehaviour(SmartFluidTankBehaviour.OUTPUT);
@@ -150,7 +149,7 @@ public class BasinRenderer extends SmartBlockEntityRenderer<BasinBlockEntity> {
 		if (totalUnits < 1)
 			return 0;
 
-		float fluidLevel = Mth.clamp(totalUnits / (FluidConstants.BUCKET * 2), 0, 1);
+		float fluidLevel = MathHelper.clamp(totalUnits / (FluidConstants.BUCKET * 2), 0, 1);
 
 		fluidLevel = 1 - ((1 - fluidLevel) * (1 - fluidLevel));
 
@@ -172,7 +171,7 @@ public class BasinRenderer extends SmartBlockEntityRenderer<BasinBlockEntity> {
 				if (units < 1)
 					continue;
 
-				float partial = Mth.clamp(units / totalUnits, 0, 1);
+				float partial = MathHelper.clamp(units / totalUnits, 0, 1);
 				xMax += partial * 12 / 16f;
 				FluidRenderer.renderFluidBox(renderedFluid, xMin, yMin, zMin, xMax, yMax, zMax, buffer, ms, light,
 					false);
@@ -185,7 +184,7 @@ public class BasinRenderer extends SmartBlockEntityRenderer<BasinBlockEntity> {
 	}
 
 	@Override
-	public int getViewDistance() {
+	public int getRenderDistance() {
 		return 16;
 	}
 

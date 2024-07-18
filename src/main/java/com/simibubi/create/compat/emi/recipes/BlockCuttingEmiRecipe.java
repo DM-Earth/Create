@@ -2,7 +2,11 @@ package com.simibubi.create.compat.emi.recipes;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.StonecuttingRecipe;
+import net.minecraft.util.Identifier;
 import org.apache.commons.compress.utils.Lists;
 
 import com.simibubi.create.compat.emi.CreateEmiAnimations;
@@ -13,11 +17,6 @@ import com.simibubi.create.foundation.item.ItemHelper;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.WidgetHolder;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.StonecutterRecipe;
 
 public class BlockCuttingEmiRecipe extends CreateEmiRecipe<CondensedBlockCuttingRecipe> {
 
@@ -48,11 +47,11 @@ public class BlockCuttingEmiRecipe extends CreateEmiRecipe<CondensedBlockCutting
 		CreateEmiAnimations.addSaw(widgets, 33, 37);
 	}
 
-	public static class CondensedBlockCuttingRecipe extends StonecutterRecipe {
+	public static class CondensedBlockCuttingRecipe extends StonecuttingRecipe {
 		private List<ItemStack> outputs = Lists.newArrayList();
 
 		public CondensedBlockCuttingRecipe(Ingredient ingredient) {
-			super(new ResourceLocation(""), "", ingredient, ItemStack.EMPTY);
+			super(new Identifier(""), "", ingredient, ItemStack.EMPTY);
 		}
 
 		public void addOutput(ItemStack stack) {
@@ -82,7 +81,7 @@ public class BlockCuttingEmiRecipe extends CreateEmiRecipe<CondensedBlockCutting
 		}
 
 		@Override
-		public boolean isSpecial() {
+		public boolean isIgnoredInRecipeBook() {
 			return true;
 		}
 

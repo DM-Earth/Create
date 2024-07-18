@@ -10,20 +10,20 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
 
 public class AllCommands {
 
-	public static final Predicate<CommandSourceStack> SOURCE_IS_PLAYER = cs -> cs.getEntity() instanceof Player;
+	public static final Predicate<ServerCommandSource> SOURCE_IS_PLAYER = cs -> cs.getEntity() instanceof PlayerEntity;
 
-	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 
-		LiteralCommandNode<CommandSourceStack> util = buildUtilityCommands();
+		LiteralCommandNode<ServerCommandSource> util = buildUtilityCommands();
 
-		LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("create")
-				.requires(cs -> cs.hasPermission(0))
+		LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("create")
+				.requires(cs -> cs.hasPermissionLevel(0))
 				// general purpose
 				.then(new ToggleDebugCommand().register())
 				.then(FabulousWarningCommand.register())
@@ -48,11 +48,11 @@ public class AllCommands {
 		if (loader.isDevelopmentEnvironment() && loader.getEnvironmentType() == EnvType.CLIENT)
 			root.then(CreateTestCommand.register());
 
-		LiteralCommandNode<CommandSourceStack> createRoot = dispatcher.register(root);
+		LiteralCommandNode<ServerCommandSource> createRoot = dispatcher.register(root);
 
 		createRoot.addChild(buildRedirect("u", util));
 
-		CommandNode<CommandSourceStack> c = dispatcher.findNode(Collections.singleton("c"));
+		CommandNode<ServerCommandSource> c = dispatcher.findNode(Collections.singleton("c"));
 		if (c != null)
 			return;
 
@@ -61,9 +61,9 @@ public class AllCommands {
 
 	}
 
-	private static LiteralCommandNode<CommandSourceStack> buildUtilityCommands() {
+	private static LiteralCommandNode<ServerCommandSource> buildUtilityCommands() {
 
-		return Commands.literal("util")
+		return CommandManager.literal("util")
 				.then(ReplaceInCommandBlocksCommand.register())
 				.then(ClearBufferCacheCommand.register())
 				.then(CameraDistanceCommand.register())
@@ -88,16 +88,16 @@ public class AllCommands {
 	 *
 	 * @return the built node
 	 */
-	public static LiteralCommandNode<CommandSourceStack> buildRedirect(final String alias, final LiteralCommandNode<CommandSourceStack> destination) {
+	public static LiteralCommandNode<ServerCommandSource> buildRedirect(final String alias, final LiteralCommandNode<ServerCommandSource> destination) {
 		// Redirects only work for nodes with children, but break the top argument-less command.
 		// Manually adding the root command after setting the redirect doesn't fix it.
 		// See https://github.com/Mojang/brigadier/issues/46). Manually clone the node instead.
-		LiteralArgumentBuilder<CommandSourceStack> builder = LiteralArgumentBuilder
-				.<CommandSourceStack>literal(alias)
+		LiteralArgumentBuilder<ServerCommandSource> builder = LiteralArgumentBuilder
+				.<ServerCommandSource>literal(alias)
 				.requires(destination.getRequirement())
 				.forward(destination.getRedirect(), destination.getRedirectModifier(), destination.isFork())
 				.executes(destination.getCommand());
-		for (CommandNode<CommandSourceStack> child : destination.getChildren()) {
+		for (CommandNode<ServerCommandSource> child : destination.getChildren()) {
 			builder.then(child);
 		}
 		return builder.build();

@@ -29,19 +29,19 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.IntTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.world.World;
 
 public class BeltTunnelBlockEntity extends SmartBlockEntity implements SidedStorageBlockEntity {
 
@@ -59,9 +59,9 @@ public class BeltTunnelBlockEntity extends SmartBlockEntity implements SidedStor
 	}
 
 	@Override
-	public void setLevel(Level level) {
-		super.setLevel(level);
-		belowProvider = StorageProvider.createForItems(level, worldPosition.below()).filter(this::isBeltStorage);
+	public void setWorld(World level) {
+		super.setWorld(level);
+		belowProvider = StorageProvider.createForItems(level, pos.down()).filter(this::isBeltStorage);
 	}
 
 	public boolean isBeltStorage(StorageProvider<ItemVariant> provider, Storage<ItemVariant> storage) {
@@ -73,43 +73,43 @@ public class BeltTunnelBlockEntity extends SmartBlockEntity implements SidedStor
 		super.invalidate();
 	}
 
-	protected void writeFlapsAndSides(CompoundTag compound) {
-		ListTag flapsNBT = new ListTag();
+	protected void writeFlapsAndSides(NbtCompound compound) {
+		NbtList flapsNBT = new NbtList();
 		for (Direction direction : flaps.keySet())
-			flapsNBT.add(IntTag.valueOf(direction.get3DDataValue()));
+			flapsNBT.add(NbtInt.of(direction.getId()));
 		compound.put("Flaps", flapsNBT);
 
-		ListTag sidesNBT = new ListTag();
+		NbtList sidesNBT = new NbtList();
 		for (Direction direction : sides)
-			sidesNBT.add(IntTag.valueOf(direction.get3DDataValue()));
+			sidesNBT.add(NbtInt.of(direction.getId()));
 		compound.put("Sides", sidesNBT);
 	}
 
 	@Override
-	public void writeSafe(CompoundTag tag) {
+	public void writeSafe(NbtCompound tag) {
 		writeFlapsAndSides(tag);
 		super.writeSafe(tag);
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		writeFlapsAndSides(compound);
 		super.write(compound, clientPacket);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		Set<Direction> newFlaps = new HashSet<>(6);
-		ListTag flapsNBT = compound.getList("Flaps", Tag.TAG_INT);
-		for (Tag inbt : flapsNBT)
-			if (inbt instanceof IntTag)
-				newFlaps.add(Direction.from3DDataValue(((IntTag) inbt).getAsInt()));
+		NbtList flapsNBT = compound.getList("Flaps", NbtElement.INT_TYPE);
+		for (NbtElement inbt : flapsNBT)
+			if (inbt instanceof NbtInt)
+				newFlaps.add(Direction.byId(((NbtInt) inbt).intValue()));
 
 		sides.clear();
-		ListTag sidesNBT = compound.getList("Sides", Tag.TAG_INT);
-		for (Tag inbt : sidesNBT)
-			if (inbt instanceof IntTag)
-				sides.add(Direction.from3DDataValue(((IntTag) inbt).getAsInt()));
+		NbtList sidesNBT = compound.getList("Sides", NbtElement.INT_TYPE);
+		for (NbtElement inbt : sidesNBT)
+			if (inbt instanceof NbtInt)
+				sides.add(Direction.byId(((NbtInt) inbt).intValue()));
 
 		for (Direction d : Iterate.directions)
 			if (!newFlaps.contains(d))
@@ -134,12 +134,12 @@ public class BeltTunnelBlockEntity extends SmartBlockEntity implements SidedStor
 	public void updateTunnelConnections() {
 		flaps.clear();
 		sides.clear();
-		BlockState tunnelState = getBlockState();
+		BlockState tunnelState = getCachedState();
 		for (Direction direction : Iterate.horizontalDirections) {
-			if (direction.getAxis() != tunnelState.getValue(BlockStateProperties.HORIZONTAL_AXIS)) {
+			if (direction.getAxis() != tunnelState.get(Properties.HORIZONTAL_AXIS)) {
 				boolean positive =
-					direction.getAxisDirection() == AxisDirection.POSITIVE ^ direction.getAxis() == Axis.Z;
-				Shape shape = tunnelState.getValue(BeltTunnelBlock.SHAPE);
+					direction.getDirection() == AxisDirection.POSITIVE ^ direction.getAxis() == Axis.Z;
+				Shape shape = tunnelState.get(BeltTunnelBlock.SHAPE);
 				if (BeltTunnelBlock.isStraight(tunnelState))
 					continue;
 				if (positive && shape == Shape.T_LEFT)
@@ -151,12 +151,12 @@ public class BeltTunnelBlockEntity extends SmartBlockEntity implements SidedStor
 			sides.add(direction);
 
 			// Flap might be occluded
-			BlockState nextState = level.getBlockState(worldPosition.relative(direction));
+			BlockState nextState = world.getBlockState(pos.offset(direction));
 			if (nextState.getBlock() instanceof BeltTunnelBlock)
 				continue;
 			if (nextState.getBlock() instanceof BeltFunnelBlock)
-				if (nextState.getValue(BeltFunnelBlock.SHAPE) == BeltFunnelBlock.Shape.EXTENDED
-					&& nextState.getValue(BeltFunnelBlock.HORIZONTAL_FACING) == direction.getOpposite())
+				if (nextState.get(BeltFunnelBlock.SHAPE) == BeltFunnelBlock.Shape.EXTENDED
+					&& nextState.get(BeltFunnelBlock.HORIZONTAL_FACING) == direction.getOpposite())
 					continue;
 
 			flaps.put(direction, createChasingFlap());
@@ -165,7 +165,7 @@ public class BeltTunnelBlockEntity extends SmartBlockEntity implements SidedStor
 	}
 
 	public void flap(Direction side, boolean inward) {
-		if (level.isClientSide) {
+		if (world.isClient) {
 			if (flaps.containsKey(side))
 				flaps.get(side)
 					.setValue(inward ^ side.getAxis() == Axis.Z ? -1 : 1);
@@ -184,7 +184,7 @@ public class BeltTunnelBlockEntity extends SmartBlockEntity implements SidedStor
 	@Override
 	public void tick() {
 		super.tick();
-		if (!level.isClientSide) {
+		if (!world.isClient) {
 			if (!flapsToSend.isEmpty())
 				sendFlaps();
 			return;
@@ -193,7 +193,7 @@ public class BeltTunnelBlockEntity extends SmartBlockEntity implements SidedStor
 	}
 
 	private void sendFlaps() {
-		AllPackets.getChannel().sendToClientsTracking(new TunnelFlapPacket(this, flapsToSend), (ServerLevel) level, getBlockPos());
+		AllPackets.getChannel().sendToClientsTracking(new TunnelFlapPacket(this, flapsToSend), (ServerWorld) world, getPos());
 		flapsToSend.clear();
 	}
 

@@ -5,23 +5,20 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllSpecialTextures;
 import com.simibubi.create.foundation.render.RenderTypes;
 import com.simibubi.create.foundation.render.SuperRenderTypeBuffer;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.phys.Vec3;
 
 public class BlockClusterOutline extends Outline {
 
@@ -40,7 +37,7 @@ public class BlockClusterOutline extends Outline {
 	}
 
 	@Override
-	public void render(PoseStack ms, SuperRenderTypeBuffer buffer, Vec3 camera, float pt) {
+	public void render(MatrixStack ms, SuperRenderTypeBuffer buffer, Vec3d camera, float pt) {
 		params.loadColor(colorTemp);
 		Vector4f color = colorTemp;
 		int lightmap = params.lightmap;
@@ -50,45 +47,45 @@ public class BlockClusterOutline extends Outline {
 		renderEdges(ms, buffer, camera, pt, color, lightmap, disableLineNormals);
 	}
 
-	protected void renderFaces(PoseStack ms, SuperRenderTypeBuffer buffer, Vec3 camera, float pt, Vector4f color, int lightmap) {
+	protected void renderFaces(MatrixStack ms, SuperRenderTypeBuffer buffer, Vec3d camera, float pt, Vector4f color, int lightmap) {
 		Optional<AllSpecialTextures> optionalFaceTexture = params.faceTexture;
 		if (!optionalFaceTexture.isPresent())
 			return;
 		if (cluster.isEmpty())
 			return;
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(cluster.anchor.getX() - camera.x, cluster.anchor.getY() - camera.y,
 			cluster.anchor.getZ() - camera.z);
 		
 		AllSpecialTextures faceTexture = optionalFaceTexture.get();
-		PoseStack.Pose pose = ms.last();
-		RenderType renderType = RenderTypes.getOutlineTranslucent(faceTexture.getLocation(), true);
+		MatrixStack.Entry pose = ms.peek();
+		RenderLayer renderType = RenderTypes.getOutlineTranslucent(faceTexture.getLocation(), true);
 		VertexConsumer consumer = buffer.getLateBuffer(renderType);
 
 		cluster.visibleFaces.forEach((face, axisDirection) -> {
 			Direction direction = Direction.get(axisDirection, face.axis);
 			BlockPos pos = face.pos;
 			if (axisDirection == AxisDirection.POSITIVE)
-				pos = pos.relative(direction.getOpposite());
+				pos = pos.offset(direction.getOpposite());
 			bufferBlockFace(pose, consumer, pos, direction, color, lightmap);
 		});
 		
-		ms.popPose();
+		ms.pop();
 	}
 
-	protected void renderEdges(PoseStack ms, SuperRenderTypeBuffer buffer, Vec3 camera, float pt, Vector4f color, int lightmap, boolean disableNormals) {
+	protected void renderEdges(MatrixStack ms, SuperRenderTypeBuffer buffer, Vec3d camera, float pt, Vector4f color, int lightmap, boolean disableNormals) {
 		float lineWidth = params.getLineWidth();
 		if (lineWidth == 0)
 			return;
 		if (cluster.isEmpty())
 			return;
 		
-		ms.pushPose();
+		ms.push();
 		ms.translate(cluster.anchor.getX() - camera.x, cluster.anchor.getY() - camera.y,
 			cluster.anchor.getZ() - camera.z);
 
-		PoseStack.Pose pose = ms.last();
+		MatrixStack.Entry pose = ms.peek();
 		VertexConsumer consumer = buffer.getBuffer(RenderTypes.getOutlineSolid());
 
 		cluster.visibleEdges.forEach(edge -> {
@@ -99,7 +96,7 @@ public class BlockClusterOutline extends Outline {
 			bufferCuboidLine(pose, consumer, origin, direction, 1, lineWidth, color, lightmap, disableNormals);
 		});
 		
-		ms.popPose();
+		ms.pop();
 	}
 
 	public static void loadFaceData(Direction face, Vector3f pos0, Vector3f pos1, Vector3f pos2, Vector3f pos3, Vector3f normal) {
@@ -162,7 +159,7 @@ public class BlockClusterOutline extends Outline {
 		pos3.add(x, y, z);
 	}
 
-	protected void bufferBlockFace(PoseStack.Pose pose, VertexConsumer consumer, BlockPos pos, Direction face, Vector4f color, int lightmap) {
+	protected void bufferBlockFace(MatrixStack.Entry pose, VertexConsumer consumer, BlockPos pos, Direction face, Vector4f color, int lightmap) {
 		Vector3f pos0 = pos0Temp;
 		Vector3f pos1 = pos1Temp;
 		Vector3f pos2 = pos2Temp;
@@ -170,9 +167,9 @@ public class BlockClusterOutline extends Outline {
 		Vector3f normal = normalTemp;
 
 		loadFaceData(face, pos0, pos1, pos2, pos3, normal);
-		addPos(pos.getX() + face.getStepX() * 1 / 128f,
-				pos.getY() + face.getStepY() * 1 / 128f,
-				pos.getZ() + face.getStepZ() * 1 / 128f,
+		addPos(pos.getX() + face.getOffsetX() * 1 / 128f,
+				pos.getY() + face.getOffsetY() * 1 / 128f,
+				pos.getZ() + face.getOffsetZ() * 1 / 128f,
 				pos0, pos1, pos2, pos3);
 
 		bufferQuad(pose, consumer, pos0, pos1, pos2, pos3, color, lightmap, normal);
@@ -203,7 +200,7 @@ public class BlockClusterOutline extends Outline {
 			for (Axis axis : Iterate.axes) {
 				Direction direction = Direction.get(AxisDirection.POSITIVE, axis);
 				for (int offset : Iterate.zeroAndOne) {
-					MergeEntry entry = new MergeEntry(axis, pos.relative(direction, offset));
+					MergeEntry entry = new MergeEntry(axis, pos.offset(direction, offset));
 					if (visibleFaces.remove(entry) == null)
 						visibleFaces.put(entry, offset == 0 ? AxisDirection.NEGATIVE : AxisDirection.POSITIVE);
 				}
@@ -224,9 +221,9 @@ public class BlockClusterOutline extends Outline {
 						Direction direction2 = Direction.get(AxisDirection.POSITIVE, axis3);
 
 						for (int offset : Iterate.zeroAndOne) {
-							BlockPos entryPos = pos.relative(direction, offset);
+							BlockPos entryPos = pos.offset(direction, offset);
 							for (int offset2 : Iterate.zeroAndOne) {
-								entryPos = entryPos.relative(direction2, offset2);
+								entryPos = entryPos.offset(direction2, offset2);
 								MergeEntry entry = new MergeEntry(axis, entryPos);
 								if (!visibleEdges.remove(entry))
 									visibleEdges.add(entry);

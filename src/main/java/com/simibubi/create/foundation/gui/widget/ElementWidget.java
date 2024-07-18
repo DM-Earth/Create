@@ -2,13 +2,11 @@ package com.simibubi.create.foundation.gui.widget;
 
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
-
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
 import com.simibubi.create.foundation.gui.element.RenderElement;
 import com.simibubi.create.foundation.gui.element.ScreenElement;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
-
-import net.minecraft.client.gui.GuiGraphics;
 
 public class ElementWidget extends AbstractSimiWidget {
 
@@ -118,21 +116,21 @@ public class ElementWidget extends AbstractSimiWidget {
 	}
 
 	@Override
-	protected void beforeRender(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void beforeRender(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		super.beforeRender(graphics, mouseX, mouseY, partialTicks);
-		isHovered = isMouseOver(mouseX, mouseY);
+		hovered = isMouseOver(mouseX, mouseY);
 
 		float fadeValue = fade.getValue(partialTicks);
 		element.withAlpha(fadeValue);
 		if (fadeValue < 1) {
-			graphics.pose().translate((1 - fadeValue) * fadeModX, (1 - fadeValue) * fadeModY, 0);
+			graphics.getMatrices().translate((1 - fadeValue) * fadeModX, (1 - fadeValue) * fadeModY, 0);
 		}
 	}
 
 	@Override
-	public void doRender(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+	public void doRender(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(getX() + paddingX, getY() + paddingY, z);
 		float innerWidth = width - 2 * paddingX;
 		float innerHeight = height - 2 * paddingY;
@@ -146,7 +144,7 @@ public class ElementWidget extends AbstractSimiWidget {
 			innerHeight /= yScale;
 		}
 		element.withBounds((int) innerWidth, (int) innerHeight).render(graphics);
-		ms.popPose();
+		ms.pop();
 		if (rescaleElement) {
 			element.at(eX, eY);
 		}

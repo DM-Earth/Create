@@ -4,21 +4,20 @@ import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.kinetics.base.RotatedPillarKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldView;
 
 public class FlywheelBlock extends RotatedPillarKineticBlock implements IBE<FlywheelBlockEntity> {
 
-	public FlywheelBlock(Properties properties) {
+	public FlywheelBlock(Settings properties) {
 		super(properties);
 	}
 
@@ -28,13 +27,13 @@ public class FlywheelBlock extends RotatedPillarKineticBlock implements IBE<Flyw
 	}
 	
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		return AllShapes.LARGE_GEAR.get(pState.getValue(AXIS));
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
+		return AllShapes.LARGE_GEAR.get(pState.get(AXIS));
 	}
 	
 	@Override
-	public RenderShape getRenderShape(BlockState pState) {
-		return RenderShape.ENTITYBLOCK_ANIMATED;
+	public BlockRenderType getRenderType(BlockState pState) {
+		return BlockRenderType.ENTITYBLOCK_ANIMATED;
 	}
 
 	@Override
@@ -43,13 +42,13 @@ public class FlywheelBlock extends RotatedPillarKineticBlock implements IBE<Flyw
 	}
 	
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
 		return face.getAxis() == getRotationAxis(state);
 	}
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(AXIS);
+		return state.get(AXIS);
 	}
 
 	@Override

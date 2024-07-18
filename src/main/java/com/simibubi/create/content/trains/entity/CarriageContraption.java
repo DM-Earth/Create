@@ -34,22 +34,21 @@ import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
-import net.minecraft.world.phys.AABB;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.World;
 
 public class CarriageContraption extends Contraption {
 
@@ -97,7 +96,7 @@ public class CarriageContraption extends Contraption {
 	}
 
 	@Override
-	public boolean assemble(Level world, BlockPos pos) throws AssemblyException {
+	public boolean assemble(World world, BlockPos pos) throws AssemblyException {
 		if (!searchMovedStructure(world, pos, null))
 			return false;
 		if (blocks.size() <= 1)
@@ -123,13 +122,13 @@ public class CarriageContraption extends Contraption {
 	}
 
 	public boolean inControl(BlockPos pos, Direction direction) {
-		BlockPos controlsPos = pos.relative(direction);
+		BlockPos controlsPos = pos.offset(direction);
 		if (!blocks.containsKey(controlsPos))
 			return false;
 		StructureBlockInfo info = blocks.get(controlsPos);
 		if (!AllBlocks.TRAIN_CONTROLS.has(info.state()))
 			return false;
-		return info.state().getValue(ControlsBlock.FACING) == direction.getOpposite();
+		return info.state().get(ControlsBlock.FACING) == direction.getOpposite();
 	}
 
 	public void swapStorageAfterAssembly(CarriageContraptionEntity cce) {
@@ -153,14 +152,14 @@ public class CarriageContraption extends Contraption {
 	}
 
 	@Override
-	protected Pair<StructureBlockInfo, BlockEntity> capture(Level world, BlockPos pos) {
+	protected Pair<StructureBlockInfo, BlockEntity> capture(World world, BlockPos pos) {
 		BlockState blockState = world.getBlockState(pos);
 
 		if (ArrivalSoundQueue.isPlayable(blockState)) {
 			int anchorCoord = VecHelper.getCoordinate(anchor, assemblyDirection.getAxis());
 			int posCoord = VecHelper.getCoordinate(pos, assemblyDirection.getAxis());
-			soundQueue.add((posCoord - anchorCoord) * assemblyDirection.getAxisDirection()
-				.getStep(), toLocalPos(pos));
+			soundQueue.add((posCoord - anchorCoord) * assemblyDirection.getDirection()
+				.offset(), toLocalPos(pos));
 		}
 
 		if (blockState.getBlock() instanceof AbstractBogeyBlock<?> bogey) {
@@ -173,11 +172,11 @@ public class CarriageContraption extends Contraption {
 		}
 
 		if (AllBlocks.BLAZE_BURNER.has(blockState)
-			&& blockState.getValue(BlazeBurnerBlock.HEAT_LEVEL) != HeatLevel.NONE)
+			&& blockState.get(BlazeBurnerBlock.HEAT_LEVEL) != HeatLevel.NONE)
 			assembledBlazeBurners.add(toLocalPos(pos));
 
 		if (AllBlocks.TRAIN_CONTROLS.has(blockState)) {
-			Direction facing = blockState.getValue(ControlsBlock.FACING);
+			Direction facing = blockState.get(ControlsBlock.FACING);
 			if (facing.getAxis() != assemblyDirection.getAxis())
 				sidewaysControls = true;
 			else {
@@ -193,16 +192,16 @@ public class CarriageContraption extends Contraption {
 	}
 
 	@Override
-	public CompoundTag writeNBT(boolean spawnPacket) {
-		CompoundTag tag = super.writeNBT(spawnPacket);
+	public NbtCompound writeNBT(boolean spawnPacket) {
+		NbtCompound tag = super.writeNBT(spawnPacket);
 		NBTHelper.writeEnum(tag, "AssemblyDirection", getAssemblyDirection());
 		tag.putBoolean("FrontControls", forwardControls);
 		tag.putBoolean("BackControls", backwardControls);
 		tag.putBoolean("FrontBlazeConductor", blazeBurnerConductors.getFirst());
 		tag.putBoolean("BackBlazeConductor", blazeBurnerConductors.getSecond());
-		ListTag list = NBTHelper.writeCompoundList(conductorSeats.entrySet(), e -> {
-			CompoundTag compoundTag = new CompoundTag();
-			compoundTag.put("Pos", NbtUtils.writeBlockPos(e.getKey()));
+		NbtList list = NBTHelper.writeCompoundList(conductorSeats.entrySet(), e -> {
+			NbtCompound compoundTag = new NbtCompound();
+			compoundTag.put("Pos", NbtHelper.fromBlockPos(e.getKey()));
 			compoundTag.putBoolean("Forward", e.getValue()
 				.getFirst());
 			compoundTag.putBoolean("Backward", e.getValue()
@@ -215,15 +214,15 @@ public class CarriageContraption extends Contraption {
 	}
 
 	@Override
-	public void readNBT(Level world, CompoundTag nbt, boolean spawnData) {
+	public void readNBT(World world, NbtCompound nbt, boolean spawnData) {
 		assemblyDirection = NBTHelper.readEnum(nbt, "AssemblyDirection", Direction.class);
 		forwardControls = nbt.getBoolean("FrontControls");
 		backwardControls = nbt.getBoolean("BackControls");
 		blazeBurnerConductors =
 			Couple.create(nbt.getBoolean("FrontBlazeConductor"), nbt.getBoolean("BackBlazeConductor"));
 		conductorSeats.clear();
-		NBTHelper.iterateCompoundList(nbt.getList("ConductorSeats", Tag.TAG_COMPOUND),
-			c -> conductorSeats.put(NbtUtils.readBlockPos(c.getCompound("Pos")),
+		NBTHelper.iterateCompoundList(nbt.getList("ConductorSeats", NbtElement.COMPOUND_TYPE),
+			c -> conductorSeats.put(NbtHelper.toBlockPos(c.getCompound("Pos")),
 				Couple.create(c.getBoolean("Forward"), c.getBoolean("Backward"))));
 		soundQueue.deserialize(nbt);
 		super.readNBT(world, nbt, spawnData);
@@ -275,7 +274,7 @@ public class CarriageContraption extends Contraption {
 
 		specialRenderedBEsOutsidePortal = new ArrayList<>();
 		specialRenderedBlockEntities.stream()
-			.filter(be -> !isHiddenInPortal(be.getBlockPos()))
+			.filter(be -> !isHiddenInPortal(be.getPos()))
 			.forEach(specialRenderedBEsOutsidePortal::add);
 
 		Collection<StructureBlockInfo> values = new ArrayList<>();
@@ -284,7 +283,7 @@ public class CarriageContraption extends Contraption {
 			if (withinVisible(pos))
 				values.add(entry.getValue());
 			else if (atSeam(pos))
-				values.add(new StructureBlockInfo(pos, Blocks.PURPLE_STAINED_GLASS.defaultBlockState(), null));
+				values.add(new StructureBlockInfo(pos, Blocks.PURPLE_STAINED_GLASS.getDefaultState(), null));
 		}
 		return values;
 	}
@@ -297,7 +296,7 @@ public class CarriageContraption extends Contraption {
 	}
 
 	@Override
-	public Optional<List<AABB>> getSimplifiedEntityColliders() {
+	public Optional<List<Box>> getSimplifiedEntityColliders() {
 		if (notInPortal())
 			return super.getSimplifiedEntityColliders();
 		return Optional.empty();
@@ -316,19 +315,19 @@ public class CarriageContraption extends Contraption {
 
 	public boolean atSeam(BlockPos localPos) {
 		Direction facing = assemblyDirection;
-		Axis axis = facing.getClockWise()
+		Axis axis = facing.rotateYClockwise()
 			.getAxis();
-		int coord = axis.choose(localPos.getZ(), localPos.getY(), localPos.getX()) * -facing.getAxisDirection()
-			.getStep();
+		int coord = axis.choose(localPos.getZ(), localPos.getY(), localPos.getX()) * -facing.getDirection()
+			.offset();
 		return coord == portalCutoffMin || coord == portalCutoffMax;
 	}
 
 	public boolean withinVisible(BlockPos localPos) {
 		Direction facing = assemblyDirection;
-		Axis axis = facing.getClockWise()
+		Axis axis = facing.rotateYClockwise()
 			.getAxis();
-		int coord = axis.choose(localPos.getZ(), localPos.getY(), localPos.getX()) * -facing.getAxisDirection()
-			.getStep();
+		int coord = axis.choose(localPos.getZ(), localPos.getY(), localPos.getX()) * -facing.getDirection()
+			.offset();
 		return coord > portalCutoffMin && coord < portalCutoffMax;
 	}
 
@@ -348,7 +347,7 @@ public class CarriageContraption extends Contraption {
 
 	@Override
 	public void tickStorage(AbstractContraptionEntity entity) {
-		if (entity.level().isClientSide)
+		if (entity.getWorld().isClient)
 			storage.entityTick(entity);
 		else if (storageProxy != null)
 			storageProxy.entityTick(entity);

@@ -8,7 +8,7 @@ import io.github.tropheusj.milk.Milk;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-import net.minecraft.world.item.Items;
+import net.minecraft.item.Items;
 
 public class EmptyingRecipeGen extends ProcessingRecipeGen {
 

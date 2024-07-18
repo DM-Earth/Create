@@ -2,62 +2,60 @@ package com.simibubi.create.content.kinetics.steamEngine;
 
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
-
-import net.minecraft.client.Camera;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.particle.AnimatedParticle;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.client.particle.ParticleRenderType;
-import net.minecraft.client.particle.SimpleAnimatedParticle;
-import net.minecraft.client.particle.SpriteSet;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.particle.ParticleFactory;
+import net.minecraft.client.particle.ParticleTextureSheet;
+import net.minecraft.client.particle.SpriteProvider;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
 
-public class SteamJetParticle extends SimpleAnimatedParticle {
+public class SteamJetParticle extends AnimatedParticle {
 
 	private float yaw, pitch;
 
-	protected SteamJetParticle(ClientLevel world, SteamJetParticleData data, double x, double y, double z, double dx,
-		double dy, double dz, SpriteSet sprite) {
+	protected SteamJetParticle(ClientWorld world, SteamJetParticleData data, double x, double y, double z, double dx,
+		double dy, double dz, SpriteProvider sprite) {
 		super(world, x, y, z, sprite, world.random.nextFloat() * .5f);
-		xd = 0;
-		yd = 0;
-		zd = 0;
-		gravity = 0;
-		quadSize = .375f;
-		setLifetime(21);
+		velocityX = 0;
+		velocityY = 0;
+		velocityZ = 0;
+		gravityStrength = 0;
+		scale = .375f;
+		setMaxAge(21);
 		setPos(x, y, z);
-		roll = oRoll = world.random.nextFloat() * Mth.PI;
-		yaw = (float) Mth.atan2(dx, dz) - Mth.PI;
-		pitch = (float) Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) - Mth.PI / 2;
-		this.setSpriteFromAge(sprite);
+		angle = prevAngle = world.random.nextFloat() * MathHelper.PI;
+		yaw = (float) MathHelper.atan2(dx, dz) - MathHelper.PI;
+		pitch = (float) MathHelper.atan2(dy, Math.sqrt(dx * dx + dz * dz)) - MathHelper.PI / 2;
+		this.setSpriteForAge(sprite);
 	}
 
-	public ParticleRenderType getRenderType() {
-		return ParticleRenderType.PARTICLE_SHEET_OPAQUE;
+	public ParticleTextureSheet getType() {
+		return ParticleTextureSheet.PARTICLE_SHEET_OPAQUE;
 	}
 
-	public void render(VertexConsumer pBuffer, Camera pRenderInfo, float pPartialTicks) {
-		Vec3 vec3 = pRenderInfo.getPosition();
+	public void buildGeometry(VertexConsumer pBuffer, Camera pRenderInfo, float pPartialTicks) {
+		Vec3d vec3 = pRenderInfo.getPos();
 		float f = (float) (x - vec3.x);
 		float f1 = (float) (y - vec3.y);
 		float f2 = (float) (z - vec3.z);
-		float f3 = Mth.lerp(pPartialTicks, this.oRoll, this.roll);
-		float f7 = this.getU0();
-		float f8 = this.getU1();
-		float f5 = this.getV0();
-		float f6 = this.getV1();
-		float f4 = this.getQuadSize(pPartialTicks);
+		float f3 = MathHelper.lerp(pPartialTicks, this.prevAngle, this.angle);
+		float f7 = this.getMinU();
+		float f8 = this.getMaxU();
+		float f5 = this.getMinV();
+		float f6 = this.getMaxV();
+		float f4 = this.getSize(pPartialTicks);
 
 		for (int i = 0; i < 4; i++) {
-			Quaternionf quaternion = Axis.YP.rotation(yaw);
-			quaternion.mul(Axis.XP.rotation(pitch));
-			quaternion.mul(Axis.YP.rotation(f3 + Mth.PI / 2 * i + roll));
+			Quaternionf quaternion = RotationAxis.POSITIVE_Y.rotation(yaw);
+			quaternion.mul(RotationAxis.POSITIVE_X.rotation(pitch));
+			quaternion.mul(RotationAxis.POSITIVE_Y.rotation(f3 + MathHelper.PI / 2 * i + angle));
 			Vector3f vector3f1 = new Vector3f(-1.0F, -1.0F, 0.0F);
 			vector3f1.rotate(quaternion);
 
@@ -72,45 +70,45 @@ public class SteamJetParticle extends SimpleAnimatedParticle {
 				vector3f.add(f, f1, f2);
 			}
 
-			int j = this.getLightColor(pPartialTicks);
+			int j = this.getBrightness(pPartialTicks);
 			pBuffer.vertex((double) avector3f[0].x(), (double) avector3f[0].y(), (double) avector3f[0].z())
-				.uv(f8, f6)
-				.color(this.rCol, this.gCol, this.bCol, this.alpha)
-				.uv2(j)
-				.endVertex();
+				.texture(f8, f6)
+				.color(this.red, this.green, this.blue, this.alpha)
+				.light(j)
+				.next();
 			pBuffer.vertex((double) avector3f[1].x(), (double) avector3f[1].y(), (double) avector3f[1].z())
-				.uv(f8, f5)
-				.color(this.rCol, this.gCol, this.bCol, this.alpha)
-				.uv2(j)
-				.endVertex();
+				.texture(f8, f5)
+				.color(this.red, this.green, this.blue, this.alpha)
+				.light(j)
+				.next();
 			pBuffer.vertex((double) avector3f[2].x(), (double) avector3f[2].y(), (double) avector3f[2].z())
-				.uv(f7, f5)
-				.color(this.rCol, this.gCol, this.bCol, this.alpha)
-				.uv2(j)
-				.endVertex();
+				.texture(f7, f5)
+				.color(this.red, this.green, this.blue, this.alpha)
+				.light(j)
+				.next();
 			pBuffer.vertex((double) avector3f[3].x(), (double) avector3f[3].y(), (double) avector3f[3].z())
-				.uv(f7, f6)
-				.color(this.rCol, this.gCol, this.bCol, this.alpha)
-				.uv2(j)
-				.endVertex();
+				.texture(f7, f6)
+				.color(this.red, this.green, this.blue, this.alpha)
+				.light(j)
+				.next();
 
 		}
 	}
 
 	@Override
-	public int getLightColor(float partialTick) {
-		BlockPos blockpos = BlockPos.containing(this.x, this.y, this.z);
-		return this.level.isLoaded(blockpos) ? LevelRenderer.getLightColor(level, blockpos) : 0;
+	public int getBrightness(float partialTick) {
+		BlockPos blockpos = BlockPos.ofFloored(this.x, this.y, this.z);
+		return this.world.canSetBlock(blockpos) ? WorldRenderer.getLightmapCoordinates(world, blockpos) : 0;
 	}
 
-	public static class Factory implements ParticleProvider<SteamJetParticleData> {
-		private final SpriteSet spriteSet;
+	public static class Factory implements ParticleFactory<SteamJetParticleData> {
+		private final SpriteProvider spriteSet;
 
-		public Factory(SpriteSet animatedSprite) {
+		public Factory(SpriteProvider animatedSprite) {
 			this.spriteSet = animatedSprite;
 		}
 
-		public Particle createParticle(SteamJetParticleData data, ClientLevel worldIn, double x, double y, double z,
+		public Particle createParticle(SteamJetParticleData data, ClientWorld worldIn, double x, double y, double z,
 			double xSpeed, double ySpeed, double zSpeed) {
 			return new SteamJetParticle(worldIn, data, x, y, z, xSpeed, ySpeed, zSpeed, this.spriteSet);
 		}

@@ -13,66 +13,65 @@ import com.simibubi.create.foundation.gui.ScreenOpener;
 
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.tterrag.registrate.fabric.EnvExecutor;
-
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.MapItem;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.FilledMapItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.item.map.MapState;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 public class StationBlock extends Block implements IBE<StationBlockEntity>, IWrenchable, ProperWaterloggedBlock {
 
-	public static final BooleanProperty ASSEMBLING = BooleanProperty.create("assembling");
+	public static final BooleanProperty ASSEMBLING = BooleanProperty.of("assembling");
 
-	public StationBlock(Properties p_54120_) {
+	public StationBlock(Settings p_54120_) {
 		super(p_54120_);
-		registerDefaultState(defaultBlockState().setValue(ASSEMBLING, false)
-			.setValue(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(ASSEMBLING, false)
+			.with(WATERLOGGED, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
-		super.createBlockStateDefinition(pBuilder.add(ASSEMBLING, WATERLOGGED));
+	protected void appendProperties(Builder<Block, BlockState> pBuilder) {
+		super.appendProperties(pBuilder.add(ASSEMBLING, WATERLOGGED));
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext pContext) {
-		return withWater(super.getStateForPlacement(pContext), pContext);
+	public BlockState getPlacementState(ItemPlacementContext pContext) {
+		return withWater(super.getPlacementState(pContext), pContext);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pDirection, BlockState pNeighborState,
+		WorldAccess pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
 		updateWater(pLevel, pState, pCurrentPos);
 		return pState;
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		AdvancementBehaviour.setPlacedBy(pLevel, pPos, pPlacer);
 	}
 
@@ -82,90 +81,90 @@ public class StationBlock extends Block implements IBE<StationBlockEntity>, IWre
 	}
 
 	@Override
-	public boolean hasAnalogOutputSignal(BlockState pState) {
+	public boolean hasComparatorOutput(BlockState pState) {
 		return true;
 	}
 
 	@Override
-	public int getAnalogOutputSignal(BlockState pState, Level pLevel, BlockPos pPos) {
+	public int getComparatorOutput(BlockState pState, World pLevel, BlockPos pPos) {
 		return getBlockEntityOptional(pLevel, pPos).map(ste -> ste.trainPresent ? 15 : 0)
 			.orElse(0);
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		IBE.onRemove(state, worldIn, pos, newState);
 	}
 
 	@Override
-	public void updateEntityAfterFallOn(BlockGetter worldIn, Entity entityIn) {
-		super.updateEntityAfterFallOn(worldIn, entityIn);
+	public void onEntityLand(BlockView worldIn, Entity entityIn) {
+		super.onEntityLand(worldIn, entityIn);
 		SharedDepotBlockMethods.onLanded(worldIn, entityIn);
 	}
 
 	@Override
-	public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand,
+	public ActionResult onUse(BlockState pState, World pLevel, BlockPos pPos, PlayerEntity pPlayer, Hand pHand,
 		BlockHitResult pHit) {
 
-		if (pPlayer == null || pPlayer.isShiftKeyDown())
-			return InteractionResult.PASS;
-		ItemStack itemInHand = pPlayer.getItemInHand(pHand);
+		if (pPlayer == null || pPlayer.isSneaking())
+			return ActionResult.PASS;
+		ItemStack itemInHand = pPlayer.getStackInHand(pHand);
 		if (AllItems.WRENCH.isIn(itemInHand))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
 		if (itemInHand.getItem() == Items.FILLED_MAP) {
 			return onBlockEntityUse(pLevel, pPos, station -> {
-				if (pLevel.isClientSide)
-					return InteractionResult.SUCCESS;
+				if (pLevel.isClient)
+					return ActionResult.SUCCESS;
 
 				if (station.getStation() == null || station.getStation().getId() == null)
-					return InteractionResult.FAIL;
+					return ActionResult.FAIL;
 
-				MapItemSavedData savedData = MapItem.getSavedData(itemInHand, pLevel);
+				MapState savedData = FilledMapItem.getMapState(itemInHand, pLevel);
 				if (!(savedData instanceof StationMapData stationMapData))
-					return InteractionResult.FAIL;
+					return ActionResult.FAIL;
 
 				if (!stationMapData.toggleStation(pLevel, pPos, station))
-					return InteractionResult.FAIL;
+					return ActionResult.FAIL;
 
-				return InteractionResult.SUCCESS;
+				return ActionResult.SUCCESS;
 			});
 		}
 
-		InteractionResult result = onBlockEntityUse(pLevel, pPos, station -> {
+		ActionResult result = onBlockEntityUse(pLevel, pPos, station -> {
 			ItemStack autoSchedule = station.getAutoSchedule();
 			if (autoSchedule.isEmpty())
-				return InteractionResult.PASS;
-			if (pLevel.isClientSide)
-				return InteractionResult.SUCCESS;
+				return ActionResult.PASS;
+			if (pLevel.isClient)
+				return ActionResult.SUCCESS;
 			pPlayer.getInventory()
-				.placeItemBackInInventory(autoSchedule.copy());
+				.offerOrDrop(autoSchedule.copy());
 			station.depotBehaviour.removeHeldItem();
 			station.notifyUpdate();
 			AllSoundEvents.playItemPickup(pPlayer);
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		});
 
-		if (result == InteractionResult.PASS)
+		if (result == ActionResult.PASS)
 			EnvExecutor.runWhenOn(EnvType.CLIENT,
 				() -> () -> withBlockEntityDo(pLevel, pPos, be -> this.displayScreen(be, pPlayer)));
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Environment(value = EnvType.CLIENT)
-	protected void displayScreen(StationBlockEntity be, Player player) {
-		if (!(player instanceof LocalPlayer))
+	protected void displayScreen(StationBlockEntity be, PlayerEntity player) {
+		if (!(player instanceof ClientPlayerEntity))
 			return;
 		GlobalStation station = be.getStation();
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		if (station == null || blockState == null)
 			return;
-		boolean assembling = blockState.getBlock() == this && blockState.getValue(ASSEMBLING);
+		boolean assembling = blockState.getBlock() == this && blockState.get(ASSEMBLING);
 		ScreenOpener.open(assembling ? new AssemblyScreen(be, station) : new StationScreen(be, station));
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
 		return AllShapes.STATION;
 	}
 
@@ -180,7 +179,7 @@ public class StationBlock extends Block implements IBE<StationBlockEntity>, IWre
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

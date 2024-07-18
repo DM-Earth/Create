@@ -4,7 +4,10 @@ import java.util.Collection;
 import java.util.List;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.item.map.MapIcon;
+import net.minecraft.item.map.MapState;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.packet.s2c.play.MapUpdateS2CPacket;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -17,35 +20,31 @@ import com.simibubi.create.content.trains.station.StationMarker;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
-import net.minecraft.world.level.saveddata.maps.MapDecoration;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 // random priority to prevent networking conflicts
-@Mixin(value = ClientboundMapItemDataPacket.class, priority = 426)
+@Mixin(value = MapUpdateS2CPacket.class, priority = 426)
 public class ClientboundMapItemDataPacketMixin {
 	@Shadow
 	@Final
-	private List<MapDecoration> decorations;
+	private List<MapIcon> icons;
 
 	@Unique
 	private int[] create$stationIndices;
 
-	@Inject(method = "<init>(IBZLjava/util/Collection;Lnet/minecraft/world/level/saveddata/maps/MapItemSavedData$MapPatch;)V", at = @At("RETURN"))
-	private void create$onInit(int mapId, byte scale, boolean locked, @Nullable Collection<MapDecoration> decorations, @Nullable MapItemSavedData.MapPatch colorPatch, CallbackInfo ci) {
-		create$stationIndices = create$getStationIndices(this.decorations);
+	@Inject(method = "<init>(IBZLjava/util/Collection;Lnet/minecraft/item/map/MapState$UpdateData;)V", at = @At("RETURN"))
+	private void create$onInit(int mapId, byte scale, boolean locked, @Nullable Collection<MapIcon> decorations, @Nullable MapState.UpdateData colorPatch, CallbackInfo ci) {
+		create$stationIndices = create$getStationIndices(this.icons);
 	}
 
 	@Unique
-	private static int[] create$getStationIndices(List<MapDecoration> decorations) {
+	private static int[] create$getStationIndices(List<MapIcon> decorations) {
 		if (decorations == null) {
 			return new int[0];
 		}
 
 		IntList indices = new IntArrayList();
 		for (int i = 0; i < decorations.size(); i++) {
-			MapDecoration decoration = decorations.get(i);
+			MapIcon decoration = decorations.get(i);
 			if (decoration instanceof StationMarker.Decoration) {
 				indices.add(i);
 			}
@@ -53,22 +52,22 @@ public class ClientboundMapItemDataPacketMixin {
 		return indices.toIntArray();
 	}
 
-	@Inject(method = "<init>(Lnet/minecraft/network/FriendlyByteBuf;)V", at = @At("RETURN"))
-	private void create$onInit(FriendlyByteBuf buf, CallbackInfo ci) {
-		create$stationIndices = buf.readVarIntArray();
+	@Inject(method = "<init>(Lnet/minecraft/network/PacketByteBuf;)V", at = @At("RETURN"))
+	private void create$onInit(PacketByteBuf buf, CallbackInfo ci) {
+		create$stationIndices = buf.readIntArray();
 
-		if (decorations != null) {
+		if (icons != null) {
 			for (int i : create$stationIndices) {
-				if (i >= 0 && i < decorations.size()) {
-					MapDecoration decoration = decorations.get(i);
-					decorations.set(i, StationMarker.Decoration.from(decoration));
+				if (i >= 0 && i < icons.size()) {
+					MapIcon decoration = icons.get(i);
+					icons.set(i, StationMarker.Decoration.from(decoration));
 				}
 			}
 		}
 	}
 
-	@Inject(method = "write(Lnet/minecraft/network/FriendlyByteBuf;)V", at = @At("RETURN"))
-	private void create$onWrite(FriendlyByteBuf buf, CallbackInfo ci) {
-		buf.writeVarIntArray(create$stationIndices);
+	@Inject(method = "write(Lnet/minecraft/network/PacketByteBuf;)V", at = @At("RETURN"))
+	private void create$onWrite(PacketByteBuf buf, CallbackInfo ci) {
+		buf.writeIntArray(create$stationIndices);
 	}
 }

@@ -3,9 +3,14 @@ package com.simibubi.create.content.trains.observer;
 import java.util.List;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.contraptions.ITransformableBlockEntity;
 import com.simibubi.create.content.contraptions.StructureTransform;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlock;
@@ -16,13 +21,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 public class TrackObserverBlockEntity extends SmartBlockEntity implements ITransformableBlockEntity {
 
@@ -42,18 +40,18 @@ public class TrackObserverBlockEntity extends SmartBlockEntity implements ITrans
 	}
 
 	private void onFilterChanged(ItemStack newFilter) {
-		if (level.isClientSide())
+		if (world.isClient())
 			return;
 		TrackObserver observer = getObserver();
 		if (observer != null)
-			observer.setFilterAndNotify(level, newFilter);
+			observer.setFilterAndNotify(world, newFilter);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
 
-		if (level.isClientSide())
+		if (world.isClient())
 			return;
 
 		boolean shouldBePowered = false;
@@ -63,10 +61,10 @@ public class TrackObserverBlockEntity extends SmartBlockEntity implements ITrans
 		if (isBlockPowered() == shouldBePowered)
 			return;
 
-		BlockState blockState = getBlockState();
-		if (blockState.hasProperty(TrackObserverBlock.POWERED))
-			level.setBlock(worldPosition, blockState.setValue(TrackObserverBlock.POWERED, shouldBePowered), 3);
-		DisplayLinkBlock.notifyGatherers(level, worldPosition);
+		BlockState blockState = getCachedState();
+		if (blockState.contains(TrackObserverBlock.POWERED))
+			world.setBlockState(pos, blockState.with(TrackObserverBlock.POWERED, shouldBePowered), 3);
+		DisplayLinkBlock.notifyGatherers(world, pos);
 	}
 
 	@Nullable
@@ -79,13 +77,13 @@ public class TrackObserverBlockEntity extends SmartBlockEntity implements ITrans
 	}
 
 	public boolean isBlockPowered() {
-		return getBlockState().getOptionalValue(TrackObserverBlock.POWERED)
+		return getCachedState().getOrEmpty(TrackObserverBlock.POWERED)
 			.orElse(false);
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return new AABB(worldPosition, edgePoint.getGlobalPosition()).inflate(2);
+	protected Box createRenderBoundingBox() {
+		return new Box(pos, edgePoint.getGlobalPosition()).expand(2);
 	}
 
 	@Override
@@ -97,14 +95,14 @@ public class TrackObserverBlockEntity extends SmartBlockEntity implements ITrans
 		return new FilteringBehaviour(this, new ValueBoxTransform() {
 
 			@Override
-			public void rotate(BlockState state, PoseStack ms) {
+			public void rotate(BlockState state, MatrixStack ms) {
 				TransformStack.cast(ms)
 					.rotateX(90);
 			}
 
 			@Override
-			public Vec3 getLocalOffset(BlockState state) {
-				return new Vec3(0.5, 15.5 / 16d, 0.5);
+			public Vec3d getLocalOffset(BlockState state) {
+				return new Vec3d(0.5, 15.5 / 16d, 0.5);
 			}
 
 		});

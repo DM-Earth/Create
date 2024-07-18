@@ -1,12 +1,10 @@
 package com.simibubi.create.foundation.data;
 
 import java.util.stream.Stream;
-
+import net.minecraft.recipe.Ingredient;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.simibubi.create.foundation.data.recipe.Mods;
-
-import net.minecraft.world.item.crafting.Ingredient;
 
 public class SimpleDatagenIngredient extends Ingredient {
 

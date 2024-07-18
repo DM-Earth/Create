@@ -15,10 +15,10 @@ import io.github.fabricators_of_create.porting_lib.transfer.fluid.FluidTank;
 
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
 
 public class MountedFluidStorage {
 
@@ -126,21 +126,21 @@ public class MountedFluidStorage {
 		return tank;
 	}
 
-	public CompoundTag serialize() {
+	public NbtCompound serialize() {
 		if (!valid)
 			return null;
-		CompoundTag tag = tank.writeToNBT(new CompoundTag());
+		NbtCompound tag = tank.writeToNBT(new NbtCompound());
 		tag.putLong("Capacity", tank.getCapacity());
 
 		if (tank instanceof CreativeSmartFluidTank) {
 			NBTHelper.putMarker(tag, "Bottomless");
 			tag.put("ProvidedStack", tank.getFluid()
-				.writeToNBT(new CompoundTag()));
+				.writeToNBT(new NbtCompound()));
 		}
 		return tag;
 	}
 
-	public static MountedFluidStorage deserialize(CompoundTag nbt) {
+	public static MountedFluidStorage deserialize(NbtCompound nbt) {
 		MountedFluidStorage storage = new MountedFluidStorage(null);
 		if (nbt == null)
 			return storage;

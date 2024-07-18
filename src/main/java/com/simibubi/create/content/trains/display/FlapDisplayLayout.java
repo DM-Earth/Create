@@ -2,14 +2,12 @@ package com.simibubi.create.content.trains.display;
 
 import java.util.Arrays;
 import java.util.List;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
 import org.apache.commons.lang3.mutable.MutableInt;
 
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 
 public class FlapDisplayLayout {
 
@@ -34,17 +32,17 @@ public class FlapDisplayLayout {
 		this.sections = sections;
 	}
 
-	public CompoundTag write() {
-		CompoundTag tag = new CompoundTag();
+	public NbtCompound write() {
+		NbtCompound tag = new NbtCompound();
 		tag.putString("Key", layoutKey);
 		tag.put("Sections", NBTHelper.writeCompoundList(sections, FlapDisplaySection::write));
 		return tag;
 	};
 
-	public void read(CompoundTag tag) {
+	public void read(NbtCompound tag) {
 		String prevKey = layoutKey;
 		layoutKey = tag.getString("Key");
-		ListTag sectionsTag = tag.getList("Sections", Tag.TAG_COMPOUND);
+		NbtList sectionsTag = tag.getList("Sections", NbtElement.COMPOUND_TYPE);
 
 		if (!prevKey.equals(layoutKey)) {
 			sections = NBTHelper.readCompoundList(sectionsTag, FlapDisplaySection::load);

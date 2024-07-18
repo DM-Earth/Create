@@ -1,55 +1,53 @@
 package com.simibubi.create.content.contraptions.mounted;
 
 import javax.annotation.Nonnull;
-
+import net.minecraft.block.AbstractRailBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.enums.RailShape;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.redstone.rail.ControllerRailBlock;
 import com.simibubi.create.foundation.advancement.AdvancementBehaviour;
 import com.simibubi.create.foundation.utility.Lang;
 import io.github.fabricators_of_create.porting_lib.util.MinecartAndRailUtil;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseRailBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.RailShape;
-
 public class CartAssemblerBlockItem extends BlockItem {
 
-	public CartAssemblerBlockItem(Block block, Properties properties) {
+	public CartAssemblerBlockItem(Block block, Settings properties) {
 		super(block, properties);
 	}
 
 	@Override
 	@Nonnull
-	public InteractionResult useOn(UseOnContext context) {
+	public ActionResult useOnBlock(ItemUsageContext context) {
 		if (tryPlaceAssembler(context)) {
-			context.getLevel()
-				.playSound(null, context.getClickedPos(), SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 1, 1);
-			return InteractionResult.SUCCESS;
+			context.getWorld()
+				.playSound(null, context.getBlockPos(), SoundEvents.BLOCK_STONE_PLACE, SoundCategory.BLOCKS, 1, 1);
+			return ActionResult.SUCCESS;
 		}
-		return super.useOn(context);
+		return super.useOnBlock(context);
 	}
 
-	public boolean tryPlaceAssembler(UseOnContext context) {
-		BlockPos pos = context.getClickedPos();
-		Level world = context.getLevel();
+	public boolean tryPlaceAssembler(ItemUsageContext context) {
+		BlockPos pos = context.getBlockPos();
+		World world = context.getWorld();
 		BlockState state = world.getBlockState(pos);
 		Block block = state.getBlock();
-		Player player = context.getPlayer();
+		PlayerEntity player = context.getPlayer();
 
 		if (player == null)
 			return false;
-		if (!(block instanceof BaseRailBlock)) {
+		if (!(block instanceof AbstractRailBlock)) {
 			Lang.translate("block.cart_assembler.invalid")
 				.sendStatus(player);
 			return false;
@@ -60,29 +58,29 @@ public class CartAssemblerBlockItem extends BlockItem {
 			return false;
 
 		BlockState newState = AllBlocks.CART_ASSEMBLER.getDefaultState()
-			.setValue(CartAssemblerBlock.RAIL_SHAPE, shape);
+			.with(CartAssemblerBlock.RAIL_SHAPE, shape);
 		CartAssembleRailType newType = null;
 		for (CartAssembleRailType type : CartAssembleRailType.values())
 			if (type.matches(state))
 				newType = type;
 		if (newType == null)
 			return false;
-		if (world.isClientSide)
+		if (world.isClient)
 			return true;
 
-		newState = newState.setValue(CartAssemblerBlock.RAIL_TYPE, newType);
-		if (state.hasProperty(ControllerRailBlock.BACKWARDS))
-			newState = newState.setValue(CartAssemblerBlock.BACKWARDS, state.getValue(ControllerRailBlock.BACKWARDS));
+		newState = newState.with(CartAssemblerBlock.RAIL_TYPE, newType);
+		if (state.contains(ControllerRailBlock.BACKWARDS))
+			newState = newState.with(CartAssemblerBlock.BACKWARDS, state.get(ControllerRailBlock.BACKWARDS));
 		else {
-			Direction direction = player.getMotionDirection();
+			Direction direction = player.getMovementDirection();
 			newState =
-				newState.setValue(CartAssemblerBlock.BACKWARDS, direction.getAxisDirection() == AxisDirection.POSITIVE);
+				newState.with(CartAssemblerBlock.BACKWARDS, direction.getDirection() == AxisDirection.POSITIVE);
 		}
 
-		world.setBlockAndUpdate(pos, newState);
+		world.setBlockState(pos, newState);
 		if (!player.isCreative())
-			context.getItemInHand()
-				.shrink(1);
+			context.getStack()
+				.decrement(1);
 
 		AdvancementBehaviour.setPlacedBy(world, pos, player);
 		return true;

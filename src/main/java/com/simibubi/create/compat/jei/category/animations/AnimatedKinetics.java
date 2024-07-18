@@ -9,9 +9,9 @@ import com.simibubi.create.foundation.gui.element.GuiGameElement;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 
 import mezz.jei.api.gui.drawable.IDrawable;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction.Axis;
 
 public abstract class AnimatedKinetics implements IDrawable {
 
@@ -45,7 +45,7 @@ public abstract class AnimatedKinetics implements IDrawable {
 	}
 
 	protected BlockState shaft(Axis axis) {
-		return AllBlocks.SHAFT.getDefaultState().setValue(BlockStateProperties.AXIS, axis);
+		return AllBlocks.SHAFT.getDefaultState().with(Properties.AXIS, axis);
 	}
 
 	protected PartialModel cogwheel() {

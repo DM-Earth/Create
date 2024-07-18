@@ -9,22 +9,22 @@ import com.mojang.authlib.GameProfile;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.nbt.NbtCompound;
 
 @Environment(EnvType.CLIENT)
-@Mixin(LocalPlayer.class)
-public abstract class HeavyBootsOnPlayerMixin extends AbstractClientPlayer {
+@Mixin(ClientPlayerEntity.class)
+public abstract class HeavyBootsOnPlayerMixin extends AbstractClientPlayerEntity {
 
-	private HeavyBootsOnPlayerMixin(ClientLevel level, GameProfile profile) {
+	private HeavyBootsOnPlayerMixin(ClientWorld level, GameProfile profile) {
 		super(level, profile);
 	}
 
-	@Inject(method = "isUnderWater()Z", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "isSubmergedInWater()Z", at = @At("HEAD"), cancellable = true)
 	public void create$noSwimmingWithHeavyBootsOn(CallbackInfoReturnable<Boolean> cir) {
-		CompoundTag persistentData = getCustomData();
+		NbtCompound persistentData = getCustomData();
 		if (persistentData.contains("HeavyBoots"))
 			cir.setReturnValue(false);
 	}

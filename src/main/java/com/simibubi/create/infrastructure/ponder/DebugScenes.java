@@ -19,18 +19,17 @@ import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.ponder.instruction.EmitParticlesInstruction.Emitter;
 import com.simibubi.create.foundation.utility.Pointing;
 import com.tterrag.registrate.util.entry.ItemEntry;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class DebugScenes {
 
@@ -102,7 +101,7 @@ public class DebugScenes {
 		scene.world.replaceBlocks(util.select.fromTo(1, 1, 3, 2, 2, 4),
 			AllBlocks.REFINED_RADIANCE_CASING.getDefaultState(), true);
 		scene.idle(10);
-		scene.world.replaceBlocks(util.select.position(3, 1, 1), Blocks.GOLD_BLOCK.defaultBlockState(), true);
+		scene.world.replaceBlocks(util.select.position(3, 1, 1), Blocks.GOLD_BLOCK.getDefaultState(), true);
 		scene.rotateCameraY(180);
 		scene.markAsFinished();
 	}
@@ -111,24 +110,24 @@ public class DebugScenes {
 		scene.title("debug_fluids", "Showing Fluids");
 		scene.showBasePlate();
 		scene.idle(10);
-		Vec3 parrotPos = util.vector.topOf(1, 0, 1);
+		Vec3d parrotPos = util.vector.topOf(1, 0, 1);
 		scene.special.createBirb(parrotPos, FacePointOfInterestPose::new);
 		scene.world.showSection(util.select.layersFrom(1), Direction.DOWN);
 		scene.overlay.showText(1000)
 			.text("Fluid rendering test.")
-			.pointAt(new Vec3(1, 2.5, 4.5));
+			.pointAt(new Vec3d(1, 2.5, 4.5));
 		scene.markAsFinished();
 
 		Object outlineSlot = new Object();
 
-		Vec3 vec1 = util.vector.topOf(1, 0, 0);
-		Vec3 vec2 = util.vector.topOf(0, 0, 1);
-		AABB boundingBox1 = new AABB(vec1, vec1).expandTowards(0, 2.5, 0)
-			.inflate(.15, 0, .15);
-		AABB boundingBox2 = new AABB(vec2, vec2).expandTowards(0, .125, 0)
-			.inflate(.45, 0, .45);
-		Vec3 poi1 = boundingBox1.getCenter();
-		Vec3 poi2 = boundingBox2.getCenter();
+		Vec3d vec1 = util.vector.topOf(1, 0, 0);
+		Vec3d vec2 = util.vector.topOf(0, 0, 1);
+		Box boundingBox1 = new Box(vec1, vec1).stretch(0, 2.5, 0)
+			.expand(.15, 0, .15);
+		Box boundingBox2 = new Box(vec2, vec2).stretch(0, .125, 0)
+			.expand(.45, 0, .45);
+		Vec3d poi1 = boundingBox1.getCenter();
+		Vec3d poi2 = boundingBox2.getCenter();
 
 		for (int i = 0; i < 10; i++) {
 			scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, outlineSlot,
@@ -178,7 +177,7 @@ public class DebugScenes {
 		scene.world.showSection(util.select.layersFrom(1), Direction.DOWN);
 		scene.idle(10);
 
-		Vec3 emitterPos = util.vector.of(2.5, 2.25, 2.5);
+		Vec3d emitterPos = util.vector.of(2.5, 2.25, 2.5);
 		Emitter emitter = Emitter.simple(ParticleTypes.LAVA, util.vector.of(0, .1, 0));
 		Emitter rotation =
 			Emitter.simple(new RotationIndicatorParticleData(SpeedLevel.MEDIUM.getColor(), 12, 1, 1, 20, 'Y'),
@@ -225,13 +224,13 @@ public class DebugScenes {
 		scene.idle(40);
 
 		BlockPos chassis = util.grid.at(1, 1, 3);
-		Vec3 chassisSurface = util.vector.blockSurface(chassis, Direction.NORTH);
+		Vec3d chassisSurface = util.vector.blockSurface(chassis, Direction.NORTH);
 
 		Object chassisValueBoxHighlight = new Object();
 		Object chassisEffectHighlight = new Object();
 
-		AABB point = new AABB(chassisSurface, chassisSurface);
-		AABB expanded = point.inflate(1 / 4f, 1 / 4f, 1 / 16f);
+		Box point = new Box(chassisSurface, chassisSurface);
+		Box expanded = point.expand(1 / 4f, 1 / 4f, 1 / 16f);
 
 		Selection singleBlock = util.select.position(1, 2, 3);
 		Selection twoBlocks = util.select.fromTo(1, 2, 3, 1, 3, 3);
@@ -304,11 +303,11 @@ public class DebugScenes {
 		BlockPos poi1 = util.grid.at(4, 1, 0);
 		BlockPos poi2 = util.grid.at(0, 1, 4);
 
-		scene.world.setBlock(poi1, Blocks.GOLD_BLOCK.defaultBlockState(), true);
+		scene.world.setBlock(poi1, Blocks.GOLD_BLOCK.getDefaultState(), true);
 		scene.special.movePointOfInterest(poi1);
 		scene.idle(20);
 
-		scene.world.setBlock(poi2, Blocks.GOLD_BLOCK.defaultBlockState(), true);
+		scene.world.setBlock(poi2, Blocks.GOLD_BLOCK.getDefaultState(), true);
 		scene.special.movePointOfInterest(poi2);
 		scene.overlay.showText(20)
 			.text("Point of Interest")
@@ -401,7 +400,7 @@ public class DebugScenes {
 		ItemStack copperItem = new ItemStack(Items.COPPER_INGOT);
 
 		for (int z = 4; z >= 2; z--) {
-			scene.world.createItemEntity(util.vector.centerOf(0, 4, z), Vec3.ZERO, brassItem.copy());
+			scene.world.createItemEntity(util.vector.centerOf(0, 4, z), Vec3d.ZERO, brassItem.copy());
 			scene.idle(10);
 		}
 
@@ -421,15 +420,15 @@ public class DebugScenes {
 		scene.idle(20);
 
 		scene.world.modifyEntities(ItemEntity.class, entity -> {
-			if (ItemHelper.sameItem(copperItem, entity.getItem()))
+			if (ItemHelper.sameItem(copperItem, entity.getStack()))
 				entity.setNoGravity(true);
 		});
 
 		scene.idle(20);
 
 		scene.world.modifyEntities(ItemEntity.class, entity -> {
-			if (ItemHelper.sameItem(brassItem, entity.getItem()))
-				entity.setDeltaMovement(util.vector.of(-.15f, .5f, 0));
+			if (ItemHelper.sameItem(brassItem, entity.getStack()))
+				entity.setVelocity(util.vector.of(-.15f, .5f, 0));
 		});
 
 		scene.idle(27);

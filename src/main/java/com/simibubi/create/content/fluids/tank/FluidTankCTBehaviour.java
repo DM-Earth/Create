@@ -5,13 +5,12 @@ import org.jetbrains.annotations.Nullable;
 import com.simibubi.create.api.connectivity.ConnectivityHandler;
 import com.simibubi.create.foundation.block.connected.CTSpriteShiftEntry;
 import com.simibubi.create.foundation.block.connected.HorizontalCTBehaviour;
-
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.BlockRenderView;
 
 public class FluidTankCTBehaviour extends HorizontalCTBehaviour {
 
@@ -23,7 +22,7 @@ public class FluidTankCTBehaviour extends HorizontalCTBehaviour {
 	}
 
 	@Override
-	public CTSpriteShiftEntry getShift(BlockState state, Direction direction, @Nullable TextureAtlasSprite sprite) {
+	public CTSpriteShiftEntry getShift(BlockState state, Direction direction, @Nullable Sprite sprite) {
 		if (sprite != null && direction.getAxis() == Axis.Y && innerShift.getOriginal() == sprite)
 			return innerShift;
 		return super.getShift(state, direction, sprite);
@@ -34,7 +33,7 @@ public class FluidTankCTBehaviour extends HorizontalCTBehaviour {
 	}
 
 	@Override
-	public boolean connectsTo(BlockState state, BlockState other, BlockAndTintGetter reader, BlockPos pos, BlockPos otherPos,
+	public boolean connectsTo(BlockState state, BlockState other, BlockRenderView reader, BlockPos pos, BlockPos otherPos,
 		Direction face) {
 		return state.getBlock() == other.getBlock() && ConnectivityHandler.isConnected(reader, pos, otherPos);
 	}

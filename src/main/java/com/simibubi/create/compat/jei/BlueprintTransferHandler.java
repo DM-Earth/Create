@@ -7,8 +7,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import mezz.jei.api.constants.RecipeTypes;
 
 import mezz.jei.api.recipe.RecipeType;
-import net.minecraft.world.inventory.MenuType;
-
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.AllPackets;
@@ -20,11 +18,10 @@ import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
 import java.util.Optional;
 
 @ParametersAreNonnullByDefault
@@ -37,7 +34,7 @@ public class BlueprintTransferHandler implements IRecipeTransferHandler<Blueprin
 	}
 
 	@Override
-	public Optional<MenuType<BlueprintMenu>> getMenuType() {
+	public Optional<ScreenHandlerType<BlueprintMenu>> getMenuType() {
 		return Optional.empty();
 	}
 
@@ -47,7 +44,7 @@ public class BlueprintTransferHandler implements IRecipeTransferHandler<Blueprin
 	}
 
 	@Override
-	public @Nullable IRecipeTransferError transferRecipe(BlueprintMenu menu, CraftingRecipe craftingRecipe, IRecipeSlotsView recipeSlots, Player player, boolean maxTransfer, boolean doTransfer) {
+	public @Nullable IRecipeTransferError transferRecipe(BlueprintMenu menu, CraftingRecipe craftingRecipe, IRecipeSlotsView recipeSlots, PlayerEntity player, boolean maxTransfer, boolean doTransfer) {
 		if (!doTransfer)
 			return null;
 

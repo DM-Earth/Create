@@ -4,7 +4,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.math.Axis;
+import net.minecraft.util.math.RotationAxis;
 
 public class CustomLightingSettings implements ILightingSettings {
 
@@ -22,13 +22,13 @@ public class CustomLightingSettings implements ILightingSettings {
 
 	protected void init(float yRot1, float xRot1, float yRot2, float xRot2, boolean doubleLight) {
 		light1 = new Vector3f(0, 0, 1);
-		light1.rotate(Axis.YP.rotationDegrees(yRot1));
-		light1.rotate(Axis.XN.rotationDegrees(xRot1));
+		light1.rotate(RotationAxis.POSITIVE_Y.rotationDegrees(yRot1));
+		light1.rotate(RotationAxis.NEGATIVE_X.rotationDegrees(xRot1));
 
 		if (doubleLight) {
 			light2 = new Vector3f(0, 0, 1);
-			light2.rotate(Axis.YP.rotationDegrees(yRot2));
-			light2.rotate(Axis.XN.rotationDegrees(xRot2));
+			light2.rotate(RotationAxis.POSITIVE_Y.rotationDegrees(yRot2));
+			light2.rotate(RotationAxis.NEGATIVE_X.rotationDegrees(xRot2));
 		} else {
 			light2 = new Vector3f();
 		}

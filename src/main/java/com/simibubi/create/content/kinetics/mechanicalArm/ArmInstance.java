@@ -1,7 +1,12 @@
 package com.simibubi.create.content.kinetics.mechanicalArm;
 
 import java.util.ArrayList;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.item.ItemRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.MathHelper;
 import com.google.common.collect.Lists;
 import com.jozufozu.flywheel.api.InstanceData;
 import com.jozufozu.flywheel.api.Instancer;
@@ -10,19 +15,12 @@ import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.SingleRotatingInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Color;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
 
 public class ArmInstance extends SingleRotatingInstance<ArmBlockEntity> implements DynamicInstance {
 
@@ -66,7 +64,7 @@ public class ArmInstance extends SingleRotatingInstance<ArmBlockEntity> implemen
 
 		clawGrips = Lists.newArrayList(clawGrip1, clawGrip2);
 		models = Lists.newArrayList(base, lowerBody, upperBody, claw, clawGrip1, clawGrip2);
-		ceiling = blockState.getValue(ArmBlock.CEILING);
+		ceiling = blockState.get(ArmBlock.CEILING);
 
 		animateArm(false);
 	}
@@ -86,8 +84,8 @@ public class ArmInstance extends SingleRotatingInstance<ArmBlockEntity> implemen
 		float upperArmAngleNow = blockEntity.upperArmAngle.getValue(pt);
 		float headAngleNow = blockEntity.headAngle.getValue(pt);
 
-		boolean settled = Mth.equal(baseAngle, baseAngleNow) && Mth.equal(lowerArmAngle, lowerArmAngleNow)
-			&& Mth.equal(upperArmAngle, upperArmAngleNow) && Mth.equal(headAngle, headAngleNow);
+		boolean settled = MathHelper.approximatelyEquals(baseAngle, baseAngleNow) && MathHelper.approximatelyEquals(lowerArmAngle, lowerArmAngleNow)
+			&& MathHelper.approximatelyEquals(upperArmAngle, upperArmAngleNow) && MathHelper.approximatelyEquals(headAngle, headAngleNow);
 
 		this.baseAngle = baseAngleNow;
 		this.lowerArmAngle = lowerArmAngleNow;
@@ -110,10 +108,10 @@ public class ArmInstance extends SingleRotatingInstance<ArmBlockEntity> implemen
 
 		if (rave) {
 			float renderTick =
-				AnimationTickHolder.getRenderTime(blockEntity.getLevel()) + (blockEntity.hashCode() % 64);
+				AnimationTickHolder.getRenderTime(blockEntity.getWorld()) + (blockEntity.hashCode() % 64);
 			baseAngle = (renderTick * 10) % 360;
-			lowerArmAngle = Mth.lerp((Mth.sin(renderTick / 4) + 1) / 2, -45, 15);
-			upperArmAngle = Mth.lerp((Mth.sin(renderTick / 8) + 1) / 4, -45, 95);
+			lowerArmAngle = MathHelper.lerp((MathHelper.sin(renderTick / 4) + 1) / 2, -45, 15);
+			upperArmAngle = MathHelper.lerp((MathHelper.sin(renderTick / 8) + 1) / 4, -45, 95);
 			headAngle = -lowerArmAngle;
 			color = Color.rainbowColor(AnimationTickHolder.getTicks() * 100)
 				.getRGB();
@@ -125,7 +123,7 @@ public class ArmInstance extends SingleRotatingInstance<ArmBlockEntity> implemen
 			color = 0xFFFFFF;
 		}
 
-		PoseStack msLocal = new PoseStack();
+		MatrixStack msLocal = new MatrixStack();
 		TransformStack msr = TransformStack.cast(msLocal);
 		msr.translate(getInstancePosition());
 		msr.centre();
@@ -155,20 +153,20 @@ public class ArmInstance extends SingleRotatingInstance<ArmBlockEntity> implemen
 			msr.rotateZ(180);
 
 		ItemStack item = blockEntity.heldItem;
-		ItemRenderer itemRenderer = Minecraft.getInstance()
+		ItemRenderer itemRenderer = MinecraftClient.getInstance()
 			.getItemRenderer();
 		boolean hasItem = !item.isEmpty();
 		boolean isBlockItem = hasItem && (item.getItem() instanceof BlockItem)
-			&& itemRenderer.getModel(item, Minecraft.getInstance().level, null, 0)
-				.isGui3d();
+			&& itemRenderer.getModel(item, MinecraftClient.getInstance().world, null, 0)
+				.hasDepth();
 
 		for (int index : Iterate.zeroAndOne) {
-			msLocal.pushPose();
+			msLocal.push();
 			int flip = index * 2 - 1;
 			ArmRenderer.transformClawHalf(msr, hasItem, isBlockItem, flip);
 			clawGrips.get(index)
 				.setTransform(msLocal);
-			msLocal.popPose();
+			msLocal.pop();
 		}
 	}
 
@@ -195,7 +193,7 @@ public class ArmInstance extends SingleRotatingInstance<ArmBlockEntity> implemen
 
 	@Override
 	protected Instancer<RotatingData> getModel() {
-		return getRotatingMaterial().getModel(AllPartialModels.ARM_COG, blockEntity.getBlockState());
+		return getRotatingMaterial().getModel(AllPartialModels.ARM_COG, blockEntity.getCachedState());
 	}
 
 	@Override

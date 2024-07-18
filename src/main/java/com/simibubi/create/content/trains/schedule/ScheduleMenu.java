@@ -4,14 +4,14 @@ import com.simibubi.create.foundation.gui.menu.GhostItemMenu;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
 import io.github.fabricators_of_create.porting_lib.transfer.item.SlotItemHandler;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
 
 public class ScheduleMenu extends GhostItemMenu<ItemStack> {
 
@@ -19,11 +19,11 @@ public class ScheduleMenu extends GhostItemMenu<ItemStack> {
 	public int targetSlotsActive = 1;
 
 	static final int slots = 2;
-	public ScheduleMenu(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	public ScheduleMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id, inv, extraData);
 	}
 
-	public ScheduleMenu(MenuType<?> type, int id, Inventory inv, ItemStack contentHolder) {
+	public ScheduleMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, ItemStack contentHolder) {
 		super(type, id, inv, contentHolder);
 	}
 
@@ -33,9 +33,9 @@ public class ScheduleMenu extends GhostItemMenu<ItemStack> {
 	}
 
 	@Override
-	public void clicked(int slotId, int dragType, ClickType clickTypeIn, Player player) {
-		if (slotId != playerInventory.selected || clickTypeIn == ClickType.THROW)
-			super.clicked(slotId, dragType, clickTypeIn, player);
+	public void onSlotClick(int slotId, int dragType, SlotActionType clickTypeIn, PlayerEntity player) {
+		if (slotId != playerInventory.selectedSlot || clickTypeIn == SlotActionType.THROW)
+			super.onSlotClick(slotId, dragType, clickTypeIn, player);
 	}
 
 	@Override
@@ -44,8 +44,8 @@ public class ScheduleMenu extends GhostItemMenu<ItemStack> {
 	}
 
 	@Override
-	protected ItemStack createOnClient(FriendlyByteBuf extraData) {
-		return extraData.readItem();
+	protected ItemStack createOnClient(PacketByteBuf extraData) {
+		return extraData.readItemStack();
 	}
 
 	@Override
@@ -68,18 +68,18 @@ public class ScheduleMenu extends GhostItemMenu<ItemStack> {
 	protected void saveData(ItemStack contentHolder) {}
 
 	@Override
-	public boolean stillValid(Player player) {
-		return playerInventory.getSelected() == contentHolder;
+	public boolean canUse(PlayerEntity player) {
+		return playerInventory.getMainHandStack() == contentHolder;
 	}
 
 	class InactiveSlot extends Slot {
 
-		public InactiveSlot(Container pContainer, int pIndex, int pX, int pY) {
+		public InactiveSlot(Inventory pContainer, int pIndex, int pX, int pY) {
 			super(pContainer, pIndex, pX, pY);
 		}
 
 		@Override
-		public boolean isActive() {
+		public boolean isEnabled() {
 			return slotsActive;
 		}
 
@@ -95,7 +95,7 @@ private int targetIndex;
 		}
 
 		@Override
-		public boolean isActive() {
+		public boolean isEnabled() {
 			return slotsActive && targetIndex < targetSlotsActive;
 		}
 

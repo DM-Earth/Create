@@ -7,7 +7,7 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.utility.Iterate;
 
 import net.fabricmc.fabric.api.rendering.data.v1.RenderAttachmentBlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
 
 /**
  * Fabric: Implement this on any BlockEntity that uses {@link PipeAttachmentModel} and call {@link #getAttachments(BlockEntity)}
@@ -21,7 +21,7 @@ public interface PipeAttachmentBlockEntity extends RenderAttachmentBlockEntity {
 		AttachmentTypes[] attachments = new AttachmentTypes[6];
 		for (int i = 0; i < Iterate.directions.length; i++) {
 			attachments[i] = behavior.getRenderedRimAttachment(
-					be.getLevel(), be.getBlockPos(), be.getBlockState(), Iterate.directions[i]
+					be.getWorld(), be.getPos(), be.getCachedState(), Iterate.directions[i]
 			);
 		}
 		return attachments;

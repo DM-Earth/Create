@@ -1,6 +1,5 @@
 package com.simibubi.create.foundation.ponder.ui;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.gui.Theme;
 import com.simibubi.create.foundation.gui.element.BoxElement;
 import com.simibubi.create.foundation.gui.widget.AbstractSimiWidget;
@@ -8,10 +7,11 @@ import com.simibubi.create.foundation.ponder.PonderScene;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 
 import io.github.fabricators_of_create.porting_lib.util.client.ScreenUtils;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.sound.SoundManager;
+import net.minecraft.client.util.math.MatrixStack;
 
 public class PonderProgressBar extends AbstractSimiWidget {
 
@@ -84,10 +84,10 @@ public class PonderProgressBar extends AbstractSimiWidget {
 	}
 
 	@Override
-	public void doRender(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-		PoseStack ms = graphics.pose();
+	public void doRender(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
+		MatrixStack ms = graphics.getMatrices();
 
-		isHovered = clicked(mouseX, mouseY);
+		hovered = clicked(mouseX, mouseY);
 
 		new BoxElement()
 				.withBackground(Theme.c(Theme.Key.PONDER_BACKGROUND_FLAT))
@@ -96,23 +96,23 @@ public class PonderProgressBar extends AbstractSimiWidget {
 				.withBounds(width, height)
 				.render(graphics);
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(getX() - 2, getY() - 2, 100);
 
-		ms.pushPose();
+		ms.push();
 		ms.scale((width + 4) * progress.getValue(partialTicks), 1, 1);
 		int c1 = Theme.i(Theme.Key.PONDER_PROGRESSBAR, true);
 		int c2 = Theme.i(Theme.Key.PONDER_PROGRESSBAR, false);
 		graphics.fillGradient(0, 3, 1, 4, 310, c1, c1);
 		graphics.fillGradient(0, 4, 1, 5, 310, c2, c2);
-		ms.popPose();
+		ms.pop();
 
 		renderKeyframes(graphics, mouseX, partialTicks);
 
-		ms.popPose();
+		ms.pop();
 	}
 
-	private void renderKeyframes(GuiGraphics graphics, int mouseX, float partialTicks) {
+	private void renderKeyframes(DrawContext graphics, int mouseX, float partialTicks) {
 		PonderScene activeScene = ponder.getActiveScene();
 
 		int hoverStartColor = Theme.i(Theme.Key.PONDER_HOVER, true) | 0xa0_000000;
@@ -121,7 +121,7 @@ public class PonderProgressBar extends AbstractSimiWidget {
 		int idleEndColor = Theme.i(Theme.Key.PONDER_IDLE, false) | 0x40_000000;
 		int hoverIndex;
 
-		if (isHovered) {
+		if (hovered) {
 			hoverIndex = getHoveredKeyframeIndex(activeScene, mouseX);
 		} else {
 			hoverIndex = -2;
@@ -146,25 +146,25 @@ public class PonderProgressBar extends AbstractSimiWidget {
 		}
 	}
 
-	private void drawKeyframe(GuiGraphics graphics, PonderScene activeScene, boolean selected, int keyframeTime,
+	private void drawKeyframe(DrawContext graphics, PonderScene activeScene, boolean selected, int keyframeTime,
 		int keyframePos, int startColor, int endColor, int height) {
-		PoseStack ms = graphics.pose();
+		MatrixStack ms = graphics.getMatrices();
 		if (selected) {
-			Font font = Minecraft.getInstance().font;
+			TextRenderer font = MinecraftClient.getInstance().textRenderer;
 			graphics.fillGradient(keyframePos, 10, keyframePos + 1, 10 + height, 600, endColor, startColor);
-			ms.pushPose();
+			ms.push();
 			ms.translate(0, 0, 200);
 			String text;
 			int offset;
 			if (activeScene.getCurrentTime() < keyframeTime) {
 				text = ">";
-				offset = -1 - font.width(text);
+				offset = -1 - font.getWidth(text);
 			} else {
 				text = "<";
 				offset = 3;
 			}
-			graphics.drawString(font, text, keyframePos + offset, 10, endColor, false);
-			ms.popPose();
+			graphics.drawText(font, text, keyframePos + offset, 10, endColor, false);
+			ms.pop();
 		}
 
 		graphics.fillGradient(keyframePos, -1, keyframePos + 1, 2 + height, 400, startColor, endColor);

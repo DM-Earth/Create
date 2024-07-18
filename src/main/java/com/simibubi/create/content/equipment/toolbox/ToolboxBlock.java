@@ -1,6 +1,6 @@
 package com.simibubi.create.content.equipment.toolbox;
 
-import static net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED;
+import static net.minecraft.state.property.Properties.WATERLOGGED;
 
 import java.util.Optional;
 
@@ -13,159 +13,159 @@ import com.simibubi.create.foundation.utility.BlockHelper;
 import io.github.fabricators_of_create.porting_lib.util.NetworkHooks;
 import io.github.fabricators_of_create.porting_lib.util.TagUtil;
 import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.SimpleWaterloggedBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.HorizontalFacingBlock;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.Waterloggable;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
-public class ToolboxBlock extends HorizontalDirectionalBlock implements SimpleWaterloggedBlock, IBE<ToolboxBlockEntity> {
+public class ToolboxBlock extends HorizontalFacingBlock implements Waterloggable, IBE<ToolboxBlockEntity> {
 
 	protected final DyeColor color;
 
-	public ToolboxBlock(Properties properties, DyeColor color) {
+	public ToolboxBlock(Settings properties, DyeColor color) {
 		super(properties);
 		this.color = color;
-		registerDefaultState(defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(Properties.WATERLOGGED, false));
 	}
 
 	@Override
 	public FluidState getFluidState(BlockState state) {
-		return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : Fluids.EMPTY.defaultFluidState();
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : Fluids.EMPTY.getDefaultState();
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(WATERLOGGED)
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(WATERLOGGED)
 			.add(FACING));
 	}
 
 	@Override
-	public void setPlacedBy(Level worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
-		super.setPlacedBy(worldIn, pos, state, placer, stack);
-		if (worldIn.isClientSide)
+	public void onPlaced(World worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+		super.onPlaced(worldIn, pos, state, placer, stack);
+		if (worldIn.isClient)
 			return;
 		if (stack == null)
 			return;
 		withBlockEntityDo(worldIn, pos, be -> {
-			CompoundTag orCreateTag = stack.getOrCreateTag();
+			NbtCompound orCreateTag = stack.getOrCreateNbt();
 			be.readInventory(orCreateTag.getCompound("Inventory"));
 			if (orCreateTag.contains("UniqueId"))
-				be.setUniqueId(orCreateTag.getUUID("UniqueId"));
-			if (stack.hasCustomHoverName())
-				be.setCustomName(stack.getHoverName());
+				be.setUniqueId(orCreateTag.getUuid("UniqueId"));
+			if (stack.hasCustomName())
+				be.setCustomName(stack.getName());
 		});
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level world, BlockPos pos, BlockState newState, boolean moving) {
+	public void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moving) {
 		if (state.hasBlockEntity() && (!newState.hasBlockEntity() || !(newState.getBlock() instanceof ToolboxBlock)))
 			world.removeBlockEntity(pos);
 	}
 
 	@Override
-	public void attack(BlockState state, Level world, BlockPos pos, Player player) {
+	public void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
 		if (player instanceof FakePlayer)
 			return;
-		if (world.isClientSide)
+		if (world.isClient)
 			return;
 		withBlockEntityDo(world, pos, ToolboxBlockEntity::unequipTracked);
-		if (world instanceof ServerLevel) {
-			ItemStack cloneItemStack = getCloneItemStack(world, pos, state);
-			world.destroyBlock(pos, false);
+		if (world instanceof ServerWorld) {
+			ItemStack cloneItemStack = getPickStack(world, pos, state);
+			world.breakBlock(pos, false);
 			if (world.getBlockState(pos) != state)
-				player.getInventory().placeItemBackInInventory(cloneItemStack);
+				player.getInventory().offerOrDrop(cloneItemStack);
 		}
 	}
 
 	@Override
-	public ItemStack getCloneItemStack(BlockGetter world, BlockPos pos, BlockState state) {
+	public ItemStack getPickStack(BlockView world, BlockPos pos, BlockState state) {
 		ItemStack item = new ItemStack(this);
 		Optional<ToolboxBlockEntity> blockEntityOptional = getBlockEntityOptional(world, pos);
-		CompoundTag tag = item.getOrCreateTag();
+		NbtCompound tag = item.getOrCreateNbt();
 
-		CompoundTag inv = blockEntityOptional.map(tb -> tb.inventory.serializeNBT())
-			.orElse(new CompoundTag());
+		NbtCompound inv = blockEntityOptional.map(tb -> tb.inventory.serializeNBT())
+			.orElse(new NbtCompound());
 		tag.put("Inventory", inv);
 
 		blockEntityOptional.map(tb -> tb.getUniqueId())
-			.ifPresent(uid -> tag.putUUID("UniqueId", uid));
+			.ifPresent(uid -> tag.putUuid("UniqueId", uid));
 		blockEntityOptional.map(ToolboxBlockEntity::getCustomName)
-			.ifPresent(item::setHoverName);
+			.ifPresent(item::setCustomName);
 		return item;
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction direction, BlockState neighbourState, LevelAccessor world,
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState neighbourState, WorldAccess world,
 		BlockPos pos, BlockPos neighbourPos) {
-		if (state.getValue(WATERLOGGED))
-			world.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(world));
+		if (state.get(WATERLOGGED))
+			world.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		return state;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
-		return AllShapes.TOOLBOX.get(state.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return AllShapes.TOOLBOX.get(state.get(FACING));
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult ray) {
 
-		if (player == null || player.isCrouching())
-			return InteractionResult.PASS;
+		if (player == null || player.isInSneakingPose())
+			return ActionResult.PASS;
 
-		ItemStack stack = player.getItemInHand(hand);
+		ItemStack stack = player.getStackInHand(hand);
 		DyeColor color = TagUtil.getColorFromStack(stack);
 		if (color != null && color != this.color) {
-			if (world.isClientSide)
-				return InteractionResult.SUCCESS;
+			if (world.isClient)
+				return ActionResult.SUCCESS;
 			BlockState newState = BlockHelper.copyProperties(state, AllBlocks.TOOLBOXES.get(color)
 				.getDefaultState());
-			world.setBlockAndUpdate(pos, newState);
-			return InteractionResult.SUCCESS;
+			world.setBlockState(pos, newState);
+			return ActionResult.SUCCESS;
 		}
 
 		if (player instanceof FakePlayer)
-			return InteractionResult.PASS;
-		if (world.isClientSide)
-			return InteractionResult.SUCCESS;
+			return ActionResult.PASS;
+		if (world.isClient)
+			return ActionResult.SUCCESS;
 
 		withBlockEntityDo(world, pos,
-			toolbox -> NetworkHooks.openScreen((ServerPlayer) player, toolbox, toolbox::sendToMenu));
-		return InteractionResult.SUCCESS;
+			toolbox -> NetworkHooks.openScreen((ServerPlayerEntity) player, toolbox, toolbox::sendToMenu));
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		FluidState ifluidstate = context.getLevel()
-			.getFluidState(context.getClickedPos());
-		return super.getStateForPlacement(context).setValue(FACING, context.getHorizontalDirection()
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		FluidState ifluidstate = context.getWorld()
+			.getFluidState(context.getBlockPos());
+		return super.getPlacementState(context).with(FACING, context.getHorizontalPlayerFacing()
 			.getOpposite())
-			.setValue(WATERLOGGED, Boolean.valueOf(ifluidstate.getType() == Fluids.WATER));
+			.with(WATERLOGGED, Boolean.valueOf(ifluidstate.getFluid() == Fluids.WATER));
 	}
 
 	@Override
@@ -183,7 +183,7 @@ public class ToolboxBlock extends HorizontalDirectionalBlock implements SimpleWa
 	}
 
 	public static Ingredient getMainBox() {
-		return Ingredient.of(AllBlocks.TOOLBOXES.get(DyeColor.BROWN)
+		return Ingredient.ofItems(AllBlocks.TOOLBOXES.get(DyeColor.BROWN)
 			.get());
 	}
 

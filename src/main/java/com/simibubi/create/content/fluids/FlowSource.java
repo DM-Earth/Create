@@ -13,7 +13,7 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.ResourceAmount;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.World;
 
 public abstract class FlowSource {
 
@@ -39,9 +39,9 @@ public abstract class FlowSource {
 
 	public abstract boolean isEndpoint();
 
-	public void manageSource(Level world) {}
+	public void manageSource(World world) {}
 
-	public void whileFlowPresent(Level world, boolean pulling) {}
+	public void whileFlowPresent(World world, boolean pulling) {}
 
 	public Storage<FluidVariant> provideHandler() {
 		return null;
@@ -49,7 +49,7 @@ public abstract class FlowSource {
 
 	public static class FluidHandler extends FlowSource {
 		StorageProvider<FluidVariant> provider;
-		private Level level;
+		private World level;
 
 		public FluidHandler(BlockFace location) {
 			super(location);
@@ -57,7 +57,7 @@ public abstract class FlowSource {
 			this.level = null;
 		}
 
-		public void manageSource(Level world) {
+		public void manageSource(World world) {
 			if (world != this.level) {
 				this.level = world;
 				this.provider = StorageProvider.createForFluids(world, location.getConnectedPos());
@@ -83,7 +83,7 @@ public abstract class FlowSource {
 		}
 
 		@Override
-		public void manageSource(Level world) {
+		public void manageSource(World world) {
 			if (cached != null && cached.get() != null && !cached.get().blockEntity.isRemoved())
 				return;
 			cached = null;

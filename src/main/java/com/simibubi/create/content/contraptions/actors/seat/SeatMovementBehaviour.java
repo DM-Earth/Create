@@ -2,19 +2,17 @@ package com.simibubi.create.content.contraptions.actors.seat;
 
 import java.util.Map;
 import java.util.UUID;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.SlabBlock;
+import net.minecraft.block.enums.SlabType;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.behaviour.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.simibubi.create.foundation.utility.VecHelper;
 import io.github.fabricators_of_create.porting_lib.util.EntityHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.block.SlabBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.SlabType;
-import net.minecraft.world.phys.Vec3;
 
 public class SeatMovementBehaviour implements MovementBehaviour {
 
@@ -39,8 +37,8 @@ public class SeatMovementBehaviour implements MovementBehaviour {
 		Map<UUID, Integer> seatMapping = context.contraption.getSeatMapping();
 		BlockState blockState = context.world.getBlockState(pos);
 		boolean slab =
-			blockState.getBlock() instanceof SlabBlock && blockState.getValue(SlabBlock.TYPE) == SlabType.BOTTOM;
-		boolean solid = blockState.canOcclude() || slab;
+			blockState.getBlock() instanceof SlabBlock && blockState.get(SlabBlock.TYPE) == SlabType.BOTTOM;
+		boolean solid = blockState.isOpaque() || slab;
 
 		// Occupied
 		if (!seatMapping.containsValue(index))
@@ -51,9 +49,9 @@ public class SeatMovementBehaviour implements MovementBehaviour {
 		for (Map.Entry<UUID, Integer> entry : seatMapping.entrySet()) {
 			if (entry.getValue() != index)
 				continue;
-			for (Entity entity : contraptionEntity.getPassengers()) {
+			for (Entity entity : contraptionEntity.getPassengerList()) {
 				if (!entry.getKey()
-					.equals(entity.getUUID()))
+					.equals(entity.getUuid()))
 					continue;
 				toDismount = entity;
 			}
@@ -61,9 +59,9 @@ public class SeatMovementBehaviour implements MovementBehaviour {
 		if (toDismount == null)
 			return;
 		toDismount.stopRiding();
-		Vec3 position = VecHelper.getCenterOf(pos)
+		Vec3d position = VecHelper.getCenterOf(pos)
 			.add(0, slab ? .5f : 1f, 0);
-		toDismount.teleportTo(position.x, position.y, position.z);
+		toDismount.requestTeleport(position.x, position.y, position.z);
 		toDismount.getCustomData()
 			.remove("ContraptionDismountLocation");
 	}

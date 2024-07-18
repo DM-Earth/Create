@@ -5,6 +5,10 @@ import java.util.List;
 import java.util.Objects;
 
 import javax.annotation.Nullable;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.util.math.MatrixStack.Entry;
+import net.minecraft.util.math.BlockPos;
 
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.backend.instancing.blockentity.BlockEntityInstance;
@@ -14,16 +18,11 @@ import com.jozufozu.flywheel.light.LightUpdater;
 import com.jozufozu.flywheel.util.box.GridAlignedBB;
 import com.jozufozu.flywheel.util.box.ImmutableBox;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.PoseStack.Pose;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.trains.track.BezierConnection.GirderAngles;
 import com.simibubi.create.content.trains.track.BezierConnection.SegmentAngles;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.BlockPos;
 
 public class TrackInstance extends BlockEntityInstance<TrackBlockEntity> {
 
@@ -94,11 +93,11 @@ public class TrackInstance extends BlockEntityInstance<TrackBlockEntity> {
 			BlockPos tePosition = bc.tePositions.getFirst();
 			girder = bc.hasGirder ? new GirderInstance(bc) : null;
 
-			PoseStack pose = new PoseStack();
+			MatrixStack pose = new MatrixStack();
 			TransformStack.cast(pose)
 				.translate(getInstancePosition());
 
-			var mat = materialManager.cutout(RenderType.cutoutMipped())
+			var mat = materialManager.cutout(RenderLayer.getCutoutMipped())
 				.material(Materials.TRANSFORMED);
 
 			int segCount = bc.getSegmentCount();
@@ -124,16 +123,16 @@ public class TrackInstance extends BlockEntityInstance<TrackBlockEntity> {
 				var modelIndex = i - 1;
 
 				ties[modelIndex].setTransform(pose)
-					.mulPose(segment.tieTransform.pose())
-					.mulNormal(segment.tieTransform.normal());
-				tiesLightPos[modelIndex] = segment.lightPosition.offset(tePosition);
+					.mulPose(segment.tieTransform.getPositionMatrix())
+					.mulNormal(segment.tieTransform.getNormalMatrix());
+				tiesLightPos[modelIndex] = segment.lightPosition.add(tePosition);
 
 				for (boolean first : Iterate.trueAndFalse) {
-					Pose transform = segment.railTransforms.get(first);
+					Entry transform = segment.railTransforms.get(first);
 					(first ? this.left : this.right)[modelIndex].setTransform(pose)
-						.mulPose(transform.pose())
-						.mulNormal(transform.normal());
-					(first ? leftLightPos : rightLightPos)[modelIndex] = segment.lightPosition.offset(tePosition);
+						.mulPose(transform.getPositionMatrix())
+						.mulNormal(transform.getNormalMatrix());
+					(first ? leftLightPos : rightLightPos)[modelIndex] = segment.lightPosition.add(tePosition);
 				}
 			}
 
@@ -170,13 +169,13 @@ public class TrackInstance extends BlockEntityInstance<TrackBlockEntity> {
 
 			private GirderInstance(BezierConnection bc) {
 				BlockPos tePosition = bc.tePositions.getFirst();
-				PoseStack pose = new PoseStack();
+				MatrixStack pose = new MatrixStack();
 				TransformStack.cast(pose)
 					.translate(getInstancePosition())
 					.nudge((int) bc.tePositions.getFirst()
 						.asLong());
 
-				var mat = materialManager.cutout(RenderType.cutoutMipped())
+				var mat = materialManager.cutout(RenderLayer.getCutoutMipped())
 					.material(Materials.TRANSFORMED);
 
 				int segCount = bc.getSegmentCount();
@@ -191,20 +190,20 @@ public class TrackInstance extends BlockEntityInstance<TrackBlockEntity> {
 				for (int i = 1; i < bakedGirders.length; i++) {
 					GirderAngles segment = bakedGirders[i];
 					var modelIndex = i - 1;
-					lightPos[modelIndex] = segment.lightPosition.offset(tePosition);
+					lightPos[modelIndex] = segment.lightPosition.add(tePosition);
 
 					for (boolean first : Iterate.trueAndFalse) {
-						Pose beamTransform = segment.beams.get(first);
+						Entry beamTransform = segment.beams.get(first);
 						beams.get(first)[modelIndex].setTransform(pose)
-							.mulPose(beamTransform.pose())
-							.mulNormal(beamTransform.normal());
+							.mulPose(beamTransform.getPositionMatrix())
+							.mulNormal(beamTransform.getNormalMatrix());
 						for (boolean top : Iterate.trueAndFalse) {
-							Pose beamCapTransform = segment.beamCaps.get(top)
+							Entry beamCapTransform = segment.beamCaps.get(top)
 								.get(first);
 							beamCaps.get(top)
 								.get(first)[modelIndex].setTransform(pose)
-									.mulPose(beamCapTransform.pose())
-									.mulNormal(beamCapTransform.normal());
+									.mulPose(beamCapTransform.getPositionMatrix())
+									.mulNormal(beamCapTransform.getNormalMatrix());
 						}
 					}
 				}

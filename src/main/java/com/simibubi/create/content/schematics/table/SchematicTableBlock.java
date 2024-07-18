@@ -6,66 +6,64 @@ import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.item.ItemHelper;
 
 import io.github.fabricators_of_create.porting_lib.util.NetworkHooks;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.HorizontalFacingBlock;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+public class SchematicTableBlock extends HorizontalFacingBlock implements IBE<SchematicTableBlockEntity> {
 
-public class SchematicTableBlock extends HorizontalDirectionalBlock implements IBE<SchematicTableBlockEntity> {
-
-	public SchematicTableBlock(Properties properties) {
+	public SchematicTableBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+	protected void appendProperties(Builder<Block, BlockState> builder) {
 		builder.add(FACING);
-		super.createBlockStateDefinition(builder);
+		super.appendProperties(builder);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		return this.getDefaultState().with(FACING, context.getHorizontalPlayerFacing().getOpposite());
 	}
 
 	@Override
-	public VoxelShape getCollisionShape(BlockState state, BlockGetter worldIn, BlockPos pos,
-			CollisionContext context) {
+	public VoxelShape getCollisionShape(BlockState state, BlockView worldIn, BlockPos pos,
+			ShapeContext context) {
 		return AllShapes.TABLE_POLE_SHAPE;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return AllShapes.SCHEMATICS_TABLE.get(state.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return AllShapes.SCHEMATICS_TABLE.get(state.get(FACING));
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 			BlockHitResult hit) {
-		if (worldIn.isClientSide)
-			return InteractionResult.SUCCESS;
+		if (worldIn.isClient)
+			return ActionResult.SUCCESS;
 		withBlockEntityDo(worldIn, pos,
-				be -> NetworkHooks.openScreen((ServerPlayer) player, be, be::sendToMenu));
-		return InteractionResult.SUCCESS;
+				be -> NetworkHooks.openScreen((ServerPlayerEntity) player, be, be::sendToMenu));
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		if (!state.hasBlockEntity() || state.getBlock() == newState.getBlock())
 			return;
 
@@ -84,7 +82,7 @@ public class SchematicTableBlock extends HorizontalDirectionalBlock implements I
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

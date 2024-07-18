@@ -7,27 +7,27 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.text.Text;
 
 public class TrainPromptPacket extends SimplePacketBase {
 
-	private Component text;
+	private Text text;
 	private boolean shadow;
 
-	public TrainPromptPacket(Component text, boolean shadow) {
+	public TrainPromptPacket(Text text, boolean shadow) {
 		this.text = text;
 		this.shadow = shadow;
 	}
 
-	public TrainPromptPacket(FriendlyByteBuf buffer) {
-		text = buffer.readComponent();
+	public TrainPromptPacket(PacketByteBuf buffer) {
+		text = buffer.readText();
 		shadow = buffer.readBoolean();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeComponent(text);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeText(text);
 		buffer.writeBoolean(shadow);
 	}
 

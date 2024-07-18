@@ -2,16 +2,15 @@ package com.simibubi.create.foundation.ponder.instruction;
 
 import com.simibubi.create.foundation.ponder.PonderPalette;
 import com.simibubi.create.foundation.ponder.PonderScene;
-
-import net.minecraft.world.phys.AABB;
+import net.minecraft.util.math.Box;
 
 public class ChaseAABBInstruction extends TickingInstruction {
 
-	private AABB bb;
+	private Box bb;
 	private Object slot;
 	private PonderPalette color;
 
-	public ChaseAABBInstruction(PonderPalette color, Object slot, AABB bb, int ticks) {
+	public ChaseAABBInstruction(PonderPalette color, Object slot, Box bb, int ticks) {
 		super(false, ticks);
 		this.color = color;
 		this.slot = slot;

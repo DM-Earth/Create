@@ -8,7 +8,6 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllEntityTypes;
 import com.simibubi.create.content.contraptions.bearing.StabilizedContraption;
 import com.simibubi.create.content.contraptions.minecart.MinecartSim2020;
@@ -27,29 +26,30 @@ import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.entity.vehicle.MinecartFurnace;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseRailBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.RailShape;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.AbstractRailBlock;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.enums.RailShape;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.data.TrackedDataHandlerRegistry;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.entity.vehicle.FurnaceMinecartEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 /**
  * Ex: Minecarts, Couplings <br>
@@ -58,14 +58,14 @@ import net.minecraft.world.phys.Vec3;
  */
 public class OrientedContraptionEntity extends AbstractContraptionEntity {
 
-	private static final Ingredient FUEL_ITEMS = Ingredient.of(Items.COAL, Items.CHARCOAL);
+	private static final Ingredient FUEL_ITEMS = Ingredient.ofItems(Items.COAL, Items.CHARCOAL);
 
-	private static final EntityDataAccessor<Optional<UUID>> COUPLING =
-		SynchedEntityData.defineId(OrientedContraptionEntity.class, EntityDataSerializers.OPTIONAL_UUID);
-	private static final EntityDataAccessor<Direction> INITIAL_ORIENTATION =
-		SynchedEntityData.defineId(OrientedContraptionEntity.class, EntityDataSerializers.DIRECTION);
+	private static final TrackedData<Optional<UUID>> COUPLING =
+		DataTracker.registerData(OrientedContraptionEntity.class, TrackedDataHandlerRegistry.OPTIONAL_UUID);
+	private static final TrackedData<Direction> INITIAL_ORIENTATION =
+		DataTracker.registerData(OrientedContraptionEntity.class, TrackedDataHandlerRegistry.FACING);
 
-	protected Vec3 motionBeforeStall;
+	protected Vec3d motionBeforeStall;
 	protected boolean forceAngle;
 	private boolean isSerializingFurnaceCart;
 	private boolean attachedExtraInventories;
@@ -80,15 +80,15 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 
 	public int nonDamageTicks;
 
-	public OrientedContraptionEntity(EntityType<?> type, Level world) {
+	public OrientedContraptionEntity(EntityType<?> type, World world) {
 		super(type, world);
-		motionBeforeStall = Vec3.ZERO;
+		motionBeforeStall = Vec3d.ZERO;
 		attachedExtraInventories = false;
 		isSerializingFurnaceCart = false;
 		nonDamageTicks = 10;
 	}
 
-	public static OrientedContraptionEntity create(Level world, Contraption contraption, Direction initialOrientation) {
+	public static OrientedContraptionEntity create(World world, Contraption contraption, Direction initialOrientation) {
 		OrientedContraptionEntity entity =
 			new OrientedContraptionEntity(AllEntityTypes.ORIENTED_CONTRAPTION.get(), world);
 		entity.setContraption(contraption);
@@ -97,7 +97,7 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 		return entity;
 	}
 
-	public static OrientedContraptionEntity createAtYaw(Level world, Contraption contraption,
+	public static OrientedContraptionEntity createAtYaw(World world, Contraption contraption,
 		Direction initialOrientation, float initialYaw) {
 		OrientedContraptionEntity entity = create(world, contraption, initialOrientation);
 		entity.startAtYaw(initialYaw);
@@ -106,11 +106,11 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	public void setInitialOrientation(Direction direction) {
-		entityData.set(INITIAL_ORIENTATION, direction);
+		dataTracker.set(INITIAL_ORIENTATION, direction);
 	}
 
 	public Direction getInitialOrientation() {
-		return entityData.get(INITIAL_ORIENTATION);
+		return dataTracker.get(INITIAL_ORIENTATION);
 	}
 
 	@Override
@@ -119,14 +119,14 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	public float getInitialYaw() {
-		return (isInitialOrientationPresent() ? entityData.get(INITIAL_ORIENTATION) : Direction.SOUTH).toYRot();
+		return (isInitialOrientationPresent() ? dataTracker.get(INITIAL_ORIENTATION) : Direction.SOUTH).asRotation();
 	}
 
 	@Override
-	protected void defineSynchedData() {
-		super.defineSynchedData();
-		entityData.define(COUPLING, Optional.empty());
-		entityData.define(INITIAL_ORIENTATION, Direction.UP);
+	protected void initDataTracker() {
+		super.initDataTracker();
+		dataTracker.startTracking(COUPLING, Optional.empty());
+		dataTracker.startTracking(INITIAL_ORIENTATION, Direction.UP);
 	}
 
 	@Override
@@ -152,13 +152,13 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 
 	@Override
 	public void stopRiding() {
-		if (!level().isClientSide && isAlive())
+		if (!getWorld().isClient && isAlive())
 			disassemble();
 		super.stopRiding();
 	}
 
 	@Override
-	protected void readAdditional(CompoundTag compound, boolean spawnPacket) {
+	protected void readAdditional(NbtCompound compound, boolean spawnPacket) {
 		super.readAdditional(compound, spawnPacket);
 
 		if (compound.contains("InitialOrientation"))
@@ -171,25 +171,25 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 		if (compound.contains("ForceYaw"))
 			startAtYaw(compound.getFloat("ForceYaw"));
 
-		ListTag vecNBT = compound.getList("CachedMotion", 6);
+		NbtList vecNBT = compound.getList("CachedMotion", 6);
 		if (!vecNBT.isEmpty()) {
-			motionBeforeStall = new Vec3(vecNBT.getDouble(0), vecNBT.getDouble(1), vecNBT.getDouble(2));
-			if (!motionBeforeStall.equals(Vec3.ZERO))
+			motionBeforeStall = new Vec3d(vecNBT.getDouble(0), vecNBT.getDouble(1), vecNBT.getDouble(2));
+			if (!motionBeforeStall.equals(Vec3d.ZERO))
 				targetYaw = prevYaw = yaw += yawFromVector(motionBeforeStall);
-			setDeltaMovement(Vec3.ZERO);
+			setVelocity(Vec3d.ZERO);
 		}
 
-		setCouplingId(compound.contains("OnCoupling") ? compound.getUUID("OnCoupling") : null);
+		setCouplingId(compound.contains("OnCoupling") ? compound.getUuid("OnCoupling") : null);
 	}
 
 	@Override
-	protected void writeAdditional(CompoundTag compound, boolean spawnPacket) {
+	protected void writeAdditional(NbtCompound compound, boolean spawnPacket) {
 		super.writeAdditional(compound, spawnPacket);
 
 		if (motionBeforeStall != null)
-			compound.put("CachedMotion", newDoubleList(motionBeforeStall.x, motionBeforeStall.y, motionBeforeStall.z));
+			compound.put("CachedMotion", toNbtList(motionBeforeStall.x, motionBeforeStall.y, motionBeforeStall.z));
 
-		Direction optional = entityData.get(INITIAL_ORIENTATION);
+		Direction optional = dataTracker.get(INITIAL_ORIENTATION);
 		if (optional.getAxis()
 			.isHorizontal())
 			NBTHelper.writeEnum(compound, "InitialOrientation", optional);
@@ -203,18 +203,18 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 		compound.putFloat("Pitch", pitch);
 
 		if (getCouplingId() != null)
-			compound.putUUID("OnCoupling", getCouplingId());
+			compound.putUuid("OnCoupling", getCouplingId());
 	}
 
 	@Override
-	public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
-		super.onSyncedDataUpdated(key);
+	public void onTrackedDataSet(TrackedData<?> key) {
+		super.onTrackedDataSet(key);
 		if (INITIAL_ORIENTATION.equals(key) && isInitialOrientationPresent() && !manuallyPlaced)
 			startAtInitialYaw();
 	}
 
 	public boolean isInitialOrientationPresent() {
-		return entityData.get(INITIAL_ORIENTATION)
+		return dataTracker.get(INITIAL_ORIENTATION)
 			.getAxis()
 			.isHorizontal();
 	}
@@ -229,26 +229,26 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	@Override
-	public Vec3 applyRotation(Vec3 localPos, float partialTicks) {
+	public Vec3d applyRotation(Vec3d localPos, float partialTicks) {
 		localPos = VecHelper.rotate(localPos, getInitialYaw(), Axis.Y);
-		localPos = VecHelper.rotate(localPos, getViewXRot(partialTicks), Axis.Z);
-		localPos = VecHelper.rotate(localPos, getViewYRot(partialTicks), Axis.Y);
+		localPos = VecHelper.rotate(localPos, getPitch(partialTicks), Axis.Z);
+		localPos = VecHelper.rotate(localPos, getYaw(partialTicks), Axis.Y);
 		return localPos;
 	}
 
 	@Override
-	public Vec3 reverseRotation(Vec3 localPos, float partialTicks) {
-		localPos = VecHelper.rotate(localPos, -getViewYRot(partialTicks), Axis.Y);
-		localPos = VecHelper.rotate(localPos, -getViewXRot(partialTicks), Axis.Z);
+	public Vec3d reverseRotation(Vec3d localPos, float partialTicks) {
+		localPos = VecHelper.rotate(localPos, -getYaw(partialTicks), Axis.Y);
+		localPos = VecHelper.rotate(localPos, -getPitch(partialTicks), Axis.Z);
 		localPos = VecHelper.rotate(localPos, -getInitialYaw(), Axis.Y);
 		return localPos;
 	}
 
-	public float getViewYRot(float partialTicks) {
+	public float getYaw(float partialTicks) {
 		return -(partialTicks == 1.0F ? yaw : angleLerp(partialTicks, prevYaw, yaw));
 	}
 
-	public float getViewXRot(float partialTicks) {
+	public float getPitch(float partialTicks) {
 		return partialTicks == 1.0F ? pitch : angleLerp(partialTicks, prevPitch, pitch);
 	}
 
@@ -275,7 +275,7 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 
 		boolean isOnCoupling = false;
 		UUID couplingId = getCouplingId();
-		isOnCoupling = couplingId != null && riding instanceof AbstractMinecart;
+		isOnCoupling = couplingId != null && riding instanceof AbstractMinecartEntity;
 
 		if (!attachedExtraInventories) {
 			attachInventoriesFromRidingCarts(riding, isOnCoupling, couplingId);
@@ -288,26 +288,26 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 		boolean isStalled = isStalled();
 
 		MinecartController capability = null;
-		if(riding instanceof AbstractMinecart minecart)
+		if(riding instanceof AbstractMinecartEntity minecart)
 			capability = minecart.create$getController();
 
 		if (capability != null) {
-			if (!level().isClientSide())
+			if (!getWorld().isClient())
 				capability
 					.setStalledExternally(isStalled);
 		} else {
 			if (isStalled) {
 				if (!wasStalled)
-					motionBeforeStall = riding.getDeltaMovement();
-				riding.setDeltaMovement(0, 0, 0);
+					motionBeforeStall = riding.getVelocity();
+				riding.setVelocity(0, 0, 0);
 			}
 			if (wasStalled && !isStalled) {
-				riding.setDeltaMovement(motionBeforeStall);
-				motionBeforeStall = Vec3.ZERO;
+				riding.setVelocity(motionBeforeStall);
+				motionBeforeStall = Vec3d.ZERO;
 			}
 		}
 
-		if (level().isClientSide)
+		if (getWorld().isClient)
 			return;
 
 		if (!isStalled()) {
@@ -329,12 +329,12 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 			if (coupledCarts == null)
 				return false;
 
-			Vec3 positionVec = coupledCarts.getFirst()
+			Vec3d positionVec = coupledCarts.getFirst()
 				.cart()
-				.position();
-			Vec3 coupledVec = coupledCarts.getSecond()
+				.getPos();
+			Vec3d coupledVec = coupledCarts.getSecond()
 				.cart()
-				.position();
+				.getPos();
 
 			double diffX = positionVec.x - coupledVec.x;
 			double diffY = positionVec.y - coupledVec.y;
@@ -342,10 +342,10 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 
 			prevYaw = yaw;
 			prevPitch = pitch;
-			yaw = (float) (Mth.atan2(diffZ, diffX) * 180 / Math.PI);
+			yaw = (float) (MathHelper.atan2(diffZ, diffX) * 180 / Math.PI);
 			pitch = (float) (Math.atan2(diffY, Math.sqrt(diffX * diffX + diffZ * diffZ)) * 180 / Math.PI);
 
-			if (getCouplingId().equals(riding.getUUID())) {
+			if (getCouplingId().equals(riding.getUuid())) {
 				pitch *= -1;
 				yaw += 180;
 			}
@@ -362,7 +362,7 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 				return false;
 			OrientedContraptionEntity parent = (OrientedContraptionEntity) riding;
 			prevYaw = yaw;
-			yaw = -parent.getViewYRot(1);
+			yaw = -parent.getYaw(1);
 			return false;
 		}
 
@@ -371,22 +371,22 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 			return false;
 
 		boolean rotating = false;
-		Vec3 movementVector = riding.getDeltaMovement();
-		Vec3 locationDiff = riding.position()
-			.subtract(riding.xo, riding.yo, riding.zo);
-		if (!(riding instanceof AbstractMinecart))
+		Vec3d movementVector = riding.getVelocity();
+		Vec3d locationDiff = riding.getPos()
+			.subtract(riding.prevX, riding.prevY, riding.prevZ);
+		if (!(riding instanceof AbstractMinecartEntity))
 			movementVector = locationDiff;
-		Vec3 motion = movementVector.normalize();
+		Vec3d motion = movementVector.normalize();
 
 		if (!rotationLock) {
-			if (riding instanceof AbstractMinecart) {
-				AbstractMinecart minecartEntity = (AbstractMinecart) riding;
+			if (riding instanceof AbstractMinecartEntity) {
+				AbstractMinecartEntity minecartEntity = (AbstractMinecartEntity) riding;
 				BlockPos railPosition = minecartEntity.getCurrentRailPos();
-				BlockState blockState = level().getBlockState(railPosition);
-				if (blockState.getBlock() instanceof BaseRailBlock) {
-					BaseRailBlock abstractRailBlock = (BaseRailBlock) blockState.getBlock();
+				BlockState blockState = getWorld().getBlockState(railPosition);
+				if (blockState.getBlock() instanceof AbstractRailBlock) {
+					AbstractRailBlock abstractRailBlock = (AbstractRailBlock) blockState.getBlock();
 					RailShape railDirection =
-						MinecartAndRailUtil.getDirectionOfRail(blockState, level(), railPosition, abstractRailBlock);
+						MinecartAndRailUtil.getDirectionOfRail(blockState, getWorld(), railPosition, abstractRailBlock);
 					motion = VecHelper.project(motion, MinecartSim2020.getRailVec(railDirection));
 				}
 			}
@@ -400,10 +400,10 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 			}
 
 			prevYaw = yaw;
-			float maxApproachSpeed = (float) (motion.length() * 12f / (Math.max(1, getBoundingBox().getXsize() / 6f)));
+			float maxApproachSpeed = (float) (motion.length() * 12f / (Math.max(1, getBoundingBox().getXLength() / 6f)));
 			float yawHint = AngleHelper.getShortestAngleDiff(yaw, yawFromVector(locationDiff));
 			float approach = AngleHelper.getShortestAngleDiff(yaw, targetYaw, yawHint);
-			approach = Mth.clamp(approach, -maxApproachSpeed, maxApproachSpeed);
+			approach = MathHelper.clamp(approach, -maxApproachSpeed, maxApproachSpeed);
 			yaw += approach;
 			if (Math.abs(AngleHelper.getShortestAngleDiff(yaw, targetYaw)) < 1f)
 				yaw = targetYaw;
@@ -414,13 +414,13 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	protected void powerFurnaceCartWithFuelFromStorage(Entity riding) {
-		if (!(riding instanceof MinecartFurnace))
+		if (!(riding instanceof FurnaceMinecartEntity))
 			return;
-		MinecartFurnace furnaceCart = (MinecartFurnace) riding;
+		FurnaceMinecartEntity furnaceCart = (FurnaceMinecartEntity) riding;
 
 		// Notify to not trigger serialization side-effects
 		isSerializingFurnaceCart = true;
-		CompoundTag nbt = NBTSerializer.serializeNBTCompound(furnaceCart);
+		NbtCompound nbt = NBTSerializer.serializeNBTCompound(furnaceCart);
 		isSerializingFurnaceCart = false;
 
 		int fuel = nbt.getInt("Fuel");
@@ -428,20 +428,20 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 		double pushX = nbt.getDouble("PushX");
 		double pushZ = nbt.getDouble("PushZ");
 
-		int i = Mth.floor(furnaceCart.getX());
-		int j = Mth.floor(furnaceCart.getY());
-		int k = Mth.floor(furnaceCart.getZ());
-		if (furnaceCart.level().getBlockState(new BlockPos(i, j - 1, k))
-			.is(BlockTags.RAILS))
+		int i = MathHelper.floor(furnaceCart.getX());
+		int j = MathHelper.floor(furnaceCart.getY());
+		int k = MathHelper.floor(furnaceCart.getZ());
+		if (furnaceCart.getWorld().getBlockState(new BlockPos(i, j - 1, k))
+			.isIn(BlockTags.RAILS))
 			--j;
 
 		BlockPos blockpos = new BlockPos(i, j, k);
-		BlockState blockstate = this.level().getBlockState(blockpos);
-		if (blockstate.is(BlockTags.RAILS))
+		BlockState blockstate = this.getWorld().getBlockState(blockpos);
+		if (blockstate.isIn(BlockTags.RAILS))
 			if (fuel > 1)
-				riding.setDeltaMovement(riding.getDeltaMovement()
+				riding.setVelocity(riding.getVelocity()
 					.normalize()
-					.scale(1));
+					.multiply(1));
 		if (fuel < 5 && contraption != null) {
 			ItemStack coal = ItemHelper.extract(contraption.getSharedInventory(), FUEL_ITEMS, 1, false);
 			if (!coal.isEmpty())
@@ -461,11 +461,11 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 		UUID couplingId = getCouplingId();
 		if (couplingId == null)
 			return null;
-		MinecartController controller = CapabilityMinecartController.getIfPresent(level(), couplingId);
+		MinecartController controller = CapabilityMinecartController.getIfPresent(getWorld(), couplingId);
 		if (controller == null || !controller.isPresent())
 			return null;
 		UUID coupledCart = controller.getCoupledCart(true);
-		MinecartController coupledController = CapabilityMinecartController.getIfPresent(level(), coupledCart);
+		MinecartController coupledController = CapabilityMinecartController.getIfPresent(getWorld(), coupledCart);
 		if (coupledController == null || !coupledController.isPresent())
 			return null;
 		return Couple.create(controller, coupledController);
@@ -486,35 +486,35 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	@Override
-	public CompoundTag saveWithoutId(CompoundTag nbt) {
-		return isSerializingFurnaceCart ? nbt : super.saveWithoutId(nbt);
+	public NbtCompound writeNbt(NbtCompound nbt) {
+		return isSerializingFurnaceCart ? nbt : super.writeNbt(nbt);
 	}
 
 	@Nullable
 	public UUID getCouplingId() {
-		Optional<UUID> uuid = entityData.get(COUPLING);
+		Optional<UUID> uuid = dataTracker.get(COUPLING);
 		return uuid == null ? null : uuid.isPresent() ? uuid.get() : null;
 	}
 
 	public void setCouplingId(UUID id) {
-		entityData.set(COUPLING, Optional.ofNullable(id));
+		dataTracker.set(COUPLING, Optional.ofNullable(id));
 	}
 
 	@Override
-	public Vec3 getAnchorVec() {
-		Vec3 anchorVec = super.getAnchorVec();
+	public Vec3d getAnchorVec() {
+		Vec3d anchorVec = super.getAnchorVec();
 		return anchorVec.subtract(.5, 0, .5);
 	}
 
 	@Override
-	public Vec3 getPrevAnchorVec() {
-		Vec3 prevAnchorVec = super.getPrevAnchorVec();
+	public Vec3d getPrevAnchorVec() {
+		Vec3d prevAnchorVec = super.getPrevAnchorVec();
 		return prevAnchorVec.subtract(.5, 0, .5);
 	}
 
 	@Override
 	protected StructureTransform makeStructureTransform() {
-		BlockPos offset = BlockPos.containing(getAnchorVec().add(.5, .5, .5));
+		BlockPos offset = BlockPos.ofFloored(getAnchorVec().add(.5, .5, .5));
 		return new StructureTransform(offset, 0, -yaw + getInitialYaw(), 0);
 	}
 
@@ -530,18 +530,18 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public void applyLocalTransforms(PoseStack matrixStack, float partialTicks) {
+	public void applyLocalTransforms(MatrixStack matrixStack, float partialTicks) {
 		float angleInitialYaw = getInitialYaw();
-		float angleYaw = getViewYRot(partialTicks);
-		float anglePitch = getViewXRot(partialTicks);
+		float angleYaw = getYaw(partialTicks);
+		float anglePitch = getPitch(partialTicks);
 
 		matrixStack.translate(-.5f, 0, -.5f);
 
 		Entity ridingEntity = getVehicle();
-		if (ridingEntity instanceof AbstractMinecart)
+		if (ridingEntity instanceof AbstractMinecartEntity)
 			repositionOnCart(matrixStack, partialTicks, ridingEntity);
 		else if (ridingEntity instanceof AbstractContraptionEntity) {
-			if (ridingEntity.getVehicle() instanceof AbstractMinecart)
+			if (ridingEntity.getVehicle() instanceof AbstractMinecartEntity)
 				repositionOnCart(matrixStack, partialTicks, ridingEntity.getVehicle());
 			else
 				repositionOnContraption(matrixStack, partialTicks, ridingEntity);
@@ -557,48 +557,48 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	@Environment(EnvType.CLIENT)
-	private void repositionOnContraption(PoseStack matrixStack, float partialTicks, Entity ridingEntity) {
-		Vec3 pos = getContraptionOffset(partialTicks, ridingEntity);
+	private void repositionOnContraption(MatrixStack matrixStack, float partialTicks, Entity ridingEntity) {
+		Vec3d pos = getContraptionOffset(partialTicks, ridingEntity);
 		matrixStack.translate(pos.x, pos.y, pos.z);
 	}
 
 	// Minecarts do not always render at their exact location, so the contraption
 	// has to adjust aswell
 	@Environment(EnvType.CLIENT)
-	private void repositionOnCart(PoseStack matrixStack, float partialTicks, Entity ridingEntity) {
-		Vec3 cartPos = getCartOffset(partialTicks, ridingEntity);
+	private void repositionOnCart(MatrixStack matrixStack, float partialTicks, Entity ridingEntity) {
+		Vec3d cartPos = getCartOffset(partialTicks, ridingEntity);
 
-		if (cartPos == Vec3.ZERO)
+		if (cartPos == Vec3d.ZERO)
 			return;
 
 		matrixStack.translate(cartPos.x, cartPos.y, cartPos.z);
 	}
 
 	@Environment(EnvType.CLIENT)
-	private Vec3 getContraptionOffset(float partialTicks, Entity ridingEntity) {
+	private Vec3d getContraptionOffset(float partialTicks, Entity ridingEntity) {
 		AbstractContraptionEntity parent = (AbstractContraptionEntity) ridingEntity;
-		Vec3 passengerPosition = parent.getPassengerPosition(this, partialTicks);
+		Vec3d passengerPosition = parent.getPassengerPosition(this, partialTicks);
 		if (passengerPosition == null)
-			return Vec3.ZERO;
-		
-		double x = passengerPosition.x - Mth.lerp(partialTicks, this.xOld, this.getX());
-		double y = passengerPosition.y - Mth.lerp(partialTicks, this.yOld, this.getY());
-		double z = passengerPosition.z - Mth.lerp(partialTicks, this.zOld, this.getZ());
+			return Vec3d.ZERO;
 
-		return new Vec3(x, y, z);
+		double x = passengerPosition.x - MathHelper.lerp(partialTicks, this.lastRenderX, this.getX());
+		double y = passengerPosition.y - MathHelper.lerp(partialTicks, this.lastRenderY, this.getY());
+		double z = passengerPosition.z - MathHelper.lerp(partialTicks, this.lastRenderZ, this.getZ());
+
+		return new Vec3d(x, y, z);
 	}
 
 	@Environment(EnvType.CLIENT)
-	private Vec3 getCartOffset(float partialTicks, Entity ridingEntity) {
-		AbstractMinecart cart = (AbstractMinecart) ridingEntity;
-		double cartX = Mth.lerp(partialTicks, cart.xOld, cart.getX());
-		double cartY = Mth.lerp(partialTicks, cart.yOld, cart.getY());
-		double cartZ = Mth.lerp(partialTicks, cart.zOld, cart.getZ());
-		Vec3 cartPos = cart.getPos(cartX, cartY, cartZ);
+	private Vec3d getCartOffset(float partialTicks, Entity ridingEntity) {
+		AbstractMinecartEntity cart = (AbstractMinecartEntity) ridingEntity;
+		double cartX = MathHelper.lerp(partialTicks, cart.lastRenderX, cart.getX());
+		double cartY = MathHelper.lerp(partialTicks, cart.lastRenderY, cart.getY());
+		double cartZ = MathHelper.lerp(partialTicks, cart.lastRenderZ, cart.getZ());
+		Vec3d cartPos = cart.snapPositionToRail(cartX, cartY, cartZ);
 
 		if (cartPos != null) {
-			Vec3 cartPosFront = cart.getPosOffs(cartX, cartY, cartZ, (double) 0.3F);
-			Vec3 cartPosBack = cart.getPosOffs(cartX, cartY, cartZ, (double) -0.3F);
+			Vec3d cartPosFront = cart.snapPositionToRailWithOffset(cartX, cartY, cartZ, (double) 0.3F);
+			Vec3d cartPosBack = cart.snapPositionToRailWithOffset(cartX, cartY, cartZ, (double) -0.3F);
 			if (cartPosFront == null)
 				cartPosFront = cartPos;
 			if (cartPosBack == null)
@@ -608,15 +608,15 @@ public class OrientedContraptionEntity extends AbstractContraptionEntity {
 			cartY = (cartPosFront.y + cartPosBack.y) / 2.0D - cartY;
 			cartZ = cartPos.z - cartZ;
 
-			return new Vec3(cartX, cartY, cartZ);
+			return new Vec3d(cartX, cartY, cartZ);
 		}
 
-		return Vec3.ZERO;
+		return Vec3d.ZERO;
 	}
 
 	@Environment(EnvType.CLIENT)
 	public static void handleRelocationPacket(ContraptionRelocationPacket packet) {
-		if (Minecraft.getInstance().level.getEntity(packet.entityID) instanceof OrientedContraptionEntity oce)
+		if (MinecraftClient.getInstance().world.getEntityById(packet.entityID) instanceof OrientedContraptionEntity oce)
 			oce.nonDamageTicks = 10;
 	}
 }

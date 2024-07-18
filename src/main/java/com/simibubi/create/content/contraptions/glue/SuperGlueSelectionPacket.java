@@ -1,18 +1,16 @@
 package com.simibubi.create.content.contraptions.glue;
 
 import java.util.Set;
-
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.jamieswhiteshirt.reachentityattributes.ReachEntityAttributes;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.fabric.ReachUtil;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 public class SuperGlueSelectionPacket extends SimplePacketBase {
 
@@ -24,13 +22,13 @@ public class SuperGlueSelectionPacket extends SimplePacketBase {
 		this.to = to;
 	}
 
-	public SuperGlueSelectionPacket(FriendlyByteBuf buffer) {
+	public SuperGlueSelectionPacket(PacketByteBuf buffer) {
 		from = buffer.readBlockPos();
 		to = buffer.readBlockPos();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBlockPos(from);
 		buffer.writeBlockPos(to);
 	}
@@ -38,17 +36,17 @@ public class SuperGlueSelectionPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (AdventureUtil.isAdventure(player))
 				return;
 
 			double range = ReachUtil.reach(player) + 2;
-			if (player.distanceToSqr(Vec3.atCenterOf(to)) > range * range)
+			if (player.squaredDistanceTo(Vec3d.ofCenter(to)) > range * range)
 				return;
-			if (!to.closerThan(from, 25))
+			if (!to.isWithinDistance(from, 25))
 				return;
 
-			Set<BlockPos> group = SuperGlueSelectionHelper.searchGlueGroup(player.level(), from, to, false);
+			Set<BlockPos> group = SuperGlueSelectionHelper.searchGlueGroup(player.getWorld(), from, to, false);
 			if (group == null)
 				return;
 			if (!group.contains(to))
@@ -56,10 +54,10 @@ public class SuperGlueSelectionPacket extends SimplePacketBase {
 			if (!SuperGlueSelectionHelper.collectGlueFromInventory(player, 1, true))
 				return;
 
-			AABB bb = SuperGlueEntity.span(from, to);
+			Box bb = SuperGlueEntity.span(from, to);
 			SuperGlueSelectionHelper.collectGlueFromInventory(player, 1, false);
-			SuperGlueEntity entity = new SuperGlueEntity(player.level(), bb);
-			player.level().addFreshEntity(entity);
+			SuperGlueEntity entity = new SuperGlueEntity(player.getWorld(), bb);
+			player.getWorld().spawnEntity(entity);
 			entity.spawnParticles();
 
 			AllAdvancements.SUPER_GLUE.awardTo(player);

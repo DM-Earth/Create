@@ -8,14 +8,13 @@ import com.tterrag.registrate.util.entry.ItemEntry;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.resource.conditions.v1.DefaultResourceConditions;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.Item;
+import net.minecraft.item.Items;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.util.Identifier;
 
 public class MillingRecipeGen extends ProcessingRecipeGen {
 
@@ -195,7 +194,7 @@ public class MillingRecipeGen extends ProcessingRecipeGen {
 
 	protected GeneratedRecipe metalOre(String name, ItemEntry<? extends Item> crushed, int duration) {
 		return create(name + "_ore", b -> b.duration(duration)
-			.withCondition(DefaultResourceConditions.not(DefaultResourceConditions.tagsPopulated(TagKey.create(Registries.ITEM, new ResourceLocation("c", name + "_ores")))))
+			.withCondition(DefaultResourceConditions.not(DefaultResourceConditions.tagsPopulated(TagKey.of(RegistryKeys.ITEM, new Identifier("c", name + "_ores")))))
 			.require(AllTags.forgeItemTag(name + "_ores"))
 			.output(crushed.get()));
 	}

@@ -5,8 +5,7 @@ import org.joml.Vector3f;
 import com.jozufozu.flywheel.core.materials.BasicData;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.utility.Color;
-
-import net.minecraft.core.BlockPos;
+import net.minecraft.util.math.BlockPos;
 
 public class KineticData extends BasicData {
     float x;

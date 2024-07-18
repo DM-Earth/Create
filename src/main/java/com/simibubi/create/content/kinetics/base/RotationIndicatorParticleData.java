@@ -14,14 +14,14 @@ import com.simibubi.create.foundation.particle.ICustomParticleDataWithSprite;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.particle.ParticleEngine.SpriteParticleRegistration;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.client.particle.ParticleManager.SpriteAwareFactory;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleType;
+import net.minecraft.util.math.Direction.Axis;
 
 public class RotationIndicatorParticleData
-	implements ParticleOptions, ICustomParticleDataWithSprite<RotationIndicatorParticleData> {
+	implements ParticleEffect, ICustomParticleDataWithSprite<RotationIndicatorParticleData> {
 
 	// TODO 1.16 make this unnecessary
 	public static final PrimitiveCodec<Character> CHAR = new PrimitiveCodec<Character>() {
@@ -57,9 +57,9 @@ public class RotationIndicatorParticleData
 				.forGetter(p -> p.axis))
 		.apply(i, RotationIndicatorParticleData::new));
 
-	public static final ParticleOptions.Deserializer<RotationIndicatorParticleData> DESERIALIZER =
-		new ParticleOptions.Deserializer<RotationIndicatorParticleData>() {
-			public RotationIndicatorParticleData fromCommand(ParticleType<RotationIndicatorParticleData> particleTypeIn,
+	public static final ParticleEffect.Factory<RotationIndicatorParticleData> DESERIALIZER =
+		new ParticleEffect.Factory<RotationIndicatorParticleData>() {
+			public RotationIndicatorParticleData read(ParticleType<RotationIndicatorParticleData> particleTypeIn,
 				StringReader reader) throws CommandSyntaxException {
 				reader.expect(' ');
 				int color = reader.readInt();
@@ -76,8 +76,8 @@ public class RotationIndicatorParticleData
 				return new RotationIndicatorParticleData(color, speed, rad1, rad2, lifeSpan, axis);
 			}
 
-			public RotationIndicatorParticleData fromNetwork(ParticleType<RotationIndicatorParticleData> particleTypeIn,
-				FriendlyByteBuf buffer) {
+			public RotationIndicatorParticleData read(ParticleType<RotationIndicatorParticleData> particleTypeIn,
+				PacketByteBuf buffer) {
 				return new RotationIndicatorParticleData(buffer.readInt(), buffer.readFloat(), buffer.readFloat(),
 					buffer.readFloat(), buffer.readInt(), buffer.readChar());
 			}
@@ -114,7 +114,7 @@ public class RotationIndicatorParticleData
 	}
 
 	@Override
-	public void writeToNetwork(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(color);
 		buffer.writeFloat(speed);
 		buffer.writeFloat(radius1);
@@ -124,13 +124,13 @@ public class RotationIndicatorParticleData
 	}
 
 	@Override
-	public String writeToString() {
+	public String asString() {
 		return String.format(Locale.ROOT, "%s %d %.2f %.2f %.2f %d %c", AllParticleTypes.ROTATION_INDICATOR.parameter(),
 			color, speed, radius1, radius2, lifeSpan, axis);
 	}
 
 	@Override
-	public Deserializer<RotationIndicatorParticleData> getDeserializer() {
+	public Factory<RotationIndicatorParticleData> getDeserializer() {
 		return DESERIALIZER;
 	}
 
@@ -141,7 +141,7 @@ public class RotationIndicatorParticleData
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public SpriteParticleRegistration<RotationIndicatorParticleData> getMetaFactory() {
+	public SpriteAwareFactory<RotationIndicatorParticleData> getMetaFactory() {
 		return RotationIndicatorParticle.Factory::new;
 	}
 

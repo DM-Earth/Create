@@ -2,20 +2,18 @@ package com.simibubi.create.content.schematics.client;
 
 import java.util.List;
 import java.util.function.Consumer;
-
-import com.mojang.blaze3d.platform.Window;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.util.Window;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Text;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllKeys;
 import com.simibubi.create.content.schematics.client.tools.ToolType;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
 
 public class ToolSelectionScreen extends Screen {
 
@@ -35,7 +33,7 @@ public class ToolSelectionScreen extends Screen {
 
 	public ToolSelectionScreen(List<ToolType> tools, Consumer<ToolType> callback) {
 		super(Components.literal("Tool Selection"));
-		this.minecraft = Minecraft.getInstance();
+		this.client = MinecraftClient.getInstance();
 		this.tools = tools;
 		this.callback = callback;
 		focused = false;
@@ -60,54 +58,54 @@ public class ToolSelectionScreen extends Screen {
 		selection = (selection + tools.size()) % tools.size();
 	}
 
-	private void draw(GuiGraphics graphics, float partialTicks) {
-		PoseStack matrixStack = graphics.pose();
-		Window mainWindow = minecraft.getWindow();
+	private void draw(DrawContext graphics, float partialTicks) {
+		MatrixStack matrixStack = graphics.getMatrices();
+		Window mainWindow = client.getWindow();
 		if (!initialized)
-			init(minecraft, mainWindow.getGuiScaledWidth(), mainWindow.getGuiScaledHeight());
+			init(client, mainWindow.getScaledWidth(), mainWindow.getScaledHeight());
 
-		int x = (mainWindow.getGuiScaledWidth() - w) / 2 + 15;
-		int y = mainWindow.getGuiScaledHeight() - h - 75;
+		int x = (mainWindow.getScaledWidth() - w) / 2 + 15;
+		int y = mainWindow.getScaledHeight() - h - 75;
 
-		matrixStack.pushPose();
+		matrixStack.push();
 		matrixStack.translate(0, -yOffset, focused ? 100 : 0);
 
 		AllGuiTextures gray = AllGuiTextures.HUD_BACKGROUND;
 		RenderSystem.enableBlend();
 		RenderSystem.setShaderColor(1, 1, 1, focused ? 7 / 8f : 1 / 2f);
 
-		graphics.blit(gray.location, x - 15, y, gray.startX, gray.startY, w, h, gray.width, gray.height);
+		graphics.drawTexture(gray.location, x - 15, y, gray.startX, gray.startY, w, h, gray.width, gray.height);
 
 		float toolTipAlpha = yOffset / 10;
-		List<Component> toolTip = tools.get(selection)
+		List<Text> toolTip = tools.get(selection)
 			.getDescription();
 		int stringAlphaComponent = ((int) (toolTipAlpha * 0xFF)) << 24;
 
 		if (toolTipAlpha > 0.25f) {
 			RenderSystem.setShaderColor(.7f, .7f, .8f, toolTipAlpha);
-			graphics.blit(gray.location, x - 15, y + 33, gray.startX, gray.startY, w, h + 22, gray.width, gray.height);
+			graphics.drawTexture(gray.location, x - 15, y + 33, gray.startX, gray.startY, w, h + 22, gray.width, gray.height);
 			RenderSystem.setShaderColor(1, 1, 1, 1);
 
 			if (toolTip.size() > 0)
-				graphics.drawString(font, toolTip.get(0), x - 10, y + 38, 0xEEEEEE + stringAlphaComponent, false);
+				graphics.drawText(textRenderer, toolTip.get(0), x - 10, y + 38, 0xEEEEEE + stringAlphaComponent, false);
 			if (toolTip.size() > 1)
-				graphics.drawString(font, toolTip.get(1), x - 10, y + 50, 0xCCDDFF + stringAlphaComponent, false);
+				graphics.drawText(textRenderer, toolTip.get(1), x - 10, y + 50, 0xCCDDFF + stringAlphaComponent, false);
 			if (toolTip.size() > 2)
-				graphics.drawString(font, toolTip.get(2), x - 10, y + 60, 0xCCDDFF + stringAlphaComponent, false);
+				graphics.drawText(textRenderer, toolTip.get(2), x - 10, y + 60, 0xCCDDFF + stringAlphaComponent, false);
 			if (toolTip.size() > 3)
-				graphics.drawString(font, toolTip.get(3), x - 10, y + 72, 0xCCCCDD + stringAlphaComponent, false);
+				graphics.drawText(textRenderer, toolTip.get(3), x - 10, y + 72, 0xCCCCDD + stringAlphaComponent, false);
 		}
 
 		RenderSystem.setShaderColor(1, 1, 1, 1);
 		if (tools.size() > 1) {
 			String keyName = AllKeys.TOOL_MENU.getBoundKey();
-			int width = minecraft.getWindow()
-				.getGuiScaledWidth();
+			int width = client.getWindow()
+				.getScaledWidth();
 			if (!focused)
-				graphics.drawCenteredString(minecraft.font, Lang.translateDirect(holdToFocus, keyName), width / 2,
+				graphics.drawCenteredTextWithShadow(client.textRenderer, Lang.translateDirect(holdToFocus, keyName), width / 2,
 					y - 10, 0xCCDDFF);
 			else
-				graphics.drawCenteredString(minecraft.font, scrollToCycle, width / 2, y - 10, 0xCCDDFF);
+				graphics.drawCenteredTextWithShadow(client.textRenderer, scrollToCycle, width / 2, y - 10, 0xCCDDFF);
 		} else {
 			x += 65;
 		}
@@ -115,13 +113,13 @@ public class ToolSelectionScreen extends Screen {
 
 		for (int i = 0; i < tools.size(); i++) {
 			RenderSystem.enableBlend();
-			matrixStack.pushPose();
+			matrixStack.push();
 
 			float alpha = focused ? 1 : .2f;
 			if (i == selection) {
 				matrixStack.translate(0, -10, 0);
 				RenderSystem.setShaderColor(1, 1, 1, 1);
-				graphics.drawCenteredString(minecraft.font, tools.get(i)
+				graphics.drawCenteredTextWithShadow(client.textRenderer, tools.get(i)
 					.getDisplayName()
 					.getString(), x + i * 50 + 24, y + 28, 0xCCDDFF);
 				alpha = 1;
@@ -135,11 +133,11 @@ public class ToolSelectionScreen extends Screen {
 				.getIcon()
 				.render(graphics, x + i * 50 + 16, y + 11);
 
-			matrixStack.popPose();
+			matrixStack.pop();
 		}
 
 		RenderSystem.disableBlend();
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 	public void update() {
@@ -149,12 +147,12 @@ public class ToolSelectionScreen extends Screen {
 			yOffset *= .9f;
 	}
 
-	public void renderPassive(GuiGraphics graphics, float partialTicks) {
+	public void renderPassive(DrawContext graphics, float partialTicks) {
 		draw(graphics, partialTicks);
 	}
 
 	@Override
-	public void onClose() {
+	public void close() {
 		callback.accept(tools.get(selection));
 	}
 

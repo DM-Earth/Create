@@ -4,8 +4,8 @@ import org.joml.Matrix4f;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class Matrix3d {
 
@@ -24,8 +24,8 @@ public class Matrix3d {
 		if (radians == 0)
 			return this;
 
-		double s = Mth.sin(radians);
-		double c = Mth.cos(radians);
+		double s = MathHelper.sin(radians);
+		double c = MathHelper.cos(radians);
 		m22 = m11 = c;
 		m21 = s;
 		m12 = -s;
@@ -37,8 +37,8 @@ public class Matrix3d {
 		if (radians == 0)
 			return this;
 
-		double s = Mth.sin(radians);
-		double c = Mth.cos(radians);
+		double s = MathHelper.sin(radians);
+		double c = MathHelper.cos(radians);
 		m00 = m22 = c;
 		m02 = s;
 		m20 = -s;
@@ -50,8 +50,8 @@ public class Matrix3d {
 		if (radians == 0)
 			return this;
 
-		double s = Mth.sin(radians);
-		double c = Mth.cos(radians);
+		double s = MathHelper.sin(radians);
+		double c = MathHelper.cos(radians);
 		m00 = m11 = c;
 		m01 = -s;
 		m10 = s;
@@ -113,11 +113,11 @@ public class Matrix3d {
 		return this;
 	}
 
-	public Vec3 transform(Vec3 vec) {
+	public Vec3d transform(Vec3d vec) {
 		double x = vec.x * m00 + vec.y * m01 + vec.z * m02;
 		double y = vec.x * m10 + vec.y * m11 + vec.z * m12;
 		double z = vec.x * m20 + vec.y * m21 + vec.z * m22;
-		return new Vec3(x, y, z);
+		return new Vec3d(x, y, z);
 	}
 
 	public Matrix3d copy() {

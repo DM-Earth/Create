@@ -1,16 +1,14 @@
 package com.simibubi.create.content.logistics.chute;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
 import com.simibubi.create.foundation.item.ItemHelper.ExtractionCountMode;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class SmartChuteBlockEntity extends ChuteBlockEntity {
 
@@ -38,14 +36,14 @@ public class SmartChuteBlockEntity extends ChuteBlockEntity {
 
 	@Override
 	protected boolean canCollectItemsFromBelow() {
-		BlockState blockState = getBlockState();
-		return blockState.hasProperty(SmartChuteBlock.POWERED) && !blockState.getValue(SmartChuteBlock.POWERED);
+		BlockState blockState = getCachedState();
+		return blockState.contains(SmartChuteBlock.POWERED) && !blockState.get(SmartChuteBlock.POWERED);
 	}
 	
 	@Override
 	protected boolean canOutputItems() {
-		BlockState blockState = getBlockState();
-		return blockState.hasProperty(SmartChuteBlock.POWERED) && !blockState.getValue(SmartChuteBlock.POWERED);
+		BlockState blockState = getCachedState();
+		return blockState.contains(SmartChuteBlock.POWERED) && !blockState.get(SmartChuteBlock.POWERED);
 	}
 
 	@Override
@@ -58,9 +56,9 @@ public class SmartChuteBlockEntity extends ChuteBlockEntity {
 
 	private boolean isExtracting() {
 		boolean up = getItemMotion() < 0;
-		BlockPos chutePos = worldPosition.relative(up ? Direction.UP : Direction.DOWN);
-		BlockState blockState = level.getBlockState(chutePos);
-		return !AbstractChuteBlock.isChute(blockState) && !blockState.canBeReplaced();
+		BlockPos chutePos = pos.offset(up ? Direction.UP : Direction.DOWN);
+		BlockState blockState = world.getBlockState(chutePos);
+		return !AbstractChuteBlock.isChute(blockState) && !blockState.isReplaceable();
 	}
 
 }

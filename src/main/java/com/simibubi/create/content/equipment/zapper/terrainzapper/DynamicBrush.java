@@ -5,15 +5,13 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.foundation.utility.BlockHelper;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class DynamicBrush extends Brush {
 
@@ -26,7 +24,7 @@ public class DynamicBrush extends Brush {
 		this.surface = surface;
 	}
 
-	Component getParamLabel(int paramIndex) {
+	Text getParamLabel(int paramIndex) {
 		return Lang.translateDirect("generic.range");
 	}
 
@@ -64,7 +62,7 @@ public class DynamicBrush extends Brush {
 	}
 
 	@Override
-	public Collection<BlockPos> addToGlobalPositions(LevelAccessor world, BlockPos targetPos, Direction targetFace,
+	public Collection<BlockPos> addToGlobalPositions(WorldAccess world, BlockPos targetPos, Direction targetFace,
 		Collection<BlockPos> affectedPositions, TerrainTools usedTool) {
 
 		boolean searchDiagonals = param1 == 0;
@@ -86,7 +84,7 @@ public class DynamicBrush extends Brush {
 							.choose(x, y, z) == 0 || !surface)
 							offsets.add(new BlockPos(x, y, z));
 
-		BlockPos startPos = replace ? targetPos : targetPos.relative(targetFace);
+		BlockPos startPos = replace ? targetPos : targetPos.offset(targetFace);
 		frontier.add(startPos);
 
 		while (!frontier.isEmpty()) {
@@ -94,48 +92,48 @@ public class DynamicBrush extends Brush {
 			if (visited.contains(currentPos))
 				continue;
 			visited.add(currentPos);
-			if (!currentPos.closerThan(startPos, searchRange))
+			if (!currentPos.isWithinDistance(startPos, searchRange))
 				continue;
 
 			// Replace Mode
 			if (replace) {
 				BlockState stateToReplace = world.getBlockState(currentPos);
-				BlockState stateAboveStateToReplace = world.getBlockState(currentPos.relative(targetFace));
+				BlockState stateAboveStateToReplace = world.getBlockState(currentPos.offset(targetFace));
 
 				// Criteria
-				if (stateToReplace.getDestroySpeed(world, currentPos) == -1)
+				if (stateToReplace.getHardness(world, currentPos) == -1)
 					continue;
 				if (stateToReplace.getBlock() != state.getBlock() && !fuzzy)
 					continue;
-				if (stateToReplace.canBeReplaced())
+				if (stateToReplace.isReplaceable())
 					continue;
-				if (BlockHelper.hasBlockSolidSide(stateAboveStateToReplace, world, currentPos.relative(targetFace),
+				if (BlockHelper.hasBlockSolidSide(stateAboveStateToReplace, world, currentPos.offset(targetFace),
 					targetFace.getOpposite()) && surface)
 					continue;
 				affectedPositions.add(currentPos);
 
 				// Search adjacent spaces
 				for (BlockPos offset : offsets)
-					frontier.add(currentPos.offset(offset));
+					frontier.add(currentPos.add(offset));
 				continue;
 			}
 
 			// Place Mode
 			BlockState stateToPlaceAt = world.getBlockState(currentPos);
-			BlockState stateToPlaceOn = world.getBlockState(currentPos.relative(targetFace.getOpposite()));
+			BlockState stateToPlaceOn = world.getBlockState(currentPos.offset(targetFace.getOpposite()));
 
 			// Criteria
-			if (stateToPlaceOn.canBeReplaced())
+			if (stateToPlaceOn.isReplaceable())
 				continue;
 			if (stateToPlaceOn.getBlock() != state.getBlock() && !fuzzy)
 				continue;
-			if (!stateToPlaceAt.canBeReplaced())
+			if (!stateToPlaceAt.isReplaceable())
 				continue;
 			affectedPositions.add(currentPos);
 
 			// Search adjacent spaces
 			for (BlockPos offset : offsets)
-				frontier.add(currentPos.offset(offset));
+				frontier.add(currentPos.add(offset));
 			continue;
 		}
 

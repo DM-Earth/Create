@@ -1,13 +1,13 @@
 package com.simibubi.create.foundation.utility;
 
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.WorldAccess;
 
 public class WorldHelper {
-	public static ResourceLocation getDimensionID(LevelAccessor world) {
-		return world.registryAccess()
-			.registryOrThrow(Registries.DIMENSION_TYPE)
-			.getKey(world.dimensionType());
+	public static Identifier getDimensionID(WorldAccess world) {
+		return world.getRegistryManager()
+			.get(RegistryKeys.DIMENSION_TYPE)
+			.getId(world.getDimension());
 	}
 }

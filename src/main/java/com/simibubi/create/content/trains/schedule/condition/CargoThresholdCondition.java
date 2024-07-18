@@ -10,14 +10,13 @@ import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.world.World;
 
 public abstract class CargoThresholdCondition extends LazyTickedScheduleCondition {
 	public static enum Ops {
@@ -38,7 +37,7 @@ public abstract class CargoThresholdCondition extends LazyTickedScheduleConditio
 			};
 		}
 
-		public static List<? extends Component> translatedOptions() {
+		public static List<? extends Text> translatedOptions() {
 			return Arrays.stream(values())
 				.map(op -> Lang.translateDirect("schedule.condition.threshold." + Lang.asId(op.name())))
 				.toList();
@@ -51,7 +50,7 @@ public abstract class CargoThresholdCondition extends LazyTickedScheduleConditio
 	}
 
 	@Override
-	public boolean lazyTickCompletion(Level level, Train train, CompoundTag context) {
+	public boolean lazyTickCompletion(World level, Train train, NbtCompound context) {
 		int lastChecked = context.contains("LastChecked") ? context.getInt("LastChecked") : -1;
 		int status = 0;
 		for (Carriage carriage : train.carriages)
@@ -62,25 +61,25 @@ public abstract class CargoThresholdCondition extends LazyTickedScheduleConditio
 		return test(level, train, context);
 	}
 
-	protected void requestStatusToUpdate(long amount, CompoundTag context) {
+	protected void requestStatusToUpdate(long amount, NbtCompound context) {
 		context.putLong("CurrentDisplay", amount);
 		super.requestStatusToUpdate(context);
 	};
 
-	protected long getLastDisplaySnapshot(CompoundTag context) {
+	protected long getLastDisplaySnapshot(NbtCompound context) {
 		if (!context.contains("CurrentDisplay"))
 			return -1;
 		return context.getLong("CurrentDisplay");
 	}
 
-	protected abstract boolean test(Level level, Train train, CompoundTag context);
+	protected abstract boolean test(World level, Train train, NbtCompound context);
 
-	protected abstract Component getUnit();
+	protected abstract Text getUnit();
 
 	protected abstract ItemStack getIcon();
 
 	@Override
-	public Pair<ItemStack, Component> getSummary() {
+	public Pair<ItemStack, Text> getSummary() {
 		return Pair.of(getIcon(), Components.literal(getOperator().formatted + " " + getThreshold()).append(getUnit()));
 	}
 
@@ -107,12 +106,12 @@ public abstract class CargoThresholdCondition extends LazyTickedScheduleConditio
 	}
 
 	@Override
-	public List<Component> getSecondLineTooltip(int slot) {
+	public List<Text> getSecondLineTooltip(int slot) {
 		return ImmutableList.of(Lang.translateDirect("schedule.condition.threshold.place_item"),
 			Lang.translateDirect("schedule.condition.threshold.place_item_2")
-				.withStyle(ChatFormatting.GRAY),
+				.formatted(Formatting.GRAY),
 			Lang.translateDirect("schedule.condition.threshold.place_item_3")
-				.withStyle(ChatFormatting.GRAY));
+				.formatted(Formatting.GRAY));
 	}
 
 	@Override

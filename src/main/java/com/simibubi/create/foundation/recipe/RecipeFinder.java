@@ -15,10 +15,10 @@ import com.simibubi.create.Create;
 
 import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.level.Level;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 
 /**
  * Utility for searching through a world's recipe collection. Non-dynamic
@@ -42,7 +42,7 @@ public class RecipeFinder {
 	 * @param conditions
 	 * @return A started search to continue with more specific conditions.
 	 */
-	public static List<Recipe<?>> get(@Nullable Object cacheKey, Level world, Predicate<Recipe<?>> conditions) {
+	public static List<Recipe<?>> get(@Nullable Object cacheKey, World world, Predicate<Recipe<?>> conditions) {
 		if (cacheKey == null)
 			return startSearch(world, conditions);
 
@@ -55,20 +55,20 @@ public class RecipeFinder {
 		return Collections.emptyList();
 	}
 
-	private static List<Recipe<?>> startSearch(Level world, Predicate<? super Recipe<?>> conditions) {
-		List<Recipe<?>> list = world.getRecipeManager().getRecipes().stream().filter(conditions)
+	private static List<Recipe<?>> startSearch(World world, Predicate<? super Recipe<?>> conditions) {
+		List<Recipe<?>> list = world.getRecipeManager().values().stream().filter(conditions)
 				.collect(Collectors.toList());
 		return list;
 	}
 
 	public static final IdentifiableResourceReloadListener LISTENER = new SimpleSynchronousResourceReloadListener() {
 		@Override
-		public ResourceLocation getFabricId() {
+		public Identifier getFabricId() {
 			return Create.asResource("recipe_finder");
 		}
 
 		@Override
-		public void onResourceManagerReload(ResourceManager resourceManager) {
+		public void reload(ResourceManager resourceManager) {
 			cachedSearches.invalidateAll();
 		}
 	};

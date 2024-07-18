@@ -13,19 +13,18 @@ import com.simibubi.create.foundation.gui.widget.ScrollInput;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.Level;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 
 public class TimeOfDayCondition extends ScheduleWaitCondition {
 
@@ -35,11 +34,11 @@ public class TimeOfDayCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public boolean tickCompletion(Level level, Train train, CompoundTag context) {
+	public boolean tickCompletion(World level, Train train, NbtCompound context) {
 		int maxTickDiff = 40;
 		int targetHour = intData("Hour");
 		int targetMinute = intData("Minute");
-		int dayTime = (int) (level.getDayTime() % getRotation());
+		int dayTime = (int) (level.getTimeOfDay() % getRotation());
 		int targetTicks =
 			(int) ((((targetHour + 18) % 24) * 1000 + Math.ceil(targetMinute / 60f * 1000)) % getRotation());
 		int diff = dayTime - targetTicks;
@@ -63,12 +62,12 @@ public class TimeOfDayCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public Pair<ItemStack, Component> getSummary() {
+	public Pair<ItemStack, Text> getSummary() {
 		return Pair.of(new ItemStack(Items.STRUCTURE_VOID),
 			getDigitalDisplay(intData("Hour"), intData("Minute"), false));
 	}
 
-	public MutableComponent getDigitalDisplay(int hour, int minute, boolean doubleDigitHrs) {
+	public MutableText getDigitalDisplay(int hour, int minute, boolean doubleDigitHrs) {
 		int hour12raw = hour % 12 == 0 ? 12 : hour % 12;
 		String hr12 = doubleDigitHrs ? twoDigits(hour12raw) : ("" + hour12raw);
 		String hr24 = doubleDigitHrs ? twoDigits(hour) : ("" + hour);
@@ -77,16 +76,16 @@ public class TimeOfDayCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public List<Component> getTitleAs(String type) {
+	public List<Text> getTitleAs(String type) {
 		return ImmutableList.of(Lang.translateDirect("schedule.condition.time_of_day.scheduled"),
-			getDigitalDisplay(intData("Hour"), intData("Minute"), false).withStyle(ChatFormatting.DARK_AQUA)
-				.append(Components.literal(" -> ").withStyle(ChatFormatting.DARK_GRAY))
+			getDigitalDisplay(intData("Hour"), intData("Minute"), false).formatted(Formatting.DARK_AQUA)
+				.append(Components.literal(" -> ").formatted(Formatting.DARK_GRAY))
 				.append(Lang
 					.translatedOptions("schedule.condition.time_of_day.rotation", "every_24", "every_12", "every_6",
 						"every_4", "every_3", "every_2", "every_1", "every_0_45", "every_0_30", "every_0_15")
 					.get(intData("Rotation"))
 					.copy()
-					.withStyle(ChatFormatting.GRAY)));
+					.formatted(Formatting.GRAY)));
 	}
 
 	public String twoDigits(int t) {
@@ -94,18 +93,18 @@ public class TimeOfDayCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return Create.asResource("time_of_day");
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public boolean renderSpecialIcon(GuiGraphics graphics, int x, int y) {
+	public boolean renderSpecialIcon(DrawContext graphics, int x, int y) {
 		int displayHr = (intData("Hour") + 12) % 24;
 		float progress = (displayHr * 60f + intData("Minute")) / (24 * 60);
-		ResourceLocation location =
-			new ResourceLocation("textures/item/clock_" + twoDigits(Mth.clamp((int) (progress * 64), 0, 63)) + ".png");
-		graphics.blit(location, x, y, 0, 0, 0, 16, 16, 16, 16);
+		Identifier location =
+			new Identifier("textures/item/clock_" + twoDigits(MathHelper.clamp((int) (progress * 64), 0, 63)) + ".png");
+		graphics.drawTexture(location, x, y, 0, 0, 0, 16, 16, 16, 16);
 		return true;
 	}
 
@@ -168,10 +167,10 @@ public class TimeOfDayCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public MutableComponent getWaitingStatus(Level level, Train train, CompoundTag tag) {
+	public MutableText getWaitingStatus(World level, Train train, NbtCompound tag) {
 		int targetHour = intData("Hour");
 		int targetMinute = intData("Minute");
-		int dayTime = (int) (level.getDayTime() % getRotation());
+		int dayTime = (int) (level.getTimeOfDay() % getRotation());
 		int targetTicks =
 			(int) ((((targetHour + 18) % 24) * 1000 + Math.ceil(targetMinute / 60f * 1000)) % getRotation());
 		int diff = targetTicks - dayTime;
@@ -179,7 +178,7 @@ public class TimeOfDayCondition extends ScheduleWaitCondition {
 		if (diff < 0)
 			diff += getRotation();
 
-		int departureTime = (int) (level.getDayTime() + diff) % 24000;
+		int departureTime = (int) (level.getTimeOfDay() + diff) % 24000;
 		int departingHour = (departureTime / 1000 + 6) % 24;
 		int departingMinute = (departureTime % 1000) * 60 / 1000;
 

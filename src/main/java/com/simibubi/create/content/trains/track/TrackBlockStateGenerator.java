@@ -6,9 +6,8 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 
 public class TrackBlockStateGenerator extends SpecialBlockStateGen {
 
@@ -19,14 +18,14 @@ public class TrackBlockStateGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		return state.getValue(TrackBlock.SHAPE)
+		return state.get(TrackBlock.SHAPE)
 			.getModelRotation();
 	}
 
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> ctx, RegistrateBlockstateProvider prov,
 												BlockState state) {
-		TrackShape value = state.getValue(TrackBlock.SHAPE);
+		TrackShape value = state.get(TrackBlock.SHAPE);
 		if (value == TrackShape.NONE)
 			return prov.models()
 				.getExistingFile(prov.mcLoc("block/air"));

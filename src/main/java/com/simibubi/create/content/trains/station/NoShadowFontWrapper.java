@@ -1,115 +1,113 @@
 package com.simibubi.create.content.trains.station;
 
 import java.util.List;
-
+import net.minecraft.client.font.FontStorage;
+import net.minecraft.client.font.TextHandler;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.text.OrderedText;
+import net.minecraft.text.StringVisitable;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.FontAccessor;
 
 import org.joml.Matrix4f;
 
-import net.minecraft.client.StringSplitter;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.font.FontSet;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
+public class NoShadowFontWrapper extends TextRenderer {
 
-public class NoShadowFontWrapper extends Font {
+	private TextRenderer wrapped;
 
-	private Font wrapped;
-
-	public NoShadowFontWrapper(Font wrapped) {
+	public NoShadowFontWrapper(TextRenderer wrapped) {
 		super(null, false);
 		this.wrapped = wrapped;
 	}
 
-	public FontSet getFontSet(ResourceLocation pFontLocation) {
+	public FontStorage getFontStorage(Identifier pFontLocation) {
 		return ((FontAccessor) wrapped).port_lib$getFontSet(pFontLocation);
 	}
 
 	@Override
-	public int drawInBatch(Component pText, float pX, float pY, int pColor, boolean pDropShadow, Matrix4f pMatrix,
-		MultiBufferSource pBuffer, DisplayMode pDisplayMode, int pBackgroundColor, int pPackedLightCoords) {
-		return wrapped.drawInBatch(pText, pX, pY, pColor, false, pMatrix, pBuffer, pDisplayMode, pBackgroundColor,
+	public int draw(Text pText, float pX, float pY, int pColor, boolean pDropShadow, Matrix4f pMatrix,
+		VertexConsumerProvider pBuffer, TextLayerType pDisplayMode, int pBackgroundColor, int pPackedLightCoords) {
+		return wrapped.draw(pText, pX, pY, pColor, false, pMatrix, pBuffer, pDisplayMode, pBackgroundColor,
 			pPackedLightCoords);
 	}
 
 	@Override
-	public int drawInBatch(FormattedCharSequence pText, float pX, float pY, int pColor, boolean pDropShadow,
-		Matrix4f pMatrix, MultiBufferSource pBuffer, DisplayMode pDisplayMode, int pBackgroundColor,
+	public int draw(OrderedText pText, float pX, float pY, int pColor, boolean pDropShadow,
+		Matrix4f pMatrix, VertexConsumerProvider pBuffer, TextLayerType pDisplayMode, int pBackgroundColor,
 		int pPackedLightCoords) {
-		return wrapped.drawInBatch(pText, pX, pY, pColor, false, pMatrix, pBuffer, pDisplayMode, pBackgroundColor,
+		return wrapped.draw(pText, pX, pY, pColor, false, pMatrix, pBuffer, pDisplayMode, pBackgroundColor,
 			pPackedLightCoords);
 	}
 
 	@Override
-	public int drawInBatch(String pText, float pX, float pY, int pColor, boolean pDropShadow, Matrix4f pMatrix,
-		MultiBufferSource pBuffer, DisplayMode pDisplayMode, int pBackgroundColor, int pPackedLightCoords) {
-		return wrapped.drawInBatch(pText, pX, pY, pColor, false, pMatrix, pBuffer, pDisplayMode, pBackgroundColor,
+	public int draw(String pText, float pX, float pY, int pColor, boolean pDropShadow, Matrix4f pMatrix,
+		VertexConsumerProvider pBuffer, TextLayerType pDisplayMode, int pBackgroundColor, int pPackedLightCoords) {
+		return wrapped.draw(pText, pX, pY, pColor, false, pMatrix, pBuffer, pDisplayMode, pBackgroundColor,
 			pPackedLightCoords);
 	}
 
 	@Override
-	public int drawInBatch(String pText, float pX, float pY, int pColor, boolean pDropShadow, Matrix4f pMatrix,
-		MultiBufferSource pBuffer, DisplayMode pDisplayMode, int pBackgroundColor, int pPackedLightCoords,
+	public int draw(String pText, float pX, float pY, int pColor, boolean pDropShadow, Matrix4f pMatrix,
+		VertexConsumerProvider pBuffer, TextLayerType pDisplayMode, int pBackgroundColor, int pPackedLightCoords,
 		boolean pBidirectional) {
-		return wrapped.drawInBatch(pText, pX, pY, pColor, false, pMatrix, pBuffer, pDisplayMode, pBackgroundColor,
+		return wrapped.draw(pText, pX, pY, pColor, false, pMatrix, pBuffer, pDisplayMode, pBackgroundColor,
 			pPackedLightCoords, pBidirectional);
 	}
 
 	@Override
-	public int wordWrapHeight(FormattedText pText, int pMaxWidth) {
-		return wrapped.wordWrapHeight(pText, pMaxWidth);
+	public int getWrappedLinesHeight(StringVisitable pText, int pMaxWidth) {
+		return wrapped.getWrappedLinesHeight(pText, pMaxWidth);
 	}
 
-	public String bidirectionalShaping(String pText) {
-		return wrapped.bidirectionalShaping(pText);
+	public String mirror(String pText) {
+		return wrapped.mirror(pText);
 	}
 
-	public void drawInBatch8xOutline(FormattedCharSequence pText, float pX, float pY, int pColor, int pBackgroundColor,
-		Matrix4f pMatrix, MultiBufferSource pBuffer, int pPackedLightCoords) {
-		wrapped.drawInBatch8xOutline(pText, pX, pY, pColor, pBackgroundColor, pMatrix, pBuffer, pPackedLightCoords);
+	public void drawWithOutline(OrderedText pText, float pX, float pY, int pColor, int pBackgroundColor,
+		Matrix4f pMatrix, VertexConsumerProvider pBuffer, int pPackedLightCoords) {
+		wrapped.drawWithOutline(pText, pX, pY, pColor, pBackgroundColor, pMatrix, pBuffer, pPackedLightCoords);
 	}
 
-	public int width(String pText) {
-		return wrapped.width(pText);
+	public int getWidth(String pText) {
+		return wrapped.getWidth(pText);
 	}
 
-	public int width(FormattedText pText) {
-		return wrapped.width(pText);
+	public int getWidth(StringVisitable pText) {
+		return wrapped.getWidth(pText);
 	}
 
-	public int width(FormattedCharSequence pText) {
-		return wrapped.width(pText);
+	public int getWidth(OrderedText pText) {
+		return wrapped.getWidth(pText);
 	}
 
-	public String plainSubstrByWidth(String p_92838_, int p_92839_, boolean p_92840_) {
-		return wrapped.plainSubstrByWidth(p_92838_, p_92839_, p_92840_);
+	public String trimToWidth(String p_92838_, int p_92839_, boolean p_92840_) {
+		return wrapped.trimToWidth(p_92838_, p_92839_, p_92840_);
 	}
 
-	public String plainSubstrByWidth(String pText, int pMaxWidth) {
-		return wrapped.plainSubstrByWidth(pText, pMaxWidth);
+	public String trimToWidth(String pText, int pMaxWidth) {
+		return wrapped.trimToWidth(pText, pMaxWidth);
 	}
 
-	public FormattedText substrByWidth(FormattedText pText, int pMaxWidth) {
-		return wrapped.substrByWidth(pText, pMaxWidth);
+	public StringVisitable trimToWidth(StringVisitable pText, int pMaxWidth) {
+		return wrapped.trimToWidth(pText, pMaxWidth);
 	}
 
-	public int wordWrapHeight(String pStr, int pMaxWidth) {
-		return wrapped.wordWrapHeight(pStr, pMaxWidth);
+	public int getWrappedLinesHeight(String pStr, int pMaxWidth) {
+		return wrapped.getWrappedLinesHeight(pStr, pMaxWidth);
 	}
 
-	public List<FormattedCharSequence> split(FormattedText pText, int pMaxWidth) {
-		return wrapped.split(pText, pMaxWidth);
+	public List<OrderedText> wrapLines(StringVisitable pText, int pMaxWidth) {
+		return wrapped.wrapLines(pText, pMaxWidth);
 	}
 
-	public boolean isBidirectional() {
-		return wrapped.isBidirectional();
+	public boolean isRightToLeft() {
+		return wrapped.isRightToLeft();
 	}
 
-	public StringSplitter getSplitter() {
-		return wrapped.getSplitter();
+	public TextHandler getTextHandler() {
+		return wrapped.getTextHandler();
 	}
 
 }

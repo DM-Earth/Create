@@ -1,16 +1,14 @@
 package com.simibubi.create.foundation.utility;
 
 import java.util.Map;
-
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.util.DyeColor;
 import com.google.common.collect.ImmutableMap;
-
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Blocks;
 
 public class DyeHelper {
 
-	public static ItemLike getWoolOfDye(DyeColor color) {
+	public static ItemConvertible getWoolOfDye(DyeColor color) {
 		switch (color) {
 		case BLACK:
 			return Blocks.BLACK_WOOL;

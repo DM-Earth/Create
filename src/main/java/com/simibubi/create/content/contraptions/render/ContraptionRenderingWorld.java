@@ -4,7 +4,8 @@ import java.lang.ref.Reference;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import com.jozufozu.flywheel.event.BeginFrameEvent;
 import com.jozufozu.flywheel.event.RenderLayerEvent;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
@@ -14,19 +15,17 @@ import com.simibubi.create.content.contraptions.ContraptionHandler;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
 
 public abstract class ContraptionRenderingWorld<C extends ContraptionRenderInfo> {
-	protected final Level world;
+	protected final World world;
 
 	private int removalTimer;
 
 	protected final Int2ObjectMap<C> renderInfos = new Int2ObjectOpenHashMap<>();
 	protected final List<C> visible = new ObjectArrayList<>();
 
-	public ContraptionRenderingWorld(LevelAccessor world) {
-		this.world = (Level) world;
+	public ContraptionRenderingWorld(WorldAccess world) {
+		this.world = (World) world;
 	}
 
 	public boolean invalidate(Contraption contraption) {

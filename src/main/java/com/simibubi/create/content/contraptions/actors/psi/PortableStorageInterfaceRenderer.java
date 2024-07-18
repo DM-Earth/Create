@@ -1,12 +1,19 @@
 package com.simibubi.create.content.contraptions.actors.psi;
 
 import java.util.function.Consumer;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import com.jozufozu.flywheel.backend.Backend;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
@@ -19,36 +26,27 @@ import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-
 public class PortableStorageInterfaceRenderer extends SafeBlockEntityRenderer<PortableStorageInterfaceBlockEntity> {
 
-	public PortableStorageInterfaceRenderer(BlockEntityRendererProvider.Context context) {}
+	public PortableStorageInterfaceRenderer(BlockEntityRendererFactory.Context context) {}
 
 	@Override
-	protected void renderSafe(PortableStorageInterfaceBlockEntity be, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, int overlay) {
-		if (Backend.canUseInstancing(be.getLevel()))
+	protected void renderSafe(PortableStorageInterfaceBlockEntity be, float partialTicks, MatrixStack ms,
+		VertexConsumerProvider buffer, int light, int overlay) {
+		if (Backend.canUseInstancing(be.getWorld()))
 			return;
 
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		float progress = be.getExtensionDistance(partialTicks);
-		VertexConsumer vb = buffer.getBuffer(RenderType.solid());
+		VertexConsumer vb = buffer.getBuffer(RenderLayer.getSolid());
 		render(blockState, be.isConnected(), progress, null, sbb -> sbb.light(light)
 			.renderInto(ms, vb));
 	}
 
 	public static void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
 		BlockState blockState = context.state;
-		VertexConsumer vb = buffer.getBuffer(RenderType.solid());
+		VertexConsumer vb = buffer.getBuffer(RenderLayer.getSolid());
 		float renderPartialTicks = AnimationTickHolder.getPartialTicks();
 
 		LerpedFloat animation = PortableStorageInterfaceMovement.getAnimation(context);
@@ -60,7 +58,7 @@ public class PortableStorageInterfaceRenderer extends SafeBlockEntityRenderer<Po
 				.renderInto(matrices.getViewProjection(), vb));
 	}
 
-	private static void render(BlockState blockState, boolean lit, float progress, PoseStack local,
+	private static void render(BlockState blockState, boolean lit, float progress, MatrixStack local,
 		Consumer<SuperByteBuffer> drawCallback) {
 		SuperByteBuffer middle = CachedBufferer.partial(getMiddleForState(blockState, lit), blockState);
 		SuperByteBuffer top = CachedBufferer.partial(getTopForState(blockState), blockState);
@@ -69,7 +67,7 @@ public class PortableStorageInterfaceRenderer extends SafeBlockEntityRenderer<Po
 			middle.transform(local);
 			top.transform(local);
 		}
-		Direction facing = blockState.getValue(PortableStorageInterfaceBlock.FACING);
+		Direction facing = blockState.get(PortableStorageInterfaceBlock.FACING);
 		rotateToFacing(middle, facing);
 		rotateToFacing(top, facing);
 		middle.translate(0, progress * 0.5f + 0.375f, 0);
@@ -91,7 +89,7 @@ public class PortableStorageInterfaceRenderer extends SafeBlockEntityRenderer<Po
 		if (!context.data.contains(_workingPos_))
 			return null;
 
-		BlockPos pos = NbtUtils.readBlockPos(context.data.getCompound(_workingPos_));
+		BlockPos pos = NbtHelper.toBlockPos(context.data.getCompound(_workingPos_));
 		BlockEntity blockEntity = context.world.getBlockEntity(pos);
 		if (!(blockEntity instanceof PortableStorageInterfaceBlockEntity psi))
 			return null;

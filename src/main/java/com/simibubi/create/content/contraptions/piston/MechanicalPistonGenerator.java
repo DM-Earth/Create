@@ -6,13 +6,12 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.piston.PistonBaseBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.PistonType;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.PistonBlock;
+import net.minecraft.block.enums.PistonType;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
 
 public class MechanicalPistonGenerator extends SpecialBlockStateGen {
 
@@ -24,14 +23,14 @@ public class MechanicalPistonGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getXRotation(BlockState state) {
-		Direction facing = state.getValue(MechanicalPistonBlock.FACING);
+		Direction facing = state.get(MechanicalPistonBlock.FACING);
 		return facing.getAxis()
 			.isVertical() ? facing == Direction.DOWN ? 180 : 0 : 90;
 	}
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		Direction facing = state.getValue(MechanicalPistonBlock.FACING);
+		Direction facing = state.get(MechanicalPistonBlock.FACING);
 		return facing.getAxis()
 			.isVertical() ? 0 : horizontalAngle(facing) + 180;
 	}
@@ -39,12 +38,12 @@ public class MechanicalPistonGenerator extends SpecialBlockStateGen {
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> ctx, RegistrateBlockstateProvider prov,
 												BlockState state) {
-		Direction facing = state.getValue(PistonBaseBlock.FACING);
-		boolean axisAlongFirst = state.getValue(MechanicalPistonBlock.AXIS_ALONG_FIRST_COORDINATE);
-		PistonState pistonState = state.getValue(MechanicalPistonBlock.STATE);
+		Direction facing = state.get(PistonBlock.FACING);
+		boolean axisAlongFirst = state.get(MechanicalPistonBlock.AXIS_ALONG_FIRST_COORDINATE);
+		PistonState pistonState = state.get(MechanicalPistonBlock.STATE);
 
 		String path = "block/mechanical_piston";
-		String folder = pistonState == PistonState.RETRACTED ? type.getSerializedName() : pistonState.getSerializedName();
+		String folder = pistonState == PistonState.RETRACTED ? type.asString() : pistonState.asString();
 		String partial = facing.getAxis() == Axis.X ^ axisAlongFirst ? "block_rotated" : "block";
 
 		return prov.models()

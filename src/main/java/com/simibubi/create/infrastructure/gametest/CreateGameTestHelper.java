@@ -38,80 +38,80 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.gametest.framework.GameTestInfo;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.LeverBlock;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.test.GameTestState;
+import net.minecraft.test.TestContext;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 /**
- * A helper class expanding the functionality of {@link GameTestHelper}.
+ * A helper class expanding the functionality of {@link TestContext}.
  * This class may replace the default helper parameter if a test is registered through {@link CreateTestFunction}.
  */
-public class CreateGameTestHelper extends GameTestHelper {
+public class CreateGameTestHelper extends TestContext {
 	public static final int TICKS_PER_SECOND = 20;
 	public static final int TEN_SECONDS = 10 * TICKS_PER_SECOND;
 	public static final int FIFTEEN_SECONDS = 15 * TICKS_PER_SECOND;
 	public static final int TWENTY_SECONDS = 20 * TICKS_PER_SECOND;
 
-	private CreateGameTestHelper(GameTestInfo testInfo) {
+	private CreateGameTestHelper(GameTestState testInfo) {
 		super(testInfo);
 	}
 
-	public static CreateGameTestHelper of(GameTestHelper original) {
+	public static CreateGameTestHelper of(TestContext original) {
 		GameTestHelperAccessor access = (GameTestHelperAccessor) original;
-		CreateGameTestHelper helper = new CreateGameTestHelper(access.getTestInfo());
+		CreateGameTestHelper helper = new CreateGameTestHelper(access.getTest());
 		//noinspection DataFlowIssue // accessor applied at runtime
 		GameTestHelperAccessor newAccess = (GameTestHelperAccessor) helper;
-		newAccess.setFinalCheckAdded(access.getFinalCheckAdded());
+		newAccess.setHasFinalClause(access.getHasFinalClause());
 		return helper;
 	}
 
 	// blocks
 
 	/**
-	 * Flip the direction of any block with the {@link BlockStateProperties#FACING} property.
+	 * Flip the direction of any block with the {@link Properties#FACING} property.
 	 */
 	public void flipBlock(BlockPos pos) {
 		BlockState original = getBlockState(pos);
-		if (!original.hasProperty(BlockStateProperties.FACING))
-			fail("FACING property not in block: " + BuiltInRegistries.BLOCK.getId(original.getBlock()));
-		Direction facing = original.getValue(BlockStateProperties.FACING);
-		BlockState reversed = original.setValue(BlockStateProperties.FACING, facing.getOpposite());
-		setBlock(pos, reversed);
+		if (!original.contains(Properties.FACING))
+			throwGameTestException("FACING property not in block: " + Registries.BLOCK.getRawId(original.getBlock()));
+		Direction facing = original.get(Properties.FACING);
+		BlockState reversed = original.with(Properties.FACING, facing.getOpposite());
+		setBlockState(pos, reversed);
 	}
 
 	public void assertNixiePower(BlockPos pos, int strength) {
 		NixieTubeBlockEntity nixie = getBlockEntity(AllBlockEntityTypes.NIXIE_TUBE.get(), pos);
 		int actualStrength = nixie.getRedstoneStrength();
 		if (actualStrength != strength)
-			fail("Expected nixie tube at %s to have power of %s, got %s".formatted(pos, strength, actualStrength));
+			throwGameTestException("Expected nixie tube at %s to have power of %s, got %s".formatted(pos, strength, actualStrength));
 	}
 
 	/**
 	 * Turn off a lever.
 	 */
 	public void powerLever(BlockPos pos) {
-		assertBlockPresent(Blocks.LEVER, pos);
-		if (!getBlockState(pos).getValue(LeverBlock.POWERED)) {
-			pullLever(pos);
+		expectBlock(Blocks.LEVER, pos);
+		if (!getBlockState(pos).get(LeverBlock.POWERED)) {
+			toggleLever(pos);
 		}
 	}
 
@@ -119,9 +119,9 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 * Turn on a lever.
 	 */
 	public void unpowerLever(BlockPos pos) {
-		assertBlockPresent(Blocks.LEVER, pos);
-		if (getBlockState(pos).getValue(LeverBlock.POWERED)) {
-			pullLever(pos);
+		expectBlock(Blocks.LEVER, pos);
+		if (getBlockState(pos).get(LeverBlock.POWERED)) {
+			toggleLever(pos);
 		}
 	}
 
@@ -145,7 +145,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 		assertInRange(be.getNetworkCapacity(), value - 0.01, value + 0.01);
 	}
 
-	public void toggleActorsOfType(Contraption contraption, ItemLike item) {
+	public void toggleActorsOfType(Contraption contraption, ItemConvertible item) {
 		AtomicBoolean toggled = new AtomicBoolean(false);
 		contraption.getInteractors().forEach((localPos, behavior) -> {
 			if (toggled.get() || !(behavior instanceof ContraptionControlsMovingInteraction controls))
@@ -154,9 +154,9 @@ public class CreateGameTestHelper extends GameTestHelper {
 			if (actor == null)
 				return;
 			ItemStack filter = ContraptionControlsMovement.getFilter(actor.right);
-			if (filter != null && filter.is(item.asItem())) {
+			if (filter != null && filter.isOf(item.asItem())) {
 				controls.handlePlayerInteraction(
-						makeMockPlayer(), InteractionHand.MAIN_HAND, localPos, contraption.entity
+						createMockCreativePlayer(), Hand.MAIN_HAND, localPos, contraption.entity
 				);
 				toggled.set(true);
 			}
@@ -176,7 +176,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 			String error = "Expected block entity at pos [%s] with type [%s], got [%s]".formatted(
 					pos, RegisteredObjects.getKeyOrThrow(type), actualId
 			);
-			fail(error);
+			throwGameTestException(error);
 		}
 		return (T) be;
 	}
@@ -187,7 +187,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 	public <T extends BlockEntity & IMultiBlockEntityContainer> T getControllerBlockEntity(BlockEntityType<T> type, BlockPos anySegment) {
 		T be = getBlockEntity(type, anySegment).getControllerBE();
 		if (be == null)
-			fail("Could not get block entity controller with type [%s] from pos [%s]".formatted(RegisteredObjects.getKeyOrThrow(type), anySegment));
+			throwGameTestException("Could not get block entity controller with type [%s] from pos [%s]".formatted(RegisteredObjects.getKeyOrThrow(type), anySegment));
 		return be;
 	}
 
@@ -195,9 +195,9 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 * Get the expected {@link BlockEntityBehaviour} from the given position, failing if not present.
 	 */
 	public <T extends BlockEntityBehaviour> T getBehavior(BlockPos pos, BehaviourType<T> type) {
-		T behavior = BlockEntityBehaviour.get(getLevel(), absolutePos(pos), type);
+		T behavior = BlockEntityBehaviour.get(getWorld(), getAbsolutePos(pos), type);
 		if (behavior == null)
-			fail("Behavior at " + pos + " missing, expected " + type.getName());
+			throwGameTestException("Behavior at " + pos + " missing, expected " + type.getName());
 		return behavior;
 	}
 
@@ -207,10 +207,10 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 * Spawn an item entity at the given position with no velocity.
 	 */
 	public ItemEntity spawnItem(BlockPos pos, ItemStack stack) {
-		Vec3 spawn = Vec3.atCenterOf(absolutePos(pos));
-		ServerLevel level = getLevel();
+		Vec3d spawn = Vec3d.ofCenter(getAbsolutePos(pos));
+		ServerWorld level = getWorld();
 		ItemEntity item = new ItemEntity(level, spawn.x, spawn.y, spawn.z, stack, 0, 0, 0);
-		level.addFreshEntity(item);
+		level.spawnEntity(item);
 		return item;
 	}
 
@@ -220,7 +220,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 */
 	public void spawnItems(BlockPos pos, Item item, int amount) {
 		while (amount > 0) {
-			int toSpawn = Math.min(amount, item.getMaxStackSize());
+			int toSpawn = Math.min(amount, item.getMaxCount());
 			amount -= toSpawn;
 			ItemStack stack = new ItemStack(item, toSpawn);
 			spawnItem(pos, stack);
@@ -231,9 +231,9 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 * Get the first entity found at the given position.
 	 */
 	public <T extends Entity> T getFirstEntity(EntityType<T> type, BlockPos pos) {
-		List<T> list = getEntitiesBetween(type, pos.north().east().above(), pos.south().west().below());
+		List<T> list = getEntitiesBetween(type, pos.north().east().up(), pos.south().west().down());
 		if (list.isEmpty())
-			fail("No entities at pos: " + pos);
+			throwGameTestException("No entities at pos: " + pos);
 		return list.get(0);
 	}
 
@@ -241,8 +241,8 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 * Get a list of all entities between two positions, inclusive.
 	 */
 	public <T extends Entity> List<T> getEntitiesBetween(EntityType<T> type, BlockPos pos1, BlockPos pos2) {
-		BoundingBox box = BoundingBox.fromCorners(absolutePos(pos1), absolutePos(pos2));
-		List<? extends T> entities = getLevel().getEntities(type, e -> box.isInside(e.blockPosition()));
+		BlockBox box = BlockBox.create(getAbsolutePos(pos1), getAbsolutePos(pos2));
+		List<? extends T> entities = getWorld().getEntitiesByType(type, e -> box.contains(e.getBlockPos()));
 		return (List<T>) entities;
 	}
 
@@ -250,9 +250,9 @@ public class CreateGameTestHelper extends GameTestHelper {
 	// transfer - fluids
 
 	public Storage<FluidVariant> fluidStorageAt(BlockPos pos) {
-		Storage<FluidVariant> storage = TransferUtil.getFluidStorage(getLevel(), absolutePos(pos));
+		Storage<FluidVariant> storage = TransferUtil.getFluidStorage(getWorld(), getAbsolutePos(pos));
 		if (storage == null)
-			fail("storage not present");
+			throwGameTestException("storage not present");
 		return storage;
 	}
 
@@ -290,9 +290,9 @@ public class CreateGameTestHelper extends GameTestHelper {
 	public void assertFluidPresent(FluidStack fluid, BlockPos pos) {
 		FluidStack contained = getTankContents(pos);
 		if (!fluid.isFluidEqual(contained))
-			fail("Different fluids");
+			throwGameTestException("Different fluids");
 		if (fluid.getAmount() != contained.getAmount())
-			fail("Different amounts");
+			throwGameTestException("Different amounts");
 	}
 
 	/**
@@ -311,9 +311,9 @@ public class CreateGameTestHelper extends GameTestHelper {
 	// transfer - items
 
 	public Storage<ItemVariant> itemStorageAt(BlockPos pos) {
-		Storage<ItemVariant> storage = TransferUtil.getItemStorage(getLevel(), absolutePos(pos));
+		Storage<ItemVariant> storage = TransferUtil.getItemStorage(getWorld(), getAbsolutePos(pos));
 		if (storage == null)
-			fail("storage not present");
+			throwGameTestException("storage not present");
 		return storage;
 	}
 
@@ -360,7 +360,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 			}
 		}
 		if (noneFound)
-			fail("No matching items " + Arrays.toString(items) + " found in handler at pos: " + pos);
+			throwGameTestException("No matching items " + Arrays.toString(items) + " found in handler at pos: " + pos);
 	}
 
 	/**
@@ -381,7 +381,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 			}
 		}
 		if (!missing.isEmpty())
-			fail("Storage missing content: " + missing + ", expected: " + content);
+			throwGameTestException("Storage missing content: " + missing + ", expected: " + content);
 	}
 
 	/**
@@ -389,7 +389,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 */
 	public void assertContainersEmpty(List<BlockPos> positions) {
 		for (BlockPos pos : positions) {
-			assertContainerEmpty(pos);
+			expectEmptyContainer(pos);
 		}
 	}
 
@@ -397,19 +397,19 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 * Assert that the given inventory holds no items.
 	 */
 	@Override
-	public void assertContainerEmpty(@NotNull BlockPos pos) {
+	public void expectEmptyContainer(@NotNull BlockPos pos) {
 		Storage<ItemVariant> storage = itemStorageAt(pos);
-		storage.nonEmptyViews().forEach(view -> fail("Storage not empty"));
+		storage.nonEmptyViews().forEach(view -> throwGameTestException("Storage not empty"));
 	}
 
 	/** @see CreateGameTestHelper#assertContainerContains(BlockPos, ItemStack) */
-	public void assertContainerContains(BlockPos pos, ItemLike item) {
-		assertContainerContains(pos, item.asItem());
+	public void assertContainerContains(BlockPos pos, ItemConvertible item) {
+		expectContainerWith(pos, item.asItem());
 	}
 
 	/** @see CreateGameTestHelper#assertContainerContains(BlockPos, ItemStack) */
 	@Override
-	public void assertContainerContains(@NotNull BlockPos pos, @NotNull Item item) {
+	public void expectContainerWith(@NotNull BlockPos pos, @NotNull Item item) {
 		assertContainerContains(pos, new ItemStack(item));
 	}
 
@@ -420,7 +420,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 		Storage<ItemVariant> storage = itemStorageAt(pos);
 		ItemStack extracted = ItemHelper.extract(storage, stack -> ItemHandlerHelper.canItemStacksStack(stack, item), item.getCount(), true);
 		if (extracted.isEmpty())
-			fail("item not present: " + item);
+			throwGameTestException("item not present: " + item);
 	}
 
 	// time
@@ -430,7 +430,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 */
 	public void assertSecondsPassed(int seconds) {
 		if (getTick() < (long) seconds * TICKS_PER_SECOND)
-			fail("Waiting for %s seconds to pass".formatted(seconds));
+			throwGameTestException("Waiting for %s seconds to pass".formatted(seconds));
 	}
 
 	/**
@@ -444,7 +444,7 @@ public class CreateGameTestHelper extends GameTestHelper {
 	 * Run an action later, once enough time has passed.
 	 */
 	public void whenSecondsPassed(int seconds, Runnable run) {
-		runAfterDelay((long) seconds * TICKS_PER_SECOND, run);
+		waitAndRun((long) seconds * TICKS_PER_SECOND, run);
 	}
 
 	// numbers
@@ -458,16 +458,16 @@ public class CreateGameTestHelper extends GameTestHelper {
 
 	public void assertInRange(double value, double min, double max) {
 		if (value < min)
-			fail("Value %s below expected min of %s".formatted(value, min));
+			throwGameTestException("Value %s below expected min of %s".formatted(value, min));
 		if (value > max)
-			fail("Value %s greater than expected max of %s".formatted(value, max));
+			throwGameTestException("Value %s greater than expected max of %s".formatted(value, max));
 	}
 
 	// misc
 
 	@Contract("_->fail") // make IDEA happier
 	@Override
-	public void fail(@NotNull String exceptionMessage) {
-		super.fail(exceptionMessage);
+	public void throwGameTestException(@NotNull String exceptionMessage) {
+		super.throwGameTestException(exceptionMessage);
 	}
 }

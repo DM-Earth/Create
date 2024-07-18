@@ -3,26 +3,25 @@ package com.simibubi.create.content.schematics.packet;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.schematics.SchematicInstances;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.math.BlockPos;
 
 public class SchematicSyncPacket extends SimplePacketBase {
 
 	public int slot;
 	public boolean deployed;
 	public BlockPos anchor;
-	public Rotation rotation;
-	public Mirror mirror;
+	public BlockRotation rotation;
+	public BlockMirror mirror;
 
-	public SchematicSyncPacket(int slot, StructurePlaceSettings settings,
+	public SchematicSyncPacket(int slot, StructurePlacementData settings,
 			BlockPos anchor, boolean deployed) {
 		this.slot = slot;
 		this.deployed = deployed;
@@ -31,41 +30,41 @@ public class SchematicSyncPacket extends SimplePacketBase {
 		this.mirror = settings.getMirror();
 	}
 
-	public SchematicSyncPacket(FriendlyByteBuf buffer) {
+	public SchematicSyncPacket(PacketByteBuf buffer) {
 		slot = buffer.readVarInt();
 		deployed = buffer.readBoolean();
 		anchor = buffer.readBlockPos();
-		rotation = buffer.readEnum(Rotation.class);
-		mirror = buffer.readEnum(Mirror.class);
+		rotation = buffer.readEnumConstant(BlockRotation.class);
+		mirror = buffer.readEnumConstant(BlockMirror.class);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeVarInt(slot);
 		buffer.writeBoolean(deployed);
 		buffer.writeBlockPos(anchor);
-		buffer.writeEnum(rotation);
-		buffer.writeEnum(mirror);
+		buffer.writeEnumConstant(rotation);
+		buffer.writeEnumConstant(mirror);
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
 			ItemStack stack = ItemStack.EMPTY;
 			if (slot == -1) {
-				stack = player.getMainHandItem();
+				stack = player.getMainHandStack();
 			} else {
-				stack = player.getInventory().getItem(slot);
+				stack = player.getInventory().getStack(slot);
 			}
 			if (!AllItems.SCHEMATIC.isIn(stack)) {
 				return;
 			}
-			CompoundTag tag = stack.getOrCreateTag();
+			NbtCompound tag = stack.getOrCreateNbt();
 			tag.putBoolean("Deployed", deployed);
-			tag.put("Anchor", NbtUtils.writeBlockPos(anchor));
+			tag.put("Anchor", NbtHelper.fromBlockPos(anchor));
 			tag.putString("Rotation", rotation.name());
 			tag.putString("Mirror", mirror.name());
 			SchematicInstances.clearHash(stack);

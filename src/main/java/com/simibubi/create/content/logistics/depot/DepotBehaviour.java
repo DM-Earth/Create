@@ -33,17 +33,17 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.Containers;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.util.ItemScatterer;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class DepotBehaviour extends BlockEntityBehaviour {
 
@@ -118,22 +118,22 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 	public void tick() {
 		super.tick();
 
-		Level world = blockEntity.getLevel();
+		World world = blockEntity.getWorld();
 
 		for (Iterator<TransportedItemStack> iterator = incoming.iterator(); iterator.hasNext();) {
 			TransportedItemStack ts = iterator.next();
 			if (!tick(ts))
 				continue;
-			if (world.isClientSide && !blockEntity.isVirtual())
+			if (world.isClient && !blockEntity.isVirtual())
 				continue;
 			if (heldItem == null) {
 				heldItem = ts;
 			} else {
 				if (!ItemHelper.canItemStackAmountsStack(heldItem.stack, ts.stack)) {
-					Vec3 vec = VecHelper.getCenterOf(blockEntity.getBlockPos());
-					Containers.dropItemStack(blockEntity.getLevel(), vec.x, vec.y + .5f, vec.z, ts.stack);
+					Vec3d vec = VecHelper.getCenterOf(blockEntity.getPos());
+					ItemScatterer.spawn(blockEntity.getWorld(), vec.x, vec.y + .5f, vec.z, ts.stack);
 				} else {
-					heldItem.stack.grow(ts.stack.getCount());
+					heldItem.stack.increment(ts.stack.getCount());
 				}
 			}
 			iterator.remove();
@@ -145,15 +145,15 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 		if (!tick(heldItem))
 			return;
 
-		BlockPos pos = blockEntity.getBlockPos();
+		BlockPos pos = blockEntity.getPos();
 
-		if (world.isClientSide)
+		if (world.isClient)
 			return;
 		if (handleBeltFunnelOutput())
 			return;
 
 		BeltProcessingBehaviour processingBehaviour =
-			BlockEntityBehaviour.get(world, pos.above(2), BeltProcessingBehaviour.TYPE);
+			BlockEntityBehaviour.get(world, pos.up(2), BeltProcessingBehaviour.TYPE);
 		if (processingBehaviour == null)
 			return;
 		if (!heldItem.locked && BeltProcessingBehaviour.isBlocked(world, pos))
@@ -176,7 +176,7 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 		}
 
 		heldItem.locked = result == ProcessingResult.HOLD;
-		if (heldItem.locked != wasLocked || !ItemStack.matches(previousItem, heldItem.stack))
+		if (heldItem.locked != wasLocked || !ItemStack.areEqual(previousItem, heldItem.stack))
 			blockEntity.sendData();
 	}
 
@@ -193,7 +193,7 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 	}
 
 	private boolean handleBeltFunnelOutput() {
-		BlockState funnel = getWorld().getBlockState(getPos().above());
+		BlockState funnel = getWorld().getBlockState(getPos().up());
 		Direction funnelFacing = AbstractFunnelBlock.getFunnelFacing(funnel);
 		if (funnelFacing == null || !canFunnelsPullFrom.test(funnelFacing.getOpposite()))
 			return false;
@@ -236,13 +236,13 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 	@Override
 	public void destroy() {
 		super.destroy();
-		Level level = getWorld();
+		World level = getWorld();
 		BlockPos pos = getPos();
 		ItemHelper.dropContents(level, pos, processingOutputBuffer);
 		for (TransportedItemStack transportedItemStack : incoming)
-			Block.popResource(level, pos, transportedItemStack.stack);
+			Block.dropStack(level, pos, transportedItemStack.stack);
 		if (!getHeldItemStack().isEmpty())
-			Block.popResource(level, pos, getHeldItemStack());
+			Block.dropStack(level, pos, getHeldItemStack());
 	}
 
 	@Override
@@ -251,7 +251,7 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		if (heldItem != null)
 			compound.put("HeldItem", heldItem.serializeNBT());
 		compound.put("OutputBuffer", processingOutputBuffer.serializeNBT());
@@ -260,13 +260,13 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 	}
 
 	@Override
-	public void read(CompoundTag compound, boolean clientPacket) {
+	public void read(NbtCompound compound, boolean clientPacket) {
 		heldItem = null;
 		if (compound.contains("HeldItem"))
 			heldItem = TransportedItemStack.read(compound.getCompound("HeldItem"));
 		processingOutputBuffer.deserializeNBT(compound.getCompound("OutputBuffer"));
 		if (canMergeItems()) {
-			ListTag list = compound.getList("Incoming", Tag.TAG_COMPOUND);
+			NbtList list = compound.getList("Incoming", NbtElement.COMPOUND_TYPE);
 			incoming = NBTHelper.readCompoundList(list, TransportedItemStack::read);
 		}
 	}
@@ -432,8 +432,8 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 				t.commit();
 				ItemStack remainder = added.stack.copy();
 				remainder.setCount(ItemHelper.truncateLong(added.stack.getCount() - inserted));
-				Vec3 vec = VecHelper.getCenterOf(blockEntity.getBlockPos());
-				Containers.dropItemStack(blockEntity.getLevel(), vec.x, vec.y + .5f, vec.z, remainder);
+				Vec3d vec = VecHelper.getCenterOf(blockEntity.getPos());
+				ItemScatterer.spawn(blockEntity.getWorld(), vec.x, vec.y + .5f, vec.z, remainder);
 			}
 		}
 
@@ -453,8 +453,8 @@ public class DepotBehaviour extends BlockEntityBehaviour {
 		return true;
 	}
 
-	private Vec3 getWorldPositionOf(TransportedItemStack transported) {
-		return VecHelper.getCenterOf(blockEntity.getBlockPos());
+	private Vec3d getWorldPositionOf(TransportedItemStack transported) {
+		return VecHelper.getCenterOf(blockEntity.getPos());
 	}
 
 	@Override

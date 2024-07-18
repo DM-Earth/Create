@@ -13,14 +13,13 @@ import com.simibubi.create.foundation.ponder.Selection;
 import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class ChassisScenes {
 
@@ -43,9 +42,9 @@ public class ChassisScenes {
 		scene.world.showSectionAndMerge(util.select.position(centralChassis.east()
 			.north()), Direction.SOUTH, chassis);
 		scene.idle(3);
-		scene.world.showSectionAndMerge(util.select.position(centralChassis.above()), Direction.DOWN, chassis);
+		scene.world.showSectionAndMerge(util.select.position(centralChassis.up()), Direction.DOWN, chassis);
 		scene.idle(2);
-		scene.world.showSectionAndMerge(util.select.position(centralChassis.above()
+		scene.world.showSectionAndMerge(util.select.position(centralChassis.up()
 			.east()), Direction.DOWN, chassis);
 		scene.idle(10);
 
@@ -108,7 +107,7 @@ public class ChassisScenes {
 				.withItem(new ItemStack(Items.SLIME_BALL));
 		scene.overlay.showControls(input, 30);
 		scene.idle(7);
-		scene.world.modifyBlock(chassisPos, s -> s.setValue(LinearChassisBlock.STICKY_BOTTOM, true), false);
+		scene.world.modifyBlock(chassisPos, s -> s.with(LinearChassisBlock.STICKY_BOTTOM, true), false);
 		scene.effects.superGlue(chassisPos, Direction.WEST, false);
 		scene.idle(30);
 
@@ -120,7 +119,7 @@ public class ChassisScenes {
 
 		scene.overlay.showControls(input, 15);
 		scene.idle(7);
-		scene.world.modifyBlock(chassisPos, s -> s.setValue(LinearChassisBlock.STICKY_TOP, true), false);
+		scene.world.modifyBlock(chassisPos, s -> s.with(LinearChassisBlock.STICKY_TOP, true), false);
 		scene.effects.superGlue(chassisPos, Direction.EAST, false);
 		scene.idle(15);
 
@@ -139,7 +138,7 @@ public class ChassisScenes {
 				.whileSneaking(),
 			30);
 		scene.idle(7);
-		scene.world.modifyBlock(chassisPos, s -> s.setValue(LinearChassisBlock.STICKY_BOTTOM, false), false);
+		scene.world.modifyBlock(chassisPos, s -> s.with(LinearChassisBlock.STICKY_BOTTOM, false), false);
 		scene.effects.superGlue(chassisPos, Direction.WEST, false);
 		scene.idle(30);
 
@@ -153,7 +152,7 @@ public class ChassisScenes {
 
 		scene.idle(20);
 		ElementLink<WorldSectionElement> glassSection =
-			scene.world.showIndependentSection(util.select.position(chassisPos.above()), Direction.DOWN);
+			scene.world.showIndependentSection(util.select.position(chassisPos.up()), Direction.DOWN);
 		scene.world.moveSection(glassSection, util.vector.of(0, -1, 0), 0);
 		scene.idle(25);
 		scene.addKeyframe();
@@ -180,7 +179,7 @@ public class ChassisScenes {
 		scene.world.rotateSection(topGlassSection, 0, 180, 0, 40);
 		scene.idle(50);
 
-		Vec3 blockSurface = util.vector.blockSurface(chassisPos, Direction.NORTH);
+		Vec3d blockSurface = util.vector.blockSurface(chassisPos, Direction.NORTH);
 		scene.overlay.showCenteredScrollInput(chassisPos, Direction.NORTH, 50);
 		scene.overlay.showControls(new InputWindowElement(blockSurface, Pointing.UP).rightClick()
 			.withWrench(), 50);
@@ -243,7 +242,7 @@ public class ChassisScenes {
 		scene.world.rotateSection(topGlassSection, 0, 180, 0, 40);
 		scene.idle(50);
 
-		Vec3 glueSurface = util.vector.blockSurface(chassisPos.west(), Direction.NORTH);
+		Vec3d glueSurface = util.vector.blockSurface(chassisPos.west(), Direction.NORTH);
 		scene.overlay.showText(80)
 			.attachKeyFrame()
 			.pointAt(glueSurface)
@@ -254,7 +253,7 @@ public class ChassisScenes {
 			.withItem(AllItems.SUPER_GLUE.asStack()), 30);
 		scene.idle(7);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, glueSurface,
-			new AABB(util.grid.at(1, 2, 2)).expandTowards(0, 0, -1), 40);
+			new Box(util.grid.at(1, 2, 2)).stretch(0, 0, -1), 40);
 		scene.idle(20);
 		ElementLink<WorldSectionElement> gluedPlank =
 			scene.world.showIndependentSection(util.select.position(3, 3, 1), Direction.SOUTH);
@@ -282,7 +281,7 @@ public class ChassisScenes {
 		scene.idle(20);
 
 		scene.overlay.showText(80)
-			.pointAt(util.vector.topOf(chassisPos.above(2)))
+			.pointAt(util.vector.topOf(chassisPos.up(2)))
 			.text("Using these mechanics, structures of any shape can move as a Contraption")
 			.placeNearTarget();
 		scene.idle(30);
@@ -308,14 +307,14 @@ public class ChassisScenes {
 		ElementLink<WorldSectionElement> contraption = scene.world.showIndependentSection(chassis, Direction.DOWN);
 		scene.idle(5);
 		ElementLink<WorldSectionElement> top =
-			scene.world.showIndependentSection(util.select.position(chassisPos.above()), Direction.DOWN);
+			scene.world.showIndependentSection(util.select.position(chassisPos.up()), Direction.DOWN);
 		scene.idle(10);
 
 		scene.overlay.showText(50)
 			.attachKeyFrame()
 			.placeNearTarget()
 			.text("Radial Chassis connect to identical Chassis blocks in a row")
-			.pointAt(util.vector.topOf(chassisPos.above()));
+			.pointAt(util.vector.topOf(chassisPos.up()));
 		scene.idle(60);
 
 		BlockPos bearingPos = util.grid.at(2, 1, 2);
@@ -341,7 +340,7 @@ public class ChassisScenes {
 				.withItem(new ItemStack(Items.SLIME_BALL));
 		scene.overlay.showControls(input, 30);
 		scene.idle(7);
-		scene.world.modifyBlock(chassisPos, s -> s.setValue(RadialChassisBlock.STICKY_WEST, true), false);
+		scene.world.modifyBlock(chassisPos, s -> s.with(RadialChassisBlock.STICKY_WEST, true), false);
 		scene.effects.superGlue(chassisPos, Direction.WEST, false);
 		scene.idle(30);
 
@@ -353,9 +352,9 @@ public class ChassisScenes {
 
 		scene.overlay.showControls(input, 15);
 		scene.idle(7);
-		scene.world.modifyBlock(chassisPos, s -> s.setValue(RadialChassisBlock.STICKY_EAST, true)
-			.setValue(RadialChassisBlock.STICKY_NORTH, true)
-			.setValue(RadialChassisBlock.STICKY_SOUTH, true), false);
+		scene.world.modifyBlock(chassisPos, s -> s.with(RadialChassisBlock.STICKY_EAST, true)
+			.with(RadialChassisBlock.STICKY_NORTH, true)
+			.with(RadialChassisBlock.STICKY_SOUTH, true), false);
 		scene.effects.superGlue(chassisPos, Direction.EAST, false);
 		scene.effects.superGlue(chassisPos, Direction.SOUTH, false);
 		scene.effects.superGlue(chassisPos, Direction.NORTH, false);
@@ -376,7 +375,7 @@ public class ChassisScenes {
 				.whileSneaking(),
 			30);
 		scene.idle(7);
-		scene.world.modifyBlock(chassisPos, s -> s.setValue(RadialChassisBlock.STICKY_WEST, false), false);
+		scene.world.modifyBlock(chassisPos, s -> s.with(RadialChassisBlock.STICKY_WEST, false), false);
 		scene.effects.superGlue(chassisPos, Direction.WEST, false);
 		scene.idle(30);
 
@@ -407,8 +406,8 @@ public class ChassisScenes {
 			.substract(r1), Direction.DOWN);
 		scene.world.showSection(util.select.fromTo(0, 3, 3, 1, 3, 4), Direction.DOWN);
 		scene.idle(10);
-		Vec3 blockSurface = util.vector.blockSurface(chassisPos, Direction.NORTH);
-		AABB bb = new AABB(blockSurface, blockSurface).inflate(.501, .501, 0);
+		Vec3d blockSurface = util.vector.blockSurface(chassisPos, Direction.NORTH);
+		Box bb = new Box(blockSurface, blockSurface).expand(.501, .501, 0);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb, 60);
 		scene.overlay.showOutline(PonderPalette.WHITE, s, s, 80);
 		scene.overlay.showText(40)
@@ -499,7 +498,7 @@ public class ChassisScenes {
 		Selection harvester = util.select.position(3, 2, 3);
 		Selection lever = util.select.position(1, 1, 1);
 
-		scene.world.setBlocks(util.select.fromTo(2, 2, 2, 2, 3, 2), Blocks.AIR.defaultBlockState(), false);
+		scene.world.setBlocks(util.select.fromTo(2, 2, 2, 2, 3, 2), Blocks.AIR.getDefaultState(), false);
 
 		scene.world.showSection(util.select.fromTo(1, 1, 2, 2, 1, 2), Direction.DOWN);
 		scene.world.showSection(util.select.fromTo(2, 2, 3, 2, 1, 3), Direction.DOWN);
@@ -529,9 +528,9 @@ public class ChassisScenes {
 			40);
 		scene.idle(6);
 
-		AABB bb = new AABB(util.grid.at(2, 2, 3));
+		Box bb = new Box(util.grid.at(2, 2, 3));
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, lever, bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, lever, bb.expandTowards(-1, -1, -1), 285);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, lever, bb.stretch(-1, -1, -1), 285);
 		scene.idle(25);
 
 		scene.overlay.showText(70)
@@ -542,9 +541,9 @@ public class ChassisScenes {
 			.pointAt(util.vector.blockSurface(util.grid.at(1, 1, 2), Direction.WEST));
 		scene.idle(80);
 
-		bb = new AABB(util.grid.at(3, 1, 3));
+		bb = new Box(util.grid.at(3, 1, 3));
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, crankPos, bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, crankPos, bb.expandTowards(0, 0, -2), 66);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, crankPos, bb.stretch(0, 0, -2), 66);
 		scene.idle(20);
 
 		scene.overlay.showText(70)
@@ -590,17 +589,17 @@ public class ChassisScenes {
 		scene.world.setKineticSpeed(kinetics, 0);
 		scene.idle(10);
 
-		bb = new AABB(util.grid.at(2, 2, 3));
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, "0", bb.expandTowards(-1, -1, -1), 70);
+		bb = new Box(util.grid.at(2, 2, 3));
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, "0", bb.stretch(-1, -1, -1), 70);
 		scene.idle(15);
 		scene.world.showSection(slab, Direction.DOWN);
-		bb = new AABB(util.grid.at(2, 1, 2));
+		bb = new Box(util.grid.at(2, 1, 2));
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, "1", bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, "1", bb.expandTowards(2, 0, 0), 55);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, "1", bb.stretch(2, 0, 0), 55);
 		scene.idle(15);
-		bb = new AABB(util.grid.at(1, 2, 2));
+		bb = new Box(util.grid.at(1, 2, 2));
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, "2", bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, "2", bb.expandTowards(-1, 0, 0), 40);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, "2", bb.stretch(-1, 0, 0), 40);
 
 		scene.overlay.showText(70)
 			.text("Overlapping glue volumes will move together")

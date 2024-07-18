@@ -4,20 +4,17 @@ import java.lang.ref.WeakReference;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Vector;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldAccess;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-
-import com.mojang.blaze3d.platform.InputConstants;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.foundation.utility.ControlsUtil;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.LevelAccessor;
 
 public class ControlsHandler {
 
@@ -29,7 +26,7 @@ public class ControlsHandler {
 	private static WeakReference<AbstractContraptionEntity> entityRef = new WeakReference<>(null);
 	private static BlockPos controlsPos;
 
-	public static void levelUnloaded(LevelAccessor level) {
+	public static void levelUnloaded(WorldAccess level) {
 		packetCooldown = 0;
 		entityRef = new WeakReference<>(null);
 		controlsPos = null;
@@ -40,13 +37,13 @@ public class ControlsHandler {
 		entityRef = new WeakReference<AbstractContraptionEntity>(entity);
 		controlsPos = controllerLocalPos;
 
-		Minecraft.getInstance().player.displayClientMessage(
+		MinecraftClient.getInstance().player.sendMessage(
 			Lang.translateDirect("contraption.controls.start_controlling", entity.getContraptionName()), true);
 	}
 
 	public static void stopControlling() {
 		ControlsUtil.getControls()
-			.forEach(kb -> kb.setDown(ControlsUtil.isActuallyPressed(kb)));
+			.forEach(kb -> kb.setPressed(ControlsUtil.isActuallyPressed(kb)));
 		AbstractContraptionEntity abstractContraptionEntity = entityRef.get();
 
 		if (!currentlyPressed.isEmpty() && abstractContraptionEntity != null)
@@ -58,7 +55,7 @@ public class ControlsHandler {
 		controlsPos = null;
 		currentlyPressed.clear();
 
-		Minecraft.getInstance().player.displayClientMessage(Lang.translateDirect("contraption.controls.stop_controlling"),
+		MinecraftClient.getInstance().player.sendMessage(Lang.translateDirect("contraption.controls.stop_controlling"),
 			true);
 	}
 
@@ -69,9 +66,9 @@ public class ControlsHandler {
 		if (packetCooldown > 0)
 			packetCooldown--;
 
-		if (entity.isRemoved() || InputConstants.isKeyDown(Minecraft.getInstance()
+		if (entity.isRemoved() || InputUtil.isKeyPressed(MinecraftClient.getInstance()
 			.getWindow()
-			.getWindow(), GLFW.GLFW_KEY_ESCAPE)) {
+			.getHandle(), GLFW.GLFW_KEY_ESCAPE)) {
 			BlockPos pos = controlsPos;
 			stopControlling();
 			AllPackets.getChannel()
@@ -79,7 +76,7 @@ public class ControlsHandler {
 			return;
 		}
 
-		Vector<KeyMapping> controls = ControlsUtil.getControls();
+		Vector<KeyBinding> controls = ControlsUtil.getControls();
 		Collection<Integer> pressedKeys = new HashSet<>();
 		for (int i = 0; i < controls.size(); i++) {
 			if (ControlsUtil.isActuallyPressed(controls.get(i)))
@@ -115,7 +112,7 @@ public class ControlsHandler {
 		}
 
 		currentlyPressed = pressedKeys;
-		controls.forEach(kb -> kb.setDown(false));
+		controls.forEach(kb -> kb.setPressed(false));
 	}
 
 	@Nullable

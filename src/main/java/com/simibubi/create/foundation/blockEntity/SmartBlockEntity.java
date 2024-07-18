@@ -6,7 +6,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
 import com.simibubi.create.api.event.BlockEntityBehaviourEvent;
 import com.simibubi.create.content.schematics.requirement.ISpecialBlockEntityItemRequirement;
 import com.simibubi.create.content.schematics.requirement.ItemRequirement;
@@ -18,12 +23,6 @@ import com.simibubi.create.foundation.utility.IInteractionChecker;
 import com.simibubi.create.foundation.utility.IPartialSafeNBT;
 
 import io.github.fabricators_of_create.porting_lib.block.ChunkUnloadListeningBlockEntity;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public abstract class SmartBlockEntity extends CachedRenderBBBlockEntity
 	implements IPartialSafeNBT, IInteractionChecker, ChunkUnloadListeningBlockEntity, ISpecialBlockEntityItemRequirement {
@@ -67,7 +66,7 @@ public abstract class SmartBlockEntity extends CachedRenderBBBlockEntity
 	}
 
 	public void tick() {
-		if (!initialized && hasLevel()) {
+		if (!initialized && hasWorld()) {
 			initialize();
 			initialized = true;
 		}
@@ -85,14 +84,14 @@ public abstract class SmartBlockEntity extends CachedRenderBBBlockEntity
 	/**
 	 * Hook only these in future subclasses of STE
 	 */
-	protected void write(CompoundTag tag, boolean clientPacket) {
-		super.saveAdditional(tag);
+	protected void write(NbtCompound tag, boolean clientPacket) {
+		super.writeNbt(tag);
 		forEachBehaviour(tb -> tb.write(tag, clientPacket));
 	}
 
 	@Override
-	public void writeSafe(CompoundTag tag) {
-		super.saveAdditional(tag);
+	public void writeSafe(NbtCompound tag) {
+		super.writeNbt(tag);
 		forEachBehaviour(tb -> {
 			if (tb.isSafeNBT())
 				tb.write(tag, false);
@@ -102,7 +101,7 @@ public abstract class SmartBlockEntity extends CachedRenderBBBlockEntity
 	/**
 	 * Hook only these in future subclasses of STE
 	 */
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		if (firstNbtRead) {
 			firstNbtRead = false;
 			ArrayList<BlockEntityBehaviour> list = new ArrayList<>();
@@ -110,12 +109,12 @@ public abstract class SmartBlockEntity extends CachedRenderBBBlockEntity
 			list.forEach(b -> behaviours.put(b.getType(), b));
 			BlockEntityBehaviourEvent.EVENT.invoker().manageBehaviors(new BlockEntityBehaviourEvent(this, behaviours));
 		}
-		super.load(tag);
+		super.readNbt(tag);
 		forEachBehaviour(tb -> tb.read(tag, clientPacket));
 	}
 
 	@Override
-	public final void load(CompoundTag tag) {
+	public final void readNbt(NbtCompound tag) {
 		read(tag, false);
 	}
 
@@ -126,8 +125,8 @@ public abstract class SmartBlockEntity extends CachedRenderBBBlockEntity
 	}
 
 	@Override
-	public final void setRemoved() {
-		super.setRemoved();
+	public final void markRemoved() {
+		super.markRemoved();
 		if (!chunkUnloaded)
 			remove();
 		invalidate();
@@ -153,17 +152,17 @@ public abstract class SmartBlockEntity extends CachedRenderBBBlockEntity
 	}
 
 	@Override
-	public final void saveAdditional(CompoundTag tag) {
+	public final void writeNbt(NbtCompound tag) {
 		write(tag, false);
 	}
 
 	@Override
-	public final void readClient(CompoundTag tag) {
+	public final void readClient(NbtCompound tag) {
 		read(tag, true);
 	}
 
 	@Override
-	public final CompoundTag writeClient(CompoundTag tag) {
+	public final NbtCompound writeClient(NbtCompound tag) {
 		write(tag, true);
 		return tag;
 	}
@@ -216,21 +215,21 @@ public abstract class SmartBlockEntity extends CachedRenderBBBlockEntity
 	}
 
 	@Override
-	public boolean canPlayerUse(Player player) {
-		if (level == null || level.getBlockEntity(worldPosition) != this)
+	public boolean canPlayerUse(PlayerEntity player) {
+		if (world == null || world.getBlockEntity(pos) != this)
 			return false;
-		return player.distanceToSqr(worldPosition.getX() + 0.5D, worldPosition.getY() + 0.5D,
-			worldPosition.getZ() + 0.5D) <= 64.0D;
+		return player.squaredDistanceTo(pos.getX() + 0.5D, pos.getY() + 0.5D,
+			pos.getZ() + 0.5D) <= 64.0D;
 	}
 
-	public void sendToMenu(FriendlyByteBuf buffer) {
-		buffer.writeBlockPos(getBlockPos());
-		buffer.writeNbt(getUpdateTag());
+	public void sendToMenu(PacketByteBuf buffer) {
+		buffer.writeBlockPos(getPos());
+		buffer.writeNbt(toInitialChunkDataNbt());
 	}
 
 	@SuppressWarnings("deprecation")
 	public void refreshBlockState() {
-		setBlockState(getLevel().getBlockState(getBlockPos()));
+		setCachedState(getWorld().getBlockState(getPos()));
 	}
 
 //	protected boolean isItemHandlerCap(Capability<?> cap) {

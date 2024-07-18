@@ -5,15 +5,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.joml.Matrix4f;
-
-import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Axis;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.VecHelper;
@@ -26,17 +18,24 @@ import io.github.fabricators_of_create.porting_lib.event.client.OverlayRenderCal
 import io.github.fabricators_of_create.porting_lib.event.client.OverlayRenderCallback.Types;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.util.Window;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
 
 public class PlacementHelpers {
 
@@ -78,27 +77,27 @@ public class PlacementHelpers {
 
 	@Environment(EnvType.CLIENT)
 	private static void checkHelpers() {
-		Minecraft mc = Minecraft.getInstance();
-		ClientLevel world = mc.level;
+		MinecraftClient mc = MinecraftClient.getInstance();
+		ClientWorld world = mc.world;
 
 		if (world == null)
 			return;
 
-		if (!(mc.hitResult instanceof BlockHitResult))
+		if (!(mc.crosshairTarget instanceof BlockHitResult))
 			return;
 
-		BlockHitResult ray = (BlockHitResult) mc.hitResult;
+		BlockHitResult ray = (BlockHitResult) mc.crosshairTarget;
 
 		if (mc.player == null)
 			return;
 
-		if (mc.player.isShiftKeyDown())// for now, disable all helpers when sneaking TODO add helpers that respect
+		if (mc.player.isSneaking())// for now, disable all helpers when sneaking TODO add helpers that respect
 										// sneaking but still show position
 			return;
 
-		for (InteractionHand hand : InteractionHand.values()) {
+		for (Hand hand : Hand.values()) {
 
-			ItemStack heldItem = mc.player.getItemInHand(hand);
+			ItemStack heldItem = mc.player.getStackInHand(hand);
 			List<IPlacementHelper> filteredForHeldItem = helpers.stream()
 				.filter(helper -> helper.matchesItem(heldItem))
 				.collect(Collectors.toList());
@@ -151,13 +150,13 @@ public class PlacementHelpers {
 	}
 
 	@Environment(EnvType.CLIENT)
-	public static void afterRenderOverlayLayer(GuiGraphics graphics, float partialTicks, Window res) {
-		Minecraft mc = Minecraft.getInstance();
-		Player player = mc.player;
+	public static void afterRenderOverlayLayer(DrawContext graphics, float partialTicks, Window res) {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		PlayerEntity player = mc.player;
 
 		if (player != null && animationTick > 0) {
-			float screenY = res.getGuiScaledHeight() / 2f;
-			float screenX = res.getGuiScaledWidth() / 2f;
+			float screenY = res.getScaledHeight() / 2f;
+			float screenX = res.getScaledWidth() / 2f;
 			float progress = getCurrentAlpha();
 
 			drawDirectionIndicator(graphics, partialTicks, screenX, screenY, progress);
@@ -169,22 +168,22 @@ public class PlacementHelpers {
 	}
 
 	@Environment(EnvType.CLIENT)
-	private static void drawDirectionIndicator(GuiGraphics graphics, float partialTicks, float centerX, float centerY,
+	private static void drawDirectionIndicator(DrawContext graphics, float partialTicks, float centerX, float centerY,
 		float progress) {
 		float r = .8f;
 		float g = .8f;
 		float b = .8f;
 		float a = progress * progress;
 
-		Vec3 projTarget = VecHelper.projectToPlayerView(VecHelper.getCenterOf(lastTarget), partialTicks);
+		Vec3d projTarget = VecHelper.projectToPlayerView(VecHelper.getCenterOf(lastTarget), partialTicks);
 
-		Vec3 target = new Vec3(projTarget.x, projTarget.y, 0);
+		Vec3d target = new Vec3d(projTarget.x, projTarget.y, 0);
 		if (projTarget.z > 0)
-			target = target.reverse();
+			target = target.negate();
 
-		Vec3 norm = target.normalize();
-		Vec3 ref = new Vec3(0, 1, 0);
-		float targetAngle = AngleHelper.deg(Math.acos(norm.dot(ref)));
+		Vec3d norm = target.normalize();
+		Vec3d ref = new Vec3d(0, 1, 0);
+		float targetAngle = AngleHelper.deg(Math.acos(norm.dotProduct(ref)));
 
 		if (norm.x < 0)
 			targetAngle = 360 - targetAngle;
@@ -201,76 +200,76 @@ public class PlacementHelpers {
 		float length = 10;
 
 		CClient.PlacementIndicatorSetting mode = AllConfigs.client().placementIndicator.get();
-		PoseStack ms = graphics.pose();
+		MatrixStack ms = graphics.getMatrices();
 		if (mode == CClient.PlacementIndicatorSetting.TRIANGLE)
 			fadedArrow(ms, centerX, centerY, r, g, b, a, length, snappedAngle);
 		else if (mode == CClient.PlacementIndicatorSetting.TEXTURE)
 			textured(ms, centerX, centerY, a, snappedAngle);
 	}
 
-	private static void fadedArrow(PoseStack ms, float centerX, float centerY, float r, float g, float b, float a,
+	private static void fadedArrow(MatrixStack ms, float centerX, float centerY, float r, float g, float b, float a,
 		float length, float snappedAngle) {
 //		RenderSystem.disableTexture();
 		RenderSystem.enableBlend();
 		RenderSystem.defaultBlendFunc();
-		RenderSystem.setShader(GameRenderer::getPositionColorShader);
+		RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(centerX, centerY, 5);
-		ms.mulPose(Axis.ZP.rotationDegrees(angle.getValue(0)));
+		ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle.getValue(0)));
 		// RenderSystem.rotatef(snappedAngle, 0, 0, 1);
 		double scale = AllConfigs.client().indicatorScale.get();
 		ms.scale((float) scale, (float) scale, 1);
 
-		Tesselator tessellator = Tesselator.getInstance();
-		BufferBuilder bufferbuilder = tessellator.getBuilder();
-		bufferbuilder.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR);
+		Tessellator tessellator = Tessellator.getInstance();
+		BufferBuilder bufferbuilder = tessellator.getBuffer();
+		bufferbuilder.begin(VertexFormat.DrawMode.TRIANGLE_FAN, VertexFormats.POSITION_COLOR);
 
-		Matrix4f mat = ms.last()
-			.pose();
+		Matrix4f mat = ms.peek()
+			.getPositionMatrix();
 
 		bufferbuilder.vertex(mat, 0, -(10 + length), 0)
 			.color(r, g, b, a)
-			.endVertex();
+			.next();
 
 		bufferbuilder.vertex(mat, -9, -3, 0)
 			.color(r, g, b, 0f)
-			.endVertex();
+			.next();
 		bufferbuilder.vertex(mat, -6, -6, 0)
 			.color(r, g, b, 0f)
-			.endVertex();
+			.next();
 		bufferbuilder.vertex(mat, -3, -8, 0)
 			.color(r, g, b, 0f)
-			.endVertex();
+			.next();
 		bufferbuilder.vertex(mat, 0, -8.5f, 0)
 			.color(r, g, b, 0f)
-			.endVertex();
+			.next();
 		bufferbuilder.vertex(mat, 3, -8, 0)
 			.color(r, g, b, 0f)
-			.endVertex();
+			.next();
 		bufferbuilder.vertex(mat, 6, -6, 0)
 			.color(r, g, b, 0f)
-			.endVertex();
+			.next();
 		bufferbuilder.vertex(mat, 9, -3, 0)
 			.color(r, g, b, 0f)
-			.endVertex();
+			.next();
 
-		tessellator.end();
+		tessellator.draw();
 		RenderSystem.disableBlend();
 //		RenderSystem.enableTexture();
-		ms.popPose();
+		ms.pop();
 	}
 
 	@Environment(EnvType.CLIENT)
-	public static void textured(PoseStack ms, float centerX, float centerY, float alpha, float snappedAngle) {
+	public static void textured(MatrixStack ms, float centerX, float centerY, float alpha, float snappedAngle) {
 //		RenderSystem.enableTexture();
 		AllGuiTextures.PLACEMENT_INDICATOR_SHEET.bind();
 		RenderSystem.enableDepthTest();
 		RenderSystem.enableBlend();
 		RenderSystem.defaultBlendFunc();
-		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		RenderSystem.setShader(GameRenderer::getPositionColorTexProgram);
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(centerX, centerY, 50);
 		float scale = AllConfigs.client().indicatorScale.get()
 			.floatValue() * .75f;
@@ -285,33 +284,33 @@ public class PlacementHelpers {
 		float tw = 1f;
 		float th = tex_size;
 
-		Tesselator tessellator = Tesselator.getInstance();
-		BufferBuilder buffer = tessellator.getBuilder();
-		buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		Tessellator tessellator = Tessellator.getInstance();
+		BufferBuilder buffer = tessellator.getBuffer();
+		buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE);
 
-		Matrix4f mat = ms.last()
-			.pose();
+		Matrix4f mat = ms.peek()
+			.getPositionMatrix();
 		buffer.vertex(mat, -1, -1, 0)
 			.color(1f, 1f, 1f, alpha)
-			.uv(tx, ty)
-			.endVertex();
+			.texture(tx, ty)
+			.next();
 		buffer.vertex(mat, -1, 1, 0)
 			.color(1f, 1f, 1f, alpha)
-			.uv(tx, ty + th)
-			.endVertex();
+			.texture(tx, ty + th)
+			.next();
 		buffer.vertex(mat, 1, 1, 0)
 			.color(1f, 1f, 1f, alpha)
-			.uv(tx + tw, ty + th)
-			.endVertex();
+			.texture(tx + tw, ty + th)
+			.next();
 		buffer.vertex(mat, 1, -1, 0)
 			.color(1f, 1f, 1f, alpha)
-			.uv(tx + tw, ty)
-			.endVertex();
+			.texture(tx + tw, ty)
+			.next();
 
-		tessellator.end();
+		tessellator.draw();
 
 		RenderSystem.disableBlend();
-		ms.popPose();
+		ms.pop();
 	}
 
 }

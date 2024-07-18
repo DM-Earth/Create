@@ -1,33 +1,30 @@
 package com.simibubi.create.content.schematics;
 
 import java.util.Iterator;
-
+import net.minecraft.block.Blocks;
+import net.minecraft.item.Item;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtDouble;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtInt;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import com.simibubi.create.AllEntityTypes;
 import com.simibubi.create.content.contraptions.glue.SuperGlueEntity;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.DoubleTag;
-import net.minecraft.nbt.IntTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-
 public class SchematicAndQuillItem extends Item {
 
-	public SchematicAndQuillItem(Properties properties) {
+	public SchematicAndQuillItem(Settings properties) {
 		super(properties);
 	}
 
-	public static void replaceStructureVoidWithAir(CompoundTag nbt) {
+	public static void replaceStructureVoidWithAir(NbtCompound nbt) {
 		String air = RegisteredObjects.getKeyOrThrow(Blocks.AIR)
 			.toString();
 		String structureVoid = RegisteredObjects.getKeyOrThrow(Blocks.STRUCTURE_VOID)
@@ -41,27 +38,27 @@ public class SchematicAndQuillItem extends Item {
 		});
 	}
 
-	public static void clampGlueBoxes(Level level, AABB aabb, CompoundTag nbt) {
-		ListTag listtag = nbt.getList("entities", 10)
+	public static void clampGlueBoxes(World level, Box aabb, NbtCompound nbt) {
+		NbtList listtag = nbt.getList("entities", 10)
 			.copy();
 
-		for (Iterator<Tag> iterator = listtag.iterator(); iterator.hasNext();) {
-			Tag tag = iterator.next();
-			if (!(tag instanceof CompoundTag compoundtag))
+		for (Iterator<NbtElement> iterator = listtag.iterator(); iterator.hasNext();) {
+			NbtElement tag = iterator.next();
+			if (!(tag instanceof NbtCompound compoundtag))
 				continue;
-			if (compoundtag.contains("nbt") && new ResourceLocation(compoundtag.getCompound("nbt")
+			if (compoundtag.contains("nbt") && new Identifier(compoundtag.getCompound("nbt")
 				.getString("id")).equals(AllEntityTypes.SUPER_GLUE.getId())) {
 				iterator.remove();
 			}
 		}
 
 		for (SuperGlueEntity entity : SuperGlueEntity.collectCropped(level, aabb)) {
-			Vec3 vec3 = new Vec3(entity.getX() - aabb.minX, entity.getY() - aabb.minY, entity.getZ() - aabb.minZ);
-			CompoundTag compoundtag = new CompoundTag();
-			entity.save(compoundtag);
-			BlockPos blockpos = BlockPos.containing(vec3);
+			Vec3d vec3 = new Vec3d(entity.getX() - aabb.minX, entity.getY() - aabb.minY, entity.getZ() - aabb.minZ);
+			NbtCompound compoundtag = new NbtCompound();
+			entity.saveNbt(compoundtag);
+			BlockPos blockpos = BlockPos.ofFloored(vec3);
 
-			CompoundTag entityTag = new CompoundTag();
+			NbtCompound entityTag = new NbtCompound();
 			entityTag.put("pos", newDoubleList(vec3.x, vec3.y, vec3.z));
 			entityTag.put("blockPos", newIntegerList(blockpos.getX(), blockpos.getY(), blockpos.getZ()));
 			entityTag.put("nbt", compoundtag.copy());
@@ -71,17 +68,17 @@ public class SchematicAndQuillItem extends Item {
 		nbt.put("entities", listtag);
 	}
 
-	private static ListTag newIntegerList(int... pValues) {
-		ListTag listtag = new ListTag();
+	private static NbtList newIntegerList(int... pValues) {
+		NbtList listtag = new NbtList();
 		for (int i : pValues)
-			listtag.add(IntTag.valueOf(i));
+			listtag.add(NbtInt.of(i));
 		return listtag;
 	}
 
-	private static ListTag newDoubleList(double... pValues) {
-		ListTag listtag = new ListTag();
+	private static NbtList newDoubleList(double... pValues) {
+		NbtList listtag = new NbtList();
 		for (double d0 : pValues)
-			listtag.add(DoubleTag.valueOf(d0));
+			listtag.add(NbtDouble.of(d0));
 		return listtag;
 	}
 

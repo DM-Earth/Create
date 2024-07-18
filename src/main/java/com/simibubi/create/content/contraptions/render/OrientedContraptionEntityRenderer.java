@@ -2,13 +2,12 @@ package com.simibubi.create.content.contraptions.render;
 
 import com.simibubi.create.content.contraptions.ContraptionType;
 import com.simibubi.create.content.contraptions.OrientedContraptionEntity;
-
-import net.minecraft.client.renderer.culling.Frustum;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.render.Frustum;
+import net.minecraft.client.render.entity.EntityRendererFactory;
 
 public class OrientedContraptionEntityRenderer extends ContraptionEntityRenderer<OrientedContraptionEntity> {
 
-	public OrientedContraptionEntityRenderer(EntityRendererProvider.Context context) {
+	public OrientedContraptionEntityRenderer(EntityRendererFactory.Context context) {
 		super(context);
 	}
 

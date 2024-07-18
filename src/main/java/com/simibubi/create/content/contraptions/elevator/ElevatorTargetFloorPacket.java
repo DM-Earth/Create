@@ -2,13 +2,12 @@ package com.simibubi.create.content.contraptions.elevator;
 
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class ElevatorTargetFloorPacket extends SimplePacketBase {
 
@@ -20,13 +19,13 @@ public class ElevatorTargetFloorPacket extends SimplePacketBase {
 		this.entityId = entity.getId();
 	}
 
-	public ElevatorTargetFloorPacket(FriendlyByteBuf buffer) {
+	public ElevatorTargetFloorPacket(PacketByteBuf buffer) {
 		entityId = buffer.readInt();
 		targetY = buffer.readInt();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(entityId);
 		buffer.writeInt(targetY);
 	}
@@ -34,17 +33,17 @@ public class ElevatorTargetFloorPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer sender = context.getSender();
-			Entity entityByID = sender.serverLevel()
-				.getEntity(entityId);
+			ServerPlayerEntity sender = context.getSender();
+			Entity entityByID = sender.getServerWorld()
+				.getEntityById(entityId);
 			if (!(entityByID instanceof AbstractContraptionEntity ace))
 				return;
 			if (!(ace.getContraption() instanceof ElevatorContraption ec))
 				return;
-			if (ace.distanceToSqr(sender) > 50 * 50)
+			if (ace.squaredDistanceTo(sender) > 50 * 50)
 				return;
 
-			Level level = sender.level();
+			World level = sender.getWorld();
 			ElevatorColumn elevatorColumn = ElevatorColumn.get(level, ec.getGlobalColumn());
 			if (!elevatorColumn.contacts.contains(targetY))
 				return;

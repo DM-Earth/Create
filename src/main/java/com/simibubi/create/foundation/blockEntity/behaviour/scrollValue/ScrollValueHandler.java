@@ -4,8 +4,8 @@ import com.simibubi.create.foundation.utility.animation.PhysicalFloat;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.util.Mth;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.MathHelper;
 
 public class ScrollValueHandler {
 
@@ -16,12 +16,12 @@ public class ScrollValueHandler {
 		.withDrag(0.3);
 
 	public static float getScroll(float partialTicks) {
-		return wrenchCog.getValue(partialTicks) + Mth.lerp(partialTicks, lastPassiveScroll, passiveScroll);
+		return wrenchCog.getValue(partialTicks) + MathHelper.lerp(partialTicks, lastPassiveScroll, passiveScroll);
 	}
 
 	@Environment(EnvType.CLIENT)
 	public static void tick() {
-		if (!Minecraft.getInstance()
+		if (!MinecraftClient.getInstance()
 			.isPaused()) {
 			lastPassiveScroll = passiveScroll;
 			wrenchCog.tick();

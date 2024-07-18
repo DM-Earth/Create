@@ -3,21 +3,20 @@ package com.simibubi.create.content.kinetics.crafter;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.simibubi.create.content.kinetics.crafter.RecipeGridHandler.GroupedItems;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.screen.ScreenHandler;
 
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.TransientCraftingContainer;
-import net.minecraft.world.item.ItemStack;
+public class MechanicalCraftingInventory extends CraftingInventory {
 
-public class MechanicalCraftingInventory extends TransientCraftingContainer {
-
-	private static final AbstractContainerMenu dummyContainer = new AbstractContainerMenu(null, -1) {
-		public boolean stillValid(Player playerIn) {
+	private static final ScreenHandler dummyContainer = new ScreenHandler(null, -1) {
+		public boolean canUse(PlayerEntity playerIn) {
 			return false;
 		}
 
 		@Override
-		public ItemStack quickMoveStack(Player p_38941_, int p_38942_) {
+		public ItemStack quickMove(PlayerEntity p_38941_, int p_38942_) {
 			return ItemStack.EMPTY;
 		}
 	};
@@ -27,7 +26,7 @@ public class MechanicalCraftingInventory extends TransientCraftingContainer {
 		for (int y = 0; y < items.height; y++) {
 			for (int x = 0; x < items.width; x++) {
 				ItemStack stack = items.grid.get(Pair.of(x + items.minX, y + items.minY));
-				setItem(x + (items.height - y - 1) * items.width,
+				setStack(x + (items.height - y - 1) * items.width,
 						stack == null ? ItemStack.EMPTY : stack.copy());
 			}
 		}

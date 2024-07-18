@@ -9,11 +9,10 @@ import com.simibubi.create.foundation.block.CopperBlockSet.Variant;
 
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
-
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.WeatheringCopper.WeatherState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.Oxidizable.OxidationLevel;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.Items;
 
 public class DeployingRecipeGen extends ProcessingRecipeGen {
 
@@ -54,12 +53,12 @@ public class DeployingRecipeGen extends ProcessingRecipeGen {
 
 	public GeneratedRecipe copperChain(CopperBlockSet set) {
 		for (Variant<?> variant : set.getVariants())
-			for (WeatherState state : WeatherState.values())
+			for (OxidationLevel state : OxidationLevel.values())
 				addWax(set.get(variant, state, true)::get, set.get(variant, state, false)::get);
 		return null;
 	}
 
-	public GeneratedRecipe addWax(Supplier<ItemLike> waxed, Supplier<ItemLike> nonWaxed) {
+	public GeneratedRecipe addWax(Supplier<ItemConvertible> waxed, Supplier<ItemConvertible> nonWaxed) {
 		return createWithDeferredId(idWithSuffix(waxed, "_from_adding_wax"), b -> b.require(nonWaxed.get())
 			.require(Items.HONEYCOMB_BLOCK)
 			.toolNotConsumed()

@@ -1,28 +1,28 @@
 package com.simibubi.create.foundation.sound;
 
-import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
+import net.minecraft.client.sound.MovingSoundInstance;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
 
-public class ContinuousSound extends AbstractTickableSoundInstance {
+public class ContinuousSound extends MovingSoundInstance {
 
 	private float sharedPitch;
 	private SoundScape scape;
 	private float relativeVolume;
 
 	protected ContinuousSound(SoundEvent event, SoundScape scape, float sharedPitch, float relativeVolume) {
-		super(event, SoundSource.AMBIENT, SoundInstance.createUnseededRandom());
+		super(event, SoundCategory.AMBIENT, SoundInstance.createRandom());
 		this.scape = scape;
 		this.sharedPitch = sharedPitch;
 		this.relativeVolume = relativeVolume;
-		this.looping = true;
-		this.delay = 0;
+		this.repeat = true;
+		this.repeatDelay = 0;
 		this.relative = false;
 	}
 
 	public void remove() {
-		stop();
+		setDone();
 	}
 
 	@Override

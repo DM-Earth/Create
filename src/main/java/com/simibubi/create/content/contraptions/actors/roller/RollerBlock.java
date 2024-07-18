@@ -1,7 +1,24 @@
 package com.simibubi.create.content.contraptions.actors.roller;
 
 import java.util.function.Predicate;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldView;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.contraptions.actors.AttachedActorBlock;
@@ -10,35 +27,16 @@ import com.simibubi.create.foundation.placement.IPlacementHelper;
 import com.simibubi.create.foundation.placement.PlacementHelpers;
 import com.simibubi.create.foundation.placement.PoleHelper;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
-
 public class RollerBlock extends AttachedActorBlock implements IBE<RollerBlockEntity> {
 	private static final int placementHelperId = PlacementHelpers.register(new PlacementHelper());
 
-	public RollerBlock(Properties p_i48377_1_) {
+	public RollerBlock(Settings p_i48377_1_) {
 		super(p_i48377_1_);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		return withWater(defaultBlockState().setValue(FACING, context.getHorizontalDirection()
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		return withWater(getDefaultState().with(FACING, context.getHorizontalPlayerFacing()
 			.getOpposite()), context);
 	}
 
@@ -53,43 +51,43 @@ public class RollerBlock extends AttachedActorBlock implements IBE<RollerBlockEn
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return Shapes.block();
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return VoxelShapes.fullCube();
 	}
 
 	@Override
-	public boolean canSurvive(BlockState state, LevelReader worldIn, BlockPos pos) {
+	public boolean canPlaceAt(BlockState state, WorldView worldIn, BlockPos pos) {
 		return true;
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		withBlockEntityDo(pLevel, pPos, RollerBlockEntity::searchForSharedValues);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult ray) {
-		ItemStack heldItem = player.getItemInHand(hand);
+		ItemStack heldItem = player.getStackInHand(hand);
 
 		IPlacementHelper placementHelper = PlacementHelpers.get(placementHelperId);
-		if (!player.isShiftKeyDown() && player.mayBuild()) {
+		if (!player.isSneaking() && player.canModifyBlocks()) {
 			if (placementHelper.matchesItem(heldItem)) {
 				placementHelper.getOffset(player, world, state, pos, ray)
 					.placeInWorld(world, (BlockItem) heldItem.getItem(), player, hand, ray);
-				return InteractionResult.SUCCESS;
+				return ActionResult.SUCCESS;
 			}
 		}
 
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
 	private static class PlacementHelper extends PoleHelper<Direction> {
 
 		public PlacementHelper() {
-			super(AllBlocks.MECHANICAL_ROLLER::has, state -> state.getValue(FACING)
-				.getClockWise()
+			super(AllBlocks.MECHANICAL_ROLLER::has, state -> state.get(FACING)
+				.rotateYClockwise()
 				.getAxis(), FACING);
 		}
 

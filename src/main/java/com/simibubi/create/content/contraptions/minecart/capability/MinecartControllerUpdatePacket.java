@@ -7,17 +7,17 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
 
 public class MinecartControllerUpdatePacket extends SimplePacketBase {
 
 	int entityID;
-	CompoundTag nbt;
+	NbtCompound nbt;
 
 	public MinecartControllerUpdatePacket(MinecartController controller) {
 		entityID = controller.cart()
@@ -25,13 +25,13 @@ public class MinecartControllerUpdatePacket extends SimplePacketBase {
 		nbt = controller.serializeNBT();
 	}
 
-	public MinecartControllerUpdatePacket(FriendlyByteBuf buffer) {
+	public MinecartControllerUpdatePacket(PacketByteBuf buffer) {
 		entityID = buffer.readInt();
 		nbt = buffer.readNbt();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
  		buffer.writeInt(entityID);
 		buffer.writeNbt(nbt);
 	}
@@ -44,13 +44,13 @@ public class MinecartControllerUpdatePacket extends SimplePacketBase {
 
 	@Environment(EnvType.CLIENT)
 	private void handleCL() {
-		ClientLevel world = Minecraft.getInstance().level;
+		ClientWorld world = MinecraftClient.getInstance().world;
 		if (world == null)
 			return;
-		Entity entityByID = world.getEntity(entityID);
+		Entity entityByID = world.getEntityById(entityID);
 		if (entityByID == null)
 			return;
-		((AbstractMinecart) entityByID).create$getController().deserializeNBT(nbt);
+		((AbstractMinecartEntity) entityByID).create$getController().deserializeNBT(nbt);
 	}
 
 }

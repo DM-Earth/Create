@@ -7,16 +7,15 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.Identifier;
 
 public class BeltFunnelGenerator extends SpecialBlockStateGen {
 
 	private String type;
-	private ResourceLocation materialBlockTexture;
+	private Identifier materialBlockTexture;
 
 	public BeltFunnelGenerator(String type) {
 		this.type = type;
@@ -30,16 +29,16 @@ public class BeltFunnelGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		return horizontalAngle(state.getValue(BeltFunnelBlock.HORIZONTAL_FACING)) + 180;
+		return horizontalAngle(state.get(BeltFunnelBlock.HORIZONTAL_FACING)) + 180;
 	}
 
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> ctx, RegistrateBlockstateProvider prov,
 												BlockState state) {
 		String prefix = "block/funnel/";
-		Shape shape = state.getValue(BeltFunnelBlock.SHAPE);
-		String shapeName = shape.getSerializedName();
-		boolean powered = state.getOptionalValue(BlockStateProperties.POWERED)
+		Shape shape = state.get(BeltFunnelBlock.SHAPE);
+		String shapeName = shape.asString();
+		boolean powered = state.getOrEmpty(Properties.POWERED)
 			.orElse(false);
 		String poweredSuffix = powered ? "_powered" : "_unpowered";
 		String shapeSuffix = shape == Shape.PULLING ? "_pull" : shape == Shape.PUSHING ? "_push" : "_neutral";

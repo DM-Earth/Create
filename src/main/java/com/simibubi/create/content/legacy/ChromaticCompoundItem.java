@@ -1,7 +1,25 @@
 package com.simibubi.create.content.legacy;
 
 import java.util.Random;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BeaconBlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.Heightmap;
+import net.minecraft.world.RaycastContext;
+import net.minecraft.world.RaycastContext.FluidHandling;
+import net.minecraft.world.RaycastContext.ShapeType;
+import net.minecraft.world.World;
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.common.accessor.BeaconBlockEntityAccessor;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -19,90 +37,70 @@ import com.simibubi.create.infrastructure.config.CRecipes;
 import io.github.fabricators_of_create.porting_lib.block.LightEmissiveBlock;
 import io.github.fabricators_of_create.porting_lib.item.CustomMaxCountItem;
 import io.github.fabricators_of_create.porting_lib.item.EntityTickListenerItem;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.ClipContext.Block;
-import net.minecraft.world.level.ClipContext.Fluid;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BeaconBlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.phys.Vec3;
 
 public class ChromaticCompoundItem extends Item implements CustomMaxCountItem, EntityTickListenerItem {
 
-	public ChromaticCompoundItem(Properties properties) {
+	public ChromaticCompoundItem(Settings properties) {
 		super(properties);
 	}
 
 	public int getLight(ItemStack stack) {
-		return stack.getOrCreateTag()
+		return stack.getOrCreateNbt()
 			.getInt("CollectingLight");
 	}
 
 	@Override
-	public boolean isBarVisible(ItemStack stack) {
+	public boolean isItemBarVisible(ItemStack stack) {
 		return getLight(stack) > 0;
 	}
 
 	@Override
-	public int getBarWidth(ItemStack stack) {
+	public int getItemBarStep(ItemStack stack) {
 		return Math.round(13.0F * getLight(stack) / AllConfigs.server().recipes.lightSourceCountForRefinedRadiance.get());
 	}
 
 	@Override
-	public int getBarColor(ItemStack stack) {
+	public int getItemBarColor(ItemStack stack) {
 		return Color.mixColors(0x413c69, 0xFFFFFF,
 			getLight(stack) / (float) AllConfigs.server().recipes.lightSourceCountForRefinedRadiance.get());
 	}
 
 	@Override
 	public int getItemStackLimit(ItemStack stack) {
-		return isBarVisible(stack) ? 1 : 16;
+		return isItemBarVisible(stack) ? 1 : 16;
 	}
 
 	@Override
 	public boolean onEntityItemUpdate(ItemStack stack, ItemEntity entity) {
-		Level world = entity.level();
-		CompoundTag itemData = entity.getItem()
-			.getOrCreateTag();
-		Vec3 positionVec = entity.position();
+		World world = entity.getWorld();
+		NbtCompound itemData = entity.getStack()
+			.getOrCreateNbt();
+		Vec3d positionVec = entity.getPos();
 		CRecipes config = AllConfigs.server().recipes;
 
-		if (world.isClientSide) {
+		if (world.isClient) {
 			int light = itemData.getInt("CollectingLight");
 			if (world.random.nextInt(config.lightSourceCountForRefinedRadiance.get() + 20) < light) {
-				Vec3 start = VecHelper.offsetRandomly(positionVec, world.random, 3);
-				Vec3 motion = positionVec.subtract(start)
+				Vec3d start = VecHelper.offsetRandomly(positionVec, world.random, 3);
+				Vec3d motion = positionVec.subtract(start)
 					.normalize()
-					.scale(.2f);
+					.multiply(.2f);
 				world.addParticle(ParticleTypes.END_ROD, start.x, start.y, start.z, motion.x, motion.y, motion.z);
 			}
 			return false;
 		}
 
 		double y = entity.getY();
-		double yMotion = entity.getDeltaMovement().y;
-		int minHeight = world.getMinBuildHeight();
-		CompoundTag data = entity.getCustomData();
+		double yMotion = entity.getVelocity().y;
+		int minHeight = world.getBottomY();
+		NbtCompound data = entity.getCustomData();
 
 		// Convert to Shadow steel if in void
 		if (y < minHeight && y - yMotion < -10 + minHeight && config.enableShadowSteelRecipe.get()) {
 			ItemStack newStack = AllItems.SHADOW_STEEL.asStack();
 			newStack.setCount(stack.getCount());
 			data.putBoolean("JustCreated", true);
-			entity.setItem(newStack);
+			entity.setStack(newStack);
 		}
 
 		if (!config.enableRefinedRadianceRecipe.get())
@@ -112,14 +110,14 @@ public class ChromaticCompoundItem extends Item implements CustomMaxCountItem, E
 		if (itemData.getInt("CollectingLight") >= config.lightSourceCountForRefinedRadiance.get()) {
 			ItemStack newStack = AllItems.REFINED_RADIANCE.asStack();
 			ItemEntity newEntity = new ItemEntity(world, entity.getX(), entity.getY(), entity.getZ(), newStack);
-			newEntity.setDeltaMovement(entity.getDeltaMovement());
+			newEntity.setVelocity(entity.getVelocity());
 			newEntity.getCustomData()
 				.putBoolean("JustCreated", true);
 			itemData.remove("CollectingLight");
-			world.addFreshEntity(newEntity);
+			world.spawnEntity(newEntity);
 
 			stack.split(1);
-			entity.setItem(stack);
+			entity.setStack(stack);
 			if (stack.isEmpty())
 				entity.discard();
 			return false;
@@ -127,17 +125,17 @@ public class ChromaticCompoundItem extends Item implements CustomMaxCountItem, E
 
 		// Is inside beacon beam?
 		boolean isOverBeacon = false;
-		int entityX = Mth.floor(entity.getX());
-		int entityZ = Mth.floor(entity.getZ());
-		int localWorldHeight = world.getHeight(Heightmap.Types.WORLD_SURFACE, entityX, entityZ);
+		int entityX = MathHelper.floor(entity.getX());
+		int entityZ = MathHelper.floor(entity.getZ());
+		int localWorldHeight = world.getTopY(Heightmap.Type.WORLD_SURFACE, entityX, entityZ);
 
-		BlockPos.MutableBlockPos testPos =
-			new BlockPos.MutableBlockPos(entityX, Math.min(Mth.floor(entity.getY()), localWorldHeight), entityZ);
+		BlockPos.Mutable testPos =
+			new BlockPos.Mutable(entityX, Math.min(MathHelper.floor(entity.getY()), localWorldHeight), entityZ);
 
 		while (testPos.getY() > 0) {
 			testPos.move(Direction.DOWN);
 			BlockState state = world.getBlockState(testPos);
-			if (state.getLightBlock(world, testPos) >= 15 && state.getBlock() != Blocks.BEDROCK)
+			if (state.getOpacity(world, testPos) >= 15 && state.getBlock() != Blocks.BEDROCK)
 				break;
 			if (state.getBlock() == Blocks.BEACON) {
 				BlockEntity be = world.getBlockEntity(testPos);
@@ -158,18 +156,18 @@ public class ChromaticCompoundItem extends Item implements CustomMaxCountItem, E
 			ItemStack newStack = AllItems.REFINED_RADIANCE.asStack();
 			newStack.setCount(stack.getCount());
 			data.putBoolean("JustCreated", true);
-			entity.setItem(newStack);
+			entity.setStack(newStack);
 			return false;
 		}
 
 		// Find a light source and eat it.
-		RandomSource r = world.random;
+		net.minecraft.util.math.random.Random r = world.random;
 		int range = 3;
 		float rate = 1 / 2f;
 		if (r.nextFloat() > rate)
 			return false;
 
-		BlockPos randomOffset = BlockPos.containing(VecHelper.offsetRandomly(positionVec, r, range));
+		BlockPos randomOffset = BlockPos.ofFloored(VecHelper.offsetRandomly(positionVec, r, range));
 		BlockState state = world.getBlockState(randomOffset);
 
 		TransportedItemStackHandlerBehaviour behaviour =
@@ -178,7 +176,7 @@ public class ChromaticCompoundItem extends Item implements CustomMaxCountItem, E
 		// Find a placed light source
 		if (behaviour == null) {
 			if (checkLight(stack, entity, world, itemData, positionVec, randomOffset, state))
-				world.destroyBlock(randomOffset, false);
+				world.breakBlock(randomOffset, false);
 			return false;
 		}
 
@@ -195,7 +193,7 @@ public class ChromaticCompoundItem extends Item implements CustomMaxCountItem, E
 				return TransportedResult.doNothing();
 
 			BlockState stateToCheck = blockItem.getBlock()
-				.defaultBlockState();
+				.getDefaultState();
 
 			if (!success.getValue()
 				&& checkLight(stack, entity, world, itemData, positionVec, randomOffset, stateToCheck)) {
@@ -203,7 +201,7 @@ public class ChromaticCompoundItem extends Item implements CustomMaxCountItem, E
 				if (ts.stack.getCount() == 1)
 					return TransportedResult.removeItem();
 				TransportedItemStack left = ts.copy();
-				left.stack.shrink(1);
+				left.stack.decrement(1);
 				return TransportedResult.convertTo(left);
 			}
 
@@ -213,30 +211,30 @@ public class ChromaticCompoundItem extends Item implements CustomMaxCountItem, E
 		return false;
 	}
 
-	public boolean checkLight(ItemStack stack, ItemEntity entity, Level world, CompoundTag itemData, Vec3 positionVec,
+	public boolean checkLight(ItemStack stack, ItemEntity entity, World world, NbtCompound itemData, Vec3d positionVec,
 		BlockPos randomOffset, BlockState state) {
 		if(state.getBlock() instanceof LightEmissiveBlock lightEmissiveBlock && lightEmissiveBlock.getLightEmission(state, world, randomOffset) == 0)
 			return false;
-		else if (state.getLightEmission() == 0)
+		else if (state.getLuminance() == 0)
 			return false;
-		if (state.getDestroySpeed(world, randomOffset) == -1)
+		if (state.getHardness(world, randomOffset) == -1)
 			return false;
 		if (state.getBlock() == Blocks.BEACON)
 			return false;
 
-		ClipContext context = new ClipContext(positionVec.add(new Vec3(0, 0.5, 0)), VecHelper.getCenterOf(randomOffset),
-			Block.COLLIDER, Fluid.NONE, entity);
-		if (!randomOffset.equals(world.clip(context)
+		RaycastContext context = new RaycastContext(positionVec.add(new Vec3d(0, 0.5, 0)), VecHelper.getCenterOf(randomOffset),
+			ShapeType.COLLIDER, FluidHandling.NONE, entity);
+		if (!randomOffset.equals(world.raycast(context)
 			.getBlockPos()))
 			return false;
 
 		ItemStack newStack = stack.split(1);
-		newStack.getOrCreateTag()
+		newStack.getOrCreateNbt()
 			.putInt("CollectingLight", itemData.getInt("CollectingLight") + 1);
 		ItemEntity newEntity = new ItemEntity(world, entity.getX(), entity.getY(), entity.getZ(), newStack);
-		newEntity.setDeltaMovement(entity.getDeltaMovement());
-		newEntity.setDefaultPickUpDelay();
-		world.addFreshEntity(newEntity);
+		newEntity.setVelocity(entity.getVelocity());
+		newEntity.setToDefaultPickupDelay();
+		world.spawnEntity(newEntity);
 //		entity.lifespan = 6000;
 		if (stack.isEmpty())
 			entity.discard();

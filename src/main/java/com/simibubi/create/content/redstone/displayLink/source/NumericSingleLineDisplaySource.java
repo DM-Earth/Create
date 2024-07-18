@@ -3,12 +3,11 @@ package com.simibubi.create.content.redstone.displayLink.source;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.trains.display.FlapDisplaySection;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.network.chat.Component;
+import net.minecraft.text.Text;
 
 public abstract class NumericSingleLineDisplaySource extends SingleLineDisplaySource {
 
-	protected static final Component ZERO = Components.literal("0");
+	protected static final Text ZERO = Components.literal("0");
 
 	@Override
 	protected String getFlapDisplayLayoutName(DisplayLinkContext context) {

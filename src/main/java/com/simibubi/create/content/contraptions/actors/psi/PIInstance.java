@@ -4,10 +4,9 @@ import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.core.Materials;
 import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.simibubi.create.foundation.utility.AngleHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class PIInstance {
 	private final MaterialManager materialManager;
@@ -24,7 +23,7 @@ public class PIInstance {
 		this.materialManager = materialManager;
 		this.blockState = blockState;
 		this.instancePos = instancePos;
-		Direction facing = blockState.getValue(PortableStorageInterfaceBlock.FACING);
+		Direction facing = blockState.get(PortableStorageInterfaceBlock.FACING);
 		angleX = facing == Direction.UP ? 0 : facing == Direction.DOWN ? 180 : 90;
 		angleY = AngleHelper.horizontalAngle(facing);
 	}

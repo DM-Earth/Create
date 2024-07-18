@@ -17,45 +17,45 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 import io.github.fabricators_of_create.porting_lib.common.util.IPlantable;
 import io.github.fabricators_of_create.porting_lib.entity.events.EntityEvents;
 import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.animal.Fox;
-import net.minecraft.world.entity.item.FallingBlockEntity;
-import net.minecraft.world.entity.monster.ZombieVillager;
-import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.food.Foods;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.FarmBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.FarmlandBlock;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.FallingBlockEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.mob.ZombieVillagerEntity;
+import net.minecraft.entity.passive.FoxEntity;
+import net.minecraft.item.FoodComponent;
+import net.minecraft.item.FoodComponents;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 public class BuiltinPotatoProjectileTypes {
 
 	private static final GameProfile ZOMBIE_CONVERTER_NAME =
 		new GameProfile(UUID.fromString("be12d3dc-27d3-4992-8c97-66be53fd49c5"), "Converter");
 	private static final WorldAttached<FakePlayer> ZOMBIE_CONVERTERS =
-		new WorldAttached<>(w -> new ConverterFakePlayer((ServerLevel) w, ZOMBIE_CONVERTER_NAME){});
+		new WorldAttached<>(w -> new ConverterFakePlayer((ServerWorld) w, ZOMBIE_CONVERTER_NAME){});
 
 	public static class ConverterFakePlayer extends FakePlayer {
-		public ConverterFakePlayer(ServerLevel world, GameProfile profile) {
+		public ConverterFakePlayer(ServerWorld world, GameProfile profile) {
 			super(world, profile);
 		}
 	}
@@ -114,7 +114,7 @@ public class BuiltinPotatoProjectileTypes {
 			.renderTumbling()
 			.splitInto(2)
 			.soundPitch(1.2f)
-			.onEntityHit(potion(MobEffects.GLOWING, 1, 200, false))
+			.onEntityHit(potion(StatusEffects.GLOWING, 1, 200, false))
 			.registerAndAssign(Items.GLOW_BERRIES),
 
 		CHOCOLATE_BERRIES = create("chocolate_berry").damage(4)
@@ -131,7 +131,7 @@ public class BuiltinPotatoProjectileTypes {
 			.knockback(0.05f)
 			.velocity(1.25f)
 			.renderTumbling()
-			.onEntityHit(potion(MobEffects.POISON, 1, 160, true))
+			.onEntityHit(potion(StatusEffects.POISON, 1, 160, true))
 			.registerAndAssign(Items.POISONOUS_POTATO),
 
 		CHORUS_FRUIT = create("chorus_fruit").damage(3)
@@ -156,7 +156,7 @@ public class BuiltinPotatoProjectileTypes {
 			.knockback(0.1f)
 			.renderTumbling()
 			.soundPitch(1.1f)
-			.onEntityHit(potion(MobEffects.MOVEMENT_SLOWDOWN, 2, 160, true))
+			.onEntityHit(potion(StatusEffects.SLOWNESS, 2, 160, true))
 			.registerAndAssign(AllItems.HONEYED_APPLE.get()),
 
 		GOLDEN_APPLE = create("golden_apple").damage(1)
@@ -169,16 +169,16 @@ public class BuiltinPotatoProjectileTypes {
 				if (!canModifyWorld())
 					return false;
 				Entity entity = ray.getEntity();
-				Level world = entity.level();
+				World world = entity.getWorld();
 
-				if (!(entity instanceof ZombieVillager) || !((ZombieVillager) entity).hasEffect(MobEffects.WEAKNESS))
-					return foodEffects(Foods.GOLDEN_APPLE, false).test(ray);
-				if (world.isClientSide)
+				if (!(entity instanceof ZombieVillagerEntity) || !((ZombieVillagerEntity) entity).hasStatusEffect(StatusEffects.WEAKNESS))
+					return foodEffects(FoodComponents.GOLDEN_APPLE, false).test(ray);
+				if (world.isClient)
 					return false;
 
 				FakePlayer dummy = ZOMBIE_CONVERTERS.get(world);
-				dummy.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GOLDEN_APPLE, 1));
-				((ZombieVillager) entity).mobInteract(dummy, InteractionHand.MAIN_HAND);
+				dummy.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.GOLDEN_APPLE, 1));
+				((ZombieVillagerEntity) entity).interactMob(dummy, Hand.MAIN_HAND);
 				return true;
 			})
 			.registerAndAssign(Items.GOLDEN_APPLE),
@@ -189,7 +189,7 @@ public class BuiltinPotatoProjectileTypes {
 			.knockback(0.05f)
 			.renderTumbling()
 			.soundPitch(1.1f)
-			.onEntityHit(foodEffects(Foods.ENCHANTED_GOLDEN_APPLE, false))
+			.onEntityHit(foodEffects(FoodComponents.ENCHANTED_GOLDEN_APPLE, false))
 			.registerAndAssign(Items.ENCHANTED_GOLDEN_APPLE),
 
 		BEETROOT = create("beetroot").damage(2)
@@ -214,7 +214,7 @@ public class BuiltinPotatoProjectileTypes {
 			.velocity(1.45f)
 			.renderTumbling()
 			.soundPitch(1.5f)
-			.onEntityHit(potion(MobEffects.GLOWING, 1, 100, true))
+			.onEntityHit(potion(StatusEffects.GLOWING, 1, 100, true))
 			.registerAndAssign(Items.GLISTERING_MELON_SLICE),
 
 		MELON_BLOCK = create("melon_block").damage(8)
@@ -272,123 +272,123 @@ public class BuiltinPotatoProjectileTypes {
 	private static Predicate<EntityHitResult> setFire(int seconds) {
 		return ray -> {
 			ray.getEntity()
-				.setSecondsOnFire(seconds);
+				.setOnFireFor(seconds);
 			return false;
 		};
 	}
 
-	private static Predicate<EntityHitResult> potion(MobEffect effect, int level, int ticks, boolean recoverable) {
+	private static Predicate<EntityHitResult> potion(StatusEffect effect, int level, int ticks, boolean recoverable) {
 		return ray -> {
 			Entity entity = ray.getEntity();
-			if (entity.level().isClientSide)
+			if (entity.getWorld().isClient)
 				return true;
 			if (entity instanceof LivingEntity)
-				applyEffect((LivingEntity) entity, new MobEffectInstance(effect, ticks, level - 1));
+				applyEffect((LivingEntity) entity, new StatusEffectInstance(effect, ticks, level - 1));
 			return !recoverable;
 		};
 	}
 
-	private static Predicate<EntityHitResult> foodEffects(FoodProperties food, boolean recoverable) {
+	private static Predicate<EntityHitResult> foodEffects(FoodComponent food, boolean recoverable) {
 		return ray -> {
 			Entity entity = ray.getEntity();
-			if (entity.level().isClientSide)
+			if (entity.getWorld().isClient)
 				return true;
 
 			if (entity instanceof LivingEntity) {
-				for (Pair<MobEffectInstance, Float> effect : food.getEffects()) {
+				for (Pair<StatusEffectInstance, Float> effect : food.getStatusEffects()) {
 					if (Create.RANDOM.nextFloat() < effect.getSecond())
-						applyEffect((LivingEntity) entity, new MobEffectInstance(effect.getFirst()));
+						applyEffect((LivingEntity) entity, new StatusEffectInstance(effect.getFirst()));
 				}
 			}
 			return !recoverable;
 		};
 	}
 
-	private static void applyEffect(LivingEntity entity, MobEffectInstance effect) {
-		if (effect.getEffect()
-			.isInstantenous())
-			effect.getEffect()
-				.applyInstantenousEffect(null, null, entity, effect.getDuration(), 1.0);
+	private static void applyEffect(LivingEntity entity, StatusEffectInstance effect) {
+		if (effect.getEffectType()
+			.isInstant())
+			effect.getEffectType()
+				.applyInstantEffect(null, null, entity, effect.getDuration(), 1.0);
 		else
-			entity.addEffect(effect);
+			entity.addStatusEffect(effect);
 	}
 
-	private static BiPredicate<LevelAccessor, BlockHitResult> plantCrop(Supplier<? extends Block> cropBlock) {
+	private static BiPredicate<WorldAccess, BlockHitResult> plantCrop(Supplier<? extends Block> cropBlock) {
 		return (world, ray) -> {
-			if (world.isClientSide())
+			if (world.isClient())
 				return true;
 			if (!canModifyWorld())
 				return false;
 
 			BlockPos hitPos = ray.getBlockPos();
-			if (world instanceof Level l && !l.isLoaded(hitPos))
+			if (world instanceof World l && !l.canSetBlock(hitPos))
 				return true;
-			Direction face = ray.getDirection();
+			Direction face = ray.getSide();
 			if (face != Direction.UP)
 				return false;
-			BlockPos placePos = hitPos.relative(face);
+			BlockPos placePos = hitPos.offset(face);
 			if (!world.getBlockState(placePos)
-				.canBeReplaced())
+				.isReplaceable())
 				return false;
 			if (!(cropBlock.get() instanceof IPlantable))
 				return false;
 			BlockState blockState = world.getBlockState(hitPos);
-			if (!(blockState.getBlock() instanceof FarmBlock))
+			if (!(blockState.getBlock() instanceof FarmlandBlock))
 				return false;
-			world.setBlock(placePos, cropBlock.get().defaultBlockState(), 3);
+			world.setBlockState(placePos, cropBlock.get().getDefaultState(), 3);
 			return true;
 		};
 	}
 
-	private static BiPredicate<LevelAccessor, BlockHitResult> plantCrop(Block cropBlock) {
+	private static BiPredicate<WorldAccess, BlockHitResult> plantCrop(Block cropBlock) {
 		return plantCrop(() -> cropBlock);
 	}
 
-	private static BiPredicate<LevelAccessor, BlockHitResult> placeBlockOnGround(
+	private static BiPredicate<WorldAccess, BlockHitResult> placeBlockOnGround(
 		Supplier<? extends Block> block) {
 		return (world, ray) -> {
-			if (world.isClientSide())
+			if (world.isClient())
 				return true;
 			if (!canModifyWorld())
 				return false;
 
 			BlockPos hitPos = ray.getBlockPos();
-			if (world instanceof Level l && !l.isLoaded(hitPos))
+			if (world instanceof World l && !l.canSetBlock(hitPos))
 				return true;
-			Direction face = ray.getDirection();
-			BlockPos placePos = hitPos.relative(face);
+			Direction face = ray.getSide();
+			BlockPos placePos = hitPos.offset(face);
 			if (!world.getBlockState(placePos)
-				.canBeReplaced())
+				.isReplaceable())
 				return false;
 
 			if (face == Direction.UP) {
-				world.setBlock(placePos, block.get().defaultBlockState(), 3);
-			} else if (world instanceof Level level) {
-				double y = ray.getLocation().y - 0.5;
-				if (!world.isEmptyBlock(placePos.above()))
+				world.setBlockState(placePos, block.get().getDefaultState(), 3);
+			} else if (world instanceof World level) {
+				double y = ray.getPos().y - 0.5;
+				if (!world.isAir(placePos.up()))
 					y = Math.min(y, placePos.getY());
-				if (!world.isEmptyBlock(placePos.below()))
+				if (!world.isAir(placePos.down()))
 					y = Math.max(y, placePos.getY());
 
 				FallingBlockEntity falling = FallingBlockEntityAccessor.create$callInit(level, placePos.getX() + 0.5, y,
-					placePos.getZ() + 0.5, block.get().defaultBlockState());
-				falling.time = 1;
-				world.addFreshEntity(falling);
+					placePos.getZ() + 0.5, block.get().getDefaultState());
+				falling.timeFalling = 1;
+				world.spawnEntity(falling);
 			}
 
 			return true;
 		};
 	}
 
-	private static BiPredicate<LevelAccessor, BlockHitResult> placeBlockOnGround(Block block) {
+	private static BiPredicate<WorldAccess, BlockHitResult> placeBlockOnGround(Block block) {
 		return placeBlockOnGround(() -> block);
 	}
 
 	private static Predicate<EntityHitResult> chorusTeleport(double teleportDiameter) {
 		return ray -> {
 			Entity entity = ray.getEntity();
-			Level world = entity.getCommandSenderWorld();
-			if (world.isClientSide)
+			World world = entity.getEntityWorld();
+			if (world.isClient)
 				return true;
 			if (!canModifyWorld())
 				return false;
@@ -403,7 +403,7 @@ public class BuiltinPotatoProjectileTypes {
 			for (int teleportTry = 0; teleportTry < 16; ++teleportTry) {
 				double teleportX = entityX + (livingEntity.getRandom()
 					.nextDouble() - 0.5D) * teleportDiameter;
-				double teleportY = Mth.clamp(entityY + (livingEntity.getRandom()
+				double teleportY = MathHelper.clamp(entityY + (livingEntity.getRandom()
 					.nextInt((int) teleportDiameter) - (int) (teleportDiameter / 2)), 0.0D, world.getHeight() - 1);
 				double teleportZ = entityZ + (livingEntity.getRandom()
 					.nextDouble() - 0.5D) * teleportDiameter;
@@ -412,15 +412,15 @@ public class BuiltinPotatoProjectileTypes {
 				EntityEvents.TELEPORT.invoker().onTeleport(event);
 				if (event.isCanceled())
 					return false;
-				if (livingEntity.randomTeleport(teleportX, teleportY, teleportZ, true)) {
-					if (livingEntity.isPassenger())
+				if (livingEntity.teleport(teleportX, teleportY, teleportZ, true)) {
+					if (livingEntity.hasVehicle())
 						livingEntity.stopRiding();
 
 					SoundEvent soundevent =
-						livingEntity instanceof Fox ? SoundEvents.FOX_TELEPORT : SoundEvents.CHORUS_FRUIT_TELEPORT;
-					world.playSound(null, entityX, entityY, entityZ, soundevent, SoundSource.PLAYERS, 1.0F, 1.0F);
+						livingEntity instanceof FoxEntity ? SoundEvents.ENTITY_FOX_TELEPORT : SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT;
+					world.playSound(null, entityX, entityY, entityZ, soundevent, SoundCategory.PLAYERS, 1.0F, 1.0F);
 					livingEntity.playSound(soundevent, 1.0F, 1.0F);
-					livingEntity.setDeltaMovement(Vec3.ZERO);
+					livingEntity.setVelocity(Vec3d.ZERO);
 					return true;
 				}
 			}

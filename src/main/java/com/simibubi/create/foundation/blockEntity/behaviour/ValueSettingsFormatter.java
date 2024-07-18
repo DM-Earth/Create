@@ -1,23 +1,21 @@
 package com.simibubi.create.foundation.blockEntity.behaviour;
 
 import java.util.function.Function;
-
+import net.minecraft.text.MutableText;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsBehaviour.ValueSettings;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.INamedIconOptions;
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.utility.Lang;
 
-import net.minecraft.network.chat.MutableComponent;
-
 public class ValueSettingsFormatter {
 
-	private Function<ValueSettings, MutableComponent> formatter;
+	private Function<ValueSettings, MutableText> formatter;
 
-	public ValueSettingsFormatter(Function<ValueSettings, MutableComponent> formatter) {
+	public ValueSettingsFormatter(Function<ValueSettings, MutableText> formatter) {
 		this.formatter = formatter;
 	}
 
-	public MutableComponent format(ValueSettings valueSettings) {
+	public MutableText format(ValueSettings valueSettings) {
 		return formatter.apply(valueSettings);
 	}
 

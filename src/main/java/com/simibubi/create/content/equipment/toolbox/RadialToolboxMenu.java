@@ -5,12 +5,19 @@ import static com.simibubi.create.content.equipment.toolbox.ToolboxInventory.STA
 import java.util.List;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.util.Window;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.MathHelper;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllKeys;
 import com.simibubi.create.AllPackets;
@@ -23,14 +30,6 @@ import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Lang;
 
 import io.github.fabricators_of_create.porting_lib.util.KeyBindingHelper;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
 
 public class RadialToolboxMenu extends AbstractSimiScreen {
 
@@ -59,18 +58,18 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-		float fade = Mth.clamp((ticksOpen + AnimationTickHolder.getPartialTicks()) / 10f, 1 / 512f, 1);
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
+		float fade = MathHelper.clamp((ticksOpen + AnimationTickHolder.getPartialTicks()) / 10f, 1 / 512f, 1);
 
 		hoveredSlot = -1;
-		Window window = Minecraft.getInstance().getWindow();
-		float hoveredX = mouseX - window.getGuiScaledWidth() / 2;
-		float hoveredY = mouseY - window.getGuiScaledHeight() / 2;
+		Window window = MinecraftClient.getInstance().getWindow();
+		float hoveredX = mouseX - window.getScaledWidth() / 2;
+		float hoveredY = mouseY - window.getScaledHeight() / 2;
 
 		float distance = hoveredX * hoveredX + hoveredY * hoveredY;
 		if (distance > 25 && distance < 10000)
 			hoveredSlot =
-				(Mth.floor((AngleHelper.deg(Mth.atan2(hoveredY, hoveredX)) + 360 + 180 - 22.5f)) % 360)
+				(MathHelper.floor((AngleHelper.deg(MathHelper.atan2(hoveredY, hoveredX)) + 360 + 180 - 22.5f)) % 360)
 					/ 45;
 		boolean renderCenterSlot = state == State.SELECT_ITEM_UNEQUIP;
 		if (scrollMode && distance > 150)
@@ -78,10 +77,10 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 		if (renderCenterSlot && distance <= 150)
 			hoveredSlot = UNEQUIP;
 
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(width / 2, height / 2, 0);
-		Component tip = null;
+		Text tip = null;
 
 		if (state == State.DETACH) {
 
@@ -89,7 +88,7 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 			if (hoveredX > -20 && hoveredX < 20 && hoveredY > -80 && hoveredY < -20)
 				hoveredSlot = UNEQUIP;
 
-			ms.pushPose();
+			ms.push();
 			AllGuiTextures.TOOLBELT_INACTIVE_SLOT.render(graphics, -12, -12);
 			GuiGameElement.of(AllBlocks.TOOLBOXES.get(DyeColor.BROWN)
 				.asStack())
@@ -104,16 +103,16 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 			if (!scrollMode && hoveredSlot == UNEQUIP) {
 				AllGuiTextures.TOOLBELT_SLOT_HIGHLIGHT.render(graphics, -13, -13);
 				tip = Lang.translateDirect("toolbox.detach")
-					.withStyle(ChatFormatting.GOLD);
+					.formatted(Formatting.GOLD);
 			}
-			ms.popPose();
+			ms.pop();
 
 		} else {
 
 			if (hoveredX > 60 && hoveredX < 100 && hoveredY > -20 && hoveredY < 20)
 				hoveredSlot = DEPOSIT;
 
-			ms.pushPose();
+			ms.push();
 			ms.translate(80 + (-5 * (1 - fade) * (1 - fade)), 0, 0);
 			AllGuiTextures.TOOLBELT_SLOT.render(graphics, -12, -12);
 			ms.translate(-0.5, 0.5, 0);
@@ -122,12 +121,12 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 			if (!scrollMode && hoveredSlot == DEPOSIT) {
 				AllGuiTextures.TOOLBELT_SLOT_HIGHLIGHT.render(graphics, -13, -13);
 				tip = Lang.translateDirect(state == State.SELECT_BOX ? "toolbox.depositAll" : "toolbox.depositBox")
-					.withStyle(ChatFormatting.GOLD);
+					.formatted(Formatting.GOLD);
 			}
-			ms.popPose();
+			ms.pop();
 
 			for (int slot = 0; slot < 8; slot++) {
-				ms.pushPose();
+				ms.push();
 				TransformStack.cast(ms)
 					.rotateZ(slot * 45 - 45)
 					.translate(0, -40 + (10 * (1 - fade) * (1 - fade)), 0)
@@ -150,7 +149,7 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 
 						if (slot == (scrollMode ? scrollSlot : hoveredSlot) && !empty) {
 							AllGuiTextures.TOOLBELT_SLOT_HIGHLIGHT.render(graphics, -1, -1);
-							tip = stackInSlot.getHoverName();
+							tip = stackInSlot.getName();
 						}
 					} else
 						AllGuiTextures.TOOLBELT_EMPTY_SLOT.render(graphics, 0, 0);
@@ -174,23 +173,23 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 
 				}
 
-				ms.popPose();
+				ms.pop();
 			}
 
 			if (renderCenterSlot) {
-				ms.pushPose();
+				ms.push();
 				AllGuiTextures.TOOLBELT_SLOT.render(graphics, -12, -12);
 				(scrollMode ? AllIcons.I_REFRESH : AllIcons.I_FLIP).render(graphics, -9, -9);
 				if (!scrollMode && UNEQUIP == hoveredSlot) {
 					AllGuiTextures.TOOLBELT_SLOT_HIGHLIGHT.render(graphics, -13, -13);
-					tip = Lang.translateDirect("toolbox.unequip", minecraft.player.getMainHandItem()
-						.getHoverName())
-						.withStyle(ChatFormatting.GOLD);
+					tip = Lang.translateDirect("toolbox.unequip", client.player.getMainHandStack()
+						.getName())
+						.formatted(Formatting.GOLD);
 				}
-				ms.popPose();
+				ms.pop();
 			}
 		}
-		ms.popPose();
+		ms.pop();
 
 		if (tip != null) {
 			int i1 = (int) (fade * 255.0F);
@@ -198,23 +197,23 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 				i1 = 255;
 
 			if (i1 > 8) {
-				ms.pushPose();
+				ms.push();
 				ms.translate((float) (width / 2), (float) (height - 68), 0.0F);
 				RenderSystem.enableBlend();
 				RenderSystem.defaultBlendFunc();
 				int k1 = 16777215;
 				int k = i1 << 24 & -16777216;
-				int l = font.width(tip);
-				graphics.drawString(font, tip, Math.round(-l / 2f), -4, k1 | k, false);
+				int l = textRenderer.getWidth(tip);
+				graphics.drawText(textRenderer, tip, Math.round(-l / 2f), -4, k1 | k, false);
 				RenderSystem.disableBlend();
-				ms.popPose();
+				ms.pop();
 			}
 		}
 
 	}
 
 	@Override
-	public void renderBackground(GuiGraphics graphics) {
+	public void renderBackground(DrawContext graphics) {
 		int a = ((int) (0x50 * Math.min(1, (ticksOpen + AnimationTickHolder.getPartialTicks()) / 20f))) << 24;
 		graphics.fillGradient(0, 0, this.width, this.height, 0x101010 | a, 0x101010 | a);
 	}
@@ -235,9 +234,9 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 			if (state == State.DETACH)
 				return;
 			else if (state == State.SELECT_BOX)
-				toolboxes.forEach(be -> AllPackets.getChannel().sendToServer(new ToolboxDisposeAllPacket(be.getBlockPos())));
+				toolboxes.forEach(be -> AllPackets.getChannel().sendToServer(new ToolboxDisposeAllPacket(be.getPos())));
 			else
-				AllPackets.getChannel().sendToServer(new ToolboxDisposeAllPacket(selectedBox.getBlockPos()));
+				AllPackets.getChannel().sendToServer(new ToolboxDisposeAllPacket(selectedBox.getPos()));
 			return;
 		}
 
@@ -247,13 +246,13 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 		if (state == State.DETACH) {
 			if (selected == UNEQUIP)
 				AllPackets.getChannel().sendToServer(
-					new ToolboxEquipPacket(null, selected, minecraft.player.getInventory().selected));
+					new ToolboxEquipPacket(null, selected, client.player.getInventory().selectedSlot));
 			return;
 		}
 
 		if (selected == UNEQUIP)
-			AllPackets.getChannel().sendToServer(new ToolboxEquipPacket(selectedBox.getBlockPos(), selected,
-				minecraft.player.getInventory().selected));
+			AllPackets.getChannel().sendToServer(new ToolboxEquipPacket(selectedBox.getPos(), selected,
+				client.player.getInventory().selectedSlot));
 
 		if (selected < 0)
 			return;
@@ -265,15 +264,15 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 			.isEmpty())
 			return;
 
-		AllPackets.getChannel().sendToServer(new ToolboxEquipPacket(selectedBox.getBlockPos(), selected,
-			minecraft.player.getInventory().selected));
+		AllPackets.getChannel().sendToServer(new ToolboxEquipPacket(selectedBox.getPos(), selected,
+			client.player.getInventory().selectedSlot));
 	}
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-		Window window = Minecraft.getInstance().getWindow();
-		double hoveredX = mouseX - window.getGuiScaledWidth() / 2;
-		double hoveredY = mouseY - window.getGuiScaledHeight() / 2;
+		Window window = MinecraftClient.getInstance().getWindow();
+		double hoveredX = mouseX - window.getScaledWidth() / 2;
+		double hoveredY = mouseY - window.getScaledHeight() / 2;
 		double distance = hoveredX * hoveredX + hoveredY * hoveredY;
 		if (distance <= 150) {
 			scrollMode = true;
@@ -295,7 +294,7 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 				if (state == State.DETACH)
 					break;
 
-				scrollSlot -= Mth.sign(delta);
+				scrollSlot -= MathHelper.sign(delta);
 				scrollSlot = (scrollSlot + 8) % 8;
 			}
 			return true;
@@ -310,7 +309,7 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 
 		if (button == 0) {
 			if (selected == DEPOSIT) {
-				onClose();
+				close();
 				ToolboxHandlerClient.COOLDOWN = 2;
 				return true;
 			}
@@ -323,7 +322,7 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 
 			if (state == State.DETACH || state == State.SELECT_ITEM || state == State.SELECT_ITEM_UNEQUIP) {
 				if (selected == UNEQUIP || selected >= 0) {
-					onClose();
+					close();
 					ToolboxHandlerClient.COOLDOWN = 2;
 					return true;
 				}
@@ -338,13 +337,13 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 
 			if (state == State.SELECT_ITEM_UNEQUIP && selected == UNEQUIP) {
 				if (toolboxes.size() > 1) {
-					AllPackets.getChannel().sendToServer(new ToolboxEquipPacket(selectedBox.getBlockPos(), selected,
-						minecraft.player.getInventory().selected));
+					AllPackets.getChannel().sendToServer(new ToolboxEquipPacket(selectedBox.getPos(), selected,
+						client.player.getInventory().selectedSlot));
 					state = State.SELECT_BOX;
 					return true;
 				}
 
-				onClose();
+				close();
 				ToolboxHandlerClient.COOLDOWN = 2;
 				return true;
 			}
@@ -355,9 +354,9 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 
 	@Override
 	public boolean keyPressed(int code, int scanCode, int modifiers) {
-		KeyMapping[] hotbarBinds = minecraft.options.keyHotbarSlots;
+		KeyBinding[] hotbarBinds = client.options.hotbarKeys;
 		for (int i = 0; i < hotbarBinds.length && i < 8; i++) {
-			if (hotbarBinds[i].matches(code, scanCode)) {
+			if (hotbarBinds[i].matchesKey(code, scanCode)) {
 
 				if (state == State.SELECT_ITEM || state == State.SELECT_ITEM_UNEQUIP) {
 					ToolboxInventory inv = selectedBox.inventory;
@@ -383,9 +382,9 @@ public class RadialToolboxMenu extends AbstractSimiScreen {
 
 	@Override
 	public boolean keyReleased(int code, int scanCode, int modifiers) {
-		InputConstants.Key mouseKey = InputConstants.getKey(code, scanCode);
+		InputUtil.Key mouseKey = InputUtil.fromKeyCode(code, scanCode);
 		if (KeyBindingHelper.isActiveAndMatches(AllKeys.TOOLBELT.getKeybind(), mouseKey)) {
-			onClose();
+			close();
 			return true;
 		}
 		return super.keyReleased(code, scanCode, modifiers);

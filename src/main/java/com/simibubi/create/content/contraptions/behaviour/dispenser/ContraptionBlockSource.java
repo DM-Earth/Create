@@ -3,19 +3,18 @@ package com.simibubi.create.content.contraptions.behaviour.dispenser;
 import javax.annotation.Nullable;
 
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockSource;
-import net.minecraft.core.Direction;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.math.BlockPointer;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 @MethodsReturnNonnullByDefault
-public class ContraptionBlockSource implements BlockSource {
+public class ContraptionBlockSource implements BlockPointer {
 	private final BlockPos pos;
 	private final MovementContext context;
 	private final Direction overrideFacing;
@@ -31,17 +30,17 @@ public class ContraptionBlockSource implements BlockSource {
 	}
 
 	@Override
-	public double x() {
+	public double getX() {
 		return (double)this.pos.getX() + 0.5D;
 	}
 
 	@Override
-	public double y() {
+	public double getY() {
 		return (double)this.pos.getY() + 0.5D;
 	}
 
 	@Override
-	public double z() {
+	public double getZ() {
 		return (double)this.pos.getZ() + 0.5D;
 	}
 
@@ -52,21 +51,21 @@ public class ContraptionBlockSource implements BlockSource {
 
 	@Override
 	public BlockState getBlockState() {
-		if (context.state.hasProperty(BlockStateProperties.FACING) && overrideFacing != null)
-			return context.state.setValue(BlockStateProperties.FACING, overrideFacing);
+		if (context.state.contains(Properties.FACING) && overrideFacing != null)
+			return context.state.with(Properties.FACING, overrideFacing);
 		return context.state;
 	}
 
 	@Override
 	@Nullable
-	public <T extends BlockEntity> T getEntity() {
+	public <T extends BlockEntity> T getBlockEntity() {
 		return null;
 	}
 
 	@Override
 	@Nullable
-	public ServerLevel getLevel() {
+	public ServerWorld getWorld() {
 		MinecraftServer server = context.world.getServer();
-		return server != null ? server.getLevel(context.world.dimension()) : null;
+		return server != null ? server.getWorld(context.world.getRegistryKey()) : null;
 	}
 }

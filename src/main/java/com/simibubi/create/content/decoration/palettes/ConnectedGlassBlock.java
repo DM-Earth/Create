@@ -2,21 +2,21 @@ package com.simibubi.create.content.decoration.palettes;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.GlassBlock;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.GlassBlock;
+import net.minecraft.util.math.Direction;
 
 public class ConnectedGlassBlock extends GlassBlock {
 
-	public ConnectedGlassBlock(Properties p_i48392_1_) {
+	public ConnectedGlassBlock(Settings p_i48392_1_) {
 		super(p_i48392_1_);
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public boolean skipRendering(BlockState state, BlockState adjacentBlockState, Direction side) {
+	public boolean isSideInvisible(BlockState state, BlockState adjacentBlockState, Direction side) {
 		return adjacentBlockState.getBlock() instanceof ConnectedGlassBlock ? true
-			: super.skipRendering(state, adjacentBlockState, side);
+			: super.isSideInvisible(state, adjacentBlockState, side);
 	}
 
 //	@Override

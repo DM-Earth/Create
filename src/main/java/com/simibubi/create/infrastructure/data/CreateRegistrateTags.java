@@ -12,17 +12,17 @@ import com.tterrag.registrate.providers.ProviderType;
 import com.tterrag.registrate.providers.RegistrateTagsProvider;
 
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
-import net.minecraft.data.tags.TagsProvider.TagAppender;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.data.server.tag.TagProvider.ProvidedTagBuilder;
+import net.minecraft.entity.EntityType;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.Item;
+import net.minecraft.item.Items;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.registry.tag.FluidTags;
+import net.minecraft.registry.tag.ItemTags;
 
 public class CreateRegistrateTags {
 	public static void addGenerators() {
@@ -33,7 +33,7 @@ public class CreateRegistrateTags {
 	}
 
 	private static void genBlockTags(RegistrateTagsProvider<Block> provIn) {
-		CreateTagsProvider<Block> prov = new CreateTagsProvider<>(provIn, Block::builtInRegistryHolder);
+		CreateTagsProvider<Block> prov = new CreateTagsProvider<>(provIn, Block::getRegistryEntry);
 
 		prov.tag(AllBlockTags.BRITTLE.tag)
 			.add(Blocks.BELL, Blocks.COCOA, Blocks.FLOWER_POT)
@@ -111,7 +111,7 @@ public class CreateRegistrateTags {
 	}
 
 	private static void genItemTags(RegistrateTagsProvider<Item> provIn) {
-		CreateTagsProvider<Item> prov = new CreateTagsProvider<>(provIn, Item::builtInRegistryHolder);
+		CreateTagsProvider<Item> prov = new CreateTagsProvider<>(provIn, Item::getRegistryEntry);
 
 		prov.tag(AllItemTags.SLEEPERS.tag)
 			.add(Items.STONE_SLAB, Items.SMOOTH_STONE_SLAB, Items.ANDESITE_SLAB);
@@ -164,8 +164,8 @@ public class CreateRegistrateTags {
 	}
 
 	private static void genStrippedWoodItemTags(CreateTagsProvider<Item> prov) {
-		TagAppender<Item> logAppender = prov.tag(AllItemTags.MODDED_STRIPPED_LOGS.tag);
-		TagAppender<Item> woodAppender = prov.tag(AllItemTags.MODDED_STRIPPED_WOOD.tag);
+		ProvidedTagBuilder<Item> logAppender = prov.tag(AllItemTags.MODDED_STRIPPED_LOGS.tag);
+		ProvidedTagBuilder<Item> woodAppender = prov.tag(AllItemTags.MODDED_STRIPPED_WOOD.tag);
 		StrippedWoodHelper helper = new StrippedWoodHelper(logAppender, woodAppender);
 
 		helper.add(Mods.ARS_N, "blue_archwood", "purple_archwood", "green_archwood", "red_archwood");
@@ -200,7 +200,7 @@ public class CreateRegistrateTags {
 	}
 
 	private static void genFluidTags(RegistrateTagsProvider<Fluid> provIn) {
-		CreateTagsProvider<Fluid> prov = new CreateTagsProvider<>(provIn, Fluid::builtInRegistryHolder);
+		CreateTagsProvider<Fluid> prov = new CreateTagsProvider<>(provIn, Fluid::getRegistryEntry);
 
 		prov.tag(AllFluidTags.BOTTOMLESS_ALLOW.tag)
 			.add(Fluids.WATER, Fluids.LAVA);
@@ -226,7 +226,7 @@ public class CreateRegistrateTags {
 	}
 
 	private static void genEntityTags(RegistrateTagsProvider<EntityType<?>> provIn) {
-		CreateTagsProvider<EntityType<?>> prov = new CreateTagsProvider<>(provIn, EntityType::builtInRegistryHolder);
+		CreateTagsProvider<EntityType<?>> prov = new CreateTagsProvider<>(provIn, EntityType::getRegistryEntry);
 
 		prov.tag(AllEntityTags.BLAZE_BURNER_CAPTURABLE.tag)
 			.add(EntityType.BLAZE);
@@ -241,10 +241,10 @@ public class CreateRegistrateTags {
 	}
 
 	private static class StrippedWoodHelper {
-		protected final TagAppender<Item> logAppender;
-		protected final TagAppender<Item> woodAppender;
+		protected final ProvidedTagBuilder<Item> logAppender;
+		protected final ProvidedTagBuilder<Item> woodAppender;
 
-		public StrippedWoodHelper(TagAppender<Item> logAppender, TagAppender<Item> woodAppender) {
+		public StrippedWoodHelper(ProvidedTagBuilder<Item> logAppender, ProvidedTagBuilder<Item> woodAppender) {
 			this.logAppender = logAppender;
 			this.woodAppender = woodAppender;
 		}

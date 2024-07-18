@@ -4,14 +4,14 @@ import io.github.fabricators_of_create.porting_lib.block.CustomRenderBoundingBox
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 
 public abstract class CachedRenderBBBlockEntity extends SyncedBlockEntity implements CustomRenderBoundingBoxBlockEntity {
 
-	private AABB renderBoundingBox;
+	private Box renderBoundingBox;
 
 	public CachedRenderBBBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
@@ -19,7 +19,7 @@ public abstract class CachedRenderBBBlockEntity extends SyncedBlockEntity implem
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public AABB getRenderBoundingBox() {
+	public Box getRenderBoundingBox() {
 		if (renderBoundingBox == null) {
 			renderBoundingBox = createRenderBoundingBox();
 		}
@@ -30,7 +30,7 @@ public abstract class CachedRenderBBBlockEntity extends SyncedBlockEntity implem
 		renderBoundingBox = null;
 	}
 
-	protected AABB createRenderBoundingBox() {
+	protected Box createRenderBoundingBox() {
 		return CustomRenderBoundingBoxBlockEntity.super.getRenderBoundingBox();
 	}
 

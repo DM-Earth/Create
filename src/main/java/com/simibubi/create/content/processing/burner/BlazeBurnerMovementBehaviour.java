@@ -16,17 +16,17 @@ import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
 
 public class BlazeBurnerMovementBehaviour implements MovementBehaviour {
 
@@ -42,20 +42,20 @@ public class BlazeBurnerMovementBehaviour implements MovementBehaviour {
 
 	@Override
 	public void tick(MovementContext context) {
-		if (!context.world.isClientSide())
+		if (!context.world.isClient())
 			return;
 		if (!shouldRender(context))
 			return;
 
-		RandomSource r = context.world.getRandom();
-		Vec3 c = context.position;
-		Vec3 v = c.add(VecHelper.offsetRandomly(Vec3.ZERO, r, .125f)
+		Random r = context.world.getRandom();
+		Vec3d c = context.position;
+		Vec3d v = c.add(VecHelper.offsetRandomly(Vec3d.ZERO, r, .125f)
 			.multiply(1, 0, 1));
 		if (r.nextInt(3) == 0 && context.motion.length() < 1 / 64f)
 			context.world.addParticle(ParticleTypes.LARGE_SMOKE, v.x, v.y, v.z, 0, 0, 0);
 
 		LerpedFloat headAngle = getHeadAngle(context);
-		boolean quickTurn = shouldRenderHat(context) && !Mth.equal(context.relativeMotion.length(), 0);
+		boolean quickTurn = shouldRenderHat(context) && !MathHelper.approximatelyEquals(context.relativeMotion.length(), 0);
 		headAngle.chase(
 			headAngle.getValue() + AngleHelper.getShortestAngleDiff(headAngle.getValue(), getTargetAngle(context)), .5f,
 			quickTurn ? Chaser.EXP : Chaser.exp(5));
@@ -67,7 +67,7 @@ public class BlazeBurnerMovementBehaviour implements MovementBehaviour {
 	}
 
 	private boolean shouldRender(MovementContext context) {
-		return context.state.getOptionalValue(BlazeBurnerBlock.HEAT_LEVEL)
+		return context.state.getOrEmpty(BlazeBurnerBlock.HEAT_LEVEL)
 			.orElse(HeatLevel.NONE) != HeatLevel.NONE;
 	}
 
@@ -79,27 +79,27 @@ public class BlazeBurnerMovementBehaviour implements MovementBehaviour {
 	}
 
 	private float getTargetAngle(MovementContext context) {
-		if (shouldRenderHat(context) && !Mth.equal(context.relativeMotion.length(), 0)
+		if (shouldRenderHat(context) && !MathHelper.approximatelyEquals(context.relativeMotion.length(), 0)
 			&& context.contraption.entity instanceof CarriageContraptionEntity cce) {
 
-			float angle = AngleHelper.deg(-Mth.atan2(context.relativeMotion.x, context.relativeMotion.z));
+			float angle = AngleHelper.deg(-MathHelper.atan2(context.relativeMotion.x, context.relativeMotion.z));
 			return cce.getInitialOrientation()
 				.getAxis() == Axis.X ? angle + 180 : angle;
 		}
 
-		Entity player = Minecraft.getInstance().cameraEntity;
+		Entity player = MinecraftClient.getInstance().cameraEntity;
 		if (player != null && !player.isInvisible() && context.position != null) {
-			Vec3 applyRotation = context.contraption.entity.reverseRotation(player.position()
+			Vec3d applyRotation = context.contraption.entity.reverseRotation(player.getPos()
 				.subtract(context.position), 1);
 			double dx = applyRotation.x;
 			double dz = applyRotation.z;
-			return AngleHelper.deg(-Mth.atan2(dz, dx)) - 90;
+			return AngleHelper.deg(-MathHelper.atan2(dz, dx)) - 90;
 		}
 		return 0;
 	}
 
 	private boolean shouldRenderHat(MovementContext context) {
-		CompoundTag data = context.data;
+		NbtCompound data = context.data;
 		if (!data.contains("Conductor"))
 			data.putBoolean("Conductor", determineIfConducting(context));
 		return data.getBoolean("Conductor") && (context.contraption.entity instanceof CarriageContraptionEntity cce)
@@ -120,7 +120,7 @@ public class BlazeBurnerMovementBehaviour implements MovementBehaviour {
 	@Override
 	@Environment(EnvType.CLIENT)
 	public void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
 		if (!shouldRender(context))
 			return;
 		BlazeBurnerRenderer.renderInContraption(context, renderWorld, matrices, buffer, getHeadAngle(context),

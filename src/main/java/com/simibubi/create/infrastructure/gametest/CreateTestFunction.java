@@ -12,21 +12,19 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.entity.StructureBlockBlockEntity;
+import net.minecraft.test.CustomTestProvider;
+import net.minecraft.test.GameTest;
+import net.minecraft.test.StructureTestUtil;
+import net.minecraft.test.TestContext;
+import net.minecraft.test.TestFunction;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestGenerator;
-import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.gametest.framework.StructureUtils;
-import net.minecraft.gametest.framework.TestFunction;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.entity.StructureBlockEntity;
 
 /**
  * An extension to game tests implementing functionality for {@link CreateGameTestHelper} and {@link GameTestGroup}.
- * To use, create a {@link GameTestGenerator} that provides tests using {@link #getTestsFrom(Class[])}.
+ * To use, create a {@link CustomTestProvider} that provides tests using {@link #getTestsFrom(Class[])}.
  */
 public class CreateTestFunction extends TestFunction {
 	// for structure blocks and /test runthis
@@ -36,8 +34,8 @@ public class CreateTestFunction extends TestFunction {
 	public final String simpleName;
 
 	protected CreateTestFunction(String fullName, String simpleName, String pBatchName, String pTestName,
-								 String pStructureName, Rotation pRotation, int pMaxTicks, long pSetupTicks,
-								 boolean pRequired, int pRequiredSuccesses, int pMaxAttempts, Consumer<GameTestHelper> pFunction) {
+								 String pStructureName, BlockRotation pRotation, int pMaxTicks, long pSetupTicks,
+								 boolean pRequired, int pRequiredSuccesses, int pMaxAttempts, Consumer<TestContext> pFunction) {
 		super(pBatchName, pTestName, pStructureName, pRotation, pMaxTicks, pSetupTicks, pRequired, pRequiredSuccesses, pMaxAttempts, pFunction);
 		this.fullName = fullName;
 		this.simpleName = simpleName;
@@ -45,7 +43,7 @@ public class CreateTestFunction extends TestFunction {
 	}
 
 	@Override
-	public String getTestName() {
+	public String getTemplatePath() {
 		return simpleName;
 	}
 
@@ -59,7 +57,7 @@ public class CreateTestFunction extends TestFunction {
 				.flatMap(Stream::of)
 				.map(CreateTestFunction::of)
 				.filter(Objects::nonNull)
-				.sorted(Comparator.comparing(TestFunction::getTestName))
+				.sorted(Comparator.comparing(TestFunction::getTemplatePath))
 				.toList();
 	}
 
@@ -73,19 +71,19 @@ public class CreateTestFunction extends TestFunction {
 		String simpleName = owner.getSimpleName() + '.' + method.getName();
 		validateTestMethod(method, gt, owner, group, simpleName);
 
-		String structure = "%s:gametest/%s/%s".formatted(group.namespace(), group.path(), gt.template());
-		Rotation rotation = StructureUtils.getRotationForRotationSteps(gt.rotationSteps());
+		String structure = "%s:gametest/%s/%s".formatted(group.namespace(), group.path(), gt.templateName());
+		BlockRotation rotation = StructureTestUtil.getRotation(gt.rotation());
 
 		String fullName = owner.getName() + "." + method.getName();
 		return new CreateTestFunction(
 				// use structure for test name since that's what MC fills structure blocks with for some reason
-				fullName, simpleName, gt.batch(), structure, structure, rotation, gt.timeoutTicks(), gt.setupTicks(),
-				gt.required(), gt.requiredSuccesses(), gt.attempts(), asConsumer(method)
+				fullName, simpleName, gt.batchId(), structure, structure, rotation, gt.tickLimit(), gt.duration(),
+				gt.required(), gt.requiredSuccesses(), gt.maxAttempts(), asConsumer(method)
 		);
 	}
 
 	private static void validateTestMethod(Method method, GameTest gt, Class<?> owner, GameTestGroup group, String simpleName) {
-		if (gt.template().isEmpty())
+		if (gt.templateName().isEmpty())
 			throw new IllegalArgumentException(simpleName + " must provide a template structure");
 
 		if (!Modifier.isStatic(method.getModifiers()))
@@ -101,7 +99,7 @@ public class CreateTestFunction extends TestFunction {
 			throw new IllegalArgumentException(owner.getName() + " must be annotated with @GameTestGroup");
 	}
 
-	private static Consumer<GameTestHelper> asConsumer(Method method) {
+	private static Consumer<TestContext> asConsumer(Method method) {
 		return (helper) -> {
 			try {
 				method.invoke(null, helper);
@@ -112,10 +110,10 @@ public class CreateTestFunction extends TestFunction {
 	}
 
 	@Override
-	public void run(@NotNull GameTestHelper helper) {
+	public void start(@NotNull TestContext helper) {
 		// give structure block test info
-		StructureBlockEntity be = (StructureBlockEntity) helper.getBlockEntity(BlockPos.ZERO);
+		StructureBlockBlockEntity be = (StructureBlockBlockEntity) helper.getBlockEntity(BlockPos.ORIGIN);
 		be.getCustomData().putString("CreateTestFunction", fullName);
-		super.run(CreateGameTestHelper.of(helper));
+		super.start(CreateGameTestHelper.of(helper));
 	}
 }

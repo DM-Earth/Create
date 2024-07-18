@@ -3,12 +3,10 @@ package com.simibubi.create.content.decoration.encasing;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.function.BiPredicate;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.Direction;
 import com.simibubi.create.foundation.block.connected.CTSpriteShiftEntry;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class CasingConnectivity {
 

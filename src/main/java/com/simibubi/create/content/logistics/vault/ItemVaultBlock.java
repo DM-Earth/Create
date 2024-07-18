@@ -13,65 +13,65 @@ import com.simibubi.create.foundation.item.ItemHelper;
 
 import io.github.fabricators_of_create.porting_lib.block.CustomSoundTypeBlock;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.state.property.Property;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldView;
 
 public class ItemVaultBlock extends Block implements IWrenchable, IBE<ItemVaultBlockEntity>, CustomSoundTypeBlock {
 
-	public static final Property<Axis> HORIZONTAL_AXIS = BlockStateProperties.HORIZONTAL_AXIS;
-	public static final BooleanProperty LARGE = BooleanProperty.create("large");
+	public static final Property<Axis> HORIZONTAL_AXIS = Properties.HORIZONTAL_AXIS;
+	public static final BooleanProperty LARGE = BooleanProperty.of("large");
 
-	public ItemVaultBlock(Properties p_i48440_1_) {
+	public ItemVaultBlock(Settings p_i48440_1_) {
 		super(p_i48440_1_);
-		registerDefaultState(defaultBlockState().setValue(LARGE, false));
+		setDefaultState(getDefaultState().with(LARGE, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
+	protected void appendProperties(Builder<Block, BlockState> pBuilder) {
 		pBuilder.add(HORIZONTAL_AXIS, LARGE);
-		super.createBlockStateDefinition(pBuilder);
+		super.appendProperties(pBuilder);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext pContext) {
+	public BlockState getPlacementState(ItemPlacementContext pContext) {
 		if (pContext.getPlayer() == null || !pContext.getPlayer()
-			.isShiftKeyDown()) {
-			BlockState placedOn = pContext.getLevel()
-				.getBlockState(pContext.getClickedPos()
-					.relative(pContext.getClickedFace()
+			.isSneaking()) {
+			BlockState placedOn = pContext.getWorld()
+				.getBlockState(pContext.getBlockPos()
+					.offset(pContext.getSide()
 						.getOpposite()));
 			Axis preferredAxis = getVaultBlockAxis(placedOn);
 			if (preferredAxis != null)
-				return this.defaultBlockState()
-					.setValue(HORIZONTAL_AXIS, preferredAxis);
+				return this.getDefaultState()
+					.with(HORIZONTAL_AXIS, preferredAxis);
 		}
-		return this.defaultBlockState()
-			.setValue(HORIZONTAL_AXIS, pContext.getHorizontalDirection()
+		return this.getDefaultState()
+			.with(HORIZONTAL_AXIS, pContext.getHorizontalPlayerFacing()
 				.getAxis());
 	}
 
 	@Override
-	public void onPlace(BlockState pState, Level pLevel, BlockPos pPos, BlockState pOldState, boolean pIsMoving) {
+	public void onBlockAdded(BlockState pState, World pLevel, BlockPos pPos, BlockState pOldState, boolean pIsMoving) {
 		if (pOldState.getBlock() == pState.getBlock())
 			return;
 		if (pIsMoving)
@@ -84,25 +84,25 @@ public class ItemVaultBlock extends Block implements IWrenchable, IBE<ItemVaultB
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		if (context.getClickedFace()
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		if (context.getSide()
 			.getAxis()
 			.isVertical()) {
-			BlockEntity be = context.getLevel()
-				.getBlockEntity(context.getClickedPos());
+			BlockEntity be = context.getWorld()
+				.getBlockEntity(context.getBlockPos());
 			if (be instanceof ItemVaultBlockEntity) {
 				ItemVaultBlockEntity vault = (ItemVaultBlockEntity) be;
 				ConnectivityHandler.splitMulti(vault);
 				vault.removeController(true);
 			}
-			state = state.setValue(LARGE, false);
+			state = state.with(LARGE, false);
 		}
-		InteractionResult onWrenched = IWrenchable.super.onWrenched(state, context);
+		ActionResult onWrenched = IWrenchable.super.onWrenched(state, context);
 		return onWrenched;
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level world, BlockPos pos, BlockState newState, boolean pIsMoving) {
+	public void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean pIsMoving) {
 		if (state.hasBlockEntity() && (state.getBlock() != newState.getBlock() || !newState.hasBlockEntity())) {
 			BlockEntity be = world.getBlockEntity(pos);
 			if (!(be instanceof ItemVaultBlockEntity))
@@ -122,36 +122,36 @@ public class ItemVaultBlock extends Block implements IWrenchable, IBE<ItemVaultB
 	public static Axis getVaultBlockAxis(BlockState state) {
 		if (!isVault(state))
 			return null;
-		return state.getValue(HORIZONTAL_AXIS);
+		return state.get(HORIZONTAL_AXIS);
 	}
 
 	public static boolean isLarge(BlockState state) {
 		if (!isVault(state))
 			return false;
-		return state.getValue(LARGE);
+		return state.get(LARGE);
 	}
 
 	@Override
-	public BlockState rotate(BlockState state, Rotation rot) {
-		Axis axis = state.getValue(HORIZONTAL_AXIS);
-		return state.setValue(HORIZONTAL_AXIS, rot.rotate(Direction.fromAxisAndDirection(axis, AxisDirection.POSITIVE))
+	public BlockState rotate(BlockState state, BlockRotation rot) {
+		Axis axis = state.get(HORIZONTAL_AXIS);
+		return state.with(HORIZONTAL_AXIS, rot.rotate(Direction.from(axis, AxisDirection.POSITIVE))
 			.getAxis());
 	}
 
 	@Override
-	public BlockState mirror(BlockState state, Mirror mirrorIn) {
+	public BlockState mirror(BlockState state, BlockMirror mirrorIn) {
 		return state;
 	}
 
 	// Vaults are less noisy when placed in batch
-	public static final SoundType SILENCED_METAL =
-		new SoundType(0.1F, 1.5F, SoundEvents.NETHERITE_BLOCK_BREAK, SoundEvents.NETHERITE_BLOCK_STEP,
-			SoundEvents.NETHERITE_BLOCK_PLACE, SoundEvents.NETHERITE_BLOCK_HIT,
-			SoundEvents.NETHERITE_BLOCK_FALL);
+	public static final BlockSoundGroup SILENCED_METAL =
+		new BlockSoundGroup(0.1F, 1.5F, SoundEvents.BLOCK_NETHERITE_BLOCK_BREAK, SoundEvents.BLOCK_NETHERITE_BLOCK_STEP,
+			SoundEvents.BLOCK_NETHERITE_BLOCK_PLACE, SoundEvents.BLOCK_NETHERITE_BLOCK_HIT,
+			SoundEvents.BLOCK_NETHERITE_BLOCK_FALL);
 
 	@Override
-	public SoundType getSoundType(BlockState state, LevelReader world, BlockPos pos, Entity entity) {
-		SoundType soundType = getSoundType(state);
+	public BlockSoundGroup getSoundType(BlockState state, WorldView world, BlockPos pos, Entity entity) {
+		BlockSoundGroup soundType = getSoundGroup(state);
 		if (entity != null && entity.getCustomData()
 			.contains("SilenceVaultSound"))
 			return SILENCED_METAL;
@@ -159,12 +159,12 @@ public class ItemVaultBlock extends Block implements IWrenchable, IBE<ItemVaultB
 	}
 
 	@Override
-	public boolean hasAnalogOutputSignal(BlockState p_149740_1_) {
+	public boolean hasComparatorOutput(BlockState p_149740_1_) {
 		return true;
 	}
 
 	@Override
-	public int getAnalogOutputSignal(BlockState pState, Level pLevel, BlockPos pPos) {
+	public int getComparatorOutput(BlockState pState, World pLevel, BlockPos pPos) {
 		return getBlockEntityOptional(pLevel, pPos)
 			.filter(vte -> !Transaction.isOpen()) // fabric: hack fix for comparators updating when they shouldn't
 			.map(vte -> vte.getItemStorage(null))

@@ -1,8 +1,7 @@
 package com.simibubi.create.content.kinetics.base.flwdata;
 
+import net.minecraft.util.math.Direction;
 import org.joml.Vector3f;
-
-import net.minecraft.core.Direction;
 
 public class RotatingData extends KineticData {
     byte rotationAxisX;
@@ -11,7 +10,7 @@ public class RotatingData extends KineticData {
 
     public RotatingData setRotationAxis(Direction.Axis axis) {
         Direction orientation = Direction.get(Direction.AxisDirection.POSITIVE, axis);
-        return setRotationAxis(orientation.step());
+        return setRotationAxis(orientation.getUnitVector());
     }
 
     public RotatingData setRotationAxis(Vector3f axis) {

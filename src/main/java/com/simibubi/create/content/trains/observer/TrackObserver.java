@@ -1,7 +1,11 @@
 package com.simibubi.create.content.trains.observer;
 
 import java.util.UUID;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.world.World;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.logistics.filter.FilterItemStack;
 import com.simibubi.create.content.trains.entity.Train;
@@ -14,11 +18,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
 
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 
 public class TrackObserver extends SingleBlockEntityEdgePoint {
 
@@ -37,7 +36,7 @@ public class TrackObserver extends SingleBlockEntityEdgePoint {
 		super.blockEntityAdded(blockEntity, front);
 		FilteringBehaviour filteringBehaviour = BlockEntityBehaviour.get(blockEntity, FilteringBehaviour.TYPE);
 		if (filteringBehaviour != null)
-			setFilterAndNotify(blockEntity.getLevel(), filteringBehaviour.getFilter());
+			setFilterAndNotify(blockEntity.getWorld(), filteringBehaviour.getFilter());
 	}
 
 	@Override
@@ -49,12 +48,12 @@ public class TrackObserver extends SingleBlockEntityEdgePoint {
 			currentTrain = null;
 	}
 
-	public void setFilterAndNotify(Level level, ItemStack filter) {
+	public void setFilterAndNotify(World level, ItemStack filter) {
 		this.filter = FilterItemStack.of(filter.copy());
 		notifyTrains(level);
 	}
 
-	private void notifyTrains(Level level) {
+	private void notifyTrains(World level) {
 		TrackGraph graph = Create.RAILWAYS.sided(level)
 			.getGraph(level, edgeLocation.getFirst());
 		if (graph == null)
@@ -83,30 +82,30 @@ public class TrackObserver extends SingleBlockEntityEdgePoint {
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean migration, DimensionPalette dimensions) {
+	public void read(NbtCompound nbt, boolean migration, DimensionPalette dimensions) {
 		super.read(nbt, migration, dimensions);
 		activated = nbt.getInt("Activated");
 		filter = FilterItemStack.of(nbt.getCompound("Filter"));
 		if (nbt.contains("TrainId"))
-			currentTrain = nbt.getUUID("TrainId");
+			currentTrain = nbt.getUuid("TrainId");
 	}
 
 	@Override
-	public void read(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+	public void read(PacketByteBuf buffer, DimensionPalette dimensions) {
 		super.read(buffer, dimensions);
 	}
 
 	@Override
-	public void write(CompoundTag nbt, DimensionPalette dimensions) {
+	public void write(NbtCompound nbt, DimensionPalette dimensions) {
 		super.write(nbt, dimensions);
 		nbt.putInt("Activated", activated);
 		nbt.put("Filter", filter.serializeNBT());
 		if (currentTrain != null)
-			nbt.putUUID("TrainId", currentTrain);
+			nbt.putUuid("TrainId", currentTrain);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+	public void write(PacketByteBuf buffer, DimensionPalette dimensions) {
 		super.write(buffer, dimensions);
 	}
 

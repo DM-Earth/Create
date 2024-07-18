@@ -2,15 +2,13 @@ package com.simibubi.create.content.contraptions.actors.contraptionControls;
 
 import java.util.Iterator;
 import java.util.List;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.ItemStack;
 
 public class ContraptionDisableActorPacket extends SimplePacketBase {
 
@@ -24,23 +22,23 @@ public class ContraptionDisableActorPacket extends SimplePacketBase {
 		this.enable = enable;
 	}
 
-	public ContraptionDisableActorPacket(FriendlyByteBuf buffer) {
+	public ContraptionDisableActorPacket(PacketByteBuf buffer) {
 		entityID = buffer.readInt();
 		enable = buffer.readBoolean();
-		filter = buffer.readItem();
+		filter = buffer.readItemStack();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(entityID);
 		buffer.writeBoolean(enable);
-		buffer.writeItem(filter);
+		buffer.writeItemStack(filter);
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			Entity entityByID = Minecraft.getInstance().level.getEntity(entityID);
+			Entity entityByID = MinecraftClient.getInstance().world.getEntityById(entityID);
 			if (!(entityByID instanceof AbstractContraptionEntity ace))
 				return;
 

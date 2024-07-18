@@ -5,12 +5,11 @@ import com.simibubi.create.foundation.blockEntity.renderer.ColoredOverlayBlockEn
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.Color;
-
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 
 public class BrassDiodeRenderer extends ColoredOverlayBlockEntityRenderer<BrassDiodeBlockEntity> {
 
-	public BrassDiodeRenderer(BlockEntityRendererProvider.Context context) {
+	public BrassDiodeRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
@@ -21,7 +20,7 @@ public class BrassDiodeRenderer extends ColoredOverlayBlockEntityRenderer<BrassD
 
 	@Override
 	protected SuperByteBuffer getOverlayBuffer(BrassDiodeBlockEntity be) {
-		return CachedBufferer.partial(AllPartialModels.FLEXPEATER_INDICATOR, be.getBlockState());
+		return CachedBufferer.partial(AllPartialModels.FLEXPEATER_INDICATOR, be.getCachedState());
 	}
 
 }

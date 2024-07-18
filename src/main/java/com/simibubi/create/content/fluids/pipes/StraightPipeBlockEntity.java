@@ -1,7 +1,12 @@
 package com.simibubi.create.content.fluids.pipes;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.BlockRenderView;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.content.decoration.bracket.BracketedBlockEntityBehaviour;
@@ -11,13 +16,6 @@ import com.simibubi.create.content.fluids.PipeAttachmentBlockEntity;
 import com.simibubi.create.content.fluids.pipes.valve.FluidValveBlock;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class StraightPipeBlockEntity extends SmartBlockEntity implements PipeAttachmentBlockEntity {
 
@@ -46,14 +44,14 @@ public class StraightPipeBlockEntity extends SmartBlockEntity implements PipeAtt
 
 		@Override
 		public boolean canHaveFlowToward(BlockState state, Direction direction) {
-			return state.hasProperty(AxisPipeBlock.AXIS) && state.getValue(AxisPipeBlock.AXIS) == direction.getAxis();
+			return state.contains(AxisPipeBlock.AXIS) && state.get(AxisPipeBlock.AXIS) == direction.getAxis();
 		}
 
 		@Override
-		public AttachmentTypes getRenderedRimAttachment(BlockAndTintGetter world, BlockPos pos, BlockState state,
+		public AttachmentTypes getRenderedRimAttachment(BlockRenderView world, BlockPos pos, BlockState state,
 			Direction direction) {
 			AttachmentTypes attachment = super.getRenderedRimAttachment(world, pos, state, direction);
-			BlockState otherState = world.getBlockState(pos.relative(direction));
+			BlockState otherState = world.getBlockState(pos.offset(direction));
 
 			Axis axis = IAxisPipe.getAxisOf(state);
 			Axis otherAxis = IAxisPipe.getAxisOf(otherState);

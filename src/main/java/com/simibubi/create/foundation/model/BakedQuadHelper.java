@@ -1,19 +1,17 @@
 package com.simibubi.create.foundation.model;
 
 import java.util.Arrays;
-
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
-
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.render.model.BakedQuad;
+import net.minecraft.util.math.Vec3d;
 
 public final class BakedQuadHelper {
 
-	public static final VertexFormat FORMAT = DefaultVertexFormat.BLOCK;
-	public static final int VERTEX_STRIDE = FORMAT.getIntegerSize();
+	public static final VertexFormat FORMAT = VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL;
+	public static final int VERTEX_STRIDE = FORMAT.getVertexSizeInteger();
 
 	public static final int X_OFFSET = 0;
 	public static final int Y_OFFSET = 1;
@@ -27,35 +25,35 @@ public final class BakedQuadHelper {
 	private BakedQuadHelper() {}
 
 	public static BakedQuad clone(BakedQuad quad) {
-		return new BakedQuad(Arrays.copyOf(quad.getVertices(), quad.getVertices().length),
-			quad.getTintIndex(), quad.getDirection(), quad.getSprite(), quad.isShade());
+		return new BakedQuad(Arrays.copyOf(quad.getVertexData(), quad.getVertexData().length),
+			quad.getColorIndex(), quad.getFace(), quad.getSprite(), quad.hasShade());
 	}
 
 	public static BakedQuad cloneWithCustomGeometry(BakedQuad quad, int[] vertexData) {
-		return new BakedQuad(vertexData, quad.getTintIndex(), quad.getDirection(), quad.getSprite(), quad.isShade());
+		return new BakedQuad(vertexData, quad.getColorIndex(), quad.getFace(), quad.getSprite(), quad.hasShade());
 	}
 
-	public static Vec3 getXYZ(int[] vertexData, int vertex) {
+	public static Vec3d getXYZ(int[] vertexData, int vertex) {
 		float x = Float.intBitsToFloat(vertexData[vertex * VERTEX_STRIDE + X_OFFSET]);
         float y = Float.intBitsToFloat(vertexData[vertex * VERTEX_STRIDE + Y_OFFSET]);
         float z = Float.intBitsToFloat(vertexData[vertex * VERTEX_STRIDE + Z_OFFSET]);
-        return new Vec3(x, y, z);
+        return new Vec3d(x, y, z);
 	}
 
-	public static void setXYZ(int[] vertexData, int vertex, Vec3 xyz) {
+	public static void setXYZ(int[] vertexData, int vertex, Vec3d xyz) {
 		vertexData[vertex * VERTEX_STRIDE + X_OFFSET] = Float.floatToRawIntBits((float) xyz.x);
 		vertexData[vertex * VERTEX_STRIDE + Y_OFFSET] = Float.floatToRawIntBits((float) xyz.y);
 		vertexData[vertex * VERTEX_STRIDE + Z_OFFSET] = Float.floatToRawIntBits((float) xyz.z);
 	}
 
-	public static Vec3 getXYZ(QuadView quad, int vertex) {
+	public static Vec3d getXYZ(QuadView quad, int vertex) {
 		float x = quad.x(vertex);
         float y = quad.y(vertex);
         float z = quad.z(vertex);
-        return new Vec3(x, y, z);
+        return new Vec3d(x, y, z);
 	}
 
-	public static void setXYZ(MutableQuadView quad, int vertex, Vec3 xyz) {
+	public static void setXYZ(MutableQuadView quad, int vertex, Vec3d xyz) {
 		quad.pos(vertex, (float) xyz.x, (float) xyz.y, (float) xyz.z);
 	}
 

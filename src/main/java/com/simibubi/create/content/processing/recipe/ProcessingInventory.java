@@ -14,8 +14,8 @@ import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandle
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 
 public class ProcessingInventory extends ItemStackHandlerContainer {
 	public float remainingTime;
@@ -58,8 +58,8 @@ public class ProcessingInventory extends ItemStackHandlerContainer {
 	}
 
 	@Override
-	public CompoundTag serializeNBT() {
-		CompoundTag nbt = super.serializeNBT();
+	public NbtCompound serializeNBT() {
+		NbtCompound nbt = super.serializeNBT();
 		nbt.putFloat("ProcessingTime", remainingTime);
 		nbt.putFloat("RecipeTime", recipeDuration);
 		nbt.putBoolean("AppliedRecipe", appliedRecipe);
@@ -67,7 +67,7 @@ public class ProcessingInventory extends ItemStackHandlerContainer {
 	}
 
 	@Override
-	public void deserializeNBT(CompoundTag nbt) {
+	public void deserializeNBT(NbtCompound nbt) {
 		remainingTime = nbt.getFloat("ProcessingTime");
 		recipeDuration = nbt.getFloat("RecipeTime");
 		appliedRecipe = nbt.getBoolean("AppliedRecipe");

@@ -1,21 +1,19 @@
 package com.simibubi.create.content.redstone.displayLink.target;
 
 import java.util.List;
-
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 
 public abstract class SingleLineDisplayTarget extends DisplayTarget {
 
 	@Override
-	public final void acceptText(int line, List<MutableComponent> text, DisplayLinkContext context) {
+	public final void acceptText(int line, List<MutableText> text, DisplayLinkContext context) {
 		acceptLine(text.get(0), context);
 	}
 	
-	protected abstract void acceptLine(MutableComponent text, DisplayLinkContext context);
+	protected abstract void acceptLine(MutableText text, DisplayLinkContext context);
 
 	@Override
 	public final DisplayTargetStats provideStats(DisplayLinkContext context) {
@@ -23,7 +21,7 @@ public abstract class SingleLineDisplayTarget extends DisplayTarget {
 	}
 	
 	@Override
-	public Component getLineOptionText(int line) {
+	public Text getLineOptionText(int line) {
 		return Lang.translateDirect("display_target.single_line");
 	}
 	

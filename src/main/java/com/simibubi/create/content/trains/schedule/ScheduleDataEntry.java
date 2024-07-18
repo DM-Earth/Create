@@ -1,29 +1,29 @@
 package com.simibubi.create.content.trains.schedule;
 
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 
 public abstract class ScheduleDataEntry implements IScheduleInput {
 
-	protected CompoundTag data;
+	protected NbtCompound data;
 
 	public ScheduleDataEntry() {
-		data = new CompoundTag();
+		data = new NbtCompound();
 	}
 
 	@Override
-	public CompoundTag getData() {
+	public NbtCompound getData() {
 		return data;
 	}
 
 	@Override
-	public void setData(CompoundTag data) {
+	public void setData(NbtCompound data) {
 		this.data = data;
 		readAdditional(data);
 	}
 
-	protected void writeAdditional(CompoundTag tag) {};
+	protected void writeAdditional(NbtCompound tag) {};
 
-	protected void readAdditional(CompoundTag tag) {};
+	protected void readAdditional(NbtCompound tag) {};
 
 	protected <T> T enumData(String key, Class<T> enumClass) {
 		T[] enumConstants = enumClass.getEnumConstants();

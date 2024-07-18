@@ -6,10 +6,9 @@ import java.util.function.Supplier;
 import com.simibubi.create.foundation.utility.Lang;
 
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 /**
  * For compatibility with and without another mod present, we have to define load conditions of the specific code
@@ -49,12 +48,12 @@ public enum Mods {
 		return id;
 	}
 
-	public ResourceLocation rl(String path) {
-		return new ResourceLocation(id, path);
+	public Identifier rl(String path) {
+		return new Identifier(id, path);
 	}
 
 	public Block getBlock(String id) {
-		return BuiltInRegistries.BLOCK.get(rl(id));
+		return Registries.BLOCK.get(rl(id));
 	}
 
 	/**

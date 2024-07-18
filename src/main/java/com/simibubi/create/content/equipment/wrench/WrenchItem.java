@@ -1,9 +1,20 @@
 package com.simibubi.create.content.equipment.wrench;
 
 import javax.annotation.Nonnull;
-
-import net.minecraft.world.phys.BlockHitResult;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.AllItems;
@@ -11,46 +22,31 @@ import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.AllTags;
 import com.simibubi.create.Create;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.EntityHitResult;
-
 public class WrenchItem extends Item {
 
-	public WrenchItem(Properties properties) {
+	public WrenchItem(Settings properties) {
 		super(properties);
 	}
 
 	@Nonnull
 	@Override
-	public InteractionResult useOn(UseOnContext context) {
-		Player player = context.getPlayer();
-		if (player == null || !player.mayBuild())
-			return super.useOn(context);
+	public ActionResult useOnBlock(ItemUsageContext context) {
+		PlayerEntity player = context.getPlayer();
+		if (player == null || !player.canModifyBlocks())
+			return super.useOnBlock(context);
 
-		BlockState state = context.getLevel()
-				.getBlockState(context.getClickedPos());
+		BlockState state = context.getWorld()
+				.getBlockState(context.getBlockPos());
 		Block block = state.getBlock();
 
 		if (!(block instanceof IWrenchable)) {
-			if (player.isShiftKeyDown() && canWrenchPickup(state))
+			if (player.isSneaking() && canWrenchPickup(state))
 				return onItemUseOnOther(context);
-			return super.useOn(context);
+			return super.useOnBlock(context);
 		}
 
 		IWrenchable actor = (IWrenchable) block;
-		if (player.isShiftKeyDown())
+		if (player.isSneaking())
 			return actor.onSneakWrenched(state, context);
 		return actor.onWrenched(state, context);
 	}
@@ -59,33 +55,33 @@ public class WrenchItem extends Item {
 		return AllTags.AllBlockTags.WRENCH_PICKUP.matches(state);
 	}
 
-	private static InteractionResult onItemUseOnOther(UseOnContext context) {
-		Player player = context.getPlayer();
-		Level world = context.getLevel();
-		BlockPos pos = context.getClickedPos();
+	private static ActionResult onItemUseOnOther(ItemUsageContext context) {
+		PlayerEntity player = context.getPlayer();
+		World world = context.getWorld();
+		BlockPos pos = context.getBlockPos();
 		BlockState state = world.getBlockState(pos);
-		if (!(world instanceof ServerLevel))
-			return InteractionResult.SUCCESS;
+		if (!(world instanceof ServerWorld))
+			return ActionResult.SUCCESS;
 		if (player != null && !player.isCreative())
-			Block.getDrops(state, (ServerLevel) world, pos, world.getBlockEntity(pos), player, context.getItemInHand())
-				.forEach(itemStack -> player.getInventory().placeItemBackInInventory(itemStack));
-		state.spawnAfterBreak((ServerLevel) world, pos, ItemStack.EMPTY, true);
-		world.destroyBlock(pos, false);
+			Block.getDroppedStacks(state, (ServerWorld) world, pos, world.getBlockEntity(pos), player, context.getStack())
+				.forEach(itemStack -> player.getInventory().offerOrDrop(itemStack));
+		state.onStacksDropped((ServerWorld) world, pos, ItemStack.EMPTY, true);
+		world.breakBlock(pos, false);
 		AllSoundEvents.WRENCH_REMOVE.playOnServer(world, pos, 1, Create.RANDOM.nextFloat() * .5f + .5f);
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
-	public static InteractionResult wrenchInstaKillsMinecarts(Player player, Level world, InteractionHand hand, Entity target, @Nullable EntityHitResult entityRayTraceResult) {
-		if (!(target instanceof AbstractMinecart))
-			return InteractionResult.PASS;
-		ItemStack heldItem = player.getMainHandItem();
+	public static ActionResult wrenchInstaKillsMinecarts(PlayerEntity player, World world, Hand hand, Entity target, @Nullable EntityHitResult entityRayTraceResult) {
+		if (!(target instanceof AbstractMinecartEntity))
+			return ActionResult.PASS;
+		ItemStack heldItem = player.getMainHandStack();
 		if (!AllItems.WRENCH.isIn(heldItem))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		if (player.isCreative())
-			return InteractionResult.PASS;
-		AbstractMinecart minecart = (AbstractMinecart) target;
-		minecart.hurt(minecart.damageSources().playerAttack(player), 100);
-		return InteractionResult.SUCCESS;
+			return ActionResult.PASS;
+		AbstractMinecartEntity minecart = (AbstractMinecartEntity) target;
+		minecart.damage(minecart.getDamageSources().playerAttack(player), 100);
+		return ActionResult.SUCCESS;
 	}
 
 //	@Override

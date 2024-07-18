@@ -3,23 +3,20 @@ package com.simibubi.create.foundation.utility;
 import java.text.BreakIterator;
 import java.util.LinkedList;
 import java.util.List;
-
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
 import io.github.fabricators_of_create.porting_lib.common.util.MinecraftClientUtil;
 
 import org.joml.Matrix4f;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
 
 public final class FontHelper {
 
 	private FontHelper() {}
 
-	public static List<String> cutString(Font font, String text, int maxWidthPerLine) {
+	public static List<String> cutString(TextRenderer font, String text, int maxWidthPerLine) {
 		// Split words
 		List<String> words = new LinkedList<>();
 		BreakIterator iterator = BreakIterator.getLineInstance(MinecraftClientUtil.getLocale());
@@ -34,7 +31,7 @@ public final class FontHelper {
 		StringBuilder currentLine = new StringBuilder();
 		int width = 0;
 		for (String word : words) {
-			int newWidth = font.width(word);
+			int newWidth = font.getWidth(word);
 			if (width + newWidth > maxWidthPerLine) {
 				if (width > 0) {
 					String line = currentLine.toString();
@@ -55,16 +52,16 @@ public final class FontHelper {
 		return lines;
 	}
 
-	public static void drawSplitString(PoseStack ms, Font font, String text, int x, int y, int width,
+	public static void drawSplitString(MatrixStack ms, TextRenderer font, String text, int x, int y, int width,
 		int color) {
 		List<String> list = cutString(font, text, width);
-		Matrix4f matrix4f = ms.last()
-			.pose();
+		Matrix4f matrix4f = ms.peek()
+			.getPositionMatrix();
 
 		for (String s : list) {
 			float f = (float) x;
-			if (font.isBidirectional()) {
-				int i = font.width(font.bidirectionalShaping(s));
+			if (font.isRightToLeft()) {
+				int i = font.getWidth(font.mirror(s));
 				f += (float) (width - i);
 			}
 
@@ -73,16 +70,16 @@ public final class FontHelper {
 		}
 	}
 
-	private static int draw(Font font, String p_228078_1_, float p_228078_2_, float p_228078_3_,
+	private static int draw(TextRenderer font, String p_228078_1_, float p_228078_2_, float p_228078_3_,
 		int p_228078_4_, Matrix4f p_228078_5_, boolean p_228078_6_) {
 		if (p_228078_1_ == null) {
 			return 0;
 		} else {
-			MultiBufferSource.BufferSource irendertypebuffer$impl = MultiBufferSource.immediate(Tesselator.getInstance()
-				.getBuilder());
-			int i = font.drawInBatch(p_228078_1_, p_228078_2_, p_228078_3_, p_228078_4_, p_228078_6_, p_228078_5_,
-				irendertypebuffer$impl, Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
-			irendertypebuffer$impl.endBatch();
+			VertexConsumerProvider.Immediate irendertypebuffer$impl = VertexConsumerProvider.immediate(Tessellator.getInstance()
+				.getBuffer());
+			int i = font.draw(p_228078_1_, p_228078_2_, p_228078_3_, p_228078_4_, p_228078_6_, p_228078_5_,
+				irendertypebuffer$impl, TextRenderer.TextLayerType.NORMAL, 0, LightmapTextureManager.MAX_LIGHT_COORDINATE);
+			irendertypebuffer$impl.draw();
 			return i;
 		}
 	}

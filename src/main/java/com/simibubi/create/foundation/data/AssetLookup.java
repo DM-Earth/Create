@@ -1,7 +1,12 @@
 package com.simibubi.create.foundation.data;
 
 import java.util.function.Function;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.state.property.IntProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.Identifier;
 import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 import com.tterrag.registrate.providers.RegistrateItemModelProvider;
@@ -9,13 +14,6 @@ import com.tterrag.registrate.util.nullness.NonNullBiConsumer;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
 import io.github.fabricators_of_create.porting_lib.models.generators.item.ItemModelBuilder;
-
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
 
 public class AssetLookup {
 
@@ -80,7 +78,7 @@ public class AssetLookup {
 
 	public static Function<BlockState, ModelFile> forPowered(DataGenContext<?, ?> ctx,
 		RegistrateBlockstateProvider prov) {
-		return state -> state.getValue(BlockStateProperties.POWERED) ? partialBaseModel(ctx, prov, "powered")
+		return state -> state.get(Properties.POWERED) ? partialBaseModel(ctx, prov, "powered")
 			: partialBaseModel(ctx, prov);
 	}
 
@@ -88,15 +86,15 @@ public class AssetLookup {
 		RegistrateBlockstateProvider prov, String path) {
 		return state -> prov.models()
 			.getExistingFile(
-				prov.modLoc("block/" + path + (state.getValue(BlockStateProperties.POWERED) ? "_powered" : "")));
+				prov.modLoc("block/" + path + (state.get(Properties.POWERED) ? "_powered" : "")));
 	}
 
 	public static Function<BlockState, ModelFile> withIndicator(DataGenContext<?, ?> ctx,
-		RegistrateBlockstateProvider prov, Function<BlockState, ModelFile> baseModelFunc, IntegerProperty property) {
+		RegistrateBlockstateProvider prov, Function<BlockState, ModelFile> baseModelFunc, IntProperty property) {
 		return state -> {
-			ResourceLocation baseModel = baseModelFunc.apply(state)
+			Identifier baseModel = baseModelFunc.apply(state)
 				.getLocation();
-			Integer integer = state.getValue(property);
+			Integer integer = state.get(property);
 			return prov.models()
 				.withExistingParent(ctx.getName() + "_" + integer, baseModel)
 				.texture("indicator", "block/indicator/" + integer);

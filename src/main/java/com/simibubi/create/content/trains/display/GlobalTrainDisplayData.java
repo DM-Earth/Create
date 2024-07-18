@@ -5,11 +5,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import net.minecraft.text.MutableText;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.entity.Train;
-
-import net.minecraft.network.chat.MutableComponent;
 
 public class GlobalTrainDisplayData {
 
@@ -45,10 +43,10 @@ public class GlobalTrainDisplayData {
 	public static class TrainDeparturePrediction implements Comparable<TrainDeparturePrediction> {
 		public Train train;
 		public int ticks;
-		public MutableComponent scheduleTitle;
+		public MutableText scheduleTitle;
 		public String destination;
 
-		public TrainDeparturePrediction(Train train, int ticks, MutableComponent scheduleTitle, String destination) {
+		public TrainDeparturePrediction(Train train, int ticks, MutableText scheduleTitle, String destination) {
 			this.scheduleTitle = scheduleTitle;
 			this.destination = destination;
 			this.train = train;

@@ -74,24 +74,24 @@ import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
-import net.minecraft.commands.CommandBuildContext;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.resource.ResourceType;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.ServerGamePacketListenerImpl;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayNetworkHandler;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.chunk.WorldChunk;
 
 public class CommonEvents {
 
@@ -102,22 +102,22 @@ public class CommonEvents {
 		Create.RAILWAYS.sync.serverTick();
 	}
 
-	public static void onChunkUnloaded(Level world, LevelChunk chunk) {
+	public static void onChunkUnloaded(World world, WorldChunk chunk) {
 		CapabilityMinecartController.onChunkUnloaded(world, chunk);
 	}
 
-	public static void playerLoggedIn(ServerGamePacketListenerImpl handler, PacketSender sender, MinecraftServer server) {
+	public static void playerLoggedIn(ServerPlayNetworkHandler handler, PacketSender sender, MinecraftServer server) {
 		ToolboxHandler.playerLogin(handler.getPlayer());
 		Create.RAILWAYS.playerLogin(handler.getPlayer());
 	}
 
-	public static void playerLoggedOut(ServerGamePacketListenerImpl handler, MinecraftServer server) {
-		Player player = handler.getPlayer();
+	public static void playerLoggedOut(ServerPlayNetworkHandler handler, MinecraftServer server) {
+		PlayerEntity player = handler.getPlayer();
 		Create.RAILWAYS.playerLogout(player);
 	}
 
-	public static void onServerWorldTick(Level world) {
-		if (!world.isClientSide()) {
+	public static void onServerWorldTick(World world) {
+		if (!world.isClient()) {
 			ContraptionHandler.tick(world);
 			CapabilityMinecartController.tick(world);
 			CouplingPhysics.tick(world);
@@ -128,22 +128,22 @@ public class CommonEvents {
 	}
 
 	public static void onUpdateLivingEntity(LivingEntity entityLiving) {
-		Level world = entityLiving.level();
+		World world = entityLiving.getWorld();
 		if (world == null)
 			return;
 		ContraptionHandler.entitiesWhoJustDismountedGetSentToTheRightLocation(entityLiving, world);
 		ToolboxHandler.entityTick(entityLiving, world);
 	}
 
-	public static void onEntityAdded(Entity entity, Level world) {
+	public static void onEntityAdded(Entity entity, World world) {
 		ContraptionHandler.addSpawnedContraptionsToCollisionList(entity, world);
 	}
 
-	public static InteractionResult onEntityAttackedByPlayer(Player playerEntity, Level world, InteractionHand hand, Entity entity, @Nullable EntityHitResult entityRayTraceResult) {
+	public static ActionResult onEntityAttackedByPlayer(PlayerEntity playerEntity, World world, Hand hand, Entity entity, @Nullable EntityHitResult entityRayTraceResult) {
 		return WrenchItem.wrenchInstaKillsMinecarts(playerEntity, world, hand, entity, entityRayTraceResult);
 	}
 
-	public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
+	public static void registerCommands(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
 		AllCommands.register(dispatcher);
 	}
 
@@ -152,12 +152,12 @@ public class CommonEvents {
 	}
 
 	public static void addReloadListeners() {
-		ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(RecipeFinder.LISTENER);
-		ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(PotatoProjectileTypeManager.ReloadListener.INSTANCE);
-		ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(BeltHelper.LISTENER);
+		ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(RecipeFinder.LISTENER);
+		ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(PotatoProjectileTypeManager.ReloadListener.INSTANCE);
+		ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(BeltHelper.LISTENER);
 	}
 
-	public static void onDatapackSync(ServerPlayer player, boolean joined) {
+	public static void onDatapackSync(ServerPlayerEntity player, boolean joined) {
 		PotatoProjectileTypeManager.syncTo(player);
 	}
 
@@ -165,13 +165,13 @@ public class CommonEvents {
 		Create.SCHEMATIC_RECEIVER.shutdown();
 	}
 
-	public static void onLoadWorld(Executor executor, LevelAccessor world) {
+	public static void onLoadWorld(Executor executor, WorldAccess world) {
 		Create.REDSTONE_LINK_NETWORK_HANDLER.onLoadWorld(world);
 		Create.TORQUE_PROPAGATOR.onLoadWorld(world);
 		Create.RAILWAYS.levelLoaded(world);
 	}
 
-	public static void onUnloadWorld(Executor executor, LevelAccessor world) {
+	public static void onUnloadWorld(Executor executor, WorldAccess world) {
 		Create.REDSTONE_LINK_NETWORK_HANDLER.onUnloadWorld(world);
 		Create.TORQUE_PROPAGATOR.onUnloadWorld(world);
 		WorldAttached.invalidateWorld(world);
@@ -182,12 +182,12 @@ public class CommonEvents {
 //		CapabilityMinecartController.attach(cart);
 //	}
 
-	public static void startTracking(Entity target, ServerPlayer player) {
+	public static void startTracking(Entity target, ServerPlayerEntity player) {
 		CapabilityMinecartController.startTracking(target);
 	}
 
-	public static void leftClickEmpty(ServerPlayer player) {
-		ItemStack stack = player.getMainHandItem();
+	public static void leftClickEmpty(ServerPlayerEntity player) {
+		ItemStack stack = player.getMainHandStack();
 		if (stack.getItem() instanceof ZapperItem) {
 			ZapperInteractionHandler.trySelect(stack, player);
 		}
@@ -205,7 +205,7 @@ public class CommonEvents {
 	public static void addPackFinders() {
 		ModContainer create = FabricLoader.getInstance().getModContainer(Create.ID)
 				.orElseThrow(() -> new IllegalStateException("Create's ModContainer couldn't be found!"));
-		ResourceLocation packId = Create.asResource("legacy_copper");
+		Identifier packId = Create.asResource("legacy_copper");
 		ResourceManagerHelper.registerBuiltinResourcePack(packId, create, "Create Legacy Copper", ResourcePackActivationType.NORMAL);
 	}
 

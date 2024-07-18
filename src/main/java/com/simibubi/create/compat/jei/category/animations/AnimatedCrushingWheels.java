@@ -1,25 +1,24 @@
 package com.simibubi.create.compat.jei.category.animations;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllBlocks;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.RotationAxis;
 
 public class AnimatedCrushingWheels extends AnimatedKinetics {
 
 	private final BlockState wheel = AllBlocks.CRUSHING_WHEEL.getDefaultState()
-			.setValue(BlockStateProperties.AXIS, Direction.Axis.X);
+			.with(Properties.AXIS, Direction.Axis.X);
 
 	@Override
-	public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
-		PoseStack matrixStack = graphics.pose();
-		matrixStack.pushPose();
+	public void draw(DrawContext graphics, int xOffset, int yOffset) {
+		MatrixStack matrixStack = graphics.getMatrices();
+		matrixStack.push();
 		matrixStack.translate(xOffset, yOffset, 100);
-		matrixStack.mulPose(Axis.YP.rotationDegrees(-22.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-22.5f));
 		int scale = 22;
 
 		blockElement(wheel)
@@ -33,7 +32,7 @@ public class AnimatedCrushingWheels extends AnimatedKinetics {
 				.scale(scale)
 				.render(graphics);
 
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 }

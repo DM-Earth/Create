@@ -66,14 +66,14 @@ import com.tterrag.registrate.util.entry.ItemEntry;
 
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.ArmorMaterials;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Rarity;
+import net.minecraft.item.ArmorMaterials;
+import net.minecraft.item.FoodComponent;
+import net.minecraft.item.Item;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.Rarity;
 
 public class AllItems {
 
@@ -116,38 +116,38 @@ public class AllItems {
 			.register();
 
 	public static final ItemEntry<Item> BAR_OF_CHOCOLATE = REGISTRATE.item("bar_of_chocolate", Item::new)
-		.properties(p -> p.food(new FoodProperties.Builder().nutrition(6)
-			.saturationMod(0.3F)
+		.properties(p -> p.food(new FoodComponent.Builder().hunger(6)
+			.saturationModifier(0.3F)
 			.build()))
 		.lang("Bar of Chocolate")
 		.register();
 
 	public static final ItemEntry<Item> SWEET_ROLL = REGISTRATE.item("sweet_roll", Item::new)
-		.properties(p -> p.food(new FoodProperties.Builder().nutrition(6)
-			.saturationMod(0.8F)
+		.properties(p -> p.food(new FoodComponent.Builder().hunger(6)
+			.saturationModifier(0.8F)
 			.build()))
 		.register();
 
 	public static final ItemEntry<Item> CHOCOLATE_BERRIES = REGISTRATE.item("chocolate_glazed_berries", Item::new)
-		.properties(p -> p.food(new FoodProperties.Builder().nutrition(7)
-			.saturationMod(0.8F)
+		.properties(p -> p.food(new FoodComponent.Builder().hunger(7)
+			.saturationModifier(0.8F)
 			.build()))
 		.register();
 
 	public static final ItemEntry<Item> HONEYED_APPLE = REGISTRATE.item("honeyed_apple", Item::new)
-		.properties(p -> p.food(new FoodProperties.Builder().nutrition(8)
-			.saturationMod(0.8F)
+		.properties(p -> p.food(new FoodComponent.Builder().hunger(8)
+			.saturationModifier(0.8F)
 			.build()))
 		.register();
 
 	public static final ItemEntry<BuildersTeaItem> BUILDERS_TEA = REGISTRATE.item("builders_tea", BuildersTeaItem::new)
 		.tag(AllItemTags.UPRIGHT_ON_BELT.tag)
-		.properties(p -> p.stacksTo(16))
+		.properties(p -> p.maxCount(16))
 		.lang("Builder's Tea")
 		.register();
 
 	public static final ItemEntry<Item> RAW_ZINC =
-		taggedIngredient("raw_zinc", forgeItemTag("raw_zinc_ores"), TagKey.create(Registries.ITEM, new ResourceLocation("c", "raw_ores")));
+		taggedIngredient("raw_zinc", forgeItemTag("raw_zinc_ores"), TagKey.of(RegistryKeys.ITEM, new Identifier("c", "raw_ores")));
 
 	public static final ItemEntry<Item> ANDESITE_ALLOY = taggedIngredient("andesite_alloy", CREATE_INGOTS.tag),
 		ZINC_INGOT = taggedIngredient("zinc_ingot", forgeItemTag("zinc_ingots"), CREATE_INGOTS.tag),
@@ -216,7 +216,7 @@ public class AllItems {
 			.register();
 
 	public static final ItemEntry<GogglesItem> GOGGLES = REGISTRATE.item("goggles", GogglesItem::new)
-		.properties(p -> p.stacksTo(1))
+		.properties(p -> p.maxCount(1))
 		.properties(p -> {
 			if (p instanceof FabricItemSettings fp) {
 				fp.equipmentSlot(GogglesItem::getEquipmentSlot);
@@ -228,8 +228,8 @@ public class AllItems {
 		.register();
 
 	public static final ItemEntry<SuperGlueItem> SUPER_GLUE = REGISTRATE.item("super_glue", SuperGlueItem::new)
-		.properties(p -> p.stacksTo(1)
-			.durability(99))
+		.properties(p -> p.maxCount(1)
+			.maxDamage(99))
 		.register();
 
 	public static final ItemEntry<MinecartCouplingItem> MINECART_COUPLING =
@@ -264,7 +264,7 @@ public class AllItems {
 				p -> new BacktankItem(AllArmorMaterials.COPPER, p, Create.asResource("copper_diving"),
 					COPPER_BACKTANK_PLACEABLE))
 			.model(AssetLookup.customGenericItemModel("_", "item"))
-				.properties(p -> p.durability(-1)) // fabric: Item#canBeDepleted() isn't enough to disable durability, so we need to set its maxDamage to -1 as well
+				.properties(p -> p.maxDamage(-1)) // fabric: Item#canBeDepleted() isn't enough to disable durability, so we need to set its maxDamage to -1 as well
 			.tag(AllItemTags.PRESSURIZED_AIR_SOURCES.tag)
 			.tag(forgeItemTag("chestplates"))
 			.register(),
@@ -274,7 +274,7 @@ public class AllItems {
 				p -> new BacktankItem.Layered(ArmorMaterials.NETHERITE, p, Create.asResource("netherite_diving"),
 					NETHERITE_BACKTANK_PLACEABLE))
 			.model(AssetLookup.customGenericItemModel("_", "item"))
-			.properties(p -> p.fireResistant().durability(-1)) // fabric: Item#canBeDepleted() isn't enough to disable durability, so we need to set its maxDamage to -1 as well
+			.properties(p -> p.fireproof().maxDamage(-1)) // fabric: Item#canBeDepleted() isn't enough to disable durability, so we need to set its maxDamage to -1 as well
 			.tag(AllItemTags.PRESSURIZED_AIR_SOURCES.tag)
 			.tag(forgeItemTag("chestplates"))
 			.register();
@@ -291,7 +291,7 @@ public class AllItems {
 		NETHERITE_DIVING_HELMET = REGISTRATE
 			.item("netherite_diving_helmet",
 				p -> new DivingHelmetItem(ArmorMaterials.NETHERITE, p, Create.asResource("netherite_diving")))
-			.properties(p -> p.fireResistant())
+			.properties(p -> p.fireproof())
 			.tag(forgeItemTag("helmets"))
 			.register();
 
@@ -307,7 +307,7 @@ public class AllItems {
 		NETHERITE_DIVING_BOOTS = REGISTRATE
 			.item("netherite_diving_boots",
 				p -> new DivingBootsItem(ArmorMaterials.NETHERITE, p, Create.asResource("netherite_diving")))
-			.properties(p -> p.fireResistant())
+			.properties(p -> p.fireproof())
 			.tag(forgeItemTag("boots"))
 			.register();
 
@@ -323,7 +323,7 @@ public class AllItems {
 		.register();
 
 	public static final ItemEntry<WrenchItem> WRENCH = REGISTRATE.item("wrench", WrenchItem::new)
-		.properties(p -> p.stacksTo(1))
+		.properties(p -> p.maxCount(1))
 		.transform(CreateRegistrate.customRenderedItem(() -> WrenchItemRenderer::new))
 		.model(AssetLookup.itemModelWithPartials())
 		.tag(AllItemTags.WRENCH.tag)
@@ -345,7 +345,7 @@ public class AllItems {
 
 	public static final ItemEntry<LinkedControllerItem> LINKED_CONTROLLER =
 		REGISTRATE.item("linked_controller", LinkedControllerItem::new)
-			.properties(p -> p.stacksTo(1))
+			.properties(p -> p.maxCount(1))
 			.transform(CreateRegistrate.customRenderedItem(() -> LinkedControllerItemRenderer::new))
 			.model(AssetLookup.itemModelWithPartials())
 			.register();
@@ -364,7 +364,7 @@ public class AllItems {
 
 	public static final ItemEntry<SymmetryWandItem> WAND_OF_SYMMETRY =
 		REGISTRATE.item("wand_of_symmetry", SymmetryWandItem::new)
-			.properties(p -> p.stacksTo(1)
+			.properties(p -> p.maxCount(1)
 				.rarity(Rarity.UNCOMMON))
 			.transform(CreateRegistrate.customRenderedItem(() -> SymmetryWandItemRenderer::new))
 			.model(AssetLookup.itemModelWithPartials())
@@ -397,16 +397,16 @@ public class AllItems {
 	// Schematics
 
 	public static final ItemEntry<Item> EMPTY_SCHEMATIC = REGISTRATE.item("empty_schematic", Item::new)
-		.properties(p -> p.stacksTo(1))
+		.properties(p -> p.maxCount(1))
 		.register();
 
 	public static final ItemEntry<SchematicAndQuillItem> SCHEMATIC_AND_QUILL =
 		REGISTRATE.item("schematic_and_quill", SchematicAndQuillItem::new)
-			.properties(p -> p.stacksTo(1))
+			.properties(p -> p.maxCount(1))
 			.register();
 
 	public static final ItemEntry<SchematicItem> SCHEMATIC = REGISTRATE.item("schematic", SchematicItem::new)
-		.properties(p -> p.stacksTo(1))
+		.properties(p -> p.maxCount(1))
 		.register();
 
 	// Shortcuts

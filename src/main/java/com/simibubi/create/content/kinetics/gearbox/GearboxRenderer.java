@@ -1,52 +1,51 @@
 package com.simibubi.create.content.kinetics.gearbox;
 
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
 
 public class GearboxRenderer extends KineticBlockEntityRenderer<GearboxBlockEntity> {
 
-	public GearboxRenderer(BlockEntityRendererProvider.Context context) {
+	public GearboxRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	protected void renderSafe(GearboxBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(GearboxBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 			int light, int overlay) {
-		if (Backend.canUseInstancing(be.getLevel())) return;
+		if (Backend.canUseInstancing(be.getWorld())) return;
 
-		final Axis boxAxis = be.getBlockState().getValue(BlockStateProperties.AXIS);
-		final BlockPos pos = be.getBlockPos();
-		float time = AnimationTickHolder.getRenderTime(be.getLevel());
+		final Axis boxAxis = be.getCachedState().get(Properties.AXIS);
+		final BlockPos pos = be.getPos();
+		float time = AnimationTickHolder.getRenderTime(be.getWorld());
 
 		for (Direction direction : Iterate.directions) {
 			final Axis axis = direction.getAxis();
 			if (boxAxis == axis)
 				continue;
 
-			SuperByteBuffer shaft = CachedBufferer.partialFacing(AllPartialModels.SHAFT_HALF, be.getBlockState(), direction);
+			SuperByteBuffer shaft = CachedBufferer.partialFacing(AllPartialModels.SHAFT_HALF, be.getCachedState(), direction);
 			float offset = getRotationOffsetForPosition(be, pos, axis);
 			float angle = (time * be.getSpeed() * 3f / 10) % 360;
 
 			if (be.getSpeed() != 0 && be.hasSource()) {
-				BlockPos source = be.source.subtract(be.getBlockPos());
-				Direction sourceFacing = Direction.getNearest(source.getX(), source.getY(), source.getZ());
+				BlockPos source = be.source.subtract(be.getPos());
+				Direction sourceFacing = Direction.getFacing(source.getX(), source.getY(), source.getZ());
 				if (sourceFacing.getAxis() == direction.getAxis())
 					angle *= sourceFacing == direction ? 1 : -1;
-				else if (sourceFacing.getAxisDirection() == direction.getAxisDirection())
+				else if (sourceFacing.getDirection() == direction.getDirection())
 					angle *= -1;
 			}
 
@@ -54,7 +53,7 @@ public class GearboxRenderer extends KineticBlockEntityRenderer<GearboxBlockEnti
 			angle = angle / 180f * (float) Math.PI;
 
 			kineticRotationTransform(shaft, be, axis, angle, light);
-			shaft.renderInto(ms, buffer.getBuffer(RenderType.solid()));
+			shaft.renderInto(ms, buffer.getBuffer(RenderLayer.getSolid()));
 		}
 	}
 

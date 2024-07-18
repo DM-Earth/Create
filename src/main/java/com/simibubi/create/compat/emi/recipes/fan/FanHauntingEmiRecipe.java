@@ -1,13 +1,11 @@
 package com.simibubi.create.compat.emi.recipes.fan;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.compat.emi.CreateEmiAnimations;
 import com.simibubi.create.compat.emi.CreateEmiPlugin;
 import com.simibubi.create.content.kinetics.fan.processing.HauntingRecipe;
 import com.simibubi.create.foundation.gui.element.GuiGameElement;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.gui.DrawContext;
 
 public class FanHauntingEmiRecipe extends FanEmiRecipe.MultiOutput<HauntingRecipe> {
 
@@ -16,8 +14,8 @@ public class FanHauntingEmiRecipe extends FanEmiRecipe.MultiOutput<HauntingRecip
 	}
 
 	@Override
-	protected void renderAttachedBlock(GuiGraphics graphics) {
-		GuiGameElement.of(Blocks.SOUL_FIRE.defaultBlockState())
+	protected void renderAttachedBlock(DrawContext graphics) {
+		GuiGameElement.of(Blocks.SOUL_FIRE.getDefaultState())
 			.scale(SCALE)
 			.atLocal(0, 0, 2)
 			.lighting(CreateEmiAnimations.DEFAULT_LIGHTING)

@@ -2,26 +2,24 @@ package com.simibubi.create.content.trains.graph;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
 
 public class DimensionPalette {
 
-	List<ResourceKey<Level>> gatheredDims;
+	List<RegistryKey<World>> gatheredDims;
 
 	public DimensionPalette() {
 		gatheredDims = new ArrayList<>();
 	}
 
-	public int encode(ResourceKey<Level> dimension) {
+	public int encode(RegistryKey<World> dimension) {
 		int indexOf = gatheredDims.indexOf(dimension);
 		if (indexOf == -1) {
 			indexOf = gatheredDims.size();
@@ -30,38 +28,38 @@ public class DimensionPalette {
 		return indexOf;
 	}
 
-	public ResourceKey<Level> decode(int index) {
+	public RegistryKey<World> decode(int index) {
 		if (gatheredDims.size() <= index || index < 0)
-			return Level.OVERWORLD;
+			return World.OVERWORLD;
 		return gatheredDims.get(index);
 	}
 
-	public void send(FriendlyByteBuf buffer) {
+	public void send(PacketByteBuf buffer) {
 		buffer.writeInt(gatheredDims.size());
-		gatheredDims.forEach(rk -> buffer.writeResourceLocation(rk.location()));
+		gatheredDims.forEach(rk -> buffer.writeIdentifier(rk.getValue()));
 	}
 
-	public static DimensionPalette receive(FriendlyByteBuf buffer) {
+	public static DimensionPalette receive(PacketByteBuf buffer) {
 		DimensionPalette palette = new DimensionPalette();
 		int length = buffer.readInt();
 		for (int i = 0; i < length; i++)
-			palette.gatheredDims.add(ResourceKey.create(Registries.DIMENSION, buffer.readResourceLocation()));
+			palette.gatheredDims.add(RegistryKey.of(RegistryKeys.WORLD, buffer.readIdentifier()));
 		return palette;
 	}
 
-	public void write(CompoundTag tag) {
+	public void write(NbtCompound tag) {
 		tag.put("DimensionPalette", NBTHelper.writeCompoundList(gatheredDims, rk -> {
-			CompoundTag c = new CompoundTag();
-			c.putString("Id", rk.location()
+			NbtCompound c = new NbtCompound();
+			c.putString("Id", rk.getValue()
 				.toString());
 			return c;
 		}));
 	}
 
-	public static DimensionPalette read(CompoundTag tag) {
+	public static DimensionPalette read(NbtCompound tag) {
 		DimensionPalette palette = new DimensionPalette();
-		NBTHelper.iterateCompoundList(tag.getList("DimensionPalette", Tag.TAG_COMPOUND), c -> palette.gatheredDims
-			.add(ResourceKey.create(Registries.DIMENSION, new ResourceLocation(c.getString("Id")))));
+		NBTHelper.iterateCompoundList(tag.getList("DimensionPalette", NbtElement.COMPOUND_TYPE), c -> palette.gatheredDims
+			.add(RegistryKey.of(RegistryKeys.WORLD, new Identifier(c.getString("Id")))));
 		return palette;
 	}
 

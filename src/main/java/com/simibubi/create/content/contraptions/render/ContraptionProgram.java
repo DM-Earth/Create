@@ -4,9 +4,8 @@ import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL20;
 
 import com.jozufozu.flywheel.core.shader.WorldProgram;
-
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Box;
 
 public class ContraptionProgram extends WorldProgram {
 	protected final int uLightBoxSize;
@@ -15,7 +14,7 @@ public class ContraptionProgram extends WorldProgram {
 
 	protected int uLightVolume;
 
-	public ContraptionProgram(ResourceLocation name, int handle) {
+	public ContraptionProgram(Identifier name, int handle) {
 		super(name, handle);
 		uLightBoxSize = getUniformLocation("uLightBoxSize");
 		uLightBoxMin = getUniformLocation("uLightBoxMin");
@@ -28,7 +27,7 @@ public class ContraptionProgram extends WorldProgram {
 		uLightVolume = setSamplerBinding("uLightVolume", 4);
 	}
 
-    public void bind(Matrix4f model, AABB lightVolume) {
+    public void bind(Matrix4f model, Box lightVolume) {
         double sizeX = lightVolume.maxX - lightVolume.minX;
         double sizeY = lightVolume.maxY - lightVolume.minY;
         double sizeZ = lightVolume.maxZ - lightVolume.minZ;

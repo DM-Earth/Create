@@ -1,7 +1,13 @@
 package com.simibubi.create.content.redstone.smartObserver;
 
 import java.util.List;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import com.simibubi.create.content.fluids.FluidTransportBehaviour;
 import com.simibubi.create.content.fluids.PipeConnection.Flow;
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour;
@@ -17,14 +23,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.inventory.TankManipu
 import com.simibubi.create.foundation.blockEntity.behaviour.inventory.VersionedInventoryTrackerBehaviour;
 import com.simibubi.create.foundation.utility.BlockFace;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class SmartObserverBlockEntity extends SmartBlockEntity {
 
@@ -60,21 +58,21 @@ public class SmartObserverBlockEntity extends SmartBlockEntity {
 	public void tick() {
 		super.tick();
 		
-		if (level.isClientSide())
+		if (world.isClient())
 			return;
 		
-		BlockState state = getBlockState();
+		BlockState state = getCachedState();
 		if (turnOffTicks > 0) {
 			turnOffTicks--;
 			if (turnOffTicks == 0)
-				level.scheduleTick(worldPosition, state.getBlock(), 1);
+				world.scheduleBlockTick(pos, state.getBlock(), 1);
 		}
 
 		if (!isActive())
 			return;
 
-		BlockPos targetPos = worldPosition.relative(SmartObserverBlock.getTargetDirection(state));
-		Block block = level.getBlockState(targetPos)
+		BlockPos targetPos = pos.offset(SmartObserverBlock.getTargetDirection(state));
+		Block block = world.getBlockState(targetPos)
 			.getBlock();
 
 		if (!filtering.getFilter()
@@ -85,7 +83,7 @@ public class SmartObserverBlockEntity extends SmartBlockEntity {
 
 		// Detect items on belt
 		TransportedItemStackHandlerBehaviour behaviour =
-			BlockEntityBehaviour.get(level, targetPos, TransportedItemStackHandlerBehaviour.TYPE);
+			BlockEntityBehaviour.get(world, targetPos, TransportedItemStackHandlerBehaviour.TYPE);
 		if (behaviour != null) {
 			behaviour.handleCenteredProcessingOnAllItems(.45f, stack -> {
 				if (!filtering.test(stack.stack) || turnOffTicks == 6)
@@ -98,7 +96,7 @@ public class SmartObserverBlockEntity extends SmartBlockEntity {
 
 		// Detect fluids in pipe
 		FluidTransportBehaviour fluidBehaviour =
-			BlockEntityBehaviour.get(level, targetPos, FluidTransportBehaviour.TYPE);
+			BlockEntityBehaviour.get(world, targetPos, FluidTransportBehaviour.TYPE);
 		if (fluidBehaviour != null) {
 			for (Direction side : Iterate.directions) {
 				Flow flow = fluidBehaviour.getFlow(side);
@@ -144,12 +142,12 @@ public class SmartObserverBlockEntity extends SmartBlockEntity {
 	}
 
 	public void activate(int ticks) {
-		BlockState state = getBlockState();
+		BlockState state = getCachedState();
 		turnOffTicks = ticks;
-		if (state.getValue(SmartObserverBlock.POWERED))
+		if (state.get(SmartObserverBlock.POWERED))
 			return;
-		level.setBlockAndUpdate(worldPosition, state.setValue(SmartObserverBlock.POWERED, true));
-		level.updateNeighborsAt(worldPosition, state.getBlock());
+		world.setBlockState(pos, state.with(SmartObserverBlock.POWERED, true));
+		world.updateNeighborsAlways(pos, state.getBlock());
 	}
 
 	private boolean isActive() {
@@ -157,13 +155,13 @@ public class SmartObserverBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putInt("TurnOff", turnOffTicks);
 		super.write(compound, clientPacket);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		turnOffTicks = compound.getInt("TurnOff");
 	}

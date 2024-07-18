@@ -1,9 +1,8 @@
 package com.simibubi.create.foundation.data;
 
 import java.util.concurrent.CompletableFuture;
-
-import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataProvider;
+import net.minecraft.data.DataWriter;
 
 @Deprecated(forRemoval = true)
 public class ChainedDataProvider implements DataProvider {
@@ -17,7 +16,7 @@ public class ChainedDataProvider implements DataProvider {
 	}
 	
 	@Override
-	public CompletableFuture<?> run(CachedOutput pOutput) {
+	public CompletableFuture<?> run(DataWriter pOutput) {
 		return mainProvider.run(pOutput)
 			.thenCompose(s -> addedProvider.run(pOutput));
 	}

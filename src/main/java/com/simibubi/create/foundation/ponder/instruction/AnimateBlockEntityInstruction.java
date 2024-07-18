@@ -3,16 +3,14 @@ package com.simibubi.create.foundation.ponder.instruction;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.util.math.BlockPos;
 import com.simibubi.create.content.contraptions.bearing.IBearingBlockEntity;
 import com.simibubi.create.content.contraptions.pulley.PulleyBlockEntity;
 import com.simibubi.create.content.kinetics.deployer.DeployerBlockEntity;
 import com.simibubi.create.content.trains.bogey.AbstractBogeyBlockEntity;
 import com.simibubi.create.foundation.ponder.PonderScene;
 import com.simibubi.create.foundation.ponder.PonderWorld;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntity;
 
 public class AnimateBlockEntityInstruction extends TickingInstruction {
 

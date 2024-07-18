@@ -3,9 +3,8 @@ package com.simibubi.create.foundation.gui.widget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.gui.element.ScreenElement;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.text.Text;
 
 public class IconButton extends AbstractSimiWidget {
 
@@ -21,9 +20,9 @@ public class IconButton extends AbstractSimiWidget {
 	}
 
 	@Override
-	public void doRender(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	public void doRender(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		if (visible) {
-			isHovered = mouseX >= getX() && mouseY >= getY() && mouseX < getX() + width && mouseY < getY() + height;
+			hovered = mouseX >= getX() && mouseY >= getY() && mouseX < getX() + width && mouseY < getY() + height;
 
 			AllGuiTextures button = !active ? AllGuiTextures.BUTTON_DOWN
 				: isMouseOver(mouseX, mouseY) ? AllGuiTextures.BUTTON_HOVER : AllGuiTextures.BUTTON;
@@ -34,11 +33,11 @@ public class IconButton extends AbstractSimiWidget {
 		}
 	}
 
-	protected void drawBg(GuiGraphics graphics, AllGuiTextures button) {
-		graphics.blit(button.location, getX(), getY(), button.startX, button.startY, button.width, button.height);
+	protected void drawBg(DrawContext graphics, AllGuiTextures button) {
+		graphics.drawTexture(button.location, getX(), getY(), button.startX, button.startY, button.width, button.height);
 	}
 
-	public void setToolTip(Component text) {
+	public void setToolTip(Text text) {
 		toolTip.clear();
 		toolTip.add(text);
 	}

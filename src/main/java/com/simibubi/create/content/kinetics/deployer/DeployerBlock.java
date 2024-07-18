@@ -4,7 +4,28 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
@@ -18,122 +39,98 @@ import com.simibubi.create.foundation.placement.PlacementHelpers;
 import com.simibubi.create.foundation.placement.PlacementOffset;
 import com.simibubi.create.foundation.utility.AdventureUtil;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class DeployerBlock extends DirectionalAxisKineticBlock implements IBE<DeployerBlockEntity> {
 
 	private static final int placementHelperId = PlacementHelpers.register(new PlacementHelper());
 
-	public DeployerBlock(Properties properties) {
+	public DeployerBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return AllShapes.DEPLOYER_INTERACTION.get(state.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return AllShapes.DEPLOYER_INTERACTION.get(state.get(FACING));
 	}
 
 	@Override
-	public VoxelShape getCollisionShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return AllShapes.CASING_12PX.get(state.getValue(FACING));
+	public VoxelShape getCollisionShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return AllShapes.CASING_12PX.get(state.get(FACING));
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		Vec3 normal = Vec3.atLowerCornerOf(state.getValue(FACING)
-			.getNormal());
-		Vec3 location = context.getClickLocation()
-			.subtract(Vec3.atCenterOf(context.getClickedPos())
-				.subtract(normal.scale(.5)))
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		Vec3d normal = Vec3d.of(state.get(FACING)
+			.getVector());
+		Vec3d location = context.getHitPos()
+			.subtract(Vec3d.ofCenter(context.getBlockPos())
+				.subtract(normal.multiply(.5)))
 			.multiply(normal);
 		if (location.length() > .75f) {
-			if (!context.getLevel().isClientSide)
-				withBlockEntityDo(context.getLevel(), context.getClickedPos(), DeployerBlockEntity::changeMode);
-			return InteractionResult.SUCCESS;
+			if (!context.getWorld().isClient)
+				withBlockEntityDo(context.getWorld(), context.getBlockPos(), DeployerBlockEntity::changeMode);
+			return ActionResult.SUCCESS;
 		}
 		return super.onWrenched(state, context);
 	}
 
 	@Override
-	public void setPlacedBy(Level worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
-		super.setPlacedBy(worldIn, pos, state, placer, stack);
-		if (placer instanceof ServerPlayer)
-			withBlockEntityDo(worldIn, pos, dbe -> dbe.owner = placer.getUUID());
+	public void onPlaced(World worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+		super.onPlaced(worldIn, pos, state, placer, stack);
+		if (placer instanceof ServerPlayerEntity)
+			withBlockEntityDo(worldIn, pos, dbe -> dbe.owner = placer.getUuid());
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
-		if (!isMoving && !state.is(newState.getBlock()))
+	public void onStateReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+		if (!isMoving && !state.isOf(newState.getBlock()))
 			withBlockEntityDo(worldIn, pos, DeployerBlockEntity::discardPlayer);
-		super.onRemove(state, worldIn, pos, newState, isMoving);
+		super.onStateReplaced(state, worldIn, pos, newState, isMoving);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
 		if (AdventureUtil.isAdventure(player))
-			return InteractionResult.PASS;
-		ItemStack heldByPlayer = player.getItemInHand(handIn)
+			return ActionResult.PASS;
+		ItemStack heldByPlayer = player.getStackInHand(handIn)
 			.copy();
 
 		IPlacementHelper placementHelper = PlacementHelpers.get(placementHelperId);
-		if (!player.isShiftKeyDown() && player.mayBuild()) {
+		if (!player.isSneaking() && player.canModifyBlocks()) {
 			if (placementHelper.matchesItem(heldByPlayer) && placementHelper.getOffset(player, worldIn, state, pos, hit)
 				.placeInWorld(worldIn, (BlockItem) heldByPlayer.getItem(), player, handIn, hit)
-				.consumesAction())
-				return InteractionResult.SUCCESS;
+				.isAccepted())
+				return ActionResult.SUCCESS;
 		}
 
 		if (AllItems.WRENCH.isIn(heldByPlayer))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
-		Vec3 normal = Vec3.atLowerCornerOf(state.getValue(FACING)
-			.getNormal());
-		Vec3 location = hit.getLocation()
-			.subtract(Vec3.atCenterOf(pos)
-				.subtract(normal.scale(.5)))
+		Vec3d normal = Vec3d.of(state.get(FACING)
+			.getVector());
+		Vec3d location = hit.getPos()
+			.subtract(Vec3d.ofCenter(pos)
+				.subtract(normal.multiply(.5)))
 			.multiply(normal);
 		if (location.length() < .75f)
-			return InteractionResult.PASS;
-		if (worldIn.isClientSide)
-			return InteractionResult.SUCCESS;
+			return ActionResult.PASS;
+		if (worldIn.isClient)
+			return ActionResult.SUCCESS;
 
 		withBlockEntityDo(worldIn, pos, be -> {
-			ItemStack heldByDeployer = be.player.getMainHandItem()
+			ItemStack heldByDeployer = be.player.getMainHandStack()
 				.copy();
 			if (heldByDeployer.isEmpty() && heldByPlayer.isEmpty())
 				return;
 
-			player.setItemInHand(handIn, heldByDeployer);
-			be.player.setItemInHand(InteractionHand.MAIN_HAND, heldByPlayer);
+			player.setStackInHand(handIn, heldByDeployer);
+			be.player.setStackInHand(Hand.MAIN_HAND, heldByPlayer);
 			be.sendData();
 		});
 
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
@@ -147,24 +144,24 @@ public class DeployerBlock extends DirectionalAxisKineticBlock implements IBE<De
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level world, BlockPos pos, BlockState oldState, boolean isMoving) {
-		super.onPlace(state, world, pos, oldState, isMoving);
+	public void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean isMoving) {
+		super.onBlockAdded(state, world, pos, oldState, isMoving);
 		withBlockEntityDo(world, pos, DeployerBlockEntity::redstoneUpdate);
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level world, BlockPos pos, Block p_220069_4_, BlockPos p_220069_5_,
+	public void neighborUpdate(BlockState state, World world, BlockPos pos, Block p_220069_4_, BlockPos p_220069_5_,
 		boolean p_220069_6_) {
 		withBlockEntityDo(world, pos, DeployerBlockEntity::redstoneUpdate);
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 
 	@Override
-	protected Direction getFacingForPlacement(BlockPlaceContext context) {
+	protected Direction getFacingForPlacement(ItemPlacementContext context) {
 		if (context instanceof AssemblyOperatorUseContext)
 			return Direction.DOWN;
 		else
@@ -185,20 +182,20 @@ public class DeployerBlock extends DirectionalAxisKineticBlock implements IBE<De
 		}
 
 		@Override
-		public PlacementOffset getOffset(Player player, Level world, BlockState state, BlockPos pos,
+		public PlacementOffset getOffset(PlayerEntity player, World world, BlockState state, BlockPos pos,
 			BlockHitResult ray) {
-			List<Direction> directions = IPlacementHelper.orderedByDistanceExceptAxis(pos, ray.getLocation(),
-				state.getValue(FACING)
+			List<Direction> directions = IPlacementHelper.orderedByDistanceExceptAxis(pos, ray.getPos(),
+				state.get(FACING)
 					.getAxis(),
-				dir -> world.getBlockState(pos.relative(dir))
-					.canBeReplaced());
+				dir -> world.getBlockState(pos.offset(dir))
+					.isReplaceable());
 
 			if (directions.isEmpty())
 				return PlacementOffset.fail();
 			else {
-				return PlacementOffset.success(pos.relative(directions.get(0)),
-					s -> s.setValue(FACING, state.getValue(FACING))
-						.setValue(AXIS_ALONG_FIRST_COORDINATE, state.getValue(AXIS_ALONG_FIRST_COORDINATE)));
+				return PlacementOffset.success(pos.offset(directions.get(0)),
+					s -> s.with(FACING, state.get(FACING))
+						.with(AXIS_ALONG_FIRST_COORDINATE, state.get(AXIS_ALONG_FIRST_COORDINATE)));
 			}
 		}
 

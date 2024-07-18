@@ -1,9 +1,8 @@
 package com.simibubi.create.foundation.utility;
 
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.util.Mth;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.MathHelper;
 
 public class CameraAngleAnimationService {
 
@@ -18,12 +17,12 @@ public class CameraAngleAnimationService {
 		yRotation.tickChaser();
 		xRotation.tickChaser();
 
-		if (Minecraft.getInstance().player != null) {
+		if (MinecraftClient.getInstance().player != null) {
 			if (!yRotation.settled())
-				Minecraft.getInstance().player.setYRot(yRotation.getValue(1));
+				MinecraftClient.getInstance().player.setYaw(yRotation.getValue(1));
 
 			if (!xRotation.settled())
-				Minecraft.getInstance().player.setXRot(xRotation.getValue(1));
+				MinecraftClient.getInstance().player.setPitch(xRotation.getValue(1));
 		}
 	}
 
@@ -54,26 +53,26 @@ public class CameraAngleAnimationService {
 	public static void setYawTarget(float yaw) {
 		float currentYaw = getCurrentYaw();
 		yRotation.startWithValue(currentYaw);
-		setupChaser(yRotation, currentYaw + AngleHelper.getShortestAngleDiff(currentYaw, Mth.wrapDegrees(yaw)));
+		setupChaser(yRotation, currentYaw + AngleHelper.getShortestAngleDiff(currentYaw, MathHelper.wrapDegrees(yaw)));
 	}
 
 	public static void setPitchTarget(float pitch) {
 		float currentPitch = getCurrentPitch();
 		xRotation.startWithValue(currentPitch);
-		setupChaser(xRotation, currentPitch + AngleHelper.getShortestAngleDiff(currentPitch, Mth.wrapDegrees(pitch)));
+		setupChaser(xRotation, currentPitch + AngleHelper.getShortestAngleDiff(currentPitch, MathHelper.wrapDegrees(pitch)));
 	}
 
 	private static float getCurrentYaw() {
-		if (Minecraft.getInstance().player == null)
+		if (MinecraftClient.getInstance().player == null)
 			return 0;
-		return Mth.wrapDegrees(Minecraft.getInstance().player.getYRot());
+		return MathHelper.wrapDegrees(MinecraftClient.getInstance().player.getYaw());
 	}
 
 	private static float getCurrentPitch() {
-		if (Minecraft.getInstance().player == null)
+		if (MinecraftClient.getInstance().player == null)
 			return 0;
 
-		return Mth.wrapDegrees(Minecraft.getInstance().player.getXRot());
+		return MathHelper.wrapDegrees(MinecraftClient.getInstance().player.getPitch());
 	}
 
 	private static void setupChaser(LerpedFloat rotation, float target) {

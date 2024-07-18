@@ -2,10 +2,9 @@ package com.simibubi.create.content.logistics.filter;
 
 import com.simibubi.create.content.logistics.filter.AttributeFilterMenu.WhitelistMode;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class FilterScreenPacket extends SimplePacketBase {
 
@@ -14,24 +13,24 @@ public class FilterScreenPacket extends SimplePacketBase {
 	}
 
 	private final Option option;
-	private final CompoundTag data;
+	private final NbtCompound data;
 
 	public FilterScreenPacket(Option option) {
-		this(option, new CompoundTag());
+		this(option, new NbtCompound());
 	}
 
-	public FilterScreenPacket(Option option, CompoundTag data) {
+	public FilterScreenPacket(Option option, NbtCompound data) {
 		this.option = option;
 		this.data = data;
 	}
 
-	public FilterScreenPacket(FriendlyByteBuf buffer) {
+	public FilterScreenPacket(PacketByteBuf buffer) {
 		option = Option.values()[buffer.readInt()];
 		data = buffer.readNbt();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(option.ordinal());
 		buffer.writeNbt(data);
 	}
@@ -39,12 +38,12 @@ public class FilterScreenPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
 
-			if (player.containerMenu instanceof FilterMenu) {
-				FilterMenu c = (FilterMenu) player.containerMenu;
+			if (player.currentScreenHandler instanceof FilterMenu) {
+				FilterMenu c = (FilterMenu) player.currentScreenHandler;
 				if (option == Option.WHITELIST)
 					c.blacklist = false;
 				if (option == Option.BLACKLIST)
@@ -56,11 +55,11 @@ public class FilterScreenPacket extends SimplePacketBase {
 				if (option == Option.UPDATE_FILTER_ITEM)
 					c.ghostInventory.setStackInSlot(
 							data.getInt("Slot"),
-							net.minecraft.world.item.ItemStack.of(data.getCompound("Item")));
+							net.minecraft.item.ItemStack.fromNbt(data.getCompound("Item")));
 			}
 
-			if (player.containerMenu instanceof AttributeFilterMenu) {
-				AttributeFilterMenu c = (AttributeFilterMenu) player.containerMenu;
+			if (player.currentScreenHandler instanceof AttributeFilterMenu) {
+				AttributeFilterMenu c = (AttributeFilterMenu) player.currentScreenHandler;
 				if (option == Option.WHITELIST)
 					c.whitelistMode = WhitelistMode.WHITELIST_DISJ;
 				if (option == Option.WHITELIST2)

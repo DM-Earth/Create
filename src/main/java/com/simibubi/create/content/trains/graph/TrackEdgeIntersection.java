@@ -1,11 +1,9 @@
 package com.simibubi.create.content.trains.graph;
 
 import java.util.UUID;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import com.simibubi.create.foundation.utility.Couple;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 
 public class TrackEdgeIntersection {
 
@@ -28,25 +26,25 @@ public class TrackEdgeIntersection {
 			|| target1.equals(target.getSecond()) && target2.equals(target.getFirst());
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag nbt = new CompoundTag();
-		nbt.putUUID("Id", id);
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound nbt = new NbtCompound();
+		nbt.putUuid("Id", id);
 		if (groupId != null)
-			nbt.putUUID("GroupId", groupId);
+			nbt.putUuid("GroupId", groupId);
 		nbt.putDouble("Location", location);
 		nbt.putDouble("TargetLocation", targetLocation);
 		nbt.put("TargetEdge", target.serializeEach(loc -> loc.write(dimensions)));
 		return nbt;
 	}
 
-	public static TrackEdgeIntersection read(CompoundTag nbt, DimensionPalette dimensions) {
+	public static TrackEdgeIntersection read(NbtCompound nbt, DimensionPalette dimensions) {
 		TrackEdgeIntersection intersection = new TrackEdgeIntersection();
-		intersection.id = nbt.getUUID("Id");
+		intersection.id = nbt.getUuid("Id");
 		if (nbt.contains("GroupId"))
-			intersection.groupId = nbt.getUUID("GroupId");
+			intersection.groupId = nbt.getUuid("GroupId");
 		intersection.location = nbt.getDouble("Location");
 		intersection.targetLocation = nbt.getDouble("TargetLocation");
-		intersection.target = Couple.deserializeEach(nbt.getList("TargetEdge", Tag.TAG_COMPOUND),
+		intersection.target = Couple.deserializeEach(nbt.getList("TargetEdge", NbtElement.COMPOUND_TYPE),
 			tag -> TrackNodeLocation.read(tag, dimensions));
 		return intersection;
 	}

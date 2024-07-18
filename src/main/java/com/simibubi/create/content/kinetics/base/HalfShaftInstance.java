@@ -4,9 +4,8 @@ import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
 
 public class HalfShaftInstance<T extends KineticBlockEntity> extends SingleRotatingInstance<T> {
     public HalfShaftInstance(MaterialManager materialManager, T blockEntity) {
@@ -20,6 +19,6 @@ public class HalfShaftInstance<T extends KineticBlockEntity> extends SingleRotat
 	}
 
     protected Direction getShaftDirection() {
-        return blockState.getValue(BlockStateProperties.FACING);
+        return blockState.get(Properties.FACING);
     }
 }

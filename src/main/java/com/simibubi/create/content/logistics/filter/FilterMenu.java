@@ -3,27 +3,26 @@ package com.simibubi.create.content.logistics.filter;
 import com.simibubi.create.AllMenuTypes;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
 import io.github.fabricators_of_create.porting_lib.transfer.item.SlotItemHandler;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandlerType;
 
 public class FilterMenu extends AbstractFilterMenu {
 
 	boolean respectNBT;
 	boolean blacklist;
 
-	public FilterMenu(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	public FilterMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id, inv, extraData);
 	}
 
-	public FilterMenu(MenuType<?> type, int id, Inventory inv, ItemStack stack) {
+	public FilterMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, ItemStack stack) {
 		super(type, id, inv, stack);
 	}
 
-	public static FilterMenu create(int id, Inventory inv, ItemStack stack) {
+	public static FilterMenu create(int id, PlayerInventory inv, ItemStack stack) {
 		return new FilterMenu(AllMenuTypes.FILTER.get(), id, inv, stack);
 	}
 
@@ -54,7 +53,7 @@ public class FilterMenu extends AbstractFilterMenu {
 	@Override
 	protected void initAndReadInventory(ItemStack filterItem) {
 		super.initAndReadInventory(filterItem);
-		CompoundTag tag = filterItem.getOrCreateTag();
+		NbtCompound tag = filterItem.getOrCreateNbt();
 		respectNBT = tag.getBoolean("RespectNBT");
 		blacklist = tag.getBoolean("Blacklist");
 	}
@@ -62,7 +61,7 @@ public class FilterMenu extends AbstractFilterMenu {
 	@Override
 	protected void saveData(ItemStack filterItem) {
 		super.saveData(filterItem);
-		CompoundTag tag = filterItem.getOrCreateTag();
+		NbtCompound tag = filterItem.getOrCreateNbt();
 		tag.putBoolean("RespectNBT", respectNBT);
 		tag.putBoolean("Blacklist", blacklist);
 
@@ -72,7 +71,7 @@ public class FilterMenu extends AbstractFilterMenu {
 			if (!ghostInventory.getStackInSlot(i)
 				.isEmpty())
 				return;
-		filterItem.setTag(null);
+		filterItem.setNbt(null);
 	}
 
 }

@@ -1,63 +1,62 @@
 package com.simibubi.create.foundation.item;
 
 import java.util.Map;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.foundation.mixin.accessor.HumanoidArmorLayerAccessor;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.Model;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.feature.ArmorFeatureRenderer;
+import net.minecraft.client.render.entity.model.BipedEntityModel;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ArmorItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Identifier;
 
 public interface LayeredArmorItem extends CustomRenderedArmorItem {
 	@Environment(EnvType.CLIENT)
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	default void renderArmorPiece(HumanoidArmorLayer<?, ?, ?> layer, PoseStack poseStack,
-			MultiBufferSource bufferSource, LivingEntity entity, EquipmentSlot slot, int light,
-			HumanoidModel<?> originalModel, ItemStack stack) {
+	default void renderArmorPiece(ArmorFeatureRenderer<?, ?, ?> layer, MatrixStack poseStack,
+			VertexConsumerProvider bufferSource, LivingEntity entity, EquipmentSlot slot, int light,
+			BipedEntityModel<?> originalModel, ItemStack stack) {
 		if (!(stack.getItem() instanceof ArmorItem item)) {
 			return;
 		}
-		if (LivingEntity.getEquipmentSlotForItem(stack) != slot) {
+		if (LivingEntity.getPreferredEquipmentSlot(stack) != slot) {
 			return;
 		}
 
 		HumanoidArmorLayerAccessor accessor = (HumanoidArmorLayerAccessor) layer;
-		Map<String, ResourceLocation> locationCache = HumanoidArmorLayerAccessor.create$getArmorLocationCache();
-		boolean glint = stack.hasFoil();
+		Map<String, Identifier> locationCache = HumanoidArmorLayerAccessor.create$getArmorTextureCache();
+		boolean glint = stack.hasGlint();
 
-		HumanoidModel<?> innerModel = accessor.create$getInnerModel();
-		layer.getParentModel().copyPropertiesTo((HumanoidModel) innerModel);
-		accessor.create$callSetPartVisibility(innerModel, slot);
+		BipedEntityModel<?> innerModel = accessor.create$getInnerModel();
+		layer.getContextModel().copyBipedStateTo((BipedEntityModel) innerModel);
+		accessor.create$callSetVisible(innerModel, slot);
 		String locationStr2 = getArmorTextureLocation(entity, slot, stack, 2);
-		ResourceLocation location2 = locationCache.computeIfAbsent(locationStr2, ResourceLocation::new);
+		Identifier location2 = locationCache.computeIfAbsent(locationStr2, Identifier::new);
 		renderModel(poseStack, bufferSource, light, item, innerModel, glint, 1.0F, 1.0F, 1.0F, location2);
 
-		HumanoidModel<?> outerModel = accessor.create$getOuterModel();
-		layer.getParentModel().copyPropertiesTo((HumanoidModel) outerModel);
-		accessor.create$callSetPartVisibility(outerModel, slot);
+		BipedEntityModel<?> outerModel = accessor.create$getOuterModel();
+		layer.getContextModel().copyBipedStateTo((BipedEntityModel) outerModel);
+		accessor.create$callSetVisible(outerModel, slot);
 		String locationStr1 = getArmorTextureLocation(entity, slot, stack, 1);
-		ResourceLocation location1 = locationCache.computeIfAbsent(locationStr1, ResourceLocation::new);
+		Identifier location1 = locationCache.computeIfAbsent(locationStr1, Identifier::new);
 		renderModel(poseStack, bufferSource, light, item, outerModel, glint, 1.0F, 1.0F, 1.0F, location1);
 	}
 
 	// from HumanoidArmorLayer.renderModel
-	private void renderModel(PoseStack poseStack, MultiBufferSource bufferSource, int light, ArmorItem item,
-		Model model, boolean glint, float red, float green, float blue, ResourceLocation armorResource) {
-		VertexConsumer vertexconsumer = bufferSource.getBuffer(RenderType.armorCutoutNoCull(armorResource));
-		model.renderToBuffer(poseStack, vertexconsumer, light, OverlayTexture.NO_OVERLAY, red, green, blue, 1.0F);
+	private void renderModel(MatrixStack poseStack, VertexConsumerProvider bufferSource, int light, ArmorItem item,
+		Model model, boolean glint, float red, float green, float blue, Identifier armorResource) {
+		VertexConsumer vertexconsumer = bufferSource.getBuffer(RenderLayer.getArmorCutoutNoCull(armorResource));
+		model.render(poseStack, vertexconsumer, light, OverlayTexture.DEFAULT_UV, red, green, blue, 1.0F);
 	}
 
 	String getArmorTextureLocation(LivingEntity entity, EquipmentSlot slot, ItemStack stack, int layer);

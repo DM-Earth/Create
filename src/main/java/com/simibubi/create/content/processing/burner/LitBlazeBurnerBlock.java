@@ -1,7 +1,5 @@
 package com.simibubi.create.content.processing.burner;
 
-import net.minecraft.util.RandomSource;
-
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.AllBlocks;
@@ -13,99 +11,100 @@ import com.simibubi.create.foundation.utility.Lang;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.block.BlockPickInteractionAware;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ShovelItem;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ShovelItem;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.EnumProperty;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.StringIdentifiable;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 
 public class LitBlazeBurnerBlock extends Block implements IWrenchable, BlockPickInteractionAware {
 
 //	public static final ToolAction EXTINGUISH_FLAME_ACTION = ToolAction.get(Create.asResource("extinguish_flame").toString());
 
-	public static final EnumProperty<FlameType> FLAME_TYPE = EnumProperty.create("flame_type", FlameType.class);
+	public static final EnumProperty<FlameType> FLAME_TYPE = EnumProperty.of("flame_type", FlameType.class);
 
-	public LitBlazeBurnerBlock(Properties properties) {
+	public LitBlazeBurnerBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(FLAME_TYPE, FlameType.REGULAR));
+		setDefaultState(getDefaultState().with(FLAME_TYPE, FlameType.REGULAR));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder);
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder);
 		builder.add(FLAME_TYPE);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult blockRayTraceResult) {
-		ItemStack heldItem = player.getItemInHand(hand);
+		ItemStack heldItem = player.getStackInHand(hand);
 
 		if (heldItem.getItem() instanceof ShovelItem) {// || heldItem.getItem().canPerformAction(heldItem, EXTINGUISH_FLAME_ACTION)) {
-			world.playSound(player, pos, SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.BLOCKS, 0.5f, 2);
-			if (world.isClientSide)
-				return InteractionResult.SUCCESS;
-			heldItem.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(hand));
-			world.setBlockAndUpdate(pos, AllBlocks.BLAZE_BURNER.getDefaultState());
-			return InteractionResult.SUCCESS;
+			world.playSound(player, pos, SoundEvents.ENTITY_GENERIC_EXTINGUISH_FIRE, SoundCategory.BLOCKS, 0.5f, 2);
+			if (world.isClient)
+				return ActionResult.SUCCESS;
+			heldItem.damage(1, player, p -> p.sendToolBreakStatus(hand));
+			world.setBlockState(pos, AllBlocks.BLAZE_BURNER.getDefaultState());
+			return ActionResult.SUCCESS;
 		}
 
-		if (state.getValue(FLAME_TYPE) == FlameType.REGULAR) {
-			if (heldItem.is(ItemTags.SOUL_FIRE_BASE_BLOCKS)) {
-				world.playSound(player, pos, SoundEvents.SOUL_SAND_PLACE, SoundSource.BLOCKS, 1.0f, world.random.nextFloat() * 0.4F + 0.8F);
-				if (world.isClientSide)
-					return InteractionResult.SUCCESS;
-				world.setBlockAndUpdate(pos, defaultBlockState().setValue(FLAME_TYPE, FlameType.SOUL));
-				return InteractionResult.SUCCESS;
+		if (state.get(FLAME_TYPE) == FlameType.REGULAR) {
+			if (heldItem.isIn(ItemTags.SOUL_FIRE_BASE_BLOCKS)) {
+				world.playSound(player, pos, SoundEvents.BLOCK_SOUL_SAND_PLACE, SoundCategory.BLOCKS, 1.0f, world.random.nextFloat() * 0.4F + 0.8F);
+				if (world.isClient)
+					return ActionResult.SUCCESS;
+				world.setBlockState(pos, getDefaultState().with(FLAME_TYPE, FlameType.SOUL));
+				return ActionResult.SUCCESS;
 			}
 		}
 
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter reader, BlockPos pos, CollisionContext context) {
+	public VoxelShape getOutlineShape(BlockState state, BlockView reader, BlockPos pos, ShapeContext context) {
 		return AllBlocks.BLAZE_BURNER.get()
-			.getShape(state, reader, pos, context);
+			.getOutlineShape(state, reader, pos, context);
 	}
 
 	@Override
-	public ItemStack getPickedStack(BlockState state, BlockGetter view, BlockPos pos, @Nullable Player player, @Nullable HitResult result) {
+	public ItemStack getPickedStack(BlockState state, BlockView view, BlockPos pos, @Nullable PlayerEntity player, @Nullable HitResult result) {
 		return AllItems.EMPTY_BLAZE_BURNER.asStack();
 	}
 
 	@Environment(EnvType.CLIENT)
-	public void animateTick(BlockState state, Level world, BlockPos pos, RandomSource random) {
-		world.addAlwaysVisibleParticle(ParticleTypes.LARGE_SMOKE, true,
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		world.addImportantParticle(ParticleTypes.LARGE_SMOKE, true,
 			(double) pos.getX() + 0.5D + random.nextDouble() / 3.0D * (double) (random.nextBoolean() ? 1 : -1),
 			(double) pos.getY() + random.nextDouble() + random.nextDouble(),
 			(double) pos.getZ() + 0.5D + random.nextDouble() / 3.0D * (double) (random.nextBoolean() ? 1 : -1), 0.0D,
 			0.07D, 0.0D);
 
 		if (random.nextInt(10) == 0) {
-			world.playLocalSound((double) ((float) pos.getX() + 0.5F), (double) ((float) pos.getY() + 0.5F),
-				(double) ((float) pos.getZ() + 0.5F), SoundEvents.CAMPFIRE_CRACKLE, SoundSource.BLOCKS,
+			world.playSound((double) ((float) pos.getX() + 0.5F), (double) ((float) pos.getY() + 0.5F),
+				(double) ((float) pos.getZ() + 0.5F), SoundEvents.BLOCK_CAMPFIRE_CRACKLE, SoundCategory.BLOCKS,
 				0.25F + random.nextFloat() * .25f, random.nextFloat() * 0.7F + 0.6F, false);
 		}
 
-		if (state.getValue(FLAME_TYPE) == FlameType.SOUL) {
+		if (state.get(FLAME_TYPE) == FlameType.SOUL) {
 			if (random.nextInt(8) == 0) {
 				world.addParticle(ParticleTypes.SOUL,
 					pos.getX() + 0.5F + random.nextDouble() / 4 * (random.nextBoolean() ? 1 : -1),
@@ -126,40 +125,40 @@ public class LitBlazeBurnerBlock extends Block implements IWrenchable, BlockPick
 	}
 
 	@Override
-	public boolean hasAnalogOutputSignal(BlockState p_149740_1_) {
+	public boolean hasComparatorOutput(BlockState p_149740_1_) {
 		return true;
 	}
 
 	@Override
-	public int getAnalogOutputSignal(BlockState state, Level p_180641_2_, BlockPos p_180641_3_) {
-		return state.getValue(FLAME_TYPE) == FlameType.REGULAR ? 1 : 2;
+	public int getComparatorOutput(BlockState state, World p_180641_2_, BlockPos p_180641_3_) {
+		return state.get(FLAME_TYPE) == FlameType.REGULAR ? 1 : 2;
 	}
 
 	@Override
-	public VoxelShape getCollisionShape(BlockState state, BlockGetter reader, BlockPos pos,
-		CollisionContext context) {
+	public VoxelShape getCollisionShape(BlockState state, BlockView reader, BlockPos pos,
+		ShapeContext context) {
 		return AllBlocks.BLAZE_BURNER.get()
 			.getCollisionShape(state, reader, pos, context);
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 
 	public static int getLight(BlockState state) {
-		if (state.getValue(FLAME_TYPE) == FlameType.SOUL)
+		if (state.get(FLAME_TYPE) == FlameType.SOUL)
 			return 9;
 		else
 			return 12;
 	}
 
-	public enum FlameType implements StringRepresentable {
+	public enum FlameType implements StringIdentifiable {
 
 		REGULAR, SOUL;
 
 		@Override
-		public String getSerializedName() {
+		public String asString() {
 			return Lang.asId(name());
 		}
 

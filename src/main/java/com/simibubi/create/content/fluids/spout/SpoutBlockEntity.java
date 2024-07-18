@@ -32,16 +32,16 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation, SidedStorageBlockEntity, CustomRenderBoundingBoxBlockEntity {
 
@@ -62,8 +62,8 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return super.createRenderBoundingBox().expandTowards(0, -2, 0);
+	protected Box createRenderBoundingBox() {
+		return super.createRenderBoundingBox().stretch(0, -2, 0);
 	}
 
 	@Override
@@ -82,11 +82,11 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 		TransportedItemStackHandlerBehaviour handler) {
 		if (handler.blockEntity.isVirtual())
 			return PASS;
-		if (!FillingBySpout.canItemBeFilled(level, transported.stack))
+		if (!FillingBySpout.canItemBeFilled(world, transported.stack))
 			return PASS;
 		if (tank.isEmpty())
 			return HOLD;
-		if (FillingBySpout.getRequiredAmountForItem(level, transported.stack, getCurrentFluidInTank()) == -1)
+		if (FillingBySpout.getRequiredAmountForItem(world, transported.stack, getCurrentFluidInTank()) == -1)
 			return PASS;
 		return HOLD;
 	}
@@ -95,12 +95,12 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 		TransportedItemStackHandlerBehaviour handler) {
 		if (processingTicks != -1 && processingTicks != 5)
 			return HOLD;
-		if (!FillingBySpout.canItemBeFilled(level, transported.stack))
+		if (!FillingBySpout.canItemBeFilled(world, transported.stack))
 			return PASS;
 		if (tank.isEmpty())
 			return HOLD;
 		FluidStack fluid = getCurrentFluidInTank();
-		long requiredAmountForItem = FillingBySpout.getRequiredAmountForItem(level, transported.stack, fluid.copy());
+		long requiredAmountForItem = FillingBySpout.getRequiredAmountForItem(world, transported.stack, fluid.copy());
 		if (requiredAmountForItem == -1)
 			return PASS;
 		if (requiredAmountForItem > fluid.getAmount())
@@ -113,7 +113,7 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 		}
 
 		// Process finished
-		ItemStack out = FillingBySpout.fillItem(level, requiredAmountForItem, transported.stack, fluid);
+		ItemStack out = FillingBySpout.fillItem(world, requiredAmountForItem, transported.stack, fluid);
 		if (!out.isEmpty()) {
 			List<TransportedItemStack> outList = new ArrayList<>();
 			TransportedItemStack held = null;
@@ -147,7 +147,7 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 
 		compound.putInt("ProcessingTicks", processingTicks);
@@ -171,7 +171,7 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		processingTicks = compound.getInt("ProcessingTicks");
 
@@ -199,11 +199,11 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 		super.tick();
 
 		FluidStack currentFluidInTank = getCurrentFluidInTank();
-		if (processingTicks == -1 && (isVirtual() || !level.isClientSide()) && !currentFluidInTank.isEmpty()) {
+		if (processingTicks == -1 && (isVirtual() || !world.isClient()) && !currentFluidInTank.isEmpty()) {
 			BlockSpoutingBehaviour.forEach(behaviour -> {
 				if (customProcess != null)
 					return;
-				if (behaviour.fillBlock(level, worldPosition.below(2), this, currentFluidInTank, true) > 0) {
+				if (behaviour.fillBlock(world, pos.down(2), this, currentFluidInTank, true) > 0) {
 					processingTicks = FILLING_TIME;
 					customProcess = behaviour;
 					notifyUpdate();
@@ -214,7 +214,7 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 		if (processingTicks >= 0) {
 			processingTicks--;
 			if (processingTicks == 5 && customProcess != null) {
-				long fillBlock = customProcess.fillBlock(level, worldPosition.below(2), this, currentFluidInTank, false);
+				long fillBlock = customProcess.fillBlock(world, pos.down(2), this, currentFluidInTank, false);
 				customProcess = null;
 				if (fillBlock > 0) {
 					// fabric: if the FluidStack is empty it should actually be empty
@@ -230,7 +230,7 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 			}
 		}
 
-		if (processingTicks >= 8 && level.isClientSide)
+		if (processingTicks >= 8 && world.isClient)
 			spawnProcessingParticles(tank.getPrimaryTank()
 				.getRenderedFluid());
 	}
@@ -238,10 +238,10 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 	protected void spawnProcessingParticles(FluidStack fluid) {
 		if (isVirtual())
 			return;
-		Vec3 vec = VecHelper.getCenterOf(worldPosition);
+		Vec3d vec = VecHelper.getCenterOf(pos);
 		vec = vec.subtract(0, 8 / 16f, 0);
-		ParticleOptions particle = FluidFX.getFluidParticle(fluid);
-		level.addAlwaysVisibleParticle(particle, vec.x, vec.y, vec.z, 0, -.1f, 0);
+		ParticleEffect particle = FluidFX.getFluidParticle(fluid);
+		world.addImportantParticle(particle, vec.x, vec.y, vec.z, 0, -.1f, 0);
 	}
 
 	protected static int SPLASH_PARTICLE_COUNT = 20;
@@ -249,18 +249,18 @@ public class SpoutBlockEntity extends SmartBlockEntity implements IHaveGoggleInf
 	protected void spawnSplash(FluidStack fluid) {
 		if (isVirtual())
 			return;
-		Vec3 vec = VecHelper.getCenterOf(worldPosition);
+		Vec3d vec = VecHelper.getCenterOf(pos);
 		vec = vec.subtract(0, 2 - 5 / 16f, 0);
-		ParticleOptions particle = FluidFX.getFluidParticle(fluid);
+		ParticleEffect particle = FluidFX.getFluidParticle(fluid);
 		for (int i = 0; i < SPLASH_PARTICLE_COUNT; i++) {
-			Vec3 m = VecHelper.offsetRandomly(Vec3.ZERO, level.random, 0.125f);
-			m = new Vec3(m.x, Math.abs(m.y), m.z);
-			level.addAlwaysVisibleParticle(particle, vec.x, vec.y, vec.z, m.x, m.y, m.z);
+			Vec3d m = VecHelper.offsetRandomly(Vec3d.ZERO, world.random, 0.125f);
+			m = new Vec3d(m.x, Math.abs(m.y), m.z);
+			world.addImportantParticle(particle, vec.x, vec.y, vec.z, m.x, m.y, m.z);
 		}
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		return containedFluidTooltip(tooltip, isPlayerSneaking, getFluidStorage(null));
 	}
 }

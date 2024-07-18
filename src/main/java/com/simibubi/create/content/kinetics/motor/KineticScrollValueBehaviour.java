@@ -8,32 +8,31 @@ import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsFormatt
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.hit.BlockHitResult;
 
 public class KineticScrollValueBehaviour extends ScrollValueBehaviour {
 
-	public KineticScrollValueBehaviour(Component label, SmartBlockEntity be, ValueBoxTransform slot) {
+	public KineticScrollValueBehaviour(Text label, SmartBlockEntity be, ValueBoxTransform slot) {
 		super(label, be, slot);
 		withFormatter(v -> String.valueOf(Math.abs(v)));
 	}
 
 	@Override
-	public ValueSettingsBoard createBoard(Player player, BlockHitResult hitResult) {
-		ImmutableList<Component> rows = ImmutableList.of(Components.literal("\u27f3")
-			.withStyle(ChatFormatting.BOLD),
+	public ValueSettingsBoard createBoard(PlayerEntity player, BlockHitResult hitResult) {
+		ImmutableList<Text> rows = ImmutableList.of(Components.literal("\u27f3")
+			.formatted(Formatting.BOLD),
 			Components.literal("\u27f2")
-				.withStyle(ChatFormatting.BOLD));
+				.formatted(Formatting.BOLD));
 		ValueSettingsFormatter formatter = new ValueSettingsFormatter(this::formatSettings);
 		return new ValueSettingsBoard(label, 256, 32, rows, formatter);
 	}
 
 	@Override
-	public void setValueSettings(Player player, ValueSettings valueSetting, boolean ctrlHeld) {
+	public void setValueSettings(PlayerEntity player, ValueSettings valueSetting, boolean ctrlHeld) {
 		int value = Math.max(1, valueSetting.value());
 		if (!valueSetting.equals(getValueSettings()))
 			playFeedbackSound(this);
@@ -45,10 +44,10 @@ public class KineticScrollValueBehaviour extends ScrollValueBehaviour {
 		return new ValueSettings(value < 0 ? 0 : 1, Math.abs(value));
 	}
 
-	public MutableComponent formatSettings(ValueSettings settings) {
+	public MutableText formatSettings(ValueSettings settings) {
 		return Lang.number(Math.max(1, Math.abs(settings.value())))
 			.add(Lang.text(settings.row() == 0 ? "\u27f3" : "\u27f2")
-				.style(ChatFormatting.BOLD))
+				.style(Formatting.BOLD))
 			.component();
 	}
 	

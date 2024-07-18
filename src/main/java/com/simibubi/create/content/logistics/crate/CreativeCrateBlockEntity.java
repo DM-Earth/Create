@@ -14,14 +14,13 @@ import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import org.jetbrains.annotations.Nullable;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class CreativeCrateBlockEntity extends CrateBlockEntity implements SidedStorageBlockEntity {
 
@@ -54,14 +53,14 @@ public class CreativeCrateBlockEntity extends CrateBlockEntity implements SidedS
 		return new FilteringBehaviour(this, new ValueBoxTransform() {
 
 			@Override
-			public void rotate(BlockState state, PoseStack ms) {
+			public void rotate(BlockState state, MatrixStack ms) {
 				TransformStack.cast(ms)
 					.rotateX(90);
 			}
 
 			@Override
-			public Vec3 getLocalOffset(BlockState state) {
-				return new Vec3(0.5, 13.5 / 16d, 0.5);
+			public Vec3d getLocalOffset(BlockState state) {
+				return new Vec3d(0.5, 13.5 / 16d, 0.5);
 			}
 
 			public float getScale() {

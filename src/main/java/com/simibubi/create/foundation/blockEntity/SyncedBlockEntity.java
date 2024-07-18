@@ -1,24 +1,22 @@
 package com.simibubi.create.foundation.blockEntity;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.ClientConnection;
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryEntryLookup;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.chunk.WorldChunk;
 import io.github.fabricators_of_create.porting_lib.block.CustomDataPacketHandlingBlockEntity;
 import io.github.fabricators_of_create.porting_lib.block.CustomUpdateTagHandlingBlockEntity;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderGetter;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
@@ -29,44 +27,44 @@ public abstract class SyncedBlockEntity extends BlockEntity implements CustomDat
 	}
 
 	@Override
-	public CompoundTag getUpdateTag() {
-		return writeClient(new CompoundTag());
+	public NbtCompound toInitialChunkDataNbt() {
+		return writeClient(new NbtCompound());
 	}
 
 	@Override
-	public ClientboundBlockEntityDataPacket getUpdatePacket() {
-		return ClientboundBlockEntityDataPacket.create(this);
+	public BlockEntityUpdateS2CPacket toUpdatePacket() {
+		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
-	public void handleUpdateTag(CompoundTag tag) {
+	public void handleUpdateTag(NbtCompound tag) {
 		readClient(tag);
 	}
 
 	@Override
-	public void onDataPacket(Connection connection, ClientboundBlockEntityDataPacket packet) {
-		CompoundTag tag = packet.getTag();
-		readClient(tag == null ? new CompoundTag() : tag);
+	public void onDataPacket(ClientConnection connection, BlockEntityUpdateS2CPacket packet) {
+		NbtCompound tag = packet.getNbt();
+		readClient(tag == null ? new NbtCompound() : tag);
 	}
 
 	// Special handling for client update packets
-	public void readClient(CompoundTag tag) {
-		load(tag);
+	public void readClient(NbtCompound tag) {
+		readNbt(tag);
 	}
 
 	// Special handling for client update packets
-	public CompoundTag writeClient(CompoundTag tag) {
-		saveAdditional(tag);
+	public NbtCompound writeClient(NbtCompound tag) {
+		writeNbt(tag);
 		return tag;
 	}
 
 	public void sendData() {
-		if (level instanceof ServerLevel serverLevel)
-			serverLevel.getChunkSource().blockChanged(getBlockPos());
+		if (world instanceof ServerWorld serverLevel)
+			serverLevel.getChunkManager().markForUpdate(getPos());
 	}
 
 	public void notifyUpdate() {
-		setChanged();
+		markDirty();
 		sendData();
 	}
 
@@ -74,19 +72,19 @@ public abstract class SyncedBlockEntity extends BlockEntity implements CustomDat
 //		return PacketDistributor.TRACKING_CHUNK.with(this::containedChunk);
 //	}
 
-	public LevelChunk containedChunk() {
-		return level.getChunkAt(worldPosition);
+	public WorldChunk containedChunk() {
+		return world.getWorldChunk(pos);
 	}
 
 	@Override
-	public void deserializeNBT(BlockState state, CompoundTag nbt) {
-		this.load(nbt);
+	public void deserializeNBT(BlockState state, NbtCompound nbt) {
+		this.readNbt(nbt);
 	}
 
 	@SuppressWarnings("deprecation")
-	public HolderGetter<Block> blockHolderGetter() {
-		return (HolderGetter<Block>) (level != null ? level.holderLookup(Registries.BLOCK)
-			: BuiltInRegistries.BLOCK.asLookup());
+	public RegistryEntryLookup<Block> blockHolderGetter() {
+		return (RegistryEntryLookup<Block>) (world != null ? world.createCommandRegistryWrapper(RegistryKeys.BLOCK)
+			: Registries.BLOCK.getReadOnlyWrapper());
 	}
 
 }

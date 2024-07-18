@@ -1,7 +1,8 @@
 package com.simibubi.create.content.logistics.funnel;
 
 import java.util.ArrayList;
-
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.LightType;
 import com.jozufozu.flywheel.api.InstanceData;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
@@ -12,9 +13,6 @@ import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.logistics.flwdata.FlapData;
 import com.simibubi.create.foundation.render.AllMaterialSpecs;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.LightLayer;
 
 public class FunnelInstance extends BlockEntityInstance<FunnelBlockEntity> implements DynamicInstance {
 
@@ -33,13 +31,13 @@ public class FunnelInstance extends BlockEntityInstance<FunnelBlockEntity> imple
                 .material(AllMaterialSpecs.FLAPS)
 				.getModel(flapPartial, blockState);
 
-        int blockLight = world.getBrightness(LightLayer.BLOCK, pos);
-        int skyLight = world.getBrightness(LightLayer.SKY, pos);
+        int blockLight = world.getLightLevel(LightType.BLOCK, pos);
+        int skyLight = world.getLightLevel(LightType.SKY, pos);
 
         Direction direction = FunnelBlock.getFunnelFacing(blockState);
 
         float flapness = blockEntity.flap.getValue(AnimationTickHolder.getPartialTicks());
-        float horizontalAngle = direction.getOpposite().toYRot();
+        float horizontalAngle = direction.getOpposite().asRotation();
 
         for (int segment = 0; segment <= 3; segment++) {
             float intensity = segment == 3 ? 1.5f : segment + 1;

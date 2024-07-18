@@ -3,76 +3,75 @@ package com.simibubi.create.foundation.blockEntity.behaviour;
 import org.joml.Matrix3f;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.kinetics.simpleRelays.AbstractSimpleShaftBlock;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.FenceBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.FenceBlock;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.item.ItemRenderer;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.util.math.MathHelper;
 
 public class ValueBoxRenderer {
 
-	public static void renderItemIntoValueBox(ItemStack filter, PoseStack ms, MultiBufferSource buffer, int light,
+	public static void renderItemIntoValueBox(ItemStack filter, MatrixStack ms, VertexConsumerProvider buffer, int light,
 		int overlay) {
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 		ItemRenderer itemRenderer = mc.getItemRenderer();
 		BakedModel modelWithOverrides = itemRenderer.getModel(filter, null, null, 0);
 		boolean blockItem =
-			modelWithOverrides.isGui3d();
+			modelWithOverrides.hasDepth();
 		float scale = (!blockItem ? .5f : 1f) + 1 / 64f;
 		float zOffset = (!blockItem ? -.15f : 0) + customZOffset(filter.getItem());
 		ms.scale(scale, scale, scale);
 		ms.translate(0, 0, zOffset);
-		itemRenderer.renderStatic(filter, ItemDisplayContext.FIXED, light, overlay, ms, buffer, mc.level, 0);
+		itemRenderer.renderItem(filter, ModelTransformationMode.FIXED, light, overlay, ms, buffer, mc.world, 0);
 	}
 
-	public static void renderFlatItemIntoValueBox(ItemStack filter, PoseStack ms, MultiBufferSource buffer, int light,
+	public static void renderFlatItemIntoValueBox(ItemStack filter, MatrixStack ms, VertexConsumerProvider buffer, int light,
 		int overlay) {
 		if (filter.isEmpty())
 			return;
 
 		int bl = light >> 4 & 0xf;
 		int sl = light >> 20 & 0xf;
-		int itemLight = Mth.floor(sl + .5) << 20 | (Mth.floor(bl + .5) & 0xf) << 4;
+		int itemLight = MathHelper.floor(sl + .5) << 20 | (MathHelper.floor(bl + .5) & 0xf) << 4;
 
-		ms.pushPose();
+		ms.push();
 		TransformStack.cast(ms)
 			.rotateX(230);
-		Matrix3f copy = new Matrix3f(ms.last()
-			.normal());
-		ms.popPose();
+		Matrix3f copy = new Matrix3f(ms.peek()
+			.getNormalMatrix());
+		ms.pop();
 
-		ms.pushPose();
+		ms.push();
 		TransformStack.cast(ms)
 			.translate(0, 0, -1 / 4f)
 			.translate(0, 0, 1 / 32f + .001)
 			.rotateY(180);
 
-		PoseStack squashedMS = new PoseStack();
-		squashedMS.last()
-			.pose()
-			.mul(ms.last()
-				.pose());
+		MatrixStack squashedMS = new MatrixStack();
+		squashedMS.peek()
+			.getPositionMatrix()
+			.mul(ms.peek()
+				.getPositionMatrix());
 		squashedMS.scale(.5f, .5f, 1 / 1024f);
-		squashedMS.last()
-			.normal()
+		squashedMS.peek()
+			.getNormalMatrix()
 			.set(copy);
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 		mc.getItemRenderer()
-			.renderStatic(filter, ItemDisplayContext.GUI, itemLight, OverlayTexture.NO_OVERLAY, squashedMS, buffer, mc.level, 0);
+			.renderItem(filter, ModelTransformationMode.GUI, itemLight, OverlayTexture.DEFAULT_UV, squashedMS, buffer, mc.world, 0);
 
-		ms.popPose();
+		ms.pop();
 	}
 
 	@SuppressWarnings("deprecation")
@@ -84,8 +83,8 @@ public class ValueBoxRenderer {
 				return nudge;
 			if (block instanceof FenceBlock)
 				return nudge;
-			if (block.builtInRegistryHolder()
-				.is(BlockTags.BUTTONS))
+			if (block.getRegistryEntry()
+				.isIn(BlockTags.BUTTONS))
 				return nudge;
 			if (block == Blocks.END_ROD)
 				return nudge;

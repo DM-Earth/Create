@@ -1,25 +1,24 @@
 package com.simibubi.create.compat.rei.category.animations;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.saw.SawBlock;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
 
 public class AnimatedSaw extends AnimatedKinetics {
 
 	@Override
-	public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
-		PoseStack matrixStack = graphics.pose();
-		matrixStack.pushPose();
+	public void draw(DrawContext graphics, int xOffset, int yOffset) {
+		MatrixStack matrixStack = graphics.getMatrices();
+		matrixStack.push();
 		matrixStack.translate(xOffset, yOffset, 0);
 		matrixStack.translate(0, 0, 200);
 		matrixStack.translate(2, 22, 0);
-		matrixStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-15.5f));
-		matrixStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(22.5f + 90));
+		matrixStack.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrixStack.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(22.5f + 90));
 		int scale = 25;
 
 		blockElement(shaft(Axis.X))
@@ -28,7 +27,7 @@ public class AnimatedSaw extends AnimatedKinetics {
 			.render(graphics);
 
 		blockElement(AllBlocks.MECHANICAL_SAW.getDefaultState()
-			.setValue(SawBlock.FACING, Direction.UP))
+			.with(SawBlock.FACING, Direction.UP))
 			.rotateBlock(0, 0, 0)
 			.scale(scale)
 			.render(graphics);
@@ -38,7 +37,7 @@ public class AnimatedSaw extends AnimatedKinetics {
 			.scale(scale)
 			.render(graphics);
 
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 }

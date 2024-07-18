@@ -1,48 +1,47 @@
 package com.simibubi.create.content.redstone.displayLink;
 
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.RenderTypes;
 import com.simibubi.create.foundation.utility.AngleHelper;
-
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 
 public class DisplayLinkRenderer extends SafeBlockEntityRenderer<DisplayLinkBlockEntity> {
 
-	public DisplayLinkRenderer(BlockEntityRendererProvider.Context context) {}
+	public DisplayLinkRenderer(BlockEntityRendererFactory.Context context) {}
 
 	@Override
-	protected void renderSafe(DisplayLinkBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(DisplayLinkBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 		float glow = be.glow.getValue(partialTicks);
 		if (glow < .125f)
 			return;
 
 		glow = (float) (1 - (2 * Math.pow(glow - .75f, 2)));
-		glow = Mth.clamp(glow, -1, 1);
+		glow = MathHelper.clamp(glow, -1, 1);
 
 		int color = (int) (200 * glow);
 
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		TransformStack msr = TransformStack.cast(ms);
 
-		Direction face = blockState.getOptionalValue(DisplayLinkBlock.FACING)
+		Direction face = blockState.getOrEmpty(DisplayLinkBlock.FACING)
 			.orElse(Direction.UP);
 
 		if (face.getAxis()
 			.isHorizontal())
 			face = face.getOpposite();
 
-		ms.pushPose();
+		ms.push();
 
 		msr.centre()
 			.rotateY(AngleHelper.horizontalAngle(face))
@@ -50,16 +49,16 @@ public class DisplayLinkRenderer extends SafeBlockEntityRenderer<DisplayLinkBloc
 			.unCentre();
 
 		CachedBufferer.partial(AllPartialModels.DISPLAY_LINK_TUBE, blockState)
-			.light(LightTexture.FULL_BRIGHT)
-			.renderInto(ms, buffer.getBuffer(RenderType.translucent()));
+			.light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+			.renderInto(ms, buffer.getBuffer(RenderLayer.getTranslucent()));
 
 		CachedBufferer.partial(AllPartialModels.DISPLAY_LINK_GLOW, blockState)
-			.light(LightTexture.FULL_BRIGHT)
+			.light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
 			.color(color, color, color, 255)
 			.disableDiffuse()
 			.renderInto(ms, buffer.getBuffer(RenderTypes.getAdditive()));
 
-		ms.popPose();
+		ms.pop();
 	}
 
 }

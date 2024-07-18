@@ -8,40 +8,39 @@ import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.worldWrappers.WrappedWorld;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 
 public class WaterWheelBlock extends DirectionalKineticBlock implements IBE<WaterWheelBlockEntity> {
 
-	public WaterWheelBlock(Properties properties) {
+	public WaterWheelBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	public boolean canSurvive(BlockState state, LevelReader worldIn, BlockPos pos) {
+	public boolean canPlaceAt(BlockState state, WorldView worldIn, BlockPos pos) {
 		for (Direction direction : Iterate.directions) {
-			BlockPos neighbourPos = pos.relative(direction);
+			BlockPos neighbourPos = pos.offset(direction);
 			BlockState neighbourState = worldIn.getBlockState(neighbourPos);
 			if (!AllBlocks.WATER_WHEEL.has(neighbourState))
 				continue;
-			Axis axis = state.getValue(FACING)
+			Axis axis = state.get(FACING)
 				.getAxis();
-			if (neighbourState.getValue(FACING)
+			if (neighbourState.get(FACING)
 				.getAxis() != axis || axis != direction.getAxis())
 				return false;
 		}
@@ -49,58 +48,58 @@ public class WaterWheelBlock extends DirectionalKineticBlock implements IBE<Wate
 	}
 
 	@Override
-	public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand,
+	public ActionResult onUse(BlockState pState, World pLevel, BlockPos pPos, PlayerEntity pPlayer, Hand pHand,
 		BlockHitResult pHit) {
 		if (AdventureUtil.isAdventure(pPlayer))
-			return InteractionResult.PASS;
-		return onBlockEntityUse(pLevel, pPos, wwt -> wwt.applyMaterialIfValid(pPlayer.getItemInHand(pHand)));
+			return ActionResult.PASS;
+		return onBlockEntityUse(pLevel, pPos, wwt -> wwt.applyMaterialIfValid(pPlayer.getStackInHand(pHand)));
 	}
 
 	@Override
-	public BlockState updateShape(BlockState stateIn, Direction facing, BlockState facingState, LevelAccessor worldIn,
+	public BlockState getStateForNeighborUpdate(BlockState stateIn, Direction facing, BlockState facingState, WorldAccess worldIn,
 		BlockPos currentPos, BlockPos facingPos) {
 		if (worldIn instanceof WrappedWorld)
 			return stateIn;
-		if (worldIn.isClientSide())
+		if (worldIn.isClient())
 			return stateIn;
-		if (!worldIn.getBlockTicks()
-			.hasScheduledTick(currentPos, this))
-			worldIn.scheduleTick(currentPos, this, 1);
+		if (!worldIn.getBlockTickScheduler()
+			.isQueued(currentPos, this))
+			worldIn.scheduleBlockTick(currentPos, this, 1);
 		return stateIn;
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
-		super.onPlace(state, worldIn, pos, oldState, isMoving);
-		if (worldIn.isClientSide())
+	public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
+		super.onBlockAdded(state, worldIn, pos, oldState, isMoving);
+		if (worldIn.isClient())
 			return;
-		if (!worldIn.getBlockTicks()
-			.hasScheduledTick(pos, this))
-			worldIn.scheduleTick(pos, this, 1);
+		if (!worldIn.getBlockTickScheduler()
+			.isQueued(pos, this))
+			worldIn.scheduleBlockTick(pos, this, 1);
 	}
 
 	@Override
-	public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
+	public void scheduledTick(BlockState pState, ServerWorld pLevel, BlockPos pPos, Random pRandom) {
 		withBlockEntityDo(pLevel, pPos, WaterWheelBlockEntity::determineAndApplyFlowScore);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState state = super.getStateForPlacement(context);
-		state.setValue(FACING, Direction.get(AxisDirection.POSITIVE, state.getValue(FACING)
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState state = super.getPlacementState(context);
+		state.with(FACING, Direction.get(AxisDirection.POSITIVE, state.get(FACING)
 			.getAxis()));
 		return state;
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return state.getValue(FACING)
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		return state.get(FACING)
 			.getAxis() == face.getAxis();
 	}
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(FACING)
+		return state.get(FACING)
 			.getAxis();
 	}
 

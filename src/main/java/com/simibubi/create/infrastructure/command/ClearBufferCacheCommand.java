@@ -7,18 +7,18 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
 
 public class ClearBufferCacheCommand {
 
-	static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("clearRenderBuffers")
-			.requires(cs -> cs.hasPermission(0))
+	static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("clearRenderBuffers")
+			.requires(cs -> cs.hasPermissionLevel(0))
 			.executes(ctx -> {
 				EnvExecutor.runWhenOn(EnvType.CLIENT, () -> ClearBufferCacheCommand::execute);
 				ctx.getSource()
-					.sendSuccess(() -> Components.literal("Cleared rendering buffers."), true);
+					.sendFeedback(() -> Components.literal("Cleared rendering buffers."), true);
 				return 1;
 			});
 	}

@@ -1,25 +1,21 @@
 package com.simibubi.create.foundation.config.ui;
 
 import io.github.fabricators_of_create.porting_lib.util.KeyBindingHelper;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
-
-import com.mojang.blaze3d.platform.InputConstants;
 import com.simibubi.create.foundation.gui.Theme;
 import com.simibubi.create.foundation.utility.Components;
 
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
+public class HintableTextFieldWidget extends TextFieldWidget {
 
-public class HintableTextFieldWidget extends EditBox {
-
-	protected Font font;
+	protected TextRenderer font;
 	protected String hint;
 
-	public HintableTextFieldWidget(Font font, int x, int y, int width, int height) {
+	public HintableTextFieldWidget(TextRenderer font, int x, int y, int width, int height) {
 		super(font, x, y, width, height, Components.immutableEmpty());
 		this.font = font;
 	}
@@ -29,16 +25,16 @@ public class HintableTextFieldWidget extends EditBox {
 	}
 
 	@Override
-	public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-		super.renderWidget(graphics, mouseX, mouseY, partialTicks);
+	public void renderButton(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
+		super.renderButton(graphics, mouseX, mouseY, partialTicks);
 
 		if (hint == null || hint.isEmpty())
 			return;
 
-		if (!getValue().isEmpty())
+		if (!getText().isEmpty())
 			return;
 
-		graphics.drawString(font, hint, getX() + 5, this.getY() + (this.height - 8) / 2, Theme.c(Theme.Key.TEXT).scaleAlpha(.75f).getRGB(), false);
+		graphics.drawText(font, hint, getX() + 5, this.getY() + (this.height - 8) / 2, Theme.c(Theme.Key.TEXT).scaleAlpha(.75f).getRGB(), false);
 	}
 
 	@Override
@@ -47,7 +43,7 @@ public class HintableTextFieldWidget extends EditBox {
 			return false;
 
 		if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-			setValue("");
+			setText("");
 			return true;
 		} else
 			return super.mouseClicked(x, y, button);
@@ -55,8 +51,8 @@ public class HintableTextFieldWidget extends EditBox {
 
 	@Override
 	public boolean keyPressed(int code, int p_keyPressed_2_, int p_keyPressed_3_) {
-		InputConstants.Key mouseKey = InputConstants.getKey(code, p_keyPressed_2_);
-		if (KeyBindingHelper.isActiveAndMatches(Minecraft.getInstance().options.keyInventory, mouseKey)) {
+		InputUtil.Key mouseKey = InputUtil.fromKeyCode(code, p_keyPressed_2_);
+		if (KeyBindingHelper.isActiveAndMatches(MinecraftClient.getInstance().options.inventoryKey, mouseKey)) {
 			return true;
 		}
 

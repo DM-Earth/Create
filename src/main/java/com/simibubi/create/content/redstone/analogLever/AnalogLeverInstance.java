@@ -11,9 +11,8 @@ import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Color;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.block.enums.WallMountLocation;
+import net.minecraft.util.math.Direction;
 
 public class AnalogLeverInstance extends BlockEntityInstance<AnalogLeverBlockEntity> implements DynamicInstance {
 
@@ -33,9 +32,9 @@ public class AnalogLeverInstance extends BlockEntityInstance<AnalogLeverBlockEnt
 		indicator = mat.getModel(AllPartialModels.ANALOG_LEVER_INDICATOR, blockState)
 			.createInstance();
 
-		AttachFace face = blockState.getValue(AnalogLeverBlock.FACE);
-		rX = face == AttachFace.FLOOR ? 0 : face == AttachFace.WALL ? 90 : 180;
-		rY = AngleHelper.horizontalAngle(blockState.getValue(AnalogLeverBlock.FACING));
+		WallMountLocation face = blockState.get(AnalogLeverBlock.FACE);
+		rX = face == WallMountLocation.FLOOR ? 0 : face == WallMountLocation.WALL ? 90 : 180;
+		rY = AngleHelper.horizontalAngle(blockState.get(AnalogLeverBlock.FACING));
 
 		transform(indicator.loadIdentity());
 		animateLever();

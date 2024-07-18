@@ -6,10 +6,8 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
-
+import net.minecraft.util.Identifier;
 import com.simibubi.create.Create;
-
-import net.minecraft.resources.ResourceLocation;
 
 public class BogeySizes {
 	private static final Collection<BogeySize> BOGEY_SIZES = new HashSet<>();
@@ -22,11 +20,11 @@ public class BogeySizes {
 	}
 
 	public static BogeySize addSize(String modId, String name, float size) {
-		ResourceLocation location = new ResourceLocation(modId, name);
+		Identifier location = new Identifier(modId, name);
 		return addSize(location, size);
 	}
 
-	public static BogeySize addSize(ResourceLocation location, float size) {
+	public static BogeySize addSize(Identifier location, float size) {
 		BogeySize customSize = new BogeySize(location, size);
 		BOGEY_SIZES.add(customSize);
 		return customSize;
@@ -48,9 +46,9 @@ public class BogeySizes {
 		return BOGEY_SIZES.size();
 	}
 
-	public record BogeySize(ResourceLocation location, float wheelRadius) {
+	public record BogeySize(Identifier location, float wheelRadius) {
 		public BogeySize(String modId, String name, float wheelRadius) {
-			this(new ResourceLocation(modId, name), wheelRadius);
+			this(new Identifier(modId, name), wheelRadius);
 		}
 
 		public BogeySize increment() {

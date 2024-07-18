@@ -12,25 +12,25 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.LadderBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.LadderBlock;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class MetalLadderBlock extends LadderBlock implements IWrenchable {
 
 	private static final int placementHelperId = PlacementHelpers.register(new PlacementHelper());
 
-	public MetalLadderBlock(Properties p_54345_) {
+	public MetalLadderBlock(Settings p_54345_) {
 		super(p_54345_);
 	}
 
@@ -42,21 +42,21 @@ public class MetalLadderBlock extends LadderBlock implements IWrenchable {
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public boolean skipRendering(BlockState pState, BlockState pAdjacentBlockState, Direction pDirection) {
+	public boolean isSideInvisible(BlockState pState, BlockState pAdjacentBlockState, Direction pDirection) {
 		return pDirection == Direction.UP && pAdjacentBlockState.getBlock() instanceof LadderBlock;
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult ray) {
-		if (player.isShiftKeyDown() || !player.mayBuild())
-			return InteractionResult.PASS;
-		ItemStack heldItem = player.getItemInHand(hand);
+		if (player.isSneaking() || !player.canModifyBlocks())
+			return ActionResult.PASS;
+		ItemStack heldItem = player.getStackInHand(hand);
 		IPlacementHelper helper = PlacementHelpers.get(placementHelperId);
 		if (helper.matchesItem(heldItem))
 			return helper.getOffset(player, world, state, pos, ray)
 				.placeInWorld(world, (BlockItem) heldItem.getItem(), player, hand, ray);
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
 	@MethodsReturnNonnullByDefault
@@ -73,26 +73,26 @@ public class MetalLadderBlock extends LadderBlock implements IWrenchable {
 			return s -> s.getBlock() instanceof LadderBlock;
 		}
 
-		public int attachedLadders(Level world, BlockPos pos, Direction direction) {
-			BlockPos checkPos = pos.relative(direction);
+		public int attachedLadders(World world, BlockPos pos, Direction direction) {
+			BlockPos checkPos = pos.offset(direction);
 			BlockState state = world.getBlockState(checkPos);
 			int count = 0;
 			while (getStatePredicate().test(state)) {
 				count++;
-				checkPos = checkPos.relative(direction);
+				checkPos = checkPos.offset(direction);
 				state = world.getBlockState(checkPos);
 			}
 			return count;
 		}
 
 		@Override
-		public PlacementOffset getOffset(Player player, Level world, BlockState state, BlockPos pos,
+		public PlacementOffset getOffset(PlayerEntity player, World world, BlockState state, BlockPos pos,
 			BlockHitResult ray) {
-			Direction dir = player.getXRot() < 0 ? Direction.UP : Direction.DOWN;
+			Direction dir = player.getPitch() < 0 ? Direction.UP : Direction.DOWN;
 
 			int range = AllConfigs.server().equipment.placementAssistRange.get();
 			if (player != null) {
-				AttributeInstance reach = player.getAttribute(ReachEntityAttributes.REACH);
+				EntityAttributeInstance reach = player.getAttributeInstance(ReachEntityAttributes.REACH);
 				if (reach != null && reach.hasModifier(ExtendoGripItem.singleRangeAttributeModifier))
 					range += 4;
 			}
@@ -101,14 +101,14 @@ public class MetalLadderBlock extends LadderBlock implements IWrenchable {
 			if (ladders >= range)
 				return PlacementOffset.fail();
 
-			BlockPos newPos = pos.relative(dir, ladders + 1);
+			BlockPos newPos = pos.offset(dir, ladders + 1);
 			BlockState newState = world.getBlockState(newPos);
 
-			if (!state.canSurvive(world, newPos))
+			if (!state.canPlaceAt(world, newPos))
 				return PlacementOffset.fail();
 
-			if (newState.canBeReplaced())
-				return PlacementOffset.success(newPos, bState -> bState.setValue(FACING, state.getValue(FACING)));
+			if (newState.isReplaceable())
+				return PlacementOffset.success(newPos, bState -> bState.with(FACING, state.get(FACING)));
 			return PlacementOffset.fail();
 		}
 

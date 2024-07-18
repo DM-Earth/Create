@@ -15,21 +15,21 @@ import com.simibubi.create.content.processing.recipe.ProcessingRecipeBuilder.Pro
 
 import net.fabricmc.fabric.api.resource.conditions.v1.ConditionJsonProvider;
 import net.fabricmc.fabric.api.resource.conditions.v1.ResourceConditions;
-import net.minecraft.data.recipes.FinishedRecipe;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.data.server.recipe.RecipeJsonProvider;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.util.Identifier;
 
 public class SequencedAssemblyRecipeBuilder {
 
 	private SequencedAssemblyRecipe recipe;
 	protected List<ConditionJsonProvider> recipeConditions;
 
-	public SequencedAssemblyRecipeBuilder(ResourceLocation id) {
+	public SequencedAssemblyRecipeBuilder(Identifier id) {
 		recipeConditions = new ArrayList<>();
 		this.recipe = new SequencedAssemblyRecipe(id,
 			AllRecipeTypes.SEQUENCED_ASSEMBLY.getSerializer());
@@ -38,7 +38,7 @@ public class SequencedAssemblyRecipeBuilder {
 	public <T extends ProcessingRecipe<?>> SequencedAssemblyRecipeBuilder addStep(ProcessingRecipeFactory<T> factory,
 		UnaryOperator<ProcessingRecipeBuilder<T>> builder) {
 		ProcessingRecipeBuilder<T> recipeBuilder =
-			new ProcessingRecipeBuilder<>(factory, new ResourceLocation("dummy"));
+			new ProcessingRecipeBuilder<>(factory, new Identifier("dummy"));
 		Item placeHolder = recipe.getTransitionalItem()
 			.getItem();
 		recipe.getSequence()
@@ -48,12 +48,12 @@ public class SequencedAssemblyRecipeBuilder {
 		return this;
 	}
 
-	public SequencedAssemblyRecipeBuilder require(ItemLike ingredient) {
-		return require(Ingredient.of(ingredient));
+	public SequencedAssemblyRecipeBuilder require(ItemConvertible ingredient) {
+		return require(Ingredient.ofItems(ingredient));
 	}
 
 	public SequencedAssemblyRecipeBuilder require(TagKey<Item> tag) {
-		return require(Ingredient.of(tag));
+		return require(Ingredient.fromTag(tag));
 	}
 
 	public SequencedAssemblyRecipeBuilder require(Ingredient ingredient) {
@@ -61,7 +61,7 @@ public class SequencedAssemblyRecipeBuilder {
 		return this;
 	}
 
-	public SequencedAssemblyRecipeBuilder transitionTo(ItemLike item) {
+	public SequencedAssemblyRecipeBuilder transitionTo(ItemConvertible item) {
 		recipe.transitionalItem = new ProcessingOutput(new ItemStack(item), 1);
 		return this;
 	}
@@ -71,7 +71,7 @@ public class SequencedAssemblyRecipeBuilder {
 		return this;
 	}
 
-	public SequencedAssemblyRecipeBuilder addOutput(ItemLike item, float weight) {
+	public SequencedAssemblyRecipeBuilder addOutput(ItemConvertible item, float weight) {
 		return addOutput(new ItemStack(item), weight);
 	}
 
@@ -84,27 +84,27 @@ public class SequencedAssemblyRecipeBuilder {
 		return recipe;
 	}
 
-	public void build(Consumer<FinishedRecipe> consumer) {
+	public void build(Consumer<RecipeJsonProvider> consumer) {
 		consumer.accept(new DataGenResult(build(), recipeConditions));
 	}
 
-	public static class DataGenResult implements FinishedRecipe {
+	public static class DataGenResult implements RecipeJsonProvider {
 
 		private SequencedAssemblyRecipe recipe;
 		private List<ConditionJsonProvider> recipeConditions;
-		private ResourceLocation id;
+		private Identifier id;
 		private SequencedAssemblyRecipeSerializer serializer;
 
 		public DataGenResult(SequencedAssemblyRecipe recipe, List<ConditionJsonProvider> recipeConditions) {
 			this.recipeConditions = recipeConditions;
 			this.recipe = recipe;
-			this.id = new ResourceLocation(recipe.getId().getNamespace(),
+			this.id = new Identifier(recipe.getId().getNamespace(),
 					AllRecipeTypes.SEQUENCED_ASSEMBLY.getId().getPath() + "/" + recipe.getId().getPath());
 			this.serializer = (SequencedAssemblyRecipeSerializer) recipe.getSerializer();
 		}
 
 		@Override
-		public void serializeRecipeData(JsonObject json) {
+		public void serialize(JsonObject json) {
 			serializer.write(json, recipe);
 			if (recipeConditions.isEmpty())
 				return;
@@ -115,22 +115,22 @@ public class SequencedAssemblyRecipeBuilder {
 		}
 
 		@Override
-		public ResourceLocation getId() {
+		public Identifier getRecipeId() {
 			return id;
 		}
 
 		@Override
-		public RecipeSerializer<?> getType() {
+		public RecipeSerializer<?> getSerializer() {
 			return serializer;
 		}
 
 		@Override
-		public JsonObject serializeAdvancement() {
+		public JsonObject toAdvancementJson() {
 			return null;
 		}
 
 		@Override
-		public ResourceLocation getAdvancementId() {
+		public Identifier getAdvancementId() {
 			return null;
 		}
 

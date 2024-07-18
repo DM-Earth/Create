@@ -1,23 +1,21 @@
 package com.simibubi.create.content.trains.entity;
 
 import java.util.Objects;
-
+import net.minecraft.client.render.Frustum;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.LightType;
 import com.jozufozu.flywheel.backend.Backend;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.contraptions.render.ContraptionEntityRenderer;
-
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.culling.Frustum;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.phys.Vec3;
 
 public class CarriageContraptionEntityRenderer extends ContraptionEntityRenderer<CarriageContraptionEntity> {
 
-	public CarriageContraptionEntityRenderer(EntityRendererProvider.Context context) {
+	public CarriageContraptionEntityRenderer(EntityRendererFactory.Context context) {
 		super(context);
 	}
 
@@ -33,8 +31,8 @@ public class CarriageContraptionEntityRenderer extends ContraptionEntityRenderer
 	}
 
 	@Override
-	public void render(CarriageContraptionEntity entity, float yaw, float partialTicks, PoseStack ms,
-		MultiBufferSource buffers, int overlay) {
+	public void render(CarriageContraptionEntity entity, float yaw, float partialTicks, MatrixStack ms,
+		VertexConsumerProvider buffers, int overlay) {
 		if (!entity.validForRender || entity.firstPositionUpdate)
 			return;
 
@@ -44,24 +42,24 @@ public class CarriageContraptionEntityRenderer extends ContraptionEntityRenderer
 		if (carriage == null)
 			return;
 
-		Vec3 position = entity.getPosition(partialTicks);
+		Vec3d position = entity.getLerpedPos(partialTicks);
 
-		float viewYRot = entity.getViewYRot(partialTicks);
-		float viewXRot = entity.getViewXRot(partialTicks);
+		float viewYRot = entity.getYaw(partialTicks);
+		float viewXRot = entity.getPitch(partialTicks);
 		int bogeySpacing = carriage.bogeySpacing;
 
 		carriage.bogeys.forEach(bogey -> {
 			if (bogey == null)
 				return;
 
-			BlockPos bogeyPos = bogey.isLeading ? BlockPos.ZERO
-				: BlockPos.ZERO.relative(entity.getInitialOrientation()
-					.getCounterClockWise(), bogeySpacing);
+			BlockPos bogeyPos = bogey.isLeading ? BlockPos.ORIGIN
+				: BlockPos.ORIGIN.offset(entity.getInitialOrientation()
+					.rotateYCounterclockwise(), bogeySpacing);
 
-			if (!Backend.canUseInstancing(entity.level()) && !entity.getContraption()
+			if (!Backend.canUseInstancing(entity.getWorld()) && !entity.getContraption()
 				.isHiddenInPortal(bogeyPos)) {
 
-				ms.pushPose();
+				ms.push();
 				translateBogey(ms, bogey, bogeySpacing, viewYRot, viewXRot, partialTicks);
 
 				int light = getBogeyLightCoords(entity, bogey, partialTicks);
@@ -69,7 +67,7 @@ public class CarriageContraptionEntityRenderer extends ContraptionEntityRenderer
 				bogey.type.render(null, bogey.wheelAngle.getValue(partialTicks), ms, partialTicks, buffers, light,
 					overlay, bogey.getStyle(), bogey.bogeyData);
 
-				ms.popPose();
+				ms.pop();
 			}
 
 			bogey.updateCouplingAnchor(position, viewXRot, viewYRot, bogeySpacing, partialTicks, bogey.isLeading);
@@ -79,7 +77,7 @@ public class CarriageContraptionEntityRenderer extends ContraptionEntityRenderer
 		});
 	}
 
-	public static void translateBogey(PoseStack ms, CarriageBogey bogey, int bogeySpacing, float viewYRot,
+	public static void translateBogey(MatrixStack ms, CarriageBogey bogey, int bogeySpacing, float viewYRot,
 		float viewXRot, float partialTicks) {
 		boolean selfUpsideDown = bogey.isUpsideDown();
 		boolean leadingUpsideDown = bogey.carriage.leadingBogey().isUpsideDown();
@@ -100,11 +98,11 @@ public class CarriageContraptionEntityRenderer extends ContraptionEntityRenderer
 
 	public static int getBogeyLightCoords(CarriageContraptionEntity entity, CarriageBogey bogey, float partialTicks) {
 
-		var lightPos = BlockPos.containing(
-			Objects.requireNonNullElseGet(bogey.getAnchorPosition(), () -> entity.getLightProbePosition(partialTicks)));
+		var lightPos = BlockPos.ofFloored(
+			Objects.requireNonNullElseGet(bogey.getAnchorPosition(), () -> entity.getClientCameraPosVec(partialTicks)));
 
-		return LightTexture.pack(entity.level().getBrightness(LightLayer.BLOCK, lightPos),
-			entity.level().getBrightness(LightLayer.SKY, lightPos));
+		return LightmapTextureManager.pack(entity.getWorld().getLightLevel(LightType.BLOCK, lightPos),
+			entity.getWorld().getLightLevel(LightType.SKY, lightPos));
 	}
 
 }

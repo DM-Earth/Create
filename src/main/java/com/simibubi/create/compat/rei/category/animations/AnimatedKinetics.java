@@ -8,10 +8,9 @@ import com.simibubi.create.foundation.gui.CustomLightingSettings;
 import com.simibubi.create.foundation.gui.ILightingSettings;
 import com.simibubi.create.foundation.gui.element.GuiGameElement;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction.Axis;
 
 public abstract class AnimatedKinetics extends AnimatedKineticsWidget {
 
@@ -45,7 +44,7 @@ public abstract class AnimatedKinetics extends AnimatedKineticsWidget {
 	}
 
 	protected BlockState shaft(Axis axis) {
-		return AllBlocks.SHAFT.getDefaultState().setValue(BlockStateProperties.AXIS, axis);
+		return AllBlocks.SHAFT.getDefaultState().with(Properties.AXIS, axis);
 	}
 
 	protected PartialModel cogwheel() {

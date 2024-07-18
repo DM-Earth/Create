@@ -2,31 +2,29 @@ package com.simibubi.create.foundation.gui.widget;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import com.simibubi.create.AllKeys;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour.StepContext;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-
 public class ScrollInput extends AbstractSimiWidget {
 
 	protected Consumer<Integer> onScroll;
 	protected int state;
-	protected Component title = Lang.translateDirect("gui.scrollInput.defaultTitle");
-	protected final Component scrollToModify = Lang.translateDirect("gui.scrollInput.scrollToModify");
-	protected final Component shiftScrollsFaster = Lang.translateDirect("gui.scrollInput.shiftScrollsFaster");
-	protected Component hint = null;
+	protected Text title = Lang.translateDirect("gui.scrollInput.defaultTitle");
+	protected final Text scrollToModify = Lang.translateDirect("gui.scrollInput.scrollToModify");
+	protected final Text shiftScrollsFaster = Lang.translateDirect("gui.scrollInput.shiftScrollsFaster");
+	protected Text hint = null;
 	protected Label displayLabel;
 	protected boolean inverted;
 	protected boolean soundPlayed;
-	protected Function<Integer, Component> formatter;
+	protected Function<Integer, Text> formatter;
 
 	protected int min, max;
 	protected int shiftStep;
@@ -63,7 +61,7 @@ public class ScrollInput extends AbstractSimiWidget {
 		return this;
 	}
 
-	public ScrollInput format(Function<Integer, Component> formatter) {
+	public ScrollInput format(Function<Integer, Text> formatter) {
 		this.formatter = formatter;
 		return this;
 	}
@@ -73,15 +71,15 @@ public class ScrollInput extends AbstractSimiWidget {
 		return this;
 	}
 
-	public ScrollInput titled(MutableComponent title) {
+	public ScrollInput titled(MutableText title) {
 		this.title = title;
-		updateTooltip();
+		applyTooltip();
 		return this;
 	}
 
-	public ScrollInput addHint(MutableComponent hint) {
+	public ScrollInput addHint(MutableText hint) {
 		this.hint = hint;
-		updateTooltip();
+		applyTooltip();
 		return this;
 	}
 
@@ -110,7 +108,7 @@ public class ScrollInput extends AbstractSimiWidget {
 	public ScrollInput setState(int state) {
 		this.state = state;
 		clampState();
-		updateTooltip();
+		applyTooltip();
 		if (displayLabel != null)
 			writeToLabel();
 		return this;
@@ -144,9 +142,9 @@ public class ScrollInput extends AbstractSimiWidget {
 
 		if (priorState != state) {
 			if (!soundPlayed)
-				Minecraft.getInstance()
+				MinecraftClient.getInstance()
 					.getSoundManager()
-					.play(SimpleSoundInstance.forUI(AllSoundEvents.SCROLL_VALUE.getMainEvent(),
+					.play(PositionedSoundInstance.master(AllSoundEvents.SCROLL_VALUE.getMainEvent(),
 						1.5f + 0.1f * (state - min) / (max - min)));
 			soundPlayed = true;
 			onChanged();
@@ -167,26 +165,26 @@ public class ScrollInput extends AbstractSimiWidget {
 			writeToLabel();
 		if (onScroll != null)
 			onScroll.accept(state);
-		updateTooltip();
+		applyTooltip();
 	}
 
 	protected void writeToLabel() {
 		displayLabel.text = formatter.apply(state);
 	}
 
-	protected void updateTooltip() {
+	protected void applyTooltip() {
 		toolTip.clear();
 		if (title == null)
 			return;
-		toolTip.add(title.plainCopy()
-			.withStyle(s -> s.withColor(HEADER_RGB)));
+		toolTip.add(title.copyContentOnly()
+			.styled(s -> s.withColor(HEADER_RGB)));
 		if (hint != null)
-			toolTip.add(hint.plainCopy()
-				.withStyle(s -> s.withColor(HINT_RGB)));
-		toolTip.add(scrollToModify.plainCopy()
-			.withStyle(ChatFormatting.ITALIC, ChatFormatting.DARK_GRAY));
-		toolTip.add(shiftScrollsFaster.plainCopy()
-			.withStyle(ChatFormatting.ITALIC, ChatFormatting.DARK_GRAY));
+			toolTip.add(hint.copyContentOnly()
+				.styled(s -> s.withColor(HINT_RGB)));
+		toolTip.add(scrollToModify.copyContentOnly()
+			.formatted(Formatting.ITALIC, Formatting.DARK_GRAY));
+		toolTip.add(shiftScrollsFaster.copyContentOnly()
+			.formatted(Formatting.ITALIC, Formatting.DARK_GRAY));
 	}
 
 }

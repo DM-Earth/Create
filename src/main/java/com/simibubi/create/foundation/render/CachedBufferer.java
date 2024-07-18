@@ -1,20 +1,18 @@
 package com.simibubi.create.foundation.render;
 
-import static net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING;
+import static net.minecraft.state.property.Properties.FACING;
 
 import java.util.function.Supplier;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.foundation.render.SuperByteBufferCache.Compartment;
 import com.simibubi.create.foundation.utility.AngleHelper;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class CachedBufferer {
 
@@ -36,13 +34,13 @@ public class CachedBufferer {
 	}
 
 	public static SuperByteBuffer partial(PartialModel partial, BlockState referenceState,
-			Supplier<PoseStack> modelTransform) {
+			Supplier<MatrixStack> modelTransform) {
 		return CreateClient.BUFFER_CACHE.get(PARTIAL, partial,
 				() -> BakedModelRenderHelper.standardModelRender(partial.get(), referenceState, modelTransform.get()));
 	}
 
 	public static SuperByteBuffer partialFacing(PartialModel partial, BlockState referenceState) {
-		Direction facing = referenceState.getValue(FACING);
+		Direction facing = referenceState.get(FACING);
 		return partialFacing(partial, referenceState, facing);
 	}
 
@@ -57,14 +55,14 @@ public class CachedBufferer {
 	}
 
 	public static SuperByteBuffer partialDirectional(PartialModel partial, BlockState referenceState, Direction dir,
-			Supplier<PoseStack> modelTransform) {
+			Supplier<MatrixStack> modelTransform) {
 		return CreateClient.BUFFER_CACHE.get(DIRECTIONAL_PARTIAL, Pair.of(dir, partial),
 			() -> BakedModelRenderHelper.standardModelRender(partial.get(), referenceState, modelTransform.get()));
 	}
 
-	public static Supplier<PoseStack> rotateToFace(Direction facing) {
+	public static Supplier<MatrixStack> rotateToFace(Direction facing) {
 		return () -> {
-			PoseStack stack = new PoseStack();
+			MatrixStack stack = new MatrixStack();
 			TransformStack.cast(stack)
 				.centre()
 				.rotateY(AngleHelper.horizontalAngle(facing))
@@ -74,9 +72,9 @@ public class CachedBufferer {
 		};
 	}
 
-	public static Supplier<PoseStack> rotateToFaceVertical(Direction facing) {
+	public static Supplier<MatrixStack> rotateToFaceVertical(Direction facing) {
 		return () -> {
-			PoseStack stack = new PoseStack();
+			MatrixStack stack = new MatrixStack();
 			TransformStack.cast(stack)
 				.centre()
 				.rotateY(AngleHelper.horizontalAngle(facing))
