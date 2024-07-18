@@ -2,8 +2,6 @@ package com.simibubi.create.content.contraptions.behaviour.dispenser;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.util.RandomSource;
-
 import com.simibubi.create.content.contraptions.behaviour.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.simibubi.create.foundation.item.ItemHelper;
@@ -14,21 +12,22 @@ import net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.ResourceAmount;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.inventory.Inventories;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.random.Random;
 
 public class DropperMovementBehaviour implements MovementBehaviour {
 	protected static final MovedDefaultDispenseItemBehaviour DEFAULT_BEHAVIOUR =
 		new MovedDefaultDispenseItemBehaviour();
-	private static final RandomSource RNG = RandomSource.create();
+	private static final Random RNG = Random.create();
 
 	protected void activate(MovementContext context, BlockPos pos) {
 		DispenseItemLocation location = getDispenseLocation(context);
 		if (location.isEmpty()) {
-			context.world.levelEvent(1001, pos, 0);
+			context.world.syncWorldEvent(1001, pos, 0);
 		} else {
 			setItemStackAt(location, DEFAULT_BEHAVIOUR.dispense(getItemStackAt(location, context), context, pos),
 				context);
@@ -37,7 +36,7 @@ public class DropperMovementBehaviour implements MovementBehaviour {
 
 	@Override
 	public void visitNewPosition(MovementContext context, BlockPos pos) {
-		if (context.world.isClientSide)
+		if (context.world.isClient)
 			return;
 		collectItems(context);
 		activate(context, pos);
@@ -46,25 +45,25 @@ public class DropperMovementBehaviour implements MovementBehaviour {
 	private void collectItems(MovementContext context) {
 		getStacks(context).stream()
 			.filter(itemStack -> !itemStack.isEmpty() && itemStack.getItem() != Items.AIR
-				&& itemStack.getMaxStackSize() > itemStack.getCount())
-			.forEach(itemStack -> itemStack.grow(ItemHelper
+				&& itemStack.getMaxCount() > itemStack.getCount())
+			.forEach(itemStack -> itemStack.increment(ItemHelper
 				.extract(context.contraption.getSharedInventory(), ItemHelper.sameItemPredicate(itemStack),
-					ItemHelper.ExtractionCountMode.UPTO, itemStack.getMaxStackSize() - itemStack.getCount(), false)
+					ItemHelper.ExtractionCountMode.UPTO, itemStack.getMaxCount() - itemStack.getCount(), false)
 				.getCount()));
 	}
 
 	private void updateTemporaryData(MovementContext context) {
-		if (!(context.temporaryData instanceof NonNullList) && context.world != null) {
-			NonNullList<ItemStack> stacks = NonNullList.withSize(getInvSize(), ItemStack.EMPTY);
-			ContainerHelper.loadAllItems(context.blockEntityData, stacks);
+		if (!(context.temporaryData instanceof DefaultedList) && context.world != null) {
+			DefaultedList<ItemStack> stacks = DefaultedList.ofSize(getInvSize(), ItemStack.EMPTY);
+			Inventories.readNbt(context.blockEntityData, stacks);
 			context.temporaryData = stacks;
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	private NonNullList<ItemStack> getStacks(MovementContext context) {
+	private DefaultedList<ItemStack> getStacks(MovementContext context) {
 		updateTemporaryData(context);
-		return (NonNullList<ItemStack>) context.temporaryData;
+		return (DefaultedList<ItemStack>) context.temporaryData;
 	}
 
 	private ArrayList<DispenseItemLocation> getUseableLocations(MovementContext context) {
@@ -75,7 +74,7 @@ public class DropperMovementBehaviour implements MovementBehaviour {
 				ItemStack testStack = getItemStackAt(location, context);
 				if (testStack == null || testStack.isEmpty())
 					continue;
-				if (testStack.getMaxStackSize() == 1) {
+				if (testStack.getMaxCount() == 1) {
 					ResourceAmount<ItemVariant> available = StorageUtil.findExtractableContent(context.contraption.getSharedInventory(), v -> v.matches(testStack), t);
 					if (available != null) {
 						location = new DispenseItemLocation(available);
@@ -90,10 +89,10 @@ public class DropperMovementBehaviour implements MovementBehaviour {
 
 	@Override
 	public void writeExtraData(MovementContext context) {
-		NonNullList<ItemStack> stacks = getStacks(context);
+		DefaultedList<ItemStack> stacks = getStacks(context);
 		if (stacks == null)
 			return;
-		ContainerHelper.saveAllItems(context.blockEntityData, stacks);
+		Inventories.writeNbt(context.blockEntityData, stacks);
 	}
 
 	@Override

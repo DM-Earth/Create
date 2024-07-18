@@ -1,12 +1,11 @@
 package com.simibubi.create.content.logistics.depot;
 
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 
 public class EjectorElytraPacket extends SimplePacketBase {
@@ -17,23 +16,23 @@ public class EjectorElytraPacket extends SimplePacketBase {
 		this.pos = pos;
 	}
 
-	public EjectorElytraPacket(FriendlyByteBuf buffer) {
+	public EjectorElytraPacket(PacketByteBuf buffer) {
 		pos = buffer.readBlockPos();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBlockPos(pos);
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-					ServerPlayer player = context.getSender();
+					ServerPlayerEntity player = context.getSender();
 					if (player == null)
 						return;
-					Level world = player.level();
-					if (world == null || !world.isLoaded(pos))
+					World world = player.getWorld();
+					if (world == null || !world.canSetBlock(pos))
 						return;
 					BlockEntity blockEntity = world.getBlockEntity(pos);
 					if (blockEntity instanceof EjectorBlockEntity)

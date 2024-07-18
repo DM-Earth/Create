@@ -5,52 +5,51 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.AxisDirection;
 
 public class BeltGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getXRotation(BlockState state) {
-		Direction direction = state.getValue(BeltBlock.HORIZONTAL_FACING);
-		BeltSlope slope = state.getValue(BeltBlock.SLOPE);
+		Direction direction = state.get(BeltBlock.HORIZONTAL_FACING);
+		BeltSlope slope = state.get(BeltBlock.SLOPE);
 		return slope == BeltSlope.VERTICAL ? 90
-			: slope == BeltSlope.SIDEWAYS && direction.getAxisDirection() == AxisDirection.NEGATIVE ? 180 : 0;
+			: slope == BeltSlope.SIDEWAYS && direction.getDirection() == AxisDirection.NEGATIVE ? 180 : 0;
 	}
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		Boolean casing = state.getValue(BeltBlock.CASING);
-		BeltSlope slope = state.getValue(BeltBlock.SLOPE);
+		Boolean casing = state.get(BeltBlock.CASING);
+		BeltSlope slope = state.get(BeltBlock.SLOPE);
 
 		boolean flip = slope == BeltSlope.UPWARD;
 		boolean rotate = casing && slope == BeltSlope.VERTICAL;
-		Direction direction = state.getValue(BeltBlock.HORIZONTAL_FACING);
+		Direction direction = state.get(BeltBlock.HORIZONTAL_FACING);
 		return horizontalAngle(direction) + (flip ? 180 : 0) + (rotate ? 90 : 0);
 	}
 
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> ctx, RegistrateBlockstateProvider prov,
 												BlockState state) {
-		Boolean casing = state.getValue(BeltBlock.CASING);
+		Boolean casing = state.get(BeltBlock.CASING);
 
 		if (!casing)
 			return prov.models()
 				.getExistingFile(prov.modLoc("block/belt/particle"));
 
-		BeltPart part = state.getValue(BeltBlock.PART);
-		Direction direction = state.getValue(BeltBlock.HORIZONTAL_FACING);
-		BeltSlope slope = state.getValue(BeltBlock.SLOPE);
+		BeltPart part = state.get(BeltBlock.PART);
+		Direction direction = state.get(BeltBlock.HORIZONTAL_FACING);
+		BeltSlope slope = state.get(BeltBlock.SLOPE);
 		boolean downward = slope == BeltSlope.DOWNWARD;
 		boolean diagonal = slope == BeltSlope.UPWARD || downward;
 		boolean vertical = slope == BeltSlope.VERTICAL;
 		boolean pulley = part == BeltPart.PULLEY;
 		boolean sideways = slope == BeltSlope.SIDEWAYS;
-		boolean negative = direction.getAxisDirection() == AxisDirection.NEGATIVE;
+		boolean negative = direction.getDirection() == AxisDirection.NEGATIVE;
 
 		if (!casing && pulley)
 			part = BeltPart.MIDDLE;
@@ -64,13 +63,13 @@ public class BeltGenerator extends SpecialBlockStateGen {
 			slope = BeltSlope.SIDEWAYS;
 
 		String path = "block/" + (casing ? "belt_casing/" : "belt/");
-		String slopeName = slope.getSerializedName();
-		String partName = part.getSerializedName();
+		String slopeName = slope.asString();
+		String partName = part.asString();
 
 		if (diagonal)
 			slopeName = "diagonal";
 
-		ResourceLocation location = prov.modLoc(path + slopeName + "_" + partName);
+		Identifier location = prov.modLoc(path + slopeName + "_" + partName);
 		return prov.models()
 			.getExistingFile(location);
 	}

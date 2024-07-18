@@ -6,41 +6,41 @@ import io.github.fabricators_of_create.porting_lib.entity.IEntityAdditionalSpawn
 import io.github.fabricators_of_create.porting_lib.entity.PortingLibEntity;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;
-import net.minecraft.client.renderer.culling.Frustum;
-import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.TamableAnimal;
-import net.minecraft.world.entity.animal.Cat;
-import net.minecraft.world.entity.animal.Parrot;
-import net.minecraft.world.entity.animal.Wolf;
-import net.minecraft.world.entity.animal.frog.Frog;
-import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.Skeleton;
-import net.minecraft.world.entity.monster.Slime;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.render.Frustum;
+import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityDimensions;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.mob.CreeperEntity;
+import net.minecraft.entity.mob.SkeletonEntity;
+import net.minecraft.entity.mob.SlimeEntity;
+import net.minecraft.entity.passive.CatEntity;
+import net.minecraft.entity.passive.FrogEntity;
+import net.minecraft.entity.passive.ParrotEntity;
+import net.minecraft.entity.passive.TameableEntity;
+import net.minecraft.entity.passive.WolfEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.listener.ClientPlayPacketListener;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class SeatEntity extends Entity implements IEntityAdditionalSpawnData {
 
-	public SeatEntity(EntityType<?> p_i48580_1_, Level p_i48580_2_) {
+	public SeatEntity(EntityType<?> p_i48580_1_, World p_i48580_2_) {
 		super(p_i48580_1_, p_i48580_2_);
 	}
 
-	public SeatEntity(Level world, BlockPos pos) {
+	public SeatEntity(World world, BlockPos pos) {
 		this(AllEntityTypes.SEAT.get(), world);
-		noPhysics = true;
+		noClip = true;
 	}
 
 	public static FabricEntityTypeBuilder<?> build(FabricEntityTypeBuilder<?> builder) {
@@ -50,89 +50,89 @@ public class SeatEntity extends Entity implements IEntityAdditionalSpawnData {
 	}
 
 	@Override
-	public void setPos(double x, double y, double z) {
-		super.setPos(x, y, z);
-		AABB bb = getBoundingBox();
-		Vec3 diff = new Vec3(x, y, z).subtract(bb.getCenter());
-		setBoundingBox(bb.move(diff));
+	public void setPosition(double x, double y, double z) {
+		super.setPosition(x, y, z);
+		Box bb = getBoundingBox();
+		Vec3d diff = new Vec3d(x, y, z).subtract(bb.getCenter());
+		setBoundingBox(bb.offset(diff));
 	}
 
 	@Override
-	protected void positionRider(Entity pEntity, Entity.MoveFunction pCallback) {
+	protected void updatePassengerPosition(Entity pEntity, Entity.PositionUpdater pCallback) {
 		if (!this.hasPassenger(pEntity))
 			return;
-		double d0 = this.getY() + this.getPassengersRidingOffset() + pEntity.getMyRidingOffset();
+		double d0 = this.getY() + this.getMountedHeightOffset() + pEntity.getHeightOffset();
 		pCallback.accept(pEntity, this.getX(), d0 + getCustomEntitySeatOffset(pEntity), this.getZ());
 	}
 
 	public static double getCustomEntitySeatOffset(Entity entity) {
-		if (entity instanceof Slime)
+		if (entity instanceof SlimeEntity)
 			return 0.25f;
-		if (entity instanceof Parrot)
+		if (entity instanceof ParrotEntity)
 			return 1 / 16f;
-		if (entity instanceof Skeleton)
+		if (entity instanceof SkeletonEntity)
 			return 1 / 8f;
-		if (entity instanceof Creeper)
+		if (entity instanceof CreeperEntity)
 			return 1 / 8f;
-		if (entity instanceof Cat)
+		if (entity instanceof CatEntity)
 			return 1 / 8f;
-		if (entity instanceof Wolf)
+		if (entity instanceof WolfEntity)
 			return 1 / 16f;
-		if (entity instanceof Frog)
+		if (entity instanceof FrogEntity)
 			return 1 / 8f + 1 / 64f;
 		return 0;
 	}
 
 	@Override
-	public void setDeltaMovement(Vec3 p_213317_1_) {}
+	public void setVelocity(Vec3d p_213317_1_) {}
 
 	@Override
 	public void tick() {
-		if (level().isClientSide)
+		if (getWorld().isClient)
 			return;
-		boolean blockPresent = level().getBlockState(blockPosition())
+		boolean blockPresent = getWorld().getBlockState(getBlockPos())
 			.getBlock() instanceof SeatBlock;
-		if (isVehicle() && blockPresent)
+		if (hasPassengers() && blockPresent)
 			return;
 		this.discard();
 	}
 
 	@Override
-	protected boolean canRide(Entity entity) {
+	protected boolean canStartRiding(Entity entity) {
 		// Fake Players (tested with deployers) have a BUNCH of weird issues, don't let
 		// them ride seats
-		return !(entity instanceof Player player && player instanceof FakePlayer);
+		return !(entity instanceof PlayerEntity player && player instanceof FakePlayer);
 	}
 
 	@Override
 	protected void removePassenger(Entity entity) {
 		super.removePassenger(entity);
-		if (entity instanceof TamableAnimal ta)
+		if (entity instanceof TameableEntity ta)
 			ta.setInSittingPose(false);
 	}
 
 	@Override
-	public Vec3 getDismountLocationForPassenger(LivingEntity pLivingEntity) {
-		return super.getDismountLocationForPassenger(pLivingEntity).add(0, 0.5f, 0);
+	public Vec3d updatePassengerForDismount(LivingEntity pLivingEntity) {
+		return super.updatePassengerForDismount(pLivingEntity).add(0, 0.5f, 0);
 	}
 
 	@Override
-	protected void defineSynchedData() {}
+	protected void initDataTracker() {}
 
 	@Override
-	protected void readAdditionalSaveData(CompoundTag p_70037_1_) {}
+	protected void readCustomDataFromNbt(NbtCompound p_70037_1_) {}
 
 	@Override
-	protected void addAdditionalSaveData(CompoundTag p_213281_1_) {}
+	protected void writeCustomDataToNbt(NbtCompound p_213281_1_) {}
 
 	@Override
-	public Packet<ClientGamePacketListener> getAddEntityPacket() {
+	public Packet<ClientPlayPacketListener> createSpawnPacket() {
 		return PortingLibEntity.getEntitySpawningPacket(this);
 	}
 
 	public static class Render extends EntityRenderer<SeatEntity> {
 
-		public Render(EntityRendererProvider.Context context) {
+		public Render(EntityRendererFactory.Context context) {
 			super(context);
 		}
 
@@ -143,14 +143,14 @@ public class SeatEntity extends Entity implements IEntityAdditionalSpawnData {
 		}
 
 		@Override
-		public ResourceLocation getTextureLocation(SeatEntity p_110775_1_) {
+		public Identifier getTexture(SeatEntity p_110775_1_) {
 			return null;
 		}
 	}
 
 	@Override
-	public void writeSpawnData(FriendlyByteBuf buffer) {}
+	public void writeSpawnData(PacketByteBuf buffer) {}
 
 	@Override
-	public void readSpawnData(FriendlyByteBuf additionalData) {}
+	public void readSpawnData(PacketByteBuf additionalData) {}
 }

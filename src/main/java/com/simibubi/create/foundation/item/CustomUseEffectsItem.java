@@ -1,8 +1,8 @@
 package com.simibubi.create.foundation.item;
 
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.random.Random;
 
 public interface CustomUseEffectsItem {
 	/**
@@ -25,5 +25,5 @@ public interface CustomUseEffectsItem {
 	 * @param random The LivingEntity's RandomSource.
 	 * @return if the default behavior should be cancelled or not
 	 */
-	boolean triggerUseEffects(ItemStack stack, LivingEntity entity, int count, RandomSource random);
+	boolean triggerUseEffects(ItemStack stack, LivingEntity entity, int count, Random random);
 }

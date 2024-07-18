@@ -13,7 +13,7 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
 
 @ParametersAreNonnullByDefault
 public class MillingCategory extends CreateRecipeCategory<AbstractCrushingRecipe> {
@@ -49,7 +49,7 @@ public class MillingCategory extends CreateRecipeCategory<AbstractCrushingRecipe
 	}
 
 	@Override
-	public void draw(AbstractCrushingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(AbstractCrushingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_ARROW.render(graphics, 85, 32);
 		AllGuiTextures.JEI_DOWN_ARROW.render(graphics, 43, 4);
 		millstone.draw(graphics, 48, 27);

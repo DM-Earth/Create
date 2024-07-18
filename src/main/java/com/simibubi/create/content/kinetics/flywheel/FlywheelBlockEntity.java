@@ -3,12 +3,11 @@ package com.simibubi.create.content.kinetics.flywheel;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 
 public class FlywheelBlockEntity extends KineticBlockEntity {
 
@@ -20,17 +19,17 @@ public class FlywheelBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return super.createRenderBoundingBox().inflate(2);
+	protected Box createRenderBoundingBox() {
+		return super.createRenderBoundingBox().expand(2);
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		if (clientPacket)
 			visualSpeed.chase(getGeneratedSpeed(), 1 / 64f, Chaser.EXP);
@@ -40,7 +39,7 @@ public class FlywheelBlockEntity extends KineticBlockEntity {
 	public void tick() {
 		super.tick();
 
-		if (!level.isClientSide)
+		if (!world.isClient)
 			return;
 
 		float targetSpeed = getSpeed();

@@ -1,7 +1,12 @@
 package com.simibubi.create.compat.sandwichable;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.kinetics.belt.BeltHelper;
@@ -14,20 +19,14 @@ import com.simibubi.create.content.kinetics.deployer.DeployerFakePlayer;
 import io.github.foundationgames.sandwichable.Sandwichable;
 import io.github.foundationgames.sandwichable.items.ItemsRegistry;
 import io.github.foundationgames.sandwichable.util.Sandwich;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 
 public class SequencedSandwiching {
 	/**
 	 * Only allow sequenced sandwiching on sandwiches (or bread, becoming sandwiches),
 	 * AND if the item-to-add can be put on a sandwich.
 	 */
-	public static boolean shouldSandwich(ItemStack handling, ItemStack held, Level level) {
-		boolean eligible = Sandwich.canAdd(held) && (Sandwichable.isBread(handling) || handling.is(ItemsRegistry.SANDWICH));
+	public static boolean shouldSandwich(ItemStack handling, ItemStack held, World level) {
+		boolean eligible = Sandwich.canAdd(held) && (Sandwichable.isBread(handling) || handling.isOf(ItemsRegistry.SANDWICH));
 		int max = level.getGameRules().getInt(Sandwichable.SANDWICH_SIZE_RULE);
 		Sandwich sandwich = sandwichFromStack(handling);
 		if (sandwich != null && max > 0) {
@@ -47,8 +46,8 @@ public class SequencedSandwiching {
 
 		TransportedItemStack transportedRemainder = transported.copy();
 		DeployerFakePlayer player = deployer.getPlayer();
-		transportedRemainder.stack.shrink(1);
-		ItemStack heldItem = player.getMainHandItem();
+		transportedRemainder.stack.decrement(1);
+		ItemStack heldItem = player.getMainHandStack();
 
 		ItemStack newSandwich = stackOnSandwich(transported.stack, heldItem, deployer);
 		if (newSandwich.isEmpty())
@@ -62,13 +61,13 @@ public class SequencedSandwiching {
 		handler.handleProcessingOnItem(transported, TransportedResult
 				.convertToAndLeaveHeld(ImmutableList.of(output), transportedRemainder));
 
-		heldItem.shrink(1);
+		heldItem.decrement(1);
 
-		BlockPos pos = deployer.getBlockPos();
-		Level world = deployer.getLevel();
+		BlockPos pos = deployer.getPos();
+		World world = deployer.getWorld();
 		if (heldItem.isEmpty())
-			world.playSound(null, pos, SoundEvents.ITEM_BREAK, SoundSource.BLOCKS, .25f, 1);
-		world.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, .25f, .75f);
+			world.playSound(null, pos, SoundEvents.ENTITY_ITEM_BREAK, SoundCategory.BLOCKS, .25f, 1);
+		world.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, .25f, .75f);
 
 		deployer.sendData();
 	}
@@ -79,7 +78,7 @@ public class SequencedSandwiching {
 	 * @return the new sandwich, with the item stacked on top, or EMPTY if nothing stacked
 	 */
 	public static ItemStack stackOnSandwich(ItemStack sandwich, ItemStack toAdd, DeployerBlockEntity deployer) {
-		Level level = deployer.getLevel();
+		World level = deployer.getWorld();
 		Sandwich s = sandwichFromStack(sandwich);
 		if (s != null) {
 			// null - not added
@@ -91,9 +90,9 @@ public class SequencedSandwiching {
 			} else if (!result.isEmpty()) {
 				deployer.getOverflowItems().add(result.copy());
 			}
-			CompoundTag newTag = s.writeToNbt(new CompoundTag());
+			NbtCompound newTag = s.writeToNbt(new NbtCompound());
 			ItemStack newSandwich = sandwich.copy();
-			newSandwich.getOrCreateTag().put("BlockEntityTag", newTag);
+			newSandwich.getOrCreateNbt().put("BlockEntityTag", newTag);
 			return newSandwich;
 		} else if (Sandwichable.isBread(sandwich)) {
 			s = new Sandwich();
@@ -104,9 +103,9 @@ public class SequencedSandwiching {
 			} else if (!result.isEmpty()) {
 				deployer.getOverflowItems().add(result.copy());
 			}
-			CompoundTag newTag = s.writeToNbt(new CompoundTag());
-			ItemStack freshSandwich = ItemsRegistry.SANDWICH.getDefaultInstance();
-			freshSandwich.getOrCreateTag().put("BlockEntityTag", newTag);
+			NbtCompound newTag = s.writeToNbt(new NbtCompound());
+			ItemStack freshSandwich = ItemsRegistry.SANDWICH.getDefaultStack();
+			freshSandwich.getOrCreateNbt().put("BlockEntityTag", newTag);
 			return freshSandwich;
 		}
 		return ItemStack.EMPTY;
@@ -114,8 +113,8 @@ public class SequencedSandwiching {
 
 	@Nullable
 	public static Sandwich sandwichFromStack(ItemStack stack) {
-		if (stack.is(ItemsRegistry.SANDWICH)) {
-			CompoundTag tag = stack.getTag();
+		if (stack.isOf(ItemsRegistry.SANDWICH)) {
+			NbtCompound tag = stack.getNbt();
 			if (tag != null && tag.contains("BlockEntityTag")) {
 				tag = tag.getCompound("BlockEntityTag");
 				Sandwich s = new Sandwich();

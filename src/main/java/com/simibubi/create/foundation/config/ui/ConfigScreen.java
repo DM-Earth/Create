@@ -4,7 +4,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.util.TriConsumer;
 import org.jetbrains.annotations.NotNull;
@@ -12,7 +17,6 @@ import org.lwjgl.opengl.GL30;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.simpleRelays.CogWheelBlock;
 import com.simibubi.create.foundation.gui.AbstractSimiScreen;
@@ -22,12 +26,6 @@ import com.simibubi.create.foundation.gui.element.StencilElement;
 import com.simibubi.create.foundation.utility.animation.Force;
 import com.simibubi.create.foundation.utility.animation.PhysicalFloat;
 import com.simibubi.create.infrastructure.gui.CreateMainMenuScreen;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
 
 public abstract class ConfigScreen extends AbstractSimiScreen {
 
@@ -43,9 +41,9 @@ public abstract class ConfigScreen extends AbstractSimiScreen {
 	 *
 	 */
 
-	public static final Map<String, TriConsumer<Screen, GuiGraphics, Float>> backgrounds = new HashMap<>();
+	public static final Map<String, TriConsumer<Screen, DrawContext, Float>> backgrounds = new HashMap<>();
 	public static final PhysicalFloat cogSpin = PhysicalFloat.create().withLimit(10f).withDrag(0.3).addForce(new Force.Static(.2f));
-	public static final BlockState cogwheelState = AllBlocks.LARGE_COGWHEEL.getDefaultState().setValue(CogWheelBlock.AXIS, Direction.Axis.Y);
+	public static final BlockState cogwheelState = AllBlocks.LARGE_COGWHEEL.getDefaultState().with(CogWheelBlock.AXIS, Direction.Axis.Y);
 	public static String modID = null;
 	protected final Screen parent;
 
@@ -65,8 +63,8 @@ public abstract class ConfigScreen extends AbstractSimiScreen {
 //	}
 
 	@Override
-	protected void renderWindowBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-		if (this.minecraft != null && this.minecraft.level != null) {
+	protected void renderWindowBackground(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
+		if (this.client != null && this.client.world != null) {
 			//in game
 			graphics.fill(0, 0, this.width, this.height, 0xb0_282c34);
 		} else {
@@ -76,12 +74,12 @@ public abstract class ConfigScreen extends AbstractSimiScreen {
 
 		new StencilElement() {
 			@Override
-			protected void renderStencil(GuiGraphics graphics) {
+			protected void renderStencil(DrawContext graphics) {
 				renderCog(graphics, partialTicks);
 			}
 
 			@Override
-			protected void renderElement(GuiGraphics graphics) {
+			protected void renderElement(DrawContext graphics) {
 				graphics.fill(-200, -200, 200, 200, 0x60_000000);
 			}
 		}.at(width * 0.5f, height * 0.5f, 0).render(graphics);
@@ -92,17 +90,17 @@ public abstract class ConfigScreen extends AbstractSimiScreen {
 
 	@Override
 	protected void prepareFrame() {
-		UIRenderHelper.swapAndBlitColor(minecraft.getMainRenderTarget(), UIRenderHelper.framebuffer);
-		RenderSystem.clear(GL30.GL_STENCIL_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+		UIRenderHelper.swapAndBlitColor(client.getFramebuffer(), UIRenderHelper.framebuffer);
+		RenderSystem.clear(GL30.GL_STENCIL_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT, MinecraftClient.IS_SYSTEM_MAC);
 	}
 
 	@Override
 	protected void endFrame() {
-		UIRenderHelper.swapAndBlitColor(UIRenderHelper.framebuffer, minecraft.getMainRenderTarget());
+		UIRenderHelper.swapAndBlitColor(UIRenderHelper.framebuffer, client.getFramebuffer());
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 	}
 
 	@Override
@@ -113,7 +111,7 @@ public abstract class ConfigScreen extends AbstractSimiScreen {
 	}
 
 	@Override
-	public boolean isPauseScreen() {
+	public boolean shouldPause() {
 		return true;
 	}
 
@@ -130,26 +128,26 @@ public abstract class ConfigScreen extends AbstractSimiScreen {
 	 * If your addon wants to render something else, please add to the
 	 * backgrounds Map in this Class with your modID as the key.
 	 */
-	protected void renderMenuBackground(GuiGraphics graphics, float partialTicks) {
-		TriConsumer<Screen, GuiGraphics, Float> customBackground = backgrounds.get(modID);
+	protected void renderMenuBackground(DrawContext graphics, float partialTicks) {
+		TriConsumer<Screen, DrawContext, Float> customBackground = backgrounds.get(modID);
 		if (customBackground != null) {
 			customBackground.accept(this, graphics, partialTicks);
 			return;
 		}
 
-		float elapsedPartials = minecraft.getDeltaFrameTime();
+		float elapsedPartials = client.getLastFrameDuration();
 		CreateMainMenuScreen.PANORAMA.render(elapsedPartials, 1);
 
 		RenderSystem.enableBlend();
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-		graphics.blit(CreateMainMenuScreen.PANORAMA_OVERLAY_TEXTURES, 0, 0, this.width, this.height, 0.0F, 0.0F, 16, 128, 16, 128);
+		RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
+		graphics.drawTexture(CreateMainMenuScreen.PANORAMA_OVERLAY_TEXTURES, 0, 0, this.width, this.height, 0.0F, 0.0F, 16, 128, 16, 128);
 
 		graphics.fill(0, 0, this.width, this.height, 0x90_282c34);
 	}
 
-	protected void renderCog(GuiGraphics graphics, float partialTicks) {
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+	protected void renderCog(DrawContext graphics, float partialTicks) {
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 
 		ms.translate(-100, 100, -100);
 		ms.scale(200, 200, 1);
@@ -157,10 +155,10 @@ public abstract class ConfigScreen extends AbstractSimiScreen {
 				.rotateBlock(22.5, cogSpin.getValue(partialTicks), 22.5)
 				.render(graphics);
 
-		ms.popPose();
+		ms.pop();
 	}
 
 	@Override
-	public void renderDirtBackground(@NotNull GuiGraphics graphics) {
+	public void renderBackgroundTexture(@NotNull DrawContext graphics) {
 	}
 }

@@ -16,14 +16,14 @@ import com.simibubi.create.foundation.utility.Pair;
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 
 public class RedstoneLinkCondition extends ScheduleWaitCondition {
 
@@ -39,38 +39,38 @@ public class RedstoneLinkCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public Pair<ItemStack, Component> getSummary() {
+	public Pair<ItemStack, Text> getSummary() {
 		return Pair.of(AllBlocks.REDSTONE_LINK.asStack(),
 			lowActivation() ? Lang.translateDirect("schedule.condition.redstone_link_off")
 				: Lang.translateDirect("schedule.condition.redstone_link_on"));
 	}
 
 	@Override
-	public List<Component> getSecondLineTooltip(int slot) {
+	public List<Text> getSecondLineTooltip(int slot) {
 		return ImmutableList.of(Lang.translateDirect(slot == 0 ? "logistics.firstFrequency" : "logistics.secondFrequency")
-			.withStyle(ChatFormatting.RED));
+			.formatted(Formatting.RED));
 	}
 
 	@Override
-	public List<Component> getTitleAs(String type) {
+	public List<Text> getTitleAs(String type) {
 		return ImmutableList.of(
 			Lang.translateDirect("schedule.condition.redstone_link.frequency_" + (lowActivation() ? "unpowered" : "powered")),
-			Components.literal(" #1 ").withStyle(ChatFormatting.GRAY)
+			Components.literal(" #1 ").formatted(Formatting.GRAY)
 				.append(freq.getFirst()
 					.getStack()
-					.getHoverName()
+					.getName()
 					.copy()
-					.withStyle(ChatFormatting.DARK_AQUA)),
-			Components.literal(" #2 ").withStyle(ChatFormatting.GRAY)
+					.formatted(Formatting.DARK_AQUA)),
+			Components.literal(" #2 ").formatted(Formatting.GRAY)
 				.append(freq.getSecond()
 					.getStack()
-					.getHoverName()
+					.getName()
 					.copy()
-					.withStyle(ChatFormatting.DARK_AQUA)));
+					.formatted(Formatting.DARK_AQUA)));
 	}
 
 	@Override
-	public boolean tickCompletion(Level level, Train train, CompoundTag context) {
+	public boolean tickCompletion(World level, Train train, NbtCompound context) {
 		int lastChecked = context.contains("LastChecked") ? context.getInt("LastChecked") : -1;
 		int status = Create.REDSTONE_LINK_NETWORK_HANDLER.globalPowerVersion.get();
 		if (status == lastChecked)
@@ -92,12 +92,12 @@ public class RedstoneLinkCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return Create.asResource("redstone_link");
 	}
 
 	@Override
-	protected void writeAdditional(CompoundTag tag) {
+	protected void writeAdditional(NbtCompound tag) {
 		tag.put("Frequency", freq.serializeEach(f -> NBTSerializer.serializeNBTCompound(f.getStack())));
 	}
 
@@ -106,9 +106,9 @@ public class RedstoneLinkCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	protected void readAdditional(CompoundTag tag) {
+	protected void readAdditional(NbtCompound tag) {
 		if (tag.contains("Frequency"))
-			freq = Couple.deserializeEach(tag.getList("Frequency", Tag.TAG_COMPOUND), c -> Frequency.of(ItemStack.of(c)));
+			freq = Couple.deserializeEach(tag.getList("Frequency", NbtElement.COMPOUND_TYPE), c -> Frequency.of(ItemStack.fromNbt(c)));
 	}
 
 	@Override
@@ -121,7 +121,7 @@ public class RedstoneLinkCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public MutableComponent getWaitingStatus(Level level, Train train, CompoundTag tag) {
+	public MutableText getWaitingStatus(World level, Train train, NbtCompound tag) {
 		return Lang.translateDirect("schedule.condition.redstone_link.status");
 	}
 

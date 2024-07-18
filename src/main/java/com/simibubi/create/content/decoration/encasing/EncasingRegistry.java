@@ -6,12 +6,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-
+import net.minecraft.block.Block;
+import net.minecraft.registry.RegistryKeys;
 import com.tterrag.registrate.builders.BlockBuilder;
 import com.tterrag.registrate.util.nullness.NonNullUnaryOperator;
-
-import net.minecraft.core.registries.Registries;
-import net.minecraft.world.level.block.Block;
 
 public class EncasingRegistry {
 	private static final Map<Block, List<Block>> ENCASED_VARIANTS = new HashMap<>();
@@ -29,7 +27,7 @@ public class EncasingRegistry {
 
 	public static <B extends Block & EncasedBlock, P, E extends Block & EncasableBlock> NonNullUnaryOperator<BlockBuilder<B, P>> addVariantTo(Supplier<E> encasable) {
 		return builder -> {
-			builder.onRegisterAfter(Registries.BLOCK, b -> addVariant(encasable.get(), b));
+			builder.onRegisterAfter(RegistryKeys.BLOCK, b -> addVariant(encasable.get(), b));
 			return builder;
 		};
 	}

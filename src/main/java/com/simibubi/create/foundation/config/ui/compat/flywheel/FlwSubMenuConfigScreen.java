@@ -1,7 +1,10 @@
 package com.simibubi.create.foundation.config.ui.compat.flywheel;
 
 import java.util.Collections;
-
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.text.StringVisitable;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import com.electronwill.nightconfig.core.UnmodifiableConfig;
 import com.jozufozu.flywheel.config.FlwConfig;
 import com.jozufozu.flywheel.config.Option;
@@ -22,10 +25,6 @@ import com.simibubi.create.foundation.utility.Color;
 import com.simibubi.create.foundation.utility.Couple;
 
 import io.github.fabricators_of_create.porting_lib.config.ConfigType;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FormattedText;
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.AbstractSelectionListAccessor;
 
 public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
@@ -69,7 +68,7 @@ public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
 				.withCallback((x, y) ->
 						new ConfirmationScreen()
 								.centered()
-								.withText(FormattedText.of("Resetting this config is not supported!"))
+								.withText(StringVisitable.plain("Resetting this config is not supported!"))
 //								.withAction(success -> {
 //									if (success)
 //										resetConfig(spec.getValues());
@@ -78,7 +77,7 @@ public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
 				);
 
 		resetAll.showingElement(AllIcons.I_CONFIG_RESET.asStencil().withElementRenderer(BoxWidget.gradientFactory.apply(resetAll)));
-		resetAll.getToolTip().add(Component.literal("Reset All"));
+		resetAll.getToolTip().add(Text.literal("Reset All"));
 		resetAll.getToolTip().addAll(TooltipHelper.cutStringTextComponent("Click here to reset all settings to their default value.", Palette.ALL_GRAY));
 
 		saveChanges = new BoxWidget(listL - 30, yCenter - 25, 20, 20)
@@ -89,7 +88,7 @@ public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
 
 					ConfirmationScreen confirm = new ConfirmationScreen()
 							.centered()
-							.withText(FormattedText.of("Saving " + ConfigHelper.changes.size() + " changed value" + (ConfigHelper.changes.size() != 1 ? "s" : "") + ""))
+							.withText(StringVisitable.plain("Saving " + ConfigHelper.changes.size() + " changed value" + (ConfigHelper.changes.size() != 1 ? "s" : "") + ""))
 							.withAction(success -> {
 								if (success)
 									saveChanges();
@@ -98,7 +97,7 @@ public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
 					addAnnotationsToConfirm(confirm).open(this);
 				});
 		saveChanges.showingElement(AllIcons.I_CONFIG_SAVE.asStencil().withElementRenderer(BoxWidget.gradientFactory.apply(saveChanges)));
-		saveChanges.getToolTip().add(Component.literal("Save Changes"));
+		saveChanges.getToolTip().add(Text.literal("Save Changes"));
 		saveChanges.getToolTip().addAll(TooltipHelper.cutStringTextComponent("Click here to save your current changes.", Palette.ALL_GRAY));
 
 		discardChanges = new BoxWidget(listL - 30, yCenter + 5, 20, 20)
@@ -109,7 +108,7 @@ public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
 
 					new ConfirmationScreen()
 							.centered()
-							.withText(FormattedText.of("Discarding " + ConfigHelper.changes.size() + " unsaved change" + (ConfigHelper.changes.size() != 1 ? "s" : "") + ""))
+							.withText(StringVisitable.plain("Discarding " + ConfigHelper.changes.size() + " unsaved change" + (ConfigHelper.changes.size() != 1 ? "s" : "") + ""))
 							.withAction(success -> {
 								if (success)
 									clearChanges();
@@ -117,30 +116,30 @@ public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
 							.open(this);
 				});
 		discardChanges.showingElement(AllIcons.I_CONFIG_DISCARD.asStencil().withElementRenderer(BoxWidget.gradientFactory.apply(discardChanges)));
-		discardChanges.getToolTip().add(Component.literal("Discard Changes"));
+		discardChanges.getToolTip().add(Text.literal("Discard Changes"));
 		discardChanges.getToolTip().addAll(TooltipHelper.cutStringTextComponent("Click here to discard all the changes you made.", Palette.ALL_GRAY));
 
 		goBack = new BoxWidget(listL - 30, yCenter + 65, 20, 20)
 				.withPadding(2, 2)
 				.withCallback(this::attemptBackstep);
 		goBack.showingElement(AllIcons.I_CONFIG_BACK.asStencil().withElementRenderer(BoxWidget.gradientFactory.apply(goBack)));
-		goBack.getToolTip().add(Component.literal("Go Back"));
+		goBack.getToolTip().add(Text.literal("Go Back"));
 
-		addRenderableWidget(resetAll);
-		addRenderableWidget(saveChanges);
-		addRenderableWidget(discardChanges);
-		addRenderableWidget(goBack);
+		addDrawableChild(resetAll);
+		addDrawableChild(saveChanges);
+		addDrawableChild(discardChanges);
+		addDrawableChild(goBack);
 
-		list = new ConfigScreenList(minecraft, listWidth, height - 80, 35, height - 45, 40);
+		list = new ConfigScreenList(client, listWidth, height - 80, 35, height - 45, 40);
 		list.setLeftPos(this.width / 2 - ((AbstractSelectionListAccessor) list).port_lib$getWidth() / 2);
 
-		addRenderableWidget(list);
+		addDrawableChild(list);
 
-		search = new ConfigTextField(font, width / 2 - listWidth / 2, height - 35, listWidth, 20);
-		search.setResponder(this::updateFilter);
+		search = new ConfigTextField(textRenderer, width / 2 - listWidth / 2, height - 35, listWidth, 20);
+		search.setChangedListener(this::updateFilter);
 		search.setHint("Search..");
-		search.moveCursorToStart();
-		addRenderableWidget(search);
+		search.setCursorToStart();
+		addDrawableChild(search);
 
 		flwConfig.getOptionMapView().forEach((key, option) -> {
 			String humanKey = toHumanReadable(key);
@@ -181,10 +180,10 @@ public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
 		//extras for server configs
 		if (type != ConfigType.SERVER)
 			return;
-		if (minecraft.hasSingleplayerServer())
+		if (client.isIntegratedServerRunning())
 			return;
 
-		boolean canEdit = minecraft != null && minecraft.player != null && minecraft.player.hasPermissions(2);
+		boolean canEdit = client != null && client.player != null && client.player.hasPermissionLevel(2);
 
 		Couple<Color> red = Theme.p(Theme.Key.BUTTON_FAIL);
 		Couple<Color> green = Theme.p(Theme.Key.BUTTON_SUCCESS);
@@ -202,16 +201,16 @@ public class FlwSubMenuConfigScreen extends SubMenuConfigScreen {
 			stencil.withStencilRenderer((ms, w, h, alpha) -> AllIcons.I_CONFIG_LOCKED.render(ms, 0, 0));
 			stencil.withElementRenderer((ms, w, h, alpha) -> UIRenderHelper.angledGradient(ms, 90, 8, 0, 16, 16, red));
 			serverLocked.withBorderColors(red);
-			serverLocked.getToolTip().add(Component.literal("Locked").withStyle(ChatFormatting.BOLD));
+			serverLocked.getToolTip().add(Text.literal("Locked").formatted(Formatting.BOLD));
 			serverLocked.getToolTip().addAll(TooltipHelper.cutStringTextComponent("You do not have enough permissions to edit the server config. You can still look at the current values here though.", Palette.ALL_GRAY));
 		} else {
 			stencil.withStencilRenderer((ms, w, h, alpha) -> AllIcons.I_CONFIG_UNLOCKED.render(ms, 0, 0));
 			stencil.withElementRenderer((ms, w, h, alpha) -> UIRenderHelper.angledGradient(ms, 90, 8, 0, 16, 16, green));
 			serverLocked.withBorderColors(green);
-			serverLocked.getToolTip().add(Component.literal("Unlocked").withStyle(ChatFormatting.BOLD));
+			serverLocked.getToolTip().add(Text.literal("Unlocked").formatted(Formatting.BOLD));
 			serverLocked.getToolTip().addAll(TooltipHelper.cutStringTextComponent("You have enough permissions to edit the server config. Changes you make here will be synced with the server when you save them.", Palette.ALL_GRAY));
 		}
 
-		addRenderableWidget(serverLocked);
+		addDrawableChild(serverLocked);
 	}
 }

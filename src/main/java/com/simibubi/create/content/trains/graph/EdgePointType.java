@@ -3,20 +3,18 @@ package com.simibubi.create.content.trains.graph;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
-
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.observer.TrackObserver;
 import com.simibubi.create.content.trains.signal.SignalBoundary;
 import com.simibubi.create.content.trains.signal.TrackEdgePoint;
 import com.simibubi.create.content.trains.station.GlobalStation;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-
 public class EdgePointType<T extends TrackEdgePoint> {
 
-	public static final Map<ResourceLocation, EdgePointType<?>> TYPES = new HashMap<>();
-	private ResourceLocation id;
+	public static final Map<Identifier, EdgePointType<?>> TYPES = new HashMap<>();
+	private Identifier id;
 	private Supplier<T> factory;
 
 	public static final EdgePointType<SignalBoundary> SIGNAL =
@@ -26,13 +24,13 @@ public class EdgePointType<T extends TrackEdgePoint> {
 	public static final EdgePointType<TrackObserver> OBSERVER =
 		register(Create.asResource("observer"), TrackObserver::new);
 
-	public static <T extends TrackEdgePoint> EdgePointType<T> register(ResourceLocation id, Supplier<T> factory) {
+	public static <T extends TrackEdgePoint> EdgePointType<T> register(Identifier id, Supplier<T> factory) {
 		EdgePointType<T> type = new EdgePointType<>(id, factory);
 		TYPES.put(id, type);
 		return type;
 	}
 
-	public EdgePointType(ResourceLocation id, Supplier<T> factory) {
+	public EdgePointType(Identifier id, Supplier<T> factory) {
 		this.id = id;
 		this.factory = factory;
 	}
@@ -43,12 +41,12 @@ public class EdgePointType<T extends TrackEdgePoint> {
 		return t;
 	}
 
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return id;
 	}
 	
-	public static TrackEdgePoint read(FriendlyByteBuf buffer, DimensionPalette dimensions) {
-		ResourceLocation type = buffer.readResourceLocation();
+	public static TrackEdgePoint read(PacketByteBuf buffer, DimensionPalette dimensions) {
+		Identifier type = buffer.readIdentifier();
 		EdgePointType<?> edgePointType = TYPES.get(type);
 		TrackEdgePoint point = edgePointType.create();
 		point.read(buffer, dimensions);

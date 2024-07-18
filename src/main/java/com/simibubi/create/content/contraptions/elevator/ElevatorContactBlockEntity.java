@@ -1,7 +1,10 @@
 package com.simibubi.create.content.contraptions.elevator;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
 import com.simibubi.create.content.contraptions.elevator.ElevatorColumn.ColumnCoords;
 import com.simibubi.create.content.decoration.slidingDoor.DoorControlBehaviour;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlock;
@@ -9,11 +12,6 @@ import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class ElevatorContactBlockEntity extends SmartBlockEntity {
 
@@ -42,7 +40,7 @@ public class ElevatorContactBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 
 		tag.putString("ShortName", shortName);
@@ -57,7 +55,7 @@ public class ElevatorContactBlockEntity extends SmartBlockEntity {
 		if (columnCoords == null)
 			return;
 
-		ElevatorColumn column = ElevatorColumn.get(level, columnCoords);
+		ElevatorColumn column = ElevatorColumn.get(world, columnCoords);
 		if (column == null)
 			return;
 		tag.putInt("ColumnTarget", column.getTargetedYLevel());
@@ -66,7 +64,7 @@ public class ElevatorContactBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		super.read(tag, clientPacket);
 
 		shortName = tag.getString("ShortName");
@@ -89,7 +87,7 @@ public class ElevatorContactBlockEntity extends SmartBlockEntity {
 			return;
 		}
 
-		ElevatorColumn column = ElevatorColumn.getOrCreate(level, columnCoords);
+		ElevatorColumn column = ElevatorColumn.getOrCreate(world, columnCoords);
 		column.target(target);
 		column.setActive(active);
 	}
@@ -98,19 +96,19 @@ public class ElevatorContactBlockEntity extends SmartBlockEntity {
 		if (floor.equals(lastReportedCurrentFloor))
 			return;
 		lastReportedCurrentFloor = floor;
-		DisplayLinkBlock.notifyGatherers(level, worldPosition);
+		DisplayLinkBlock.notifyGatherers(world, pos);
 	}
 
 	@Override
 	public void initialize() {
 		super.initialize();
-		if (level.isClientSide())
+		if (world.isClient())
 			return;
-		columnCoords = ElevatorContactBlock.getColumnCoords(level, worldPosition);
+		columnCoords = ElevatorContactBlock.getColumnCoords(world, pos);
 		if (columnCoords == null)
 			return;
-		ElevatorColumn column = ElevatorColumn.getOrCreate(level, columnCoords);
-		column.add(worldPosition);
+		ElevatorColumn column = ElevatorColumn.getOrCreate(world, columnCoords);
+		column.add(pos);
 		if (shortName.isBlank())
 			deferNameGenerator = true;
 		if (yTargetFromNBT == Integer.MIN_VALUE)
@@ -125,17 +123,17 @@ public class ElevatorContactBlockEntity extends SmartBlockEntity {
 		if (!deferNameGenerator)
 			return;
 		if (columnCoords != null)
-			ElevatorColumn.getOrCreate(level, columnCoords)
-				.initNames(level);
+			ElevatorColumn.getOrCreate(world, columnCoords)
+				.initNames(world);
 		deferNameGenerator = false;
 	}
 
 	@Override
 	public void invalidate() {
 		if (columnCoords != null) {
-			ElevatorColumn column = ElevatorColumn.get(level, columnCoords);
+			ElevatorColumn column = ElevatorColumn.get(world, columnCoords);
 			if (column != null)
-				column.remove(worldPosition);
+				column.remove(pos);
 		}
 		super.invalidate();
 	}
@@ -146,7 +144,7 @@ public class ElevatorContactBlockEntity extends SmartBlockEntity {
 		this.deferNameGenerator = false;
 		notifyUpdate();
 
-		ElevatorColumn column = ElevatorColumn.get(level, columnCoords);
+		ElevatorColumn column = ElevatorColumn.get(world, columnCoords);
 		if (column != null)
 			column.namesChanged();
 	}

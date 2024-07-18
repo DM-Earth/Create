@@ -7,52 +7,51 @@ import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 
 public class LargeWaterWheelBlock extends RotatedPillarKineticBlock implements IBE<LargeWaterWheelBlockEntity> {
 
-	public static final BooleanProperty EXTENSION = BooleanProperty.create("extension");
+	public static final BooleanProperty EXTENSION = BooleanProperty.of("extension");
 
-	public LargeWaterWheelBlock(Properties properties) {
+	public LargeWaterWheelBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(EXTENSION, false));
+		setDefaultState(getDefaultState().with(EXTENSION, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(EXTENSION));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(EXTENSION));
 	}
 
-	public Axis getAxisForPlacement(BlockPlaceContext context) {
-		return super.getStateForPlacement(context).getValue(AXIS);
+	public Axis getAxisForPlacement(ItemPlacementContext context) {
+		return super.getPlacementState(context).get(AXIS);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState stateForPlacement = super.getStateForPlacement(context);
-		BlockPos pos = context.getClickedPos();
-		Axis axis = stateForPlacement.getValue(AXIS);
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState stateForPlacement = super.getPlacementState(context);
+		BlockPos pos = context.getBlockPos();
+		Axis axis = stateForPlacement.get(AXIS);
 
 		for (int x = -1; x <= 1; x++) {
 			for (int y = -1; y <= 1; y++) {
@@ -60,80 +59,80 @@ public class LargeWaterWheelBlock extends RotatedPillarKineticBlock implements I
 					if (axis.choose(x, y, z) != 0)
 						continue;
 					BlockPos offset = new BlockPos(x, y, z);
-					if (offset.equals(BlockPos.ZERO))
+					if (offset.equals(BlockPos.ORIGIN))
 						continue;
-					BlockState occupiedState = context.getLevel()
-						.getBlockState(pos.offset(offset));
-					if (!occupiedState.canBeReplaced())
+					BlockState occupiedState = context.getWorld()
+						.getBlockState(pos.add(offset));
+					if (!occupiedState.isReplaceable())
 						return null;
 				}
 			}
 		}
 
-		if (context.getLevel()
-			.getBlockState(pos.relative(Direction.fromAxisAndDirection(axis, AxisDirection.NEGATIVE)))
-			.is(this))
-			stateForPlacement = stateForPlacement.setValue(EXTENSION, true);
+		if (context.getWorld()
+			.getBlockState(pos.offset(Direction.from(axis, AxisDirection.NEGATIVE)))
+			.isOf(this))
+			stateForPlacement = stateForPlacement.with(EXTENSION, true);
 
 		return stateForPlacement;
 	}
 
 	@Override
-	public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand,
+	public ActionResult onUse(BlockState pState, World pLevel, BlockPos pPos, PlayerEntity pPlayer, Hand pHand,
 		BlockHitResult pHit) {
 		if (AdventureUtil.isAdventure(pPlayer))
-			return InteractionResult.PASS;
-		return onBlockEntityUse(pLevel, pPos, wwt -> wwt.applyMaterialIfValid(pPlayer.getItemInHand(pHand)));
+			return ActionResult.PASS;
+		return onBlockEntityUse(pLevel, pPos, wwt -> wwt.applyMaterialIfValid(pPlayer.getStackInHand(pHand)));
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		return InteractionResult.PASS;
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		return ActionResult.PASS;
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
-		if (pDirection != Direction.fromAxisAndDirection(pState.getValue(AXIS), AxisDirection.NEGATIVE))
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pDirection, BlockState pNeighborState,
+		WorldAccess pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+		if (pDirection != Direction.from(pState.get(AXIS), AxisDirection.NEGATIVE))
 			return pState;
-		return pState.setValue(EXTENSION, pNeighborState.is(this));
+		return pState.with(EXTENSION, pNeighborState.isOf(this));
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
-		super.onPlace(state, level, pos, oldState, isMoving);
-		if (!level.getBlockTicks()
-			.hasScheduledTick(pos, this))
-			level.scheduleTick(pos, this, 1);
+	public void onBlockAdded(BlockState state, World level, BlockPos pos, BlockState oldState, boolean isMoving) {
+		super.onBlockAdded(state, level, pos, oldState, isMoving);
+		if (!level.getBlockTickScheduler()
+			.isQueued(pos, this))
+			level.scheduleBlockTick(pos, this, 1);
 	}
 
 	@Override
-	public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
-		Axis axis = pState.getValue(AXIS);
+	public void scheduledTick(BlockState pState, ServerWorld pLevel, BlockPos pPos, Random pRandom) {
+		Axis axis = pState.get(AXIS);
 		for (Direction side : Iterate.directions) {
 			if (side.getAxis() == axis)
 				continue;
 			for (boolean secondary : Iterate.falseAndTrue) {
-				Direction targetSide = secondary ? side.getClockWise(axis) : side;
-				BlockPos structurePos = (secondary ? pPos.relative(side) : pPos).relative(targetSide);
+				Direction targetSide = secondary ? side.rotateClockwise(axis) : side;
+				BlockPos structurePos = (secondary ? pPos.offset(side) : pPos).offset(targetSide);
 				BlockState occupiedState = pLevel.getBlockState(structurePos);
 				BlockState requiredStructure = AllBlocks.WATER_WHEEL_STRUCTURAL.getDefaultState()
-					.setValue(WaterWheelStructuralBlock.FACING, targetSide.getOpposite());
+					.with(WaterWheelStructuralBlock.FACING, targetSide.getOpposite());
 				if (occupiedState == requiredStructure)
 					continue;
-				if (!occupiedState.canBeReplaced()) {
-					pLevel.destroyBlock(pPos, false);
+				if (!occupiedState.isReplaceable()) {
+					pLevel.breakBlock(pPos, false);
 					return;
 				}
-				pLevel.setBlockAndUpdate(structurePos, requiredStructure);
+				pLevel.setBlockState(structurePos, requiredStructure);
 			}
 		}
 		withBlockEntityDo(pLevel, pPos, WaterWheelBlockEntity::determineAndApplyFlowScore);
 	}
 
 	@Override
-	public RenderShape getRenderShape(BlockState pState) {
-		return RenderShape.ENTITYBLOCK_ANIMATED;
+	public BlockRenderType getRenderType(BlockState pState) {
+		return BlockRenderType.ENTITYBLOCK_ANIMATED;
 	}
 
 	@Override
@@ -147,13 +146,13 @@ public class LargeWaterWheelBlock extends RotatedPillarKineticBlock implements I
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
 		return face.getAxis() == getRotationAxis(state);
 	}
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(AXIS);
+		return state.get(AXIS);
 	}
 
 	@Override

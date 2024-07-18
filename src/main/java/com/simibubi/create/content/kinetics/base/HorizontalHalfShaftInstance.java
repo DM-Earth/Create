@@ -1,9 +1,8 @@
 package com.simibubi.create.content.kinetics.base;
 
 import com.jozufozu.flywheel.api.MaterialManager;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
 
 public class HorizontalHalfShaftInstance<T extends KineticBlockEntity> extends HalfShaftInstance<T> {
 
@@ -13,6 +12,6 @@ public class HorizontalHalfShaftInstance<T extends KineticBlockEntity> extends H
 
     @Override
     protected Direction getShaftDirection() {
-        return blockState.getValue(BlockStateProperties.HORIZONTAL_FACING).getOpposite();
+        return blockState.get(Properties.HORIZONTAL_FACING).getOpposite();
     }
 }

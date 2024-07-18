@@ -2,7 +2,23 @@ package com.simibubi.create.content.kinetics.deployer;
 
 import java.util.List;
 import java.util.Optional;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.content.processing.recipe.ProcessingOutput;
@@ -13,42 +29,24 @@ import com.simibubi.create.foundation.advancement.CreateAdvancement;
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.BlockHelper;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.Container;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-
 public class ManualApplicationRecipe extends ItemApplicationRecipe {
 
-	public static InteractionResult manualApplicationRecipesApplyInWorld(Player player, Level level, InteractionHand hand, BlockHitResult hitResult) {
+	public static ActionResult manualApplicationRecipesApplyInWorld(PlayerEntity player, World level, Hand hand, BlockHitResult hitResult) {
 		if (AdventureUtil.isAdventure(player))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
-		ItemStack heldItem = player.getItemInHand(hand);
+		ItemStack heldItem = player.getStackInHand(hand);
 		BlockPos pos = hitResult.getBlockPos();
 		BlockState blockState = level.getBlockState(pos);
 
 		if (heldItem.isEmpty())
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		if (blockState.isAir())
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
-		RecipeType<Recipe<Container>> type = AllRecipeTypes.ITEM_APPLICATION.getType();
-		Optional<Recipe<Container>> foundRecipe = level.getRecipeManager()
-			.getAllRecipesFor(type)
+		RecipeType<Recipe<Inventory>> type = AllRecipeTypes.ITEM_APPLICATION.getType();
+		Optional<Recipe<Inventory>> foundRecipe = level.getRecipeManager()
+			.listAllOfType(type)
 			.stream()
 			.filter(r -> {
 				ManualApplicationRecipe mar = (ManualApplicationRecipe) r;
@@ -58,40 +56,40 @@ public class ManualApplicationRecipe extends ItemApplicationRecipe {
 			.findFirst();
 
 		if (foundRecipe.isEmpty())
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
 //		event.setCancellationResult(InteractionResult.SUCCESS);
 //		event.setCanceled(true);
 
-		if (level.isClientSide())
-			return InteractionResult.SUCCESS;
+		if (level.isClient())
+			return ActionResult.SUCCESS;
 
-		level.playSound(null, pos, SoundEvents.COPPER_BREAK, SoundSource.PLAYERS, 1, 1.45f);
+		level.playSound(null, pos, SoundEvents.BLOCK_COPPER_BREAK, SoundCategory.PLAYERS, 1, 1.45f);
 		ManualApplicationRecipe recipe = (ManualApplicationRecipe) foundRecipe.get();
-		level.destroyBlock(pos, false);
+		level.breakBlock(pos, false);
 
 		BlockState transformedBlock = recipe.transformBlock(blockState);
-		level.setBlock(pos, transformedBlock, 3);
+		level.setBlockState(pos, transformedBlock, 3);
 		recipe.rollResults()
-			.forEach(stack -> Block.popResource(level, pos, stack));
+			.forEach(stack -> Block.dropStack(level, pos, stack));
 
 		boolean creative = player != null && player.isCreative();
-		boolean unbreakable = heldItem.hasTag() && heldItem.getTag()
+		boolean unbreakable = heldItem.hasNbt() && heldItem.getNbt()
 			.getBoolean("Unbreakable");
 		boolean keepHeld = recipe.shouldKeepHeldItem() || creative;
 
 		if (!unbreakable && !keepHeld) {
-			if (heldItem.isDamageableItem())
-				heldItem.hurtAndBreak(1, player, s -> s.broadcastBreakEvent(InteractionHand.MAIN_HAND));
+			if (heldItem.isDamageable())
+				heldItem.damage(1, player, s -> s.sendToolBreakStatus(Hand.MAIN_HAND));
 			else
-				heldItem.shrink(1);
+				heldItem.decrement(1);
 		}
 
 		awardAdvancements(player, transformedBlock);
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
-	private static void awardAdvancements(Player player, BlockState placed) {
+	private static void awardAdvancements(PlayerEntity player, BlockState placed) {
 		CreateAdvancement advancement = null;
 
 		if (AllBlocks.ANDESITE_CASING.has(placed))
@@ -116,7 +114,7 @@ public class ManualApplicationRecipe extends ItemApplicationRecipe {
 		ManualApplicationRecipe mar = (ManualApplicationRecipe) recipe;
 		ProcessingRecipeBuilder<DeployerApplicationRecipe> builder =
 			new ProcessingRecipeBuilder<>(DeployerApplicationRecipe::new,
-				new ResourceLocation(mar.id.getNamespace(), mar.id.getPath() + "_using_deployer"))
+				new Identifier(mar.id.getNamespace(), mar.id.getPath() + "_using_deployer"))
 					.require(mar.ingredients.get(0))
 					.require(mar.ingredients.get(1));
 		for (ProcessingOutput output : mar.results)
@@ -137,8 +135,8 @@ public class ManualApplicationRecipe extends ItemApplicationRecipe {
 		ItemStack output = mainOutput.rollOutput();
 		if (output.getItem() instanceof BlockItem bi)
 			return BlockHelper.copyProperties(in, bi.getBlock()
-				.defaultBlockState());
-		return Blocks.AIR.defaultBlockState();
+				.getDefaultState());
+		return Blocks.AIR.getDefaultState();
 	}
 
 	@Override

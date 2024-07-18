@@ -10,7 +10,14 @@ import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraft.world.chunk.WorldChunk;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.contraptions.minecart.CouplingHandler;
 import com.simibubi.create.foundation.utility.Iterate;
@@ -22,22 +29,14 @@ import io.github.fabricators_of_create.porting_lib.util.LazyOptional;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.phys.Vec3;
 
-public class CapabilityMinecartController implements INBTSerializable<CompoundTag> {
+public class CapabilityMinecartController implements INBTSerializable<NbtCompound> {
 
 	/* Global map of loaded carts */
 
 	public static WorldAttached<Map<UUID, MinecartController>> loadedMinecartsByUUID;
 	public static WorldAttached<Set<UUID>> loadedMinecartsWithCoupling;
-	static WorldAttached<List<AbstractMinecart>> queuedAdditions;
+	static WorldAttached<List<AbstractMinecartEntity>> queuedAdditions;
 	static WorldAttached<List<UUID>> queuedUnloads;
 
 // fabric: we just manually deal with removal to avoid the weirdness of adding 5 listeners but only ever calling accept on one.
@@ -79,10 +78,10 @@ public class CapabilityMinecartController implements INBTSerializable<CompoundTa
 		queuedUnloads = new WorldAttached<>($ -> ObjectLists.synchronize(new ObjectArrayList<>()));
 	}
 
-	public static void tick(Level world) {
+	public static void tick(World world) {
 		List<UUID> toRemove = new ArrayList<>();
 		Map<UUID, MinecartController> carts = loadedMinecartsByUUID.get(world);
-		List<AbstractMinecart> queued = queuedAdditions.get(world);
+		List<AbstractMinecartEntity> queued = queuedAdditions.get(world);
 		List<UUID> queuedRemovals = queuedUnloads.get(world);
 		Set<UUID> cartsWithCoupling = loadedMinecartsWithCoupling.get(world);
 		Set<UUID> keySet = carts.keySet();
@@ -90,13 +89,13 @@ public class CapabilityMinecartController implements INBTSerializable<CompoundTa
 		keySet.removeAll(queuedRemovals);
 		cartsWithCoupling.removeAll(queuedRemovals);
 
-		for (AbstractMinecart cart : queued) {
-			UUID uniqueID = cart.getUUID();
+		for (AbstractMinecartEntity cart : queued) {
+			UUID uniqueID = cart.getUuid();
 
-			if (world.isClientSide && carts.containsKey(uniqueID)) {
+			if (world.isClient && carts.containsKey(uniqueID)) {
 				MinecartController minecartController = carts.get(uniqueID);
 				if (minecartController != null) {
-					AbstractMinecart minecartEntity = minecartController.cart();
+					AbstractMinecartEntity minecartEntity = minecartController.cart();
 					if (minecartEntity != null && minecartEntity.getId() != cart.getId())
 						continue; // Away with you, Fake Entities!
 				}
@@ -110,7 +109,7 @@ public class CapabilityMinecartController implements INBTSerializable<CompoundTa
 
 			if (controller.isLeadingCoupling())
 				cartsWithCoupling.add(uniqueID);
-			if (!world.isClientSide && controller != null)
+			if (!world.isClient && controller != null)
 				controller.sendData();
 		}
 
@@ -132,7 +131,7 @@ public class CapabilityMinecartController implements INBTSerializable<CompoundTa
 		keySet.removeAll(toRemove);
 	}
 
-	public static void onChunkUnloaded(Level world, LevelChunk chunk) {
+	public static void onChunkUnloaded(World world, WorldChunk chunk) {
 		ChunkPos chunkPos = chunk
 			.getPos();
 		Map<UUID, MinecartController> carts = loadedMinecartsByUUID.get(world);
@@ -141,26 +140,26 @@ public class CapabilityMinecartController implements INBTSerializable<CompoundTa
 				continue;
 			if (!minecartController.isPresent())
 				continue;
-			AbstractMinecart cart = minecartController.cart();
-			if (cart.chunkPosition()
+			AbstractMinecartEntity cart = minecartController.cart();
+			if (cart.getChunkPos()
 				.equals(chunkPos))
 				queuedUnloads.get(world)
-					.add(cart.getUUID());
+					.add(cart.getUuid());
 		}
 	}
 
-	public static void onCartRemoved(Level world, AbstractMinecart entity) {
+	public static void onCartRemoved(World world, AbstractMinecartEntity entity) {
 		Map<UUID, MinecartController> carts = loadedMinecartsByUUID.get(world);
 		List<UUID> unloads = queuedUnloads.get(world);
-		UUID uniqueID = entity.getUUID();
+		UUID uniqueID = entity.getUuid();
 		if (!carts.containsKey(uniqueID) || unloads.contains(uniqueID))
 			return;
-		if (world.isClientSide)
+		if (world.isClient)
 			return;
-		handleKilledMinecart(world, carts.get(uniqueID), entity.position());
+		handleKilledMinecart(world, carts.get(uniqueID), entity.getPos());
 	}
 
-	protected static void handleKilledMinecart(Level world, MinecartController controller, Vec3 removedPos) {
+	protected static void handleKilledMinecart(World world, MinecartController controller, Vec3d removedPos) {
 		if (controller == null)
 			return;
 		for (boolean forward : Iterate.trueAndFalse) {
@@ -171,22 +170,22 @@ public class CapabilityMinecartController implements INBTSerializable<CompoundTa
 			next.removeConnection(!forward);
 			if (controller.hasContraptionCoupling(forward))
 				continue;
-			AbstractMinecart cart = next.cart();
+			AbstractMinecartEntity cart = next.cart();
 			if (cart == null)
 				continue;
 
-			Vec3 itemPos = cart.position()
+			Vec3d itemPos = cart.getPos()
 				.add(removedPos)
-				.scale(.5f);
+				.multiply(.5f);
 			ItemEntity itemEntity =
 				new ItemEntity(world, itemPos.x, itemPos.y, itemPos.z, AllItems.MINECART_COUPLING.asStack());
-			itemEntity.setDefaultPickUpDelay();
-			world.addFreshEntity(itemEntity);
+			itemEntity.setToDefaultPickupDelay();
+			world.spawnEntity(itemEntity);
 		}
 	}
 
 	@Nullable
-	public static MinecartController getIfPresent(Level world, UUID cartId) {
+	public static MinecartController getIfPresent(World world, UUID cartId) {
 		Map<UUID, MinecartController> carts = loadedMinecartsByUUID.get(world);
 		if (carts == null)
 			return null;
@@ -195,13 +194,13 @@ public class CapabilityMinecartController implements INBTSerializable<CompoundTa
 		return carts.get(cartId);
 	}
 
-	public static void attach(AbstractMinecart entity) {
-		queuedAdditions.get(entity.getCommandSenderWorld())
+	public static void attach(AbstractMinecartEntity entity) {
+		queuedAdditions.get(entity.getEntityWorld())
 			.add(entity);
 	}
 
 	public static void startTracking(Entity entity) {
-		if (!(entity instanceof AbstractMinecart cart))
+		if (!(entity instanceof AbstractMinecartEntity cart))
 			return;
 		cart.create$getController().sendData();
 	}

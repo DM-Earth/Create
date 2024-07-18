@@ -2,7 +2,24 @@ package com.simibubi.create.content.redstone.contact;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.RedstoneView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.contraptions.elevator.ElevatorColumn;
 import com.simibubi.create.content.contraptions.elevator.ElevatorColumn.ColumnCoords;
@@ -11,133 +28,115 @@ import com.simibubi.create.foundation.utility.BlockHelper;
 
 import io.github.fabricators_of_create.porting_lib.block.ConnectableRedstoneBlock;
 import io.github.fabricators_of_create.porting_lib.block.WeakPowerCheckingBlock;
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.SignalGetter;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class RedstoneContactBlock extends WrenchableDirectionalBlock implements ConnectableRedstoneBlock, WeakPowerCheckingBlock {
 
-	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+	public static final BooleanProperty POWERED = Properties.POWERED;
 
-	public RedstoneContactBlock(Properties properties) {
+	public RedstoneContactBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(POWERED, false)
-			.setValue(FACING, Direction.UP));
+		setDefaultState(getDefaultState().with(POWERED, false)
+			.with(FACING, Direction.UP));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+	protected void appendProperties(Builder<Block, BlockState> builder) {
 		builder.add(POWERED);
-		super.createBlockStateDefinition(builder);
+		super.appendProperties(builder);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState state = defaultBlockState().setValue(FACING, context.getNearestLookingDirection()
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState state = getDefaultState().with(FACING, context.getPlayerLookDirection()
 			.getOpposite());
-		Direction placeDirection = context.getClickedFace()
+		Direction placeDirection = context.getSide()
 			.getOpposite();
 
 		if ((context.getPlayer() != null && context.getPlayer()
-			.isShiftKeyDown()) || hasValidContact(context.getLevel(), context.getClickedPos(), placeDirection))
-			state = state.setValue(FACING, placeDirection);
-		if (hasValidContact(context.getLevel(), context.getClickedPos(), state.getValue(FACING)))
-			state = state.setValue(POWERED, true);
+			.isSneaking()) || hasValidContact(context.getWorld(), context.getBlockPos(), placeDirection))
+			state = state.with(FACING, placeDirection);
+		if (hasValidContact(context.getWorld(), context.getBlockPos(), state.get(FACING)))
+			state = state.with(POWERED, true);
 
 		return state;
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		InteractionResult onWrenched = super.onWrenched(state, context);
-		if (onWrenched != InteractionResult.SUCCESS)
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		ActionResult onWrenched = super.onWrenched(state, context);
+		if (onWrenched != ActionResult.SUCCESS)
 			return onWrenched;
 
-		Level level = context.getLevel();
-		if (level.isClientSide())
+		World level = context.getWorld();
+		if (level.isClient())
 			return onWrenched;
 
-		BlockPos pos = context.getClickedPos();
+		BlockPos pos = context.getBlockPos();
 		state = level.getBlockState(pos);
-		Direction facing = state.getValue(RedstoneContactBlock.FACING);
+		Direction facing = state.get(RedstoneContactBlock.FACING);
 		if (facing.getAxis() == Axis.Y)
 			return onWrenched;
 		if (ElevatorColumn.get(level, new ColumnCoords(pos.getX(), pos.getZ(), facing)) == null)
 			return onWrenched;
 
-		level.setBlockAndUpdate(pos, BlockHelper.copyProperties(state, AllBlocks.ELEVATOR_CONTACT.getDefaultState()));
+		level.setBlockState(pos, BlockHelper.copyProperties(state, AllBlocks.ELEVATOR_CONTACT.getDefaultState()));
 
 		return onWrenched;
 	}
 
 	@Override
-	public BlockState updateShape(BlockState stateIn, Direction facing, BlockState facingState, LevelAccessor worldIn,
+	public BlockState getStateForNeighborUpdate(BlockState stateIn, Direction facing, BlockState facingState, WorldAccess worldIn,
 		BlockPos currentPos, BlockPos facingPos) {
-		if (facing != stateIn.getValue(FACING))
+		if (facing != stateIn.get(FACING))
 			return stateIn;
 		boolean hasValidContact = hasValidContact(worldIn, currentPos, facing);
-		if (stateIn.getValue(POWERED) != hasValidContact)
-			return stateIn.setValue(POWERED, hasValidContact);
+		if (stateIn.get(POWERED) != hasValidContact)
+			return stateIn.with(POWERED, hasValidContact);
 		return stateIn;
 	}
 
 	@SuppressWarnings("deprecation")
 	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		if (state.getBlock() == this && newState.getBlock() == this)
 			if (state == newState.cycle(POWERED))
-				worldIn.updateNeighborsAt(pos, this);
-		super.onRemove(state, worldIn, pos, newState, isMoving);
+				worldIn.updateNeighborsAlways(pos, this);
+		super.onStateReplaced(state, worldIn, pos, newState, isMoving);
 	}
 
 	@Override
-	public void tick(BlockState state, ServerLevel worldIn, BlockPos pos, RandomSource random) {
-		boolean hasValidContact = hasValidContact(worldIn, pos, state.getValue(FACING));
-		if (state.getValue(POWERED) != hasValidContact)
-			worldIn.setBlockAndUpdate(pos, state.setValue(POWERED, hasValidContact));
+	public void scheduledTick(BlockState state, ServerWorld worldIn, BlockPos pos, Random random) {
+		boolean hasValidContact = hasValidContact(worldIn, pos, state.get(FACING));
+		if (state.get(POWERED) != hasValidContact)
+			worldIn.setBlockState(pos, state.with(POWERED, hasValidContact));
 	}
 
-	public static boolean hasValidContact(LevelAccessor world, BlockPos pos, Direction direction) {
-		BlockState blockState = world.getBlockState(pos.relative(direction));
+	public static boolean hasValidContact(WorldAccess world, BlockPos pos, Direction direction) {
+		BlockState blockState = world.getBlockState(pos.offset(direction));
 		return (AllBlocks.REDSTONE_CONTACT.has(blockState) || AllBlocks.ELEVATOR_CONTACT.has(blockState))
-			&& blockState.getValue(FACING) == direction.getOpposite();
+			&& blockState.get(FACING) == direction.getOpposite();
 	}
 
 	@Override
-    public boolean shouldCheckWeakPower(BlockState state, SignalGetter level, BlockPos pos, Direction side) {
+    public boolean shouldCheckWeakPower(BlockState state, RedstoneView level, BlockPos pos, Direction side) {
         return false;
     }
 
 	@Override
-	public boolean isSignalSource(BlockState state) {
-		return state.getValue(POWERED);
+	public boolean emitsRedstonePower(BlockState state) {
+		return state.get(POWERED);
 	}
 
 	@Override
-	public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, @Nullable Direction side) {
-		return side != null && state.getValue(FACING) != side.getOpposite();
+	public boolean canConnectRedstone(BlockState state, BlockView world, BlockPos pos, @Nullable Direction side) {
+		return side != null && state.get(FACING) != side.getOpposite();
 	}
 
 	@Override
-	public int getSignal(BlockState state, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		return state.getValue(POWERED) && side != state.getValue(FACING)
+	public int getWeakRedstonePower(BlockState state, BlockView blockAccess, BlockPos pos, Direction side) {
+		return state.get(POWERED) && side != state.get(FACING)
 			.getOpposite() ? 15 : 0;
 	}
 

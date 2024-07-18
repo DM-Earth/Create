@@ -2,9 +2,8 @@ package com.simibubi.create.foundation.item.render;
 
 import java.util.Set;
 import java.util.function.Consumer;
-
+import net.minecraft.item.Item;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
-import net.minecraft.world.item.Item;
 
 public class CustomRenderedItems {
 

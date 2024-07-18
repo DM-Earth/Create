@@ -1,13 +1,12 @@
 package com.simibubi.create.foundation.mixin.fabric;
 
+import net.minecraft.client.gui.tooltip.OrderedTextTooltipComponent;
+import net.minecraft.text.OrderedText;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
-import net.minecraft.util.FormattedCharSequence;
-
-@Mixin(ClientTextTooltip.class)
+@Mixin(OrderedTextTooltipComponent.class)
 public interface ClientTextTooltipAccessor {
 	@Accessor("text")
-	FormattedCharSequence create$text();
+	OrderedText create$text();
 }

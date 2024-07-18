@@ -1,28 +1,27 @@
 package com.simibubi.create.content.kinetics.transmission;
 
 import com.simibubi.create.AllBlockEntityTypes;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class ClutchBlock extends GearshiftBlock {
 
-	public ClutchBlock(Properties properties) {
+	public ClutchBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
+	public void neighborUpdate(BlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
 			boolean isMoving) {
-		if (worldIn.isClientSide)
+		if (worldIn.isClient)
 			return;
 
-		boolean previouslyPowered = state.getValue(POWERED);
-		if (previouslyPowered != worldIn.hasNeighborSignal(pos)) {
-			worldIn.setBlock(pos, state.cycle(POWERED), 2 | 16);
+		boolean previouslyPowered = state.get(POWERED);
+		if (previouslyPowered != worldIn.isReceivingRedstonePower(pos)) {
+			worldIn.setBlockState(pos, state.cycle(POWERED), 2 | 16);
 			detachKinetics(worldIn, pos, previouslyPowered);
 		}
 	}

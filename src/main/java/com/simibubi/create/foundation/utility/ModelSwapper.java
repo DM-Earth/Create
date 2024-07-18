@@ -16,21 +16,19 @@ import com.tterrag.registrate.util.nullness.NonNullFunction;
 
 import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
 import net.fabricmc.fabric.api.client.model.loading.v1.ModelModifier.AfterBake;
-
-import net.minecraft.client.renderer.block.BlockModelShaper;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.client.resources.model.ModelBakery;
-import net.minecraft.client.resources.model.ModelResourceLocation;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
+import net.minecraft.client.render.block.BlockModels;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.util.ModelIdentifier;
+import net.minecraft.item.Item;
+import net.minecraft.util.Identifier;
 
 public class ModelSwapper implements AfterBake {
 
 	protected CustomBlockModels customBlockModels = new CustomBlockModels();
 	protected CustomItemModels customItemModels = new CustomItemModels();
 
-	private Map<ResourceLocation, NonNullFunction<BakedModel, ? extends BakedModel>> swaps = null;
+	private Map<Identifier, NonNullFunction<BakedModel, ? extends BakedModel>> swaps = null;
 
 	public CustomBlockModels getCustomBlockModels() {
 		return customBlockModels;
@@ -60,19 +58,19 @@ public class ModelSwapper implements AfterBake {
 		CustomRenderedItems.forEach(item -> swaps.put(getItemModelLocation(item), CustomRenderedItemModel::new));
 	}
 
-	public static List<ModelResourceLocation> getAllBlockStateModelLocations(Block block) {
-		List<ModelResourceLocation> models = new ArrayList<>();
-		ResourceLocation blockRl = RegisteredObjects.getKeyOrThrow(block);
-		block.getStateDefinition()
-			.getPossibleStates()
+	public static List<ModelIdentifier> getAllBlockStateModelLocations(Block block) {
+		List<ModelIdentifier> models = new ArrayList<>();
+		Identifier blockRl = RegisteredObjects.getKeyOrThrow(block);
+		block.getStateManager()
+			.getStates()
 			.forEach(state -> {
-				models.add(BlockModelShaper.stateToModelLocation(blockRl, state));
+				models.add(BlockModels.getModelId(blockRl, state));
 			});
 		return models;
 	}
 
-	public static ModelResourceLocation getItemModelLocation(Item item) {
-		return new ModelResourceLocation(RegisteredObjects.getKeyOrThrow(item), "inventory");
+	public static ModelIdentifier getItemModelLocation(Item item) {
+		return new ModelIdentifier(RegisteredObjects.getKeyOrThrow(item), "inventory");
 	}
 
 }

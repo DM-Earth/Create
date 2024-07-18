@@ -9,33 +9,32 @@ import com.simibubi.create.foundation.utility.RegisteredObjects;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.client.particle.SpriteSet;
-import net.minecraft.core.Registry;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.client.particle.ParticleManager;
+import net.minecraft.client.particle.SpriteProvider;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleType;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public abstract class BasicParticleData<T extends Particle> implements ParticleOptions, ICustomParticleDataWithSprite<BasicParticleData<T>> {
+public abstract class BasicParticleData<T extends Particle> implements ParticleEffect, ICustomParticleDataWithSprite<BasicParticleData<T>> {
 
 	public BasicParticleData() { }
 
 	@Override
-	public Deserializer<BasicParticleData<T>> getDeserializer() {
+	public Factory<BasicParticleData<T>> getDeserializer() {
 		BasicParticleData<T> data = this;
-		return new ParticleOptions.Deserializer<BasicParticleData<T>>() {
+		return new ParticleEffect.Factory<BasicParticleData<T>>() {
 			@Override
-			public BasicParticleData<T> fromCommand(ParticleType<BasicParticleData<T>> arg0, StringReader reader) {
+			public BasicParticleData<T> read(ParticleType<BasicParticleData<T>> arg0, StringReader reader) {
 				return data;
 			}
 
 			@Override
-			public BasicParticleData<T> fromNetwork(ParticleType<BasicParticleData<T>> type, FriendlyByteBuf buffer) {
+			public BasicParticleData<T> read(ParticleType<BasicParticleData<T>> type, PacketByteBuf buffer) {
 				return data;
 			}
 		};
@@ -47,7 +46,7 @@ public abstract class BasicParticleData<T extends Particle> implements ParticleO
 	}
 
 	public interface IBasicParticleFactory<U extends Particle> {
-		U makeParticle(ClientLevel worldIn, double x, double y, double z, double vx, double vy, double vz, SpriteSet sprite);
+		U makeParticle(ClientWorld worldIn, double x, double y, double z, double vx, double vy, double vz, SpriteProvider sprite);
 	}
 
 	@Environment(EnvType.CLIENT)
@@ -55,16 +54,16 @@ public abstract class BasicParticleData<T extends Particle> implements ParticleO
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public ParticleEngine.SpriteParticleRegistration<BasicParticleData<T>> getMetaFactory() {
+	public ParticleManager.SpriteAwareFactory<BasicParticleData<T>> getMetaFactory() {
 		return animatedSprite -> (data, worldIn, x, y, z, vx, vy, vz) ->
 				getBasicFactory().makeParticle(worldIn, x, y, z, vx, vy, vz, animatedSprite);
 	}
 
 	@Override
-	public String writeToString() {
+	public String asString() {
 		return RegisteredObjects.getKeyOrThrow(getType()).toString();
 	}
 
 	@Override
-	public void writeToNetwork(FriendlyByteBuf buffer) { }
+	public void write(PacketByteBuf buffer) { }
 }

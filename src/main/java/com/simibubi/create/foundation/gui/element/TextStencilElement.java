@@ -1,31 +1,30 @@
 package com.simibubi.create.foundation.gui.element;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.MutableText;
 
 public class TextStencilElement extends DelegatedStencilElement {
 
-	protected Font font;
-	protected MutableComponent component;
+	protected TextRenderer font;
+	protected MutableText component;
 	protected boolean centerVertically = false;
 	protected boolean centerHorizontally = false;
 
-	public TextStencilElement(Font font) {
+	public TextStencilElement(TextRenderer font) {
 		super();
 		this.font = font;
 		height = 10;
 	}
 
-	public TextStencilElement(Font font, String text) {
+	public TextStencilElement(TextRenderer font, String text) {
 		this(font);
 		component = Components.literal(text);
 	}
 
-	public TextStencilElement(Font font, MutableComponent component) {
+	public TextStencilElement(TextRenderer font, MutableText component) {
 		this(font);
 		this.component = component;
 	}
@@ -35,7 +34,7 @@ public class TextStencilElement extends DelegatedStencilElement {
 		return this;
 	}
 
-	public TextStencilElement withText(MutableComponent component) {
+	public TextStencilElement withText(MutableText component) {
 		this.component = component;
 		return this;
 	}
@@ -47,34 +46,34 @@ public class TextStencilElement extends DelegatedStencilElement {
 	}
 
 	@Override
-	protected void renderStencil(GuiGraphics graphics) {
+	protected void renderStencil(DrawContext graphics) {
 		float x = 0, y = 0;
 		if (centerHorizontally)
-			x = width / 2f - font.width(component) / 2f;
+			x = width / 2f - font.getWidth(component) / 2f;
 
 		if (centerVertically)
-			y = height / 2f - (font.lineHeight - 1) / 2f;
+			y = height / 2f - (font.fontHeight - 1) / 2f;
 
-		graphics.drawString(font, component, Math.round(x), Math.round(y), 0xff_000000, false);
+		graphics.drawText(font, component, Math.round(x), Math.round(y), 0xff_000000, false);
 	}
 
 	@Override
-	protected void renderElement(GuiGraphics graphics) {
+	protected void renderElement(DrawContext graphics) {
 		float x = 0, y = 0;
 		if (centerHorizontally)
-			x = width / 2f - font.width(component) / 2f;
+			x = width / 2f - font.getWidth(component) / 2f;
 
 		if (centerVertically)
-			y = height / 2f - (font.lineHeight - 1) / 2f;
+			y = height / 2f - (font.fontHeight - 1) / 2f;
 
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(x, y, 0);
-		element.render(graphics, font.width(component), font.lineHeight + 2, alpha);
-		ms.popPose();
+		element.render(graphics, font.getWidth(component), font.fontHeight + 2, alpha);
+		ms.pop();
 	}
 
-	public MutableComponent getComponent() {
+	public MutableText getComponent() {
 		return component;
 	}
 }

@@ -2,32 +2,30 @@ package com.simibubi.create.content.trains.schedule;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.screen.ChatInputSuggestor;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.util.math.MathHelper;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.suggestion.Suggestion;
 import com.simibubi.create.foundation.utility.IntAttached;
 
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.CommandSuggestions$SuggestionsListAccessor;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.components.CommandSuggestions;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.util.Mth;
+public class DestinationSuggestions extends ChatInputSuggestor {
 
-public class DestinationSuggestions extends CommandSuggestions {
-
-	private EditBox textBox;
+	private TextFieldWidget textBox;
 	private List<IntAttached<String>> viableStations;
 	private String previous = "<>";
-	private Font font;
+	private TextRenderer font;
 	private boolean active;
 
 	List<Suggestion> currentSuggestions;
 	private int yOffset;
 
-	public DestinationSuggestions(Minecraft pMinecraft, Screen pScreen, EditBox pInput, Font pFont,
+	public DestinationSuggestions(MinecraftClient pMinecraft, Screen pScreen, TextFieldWidget pInput, TextRenderer pFont,
 		List<IntAttached<String>> viableStations, int yOffset) {
 		super(pMinecraft, pScreen, pInput, pFont, true, true, 0, 7, false, 0xee_303030);
 		this.textBox = pInput;
@@ -39,21 +37,21 @@ public class DestinationSuggestions extends CommandSuggestions {
 	}
 
 	public void tick() {
-		if (suggestions == null)
+		if (window == null)
 			textBox.setSuggestion("");
 		if (active == textBox.isFocused())
 			return;
 		active = textBox.isFocused();
-		updateCommandInfo();
+		refresh();
 	}
 
 	@Override
-	public void updateCommandInfo() {
-		String value = this.textBox.getValue();
+	public void refresh() {
+		String value = this.textBox.getText();
 		if (value.equals(previous))
 			return;
 		if (!active) {
-			suggestions = null;
+			window = null;
 			return;
 		}
 
@@ -68,20 +66,20 @@ public class DestinationSuggestions extends CommandSuggestions {
 			.map(s -> new Suggestion(new StringRange(0, s.length()), s))
 			.toList();
 
-		showSuggestions(false);
+		show(false);
 	}
 
-	public void showSuggestions(boolean pNarrateFirstSuggestion) {
+	public void show(boolean pNarrateFirstSuggestion) {
 		if (currentSuggestions.isEmpty()) {
-			suggestions = null;
+			window = null;
 			return;
 		}
 
 		int width = 0;
 		for (Suggestion suggestion : currentSuggestions)
-			width = Math.max(width, this.font.width(suggestion.getText()));
-		int x = Mth.clamp(textBox.getScreenX(0), 0, textBox.getScreenX(0) + textBox.getInnerWidth() - width);
-		suggestions = CommandSuggestions$SuggestionsListAccessor.port_lib$create(this, x, 72 + yOffset, width, currentSuggestions, false);
+			width = Math.max(width, this.font.getWidth(suggestion.getText()));
+		int x = MathHelper.clamp(textBox.getCharacterX(0), 0, textBox.getCharacterX(0) + textBox.getInnerWidth() - width);
+		window = CommandSuggestions$SuggestionsListAccessor.port_lib$create(this, x, 72 + yOffset, width, currentSuggestions, false);
 	}
 
 }

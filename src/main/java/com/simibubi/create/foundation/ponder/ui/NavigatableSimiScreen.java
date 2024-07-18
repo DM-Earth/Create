@@ -3,13 +3,16 @@ package com.simibubi.create.foundation.ponder.ui;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.util.Window;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.math.MathHelper;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.lwjgl.glfw.GLFW;
-
-import com.mojang.blaze3d.platform.Window;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.gui.AbstractSimiScreen;
 import com.simibubi.create.foundation.gui.ScreenOpener;
 import com.simibubi.create.foundation.gui.Theme;
@@ -18,12 +21,6 @@ import com.simibubi.create.foundation.ponder.PonderLocalization;
 import com.simibubi.create.foundation.utility.Color;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Mth;
 
 public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 
@@ -39,15 +36,15 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 	protected PonderButton backTrack;
 
 	public NavigatableSimiScreen() {
-		Window window = Minecraft.getInstance().getWindow();
-		depthPointX = window.getGuiScaledWidth() / 2;
-		depthPointY = window.getGuiScaledHeight() / 2;
+		Window window = MinecraftClient.getInstance().getWindow();
+		depthPointX = window.getScaledWidth() / 2;
+		depthPointY = window.getScaledHeight() / 2;
 	}
 
 	@Override
-	public void onClose() {
+	public void close() {
 		ScreenOpener.clearStack();
-		super.onClose();
+		super.close();
 	}
 
 	@Override
@@ -70,7 +67,7 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 
 		NavigatableSimiScreen screen = (NavigatableSimiScreen) screenHistory.get(0);
 
-		addRenderableWidget(backTrack = new PonderButton(31, height - 31 - 20).enableFade(0, 5)
+		addDrawableChild(backTrack = new PonderButton(31, height - 31 - 20).enableFade(0, 5)
 			.withCallback(() -> ScreenOpener.openPreviousScreen(this, Optional.empty())));
 		backTrack.fade(1);
 
@@ -86,25 +83,25 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 	protected abstract void initBackTrackIcon(PonderButton backTrack);
 
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	public void render(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		super.render(graphics, mouseX, mouseY, partialTicks);
 //		renderZeloBreadcrumbs(ms, mouseX, mouseY, partialTicks);
 		if (backTrack == null)
 			return;
 
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(0, 0, 500);
-		if (backTrack.isHoveredOrFocused()) {
-			MutableComponent translate = Lang.translateDirect(backTrackingLangKey());
-			graphics.drawString(font, translate, 41 - font.width(translate) / 2, height - 16,
+		if (backTrack.isSelected()) {
+			MutableText translate = Lang.translateDirect(backTrackingLangKey());
+			graphics.drawText(textRenderer, translate, 41 - textRenderer.getWidth(translate) / 2, height - 16,
 				Theme.i(Theme.Key.TEXT_DARKER), false);
-			if (Mth.equal(arrowAnimation.getValue(), arrowAnimation.getChaseTarget())) {
+			if (MathHelper.approximatelyEquals(arrowAnimation.getValue(), arrowAnimation.getChaseTarget())) {
 				arrowAnimation.setValue(1);
 				arrowAnimation.setValue(1);// called twice to also set the previous value to 1
 			}
 		}
-		ms.popPose();
+		ms.pop();
 	}
 
 	protected String backTrackingLangKey() {
@@ -112,9 +109,9 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 	}
 
 	@Override
-	protected void renderWindowBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindowBackground(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		if (backTrack != null) {
-			int x = (int) Mth.lerp(arrowAnimation.getValue(partialTicks), -9, 21);
+			int x = (int) MathHelper.lerp(arrowAnimation.getValue(partialTicks), -9, 21);
 			int maxX = backTrack.getX() + backTrack.getWidth();
 
 			if (x + 30 < backTrack.getX())
@@ -132,7 +129,7 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 
 		renderBackground(graphics);
 
-		PoseStack ms = graphics.pose();
+		MatrixStack ms = graphics.getMatrices();
 		
 //		Screen lastScreen = ScreenOpener.getPreviouslyRenderedScreen();
 		float transitionValue = transition.getValue(partialTicks);
@@ -202,9 +199,9 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 	}
 
 	public void centerScalingOnMouse() {
-		Window w = minecraft.getWindow();
-		double mouseX = minecraft.mouseHandler.xpos() * w.getGuiScaledWidth() / w.getScreenWidth();
-		double mouseY = minecraft.mouseHandler.ypos() * w.getGuiScaledHeight() / w.getScreenHeight();
+		Window w = client.getWindow();
+		double mouseX = client.mouse.getX() * w.getScaledWidth() / w.getWidth();
+		double mouseY = client.mouse.getY() * w.getScaledHeight() / w.getHeight();
 		centerScalingOn((int) mouseX, (int) mouseY);
 	}
 
@@ -214,12 +211,12 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 
 	public void shareContextWith(NavigatableSimiScreen other) {}
 
-	protected void renderZeloBreadcrumbs(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderZeloBreadcrumbs(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		List<Screen> history = ScreenOpener.getScreenHistory();
 		if (history.isEmpty())
 			return;
 
-		history.add(0, minecraft.screen);
+		history.add(0, client.currentScreen);
 		int spacing = 20;
 
 		List<String> names = history.stream()
@@ -227,7 +224,7 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 			.collect(Collectors.toList());
 
 		int bWidth = names.stream()
-			.mapToInt(s -> font.width(s) + spacing)
+			.mapToInt(s -> textRenderer.getWidth(s) + spacing)
 			.sum();
 
 		MutableInt x = new MutableInt(width - bWidth);
@@ -237,19 +234,19 @@ public abstract class NavigatableSimiScreen extends AbstractSimiScreen {
 		if (x.getValue() < 25)
 			x.setValue(25);
 
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(0, 0, 600);
 		names.forEach(s -> {
-			int sWidth = font.width(s);
+			int sWidth = textRenderer.getWidth(s);
 			UIRenderHelper.breadcrumbArrow(graphics, x.getValue(), y.getValue(), 0, sWidth + spacing, 14, spacing / 2,
 					new Color(0xdd101010), new Color(0x44101010));
-			graphics.drawString(font, s, x.getValue() + 5, y.getValue() + 3, first.getValue() ? 0xffeeffee : 0xffddeeff, false);
+			graphics.drawText(textRenderer, s, x.getValue() + 5, y.getValue() + 3, first.getValue() ? 0xffeeffee : 0xffddeeff, false);
 			first.setFalse();
 
 			x.add(sWidth + spacing);
 		});
-		ms.popPose();
+		ms.pop();
 	}
 
 	private static String screenTitle(Screen screen) {

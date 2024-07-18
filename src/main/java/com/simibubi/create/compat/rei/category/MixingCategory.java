@@ -1,14 +1,11 @@
 package com.simibubi.create.compat.rei.category;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.DrawContext;
 import com.simibubi.create.compat.rei.category.animations.AnimatedBlazeBurner;
 import com.simibubi.create.compat.rei.category.animations.AnimatedMixer;
 import com.simibubi.create.content.processing.basin.BasinRecipe;
 import com.simibubi.create.content.processing.recipe.HeatCondition;
-
-import net.minecraft.client.gui.GuiGraphics;
 
 @ParametersAreNonnullByDefault
 public class MixingCategory extends BasinCategory {
@@ -39,7 +36,7 @@ public class MixingCategory extends BasinCategory {
 	}
 
 	@Override
-	public void draw(BasinRecipe recipe, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(BasinRecipe recipe, DrawContext graphics, double mouseX, double mouseY) {
 		super.draw(recipe, graphics, mouseX, mouseY);
 		HeatCondition requiredHeat = recipe.getRequiredHeat();
 		if (requiredHeat != HeatCondition.NONE)

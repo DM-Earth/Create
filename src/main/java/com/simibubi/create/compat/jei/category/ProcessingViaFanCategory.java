@@ -4,9 +4,6 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
@@ -19,9 +16,11 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.util.math.RotationAxis;
 
 @ParametersAreNonnullByDefault
 public abstract class ProcessingViaFanCategory<T extends Recipe<?>> extends CreateRecipeCategory<T> {
@@ -34,7 +33,7 @@ public abstract class ProcessingViaFanCategory<T extends Recipe<?>> extends Crea
 
 	public static Supplier<ItemStack> getFan(String name) {
 		return () -> AllBlocks.ENCASED_FAN.asStack()
-			.setHoverName(Lang.translateDirect("recipe." + name + ".fan").withStyle(style -> style.withItalic(false)));
+			.setCustomName(Lang.translateDirect("recipe." + name + ".fan").styled(style -> style.withItalic(false)));
 	}
 
 	@Override
@@ -50,15 +49,15 @@ public abstract class ProcessingViaFanCategory<T extends Recipe<?>> extends Crea
 	}
 
 	@Override
-	public void draw(T recipe, IRecipeSlotsView iRecipeSlotsView, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(T recipe, IRecipeSlotsView iRecipeSlotsView, DrawContext graphics, double mouseX, double mouseY) {
 		renderWidgets(graphics, recipe, mouseX, mouseY);
 		
-		PoseStack matrixStack = graphics.pose();
+		MatrixStack matrixStack = graphics.getMatrices();
 
-		matrixStack.pushPose();
+		matrixStack.push();
 		translateFan(matrixStack);
-		matrixStack.mulPose(Axis.XP.rotationDegrees(-12.5f));
-		matrixStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-12.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 
 		AnimatedKinetics.defaultBlockElement(AllPartialModels.ENCASED_FAN_INNER)
 			.rotateBlock(180, 0, AnimatedKinetics.getCurrentAngle() * 16)
@@ -72,10 +71,10 @@ public abstract class ProcessingViaFanCategory<T extends Recipe<?>> extends Crea
 			.render(graphics);
 
 		renderAttachedBlock(graphics);
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
-	protected void renderWidgets(GuiGraphics graphics, T recipe, double mouseX, double mouseY) {
+	protected void renderWidgets(DrawContext graphics, T recipe, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SHADOW.render(graphics, 46, 29);
 		getBlockShadow().render(graphics, 65, 39);
 		AllGuiTextures.JEI_LONG_ARROW.render(graphics, 54, 51);
@@ -85,11 +84,11 @@ public abstract class ProcessingViaFanCategory<T extends Recipe<?>> extends Crea
 		return AllGuiTextures.JEI_SHADOW;
 	}
 
-	protected void translateFan(PoseStack matrixStack) {
+	protected void translateFan(MatrixStack matrixStack) {
 		matrixStack.translate(56, 33, 0);
 	}
 
-	protected abstract void renderAttachedBlock(GuiGraphics graphics);
+	protected abstract void renderAttachedBlock(DrawContext graphics);
 
 	public static abstract class MultiOutput<T extends ProcessingRecipe<?>> extends ProcessingViaFanCategory<T> {
 
@@ -123,7 +122,7 @@ public abstract class ProcessingViaFanCategory<T extends Recipe<?>> extends Crea
 		}
 
 		@Override
-		protected void renderWidgets(GuiGraphics graphics, T recipe, double mouseX, double mouseY) {
+		protected void renderWidgets(DrawContext graphics, T recipe, double mouseX, double mouseY) {
 			int size = recipe.getRollableResultsAsItemStacks().size();
 			int xOffsetAmount = 1 - Math.min(3, size);
 

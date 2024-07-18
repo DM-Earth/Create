@@ -6,8 +6,7 @@ import com.jozufozu.flywheel.light.LightUpdater;
 import com.jozufozu.flywheel.util.box.GridAlignedBB;
 import com.jozufozu.flywheel.util.box.ImmutableBox;
 import com.simibubi.create.content.contraptions.Contraption;
-
-import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.LightType;
 
 public abstract class ContraptionLighter<C extends Contraption> implements LightListener {
     protected final C contraption;
@@ -20,12 +19,12 @@ public abstract class ContraptionLighter<C extends Contraption> implements Light
 
     protected ContraptionLighter(C contraption) {
         this.contraption = contraption;
-		lightUpdater = LightUpdater.get(contraption.entity.level());
+		lightUpdater = LightUpdater.get(contraption.entity.getWorld());
 
 		bounds = getContraptionBounds();
 		growBoundsForEdgeData(bounds);
 
-		lightVolume = new GPULightVolume(contraption.entity.level(), bounds);
+		lightVolume = new GPULightVolume(contraption.entity.getWorld(), bounds);
 
 		lightVolume.initialize();
 		scheduleRebuild = true;
@@ -41,7 +40,7 @@ public abstract class ContraptionLighter<C extends Contraption> implements Light
 	}
 
 	@Override
-    public void onLightUpdate(LightLayer type, ImmutableBox changed) {
+    public void onLightUpdate(LightType type, ImmutableBox changed) {
         lightVolume.onLightUpdate(type, changed);
     }
 

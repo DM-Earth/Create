@@ -16,63 +16,63 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 import io.github.fabricators_of_create.porting_lib.block.WeakPowerCheckingBlock;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.SignalGetter;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.IntProperty;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.RedstoneView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldView;
 
 public class SequencedGearshiftBlock extends HorizontalAxisKineticBlock implements IBE<SequencedGearshiftBlockEntity>, ITransformableBlock, WeakPowerCheckingBlock {
 
-	public static final BooleanProperty VERTICAL = BooleanProperty.create("vertical");
-	public static final IntegerProperty STATE = IntegerProperty.create("state", 0, 5);
+	public static final BooleanProperty VERTICAL = BooleanProperty.of("vertical");
+	public static final IntProperty STATE = IntProperty.of("state", 0, 5);
 
-	public SequencedGearshiftBlock(Properties properties) {
+	public SequencedGearshiftBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(STATE, VERTICAL));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(STATE, VERTICAL));
 	}
 
 	@Override
-    public boolean shouldCheckWeakPower(BlockState state, SignalGetter level, BlockPos pos, Direction side) {
+    public boolean shouldCheckWeakPower(BlockState state, RedstoneView level, BlockPos pos, Direction side) {
         return false;
     }
 
 	@Override
-	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
+	public void neighborUpdate(BlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
 		boolean isMoving) {
-		if (worldIn.isClientSide)
+		if (worldIn.isClient)
 			return;
-		if (!worldIn.getBlockTicks()
-			.willTickThisTick(pos, this))
-			worldIn.scheduleTick(pos, this, 0);
+		if (!worldIn.getBlockTickScheduler()
+			.isTicking(pos, this))
+			worldIn.scheduleBlockTick(pos, this, 0);
 	}
 
 	@Override
-	public void tick(BlockState state, ServerLevel worldIn, BlockPos pos, RandomSource r) {
-		boolean previouslyPowered = state.getValue(STATE) != 0;
-		boolean isPowered = worldIn.hasNeighborSignal(pos);
+	public void scheduledTick(BlockState state, ServerWorld worldIn, BlockPos pos, Random r) {
+		boolean previouslyPowered = state.get(STATE) != 0;
+		boolean isPowered = worldIn.isReceivingRedstonePower(pos);
 		withBlockEntityDo(worldIn, pos, sgte -> sgte.onRedstoneUpdate(isPowered, previouslyPowered));
 	}
 
@@ -82,72 +82,72 @@ public class SequencedGearshiftBlock extends HorizontalAxisKineticBlock implemen
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		if (state.getValue(VERTICAL))
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		if (state.get(VERTICAL))
 			return face.getAxis()
 				.isVertical();
 		return super.hasShaftTowards(world, pos, state, face);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
 		if (AdventureUtil.isAdventure(player))
-			return InteractionResult.PASS;
-		ItemStack held = player.getMainHandItem();
+			return ActionResult.PASS;
+		ItemStack held = player.getMainHandStack();
 		if (AllItems.WRENCH.isIn(held))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		if (held.getItem() instanceof BlockItem) {
 			BlockItem blockItem = (BlockItem) held.getItem();
-			if (blockItem.getBlock() instanceof KineticBlock && hasShaftTowards(worldIn, pos, state, hit.getDirection()))
-				return InteractionResult.PASS;
+			if (blockItem.getBlock() instanceof KineticBlock && hasShaftTowards(worldIn, pos, state, hit.getSide()))
+				return ActionResult.PASS;
 		}
 
 		EnvExecutor.runWhenOn(EnvType.CLIENT,
 			() -> () -> withBlockEntityDo(worldIn, pos, be -> this.displayScreen(be, player)));
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Environment(value = EnvType.CLIENT)
-	protected void displayScreen(SequencedGearshiftBlockEntity be, Player player) {
-		if (player instanceof LocalPlayer)
+	protected void displayScreen(SequencedGearshiftBlockEntity be, PlayerEntity player) {
+		if (player instanceof ClientPlayerEntity)
 			ScreenOpener.open(new SequencedGearshiftScreen(be));
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
+	public BlockState getPlacementState(ItemPlacementContext context) {
 		Axis preferredAxis = RotatedPillarKineticBlock.getPreferredAxis(context);
 		if (preferredAxis != null && (context.getPlayer() == null || !context.getPlayer()
-			.isShiftKeyDown()))
+			.isSneaking()))
 			return withAxis(preferredAxis, context);
-		return withAxis(context.getNearestLookingDirection()
+		return withAxis(context.getPlayerLookDirection()
 			.getAxis(), context);
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
 		BlockState newState = state;
 
-		if (context.getClickedFace()
+		if (context.getSide()
 			.getAxis() != Axis.Y)
-			if (newState.getValue(HORIZONTAL_AXIS) != context.getClickedFace()
+			if (newState.get(HORIZONTAL_AXIS) != context.getSide()
 				.getAxis())
 				newState = newState.cycle(VERTICAL);
 
 		return super.onWrenched(newState, context);
 	}
 
-	private BlockState withAxis(Axis axis, BlockPlaceContext context) {
-		BlockState state = defaultBlockState().setValue(VERTICAL, axis.isVertical());
+	private BlockState withAxis(Axis axis, ItemPlacementContext context) {
+		BlockState state = getDefaultState().with(VERTICAL, axis.isVertical());
 		if (axis.isVertical())
-			return state.setValue(HORIZONTAL_AXIS, context.getHorizontalDirection()
+			return state.with(HORIZONTAL_AXIS, context.getHorizontalPlayerFacing()
 				.getAxis());
-		return state.setValue(HORIZONTAL_AXIS, axis);
+		return state.with(HORIZONTAL_AXIS, axis);
 	}
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		if (state.getValue(VERTICAL))
+		if (state.get(VERTICAL))
 			return Axis.Y;
 		return super.getRotationAxis(state);
 	}
@@ -163,13 +163,13 @@ public class SequencedGearshiftBlock extends HorizontalAxisKineticBlock implemen
 	}
 
 	@Override
-	public boolean hasAnalogOutputSignal(BlockState p_149740_1_) {
+	public boolean hasComparatorOutput(BlockState p_149740_1_) {
 		return true;
 	}
 
 	@Override
-	public int getAnalogOutputSignal(BlockState state, Level world, BlockPos pos) {
-		return state.getValue(STATE)
+	public int getComparatorOutput(BlockState state, World world, BlockPos pos) {
+		return state.get(STATE)
 			.intValue();
 	}
 
@@ -184,9 +184,9 @@ public class SequencedGearshiftBlock extends HorizontalAxisKineticBlock implemen
 		}
 
 		if (transform.rotation.ordinal() % 2 == 1) {
-			if (transform.rotationAxis != state.getValue(HORIZONTAL_AXIS)) {
+			if (transform.rotationAxis != state.get(HORIZONTAL_AXIS)) {
 				return state.cycle(VERTICAL);
-			} else if (state.getValue(VERTICAL)) {
+			} else if (state.get(VERTICAL)) {
 				return state.cycle(VERTICAL).cycle(HORIZONTAL_AXIS);
 			}
 		}

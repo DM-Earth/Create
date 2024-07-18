@@ -1,6 +1,6 @@
 package com.simibubi.create.compat.archEx;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 public record Textures(String typeOrId) {
 	public static final Textures LOG = new Textures("wood_with_log");
@@ -13,7 +13,7 @@ public record Textures(String typeOrId) {
 		return new Textures("create:" + texture);
 	}
 
-	public static Textures ofTexture(ResourceLocation id) {
+	public static Textures ofTexture(Identifier id) {
 		return new Textures(id.toString());
 	}
 }

@@ -1,7 +1,11 @@
 package com.simibubi.create.foundation.mixin.client;
 
 import java.util.Iterator;
-
+import net.minecraft.client.render.MapRenderer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.map.MapIcon;
+import net.minecraft.item.map.MapState;
 import com.google.common.collect.Iterators;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 
@@ -11,22 +15,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.map.CustomRenderedMapDecoration;
-
-import net.minecraft.client.gui.MapRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.world.level.saveddata.maps.MapDecoration;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 // fabric: we have an AW for it, and compiler complains if specified by string
-@Mixin(MapRenderer.MapInstance.class)
+@Mixin(MapRenderer.MapTexture.class)
 public class MapRendererMapInstanceMixin {
 	@Shadow
-	private MapItemSavedData data;
+	private MapState state;
 
 	// fabric: completely redone
 
@@ -37,18 +33,18 @@ public class MapRendererMapInstanceMixin {
 				target = "Ljava/lang/Iterable;iterator()Ljava/util/Iterator;"
 		)
 	)
-	private Iterator<MapDecoration> wrapIterator(Iterator<MapDecoration> original) {
+	private Iterator<MapIcon> wrapIterator(Iterator<MapIcon> original) {
 		// skip rendering custom ones in the main loop
 		return Iterators.filter(original, decoration -> !(decoration instanceof CustomRenderedMapDecoration));
 	}
 
 	@Inject(method = "draw", at = @At("TAIL"))
-	private void renderCustomDecorations(PoseStack poseStack, MultiBufferSource bufferSource, boolean active,
+	private void renderCustomDecorations(MatrixStack poseStack, VertexConsumerProvider bufferSource, boolean active,
 										 int packedLight, CallbackInfo ci, @Local(ordinal = 3) int index) { // ignore error, works
 		// render custom ones in second loop
-		for (MapDecoration decoration : this.data.getDecorations()) {
+		for (MapIcon decoration : this.state.getIcons()) {
 			if (decoration instanceof CustomRenderedMapDecoration renderer) {
-				renderer.render(poseStack, bufferSource, active, packedLight, data, index);
+				renderer.render(poseStack, bufferSource, active, packedLight, state, index);
 			}
 		}
 	}

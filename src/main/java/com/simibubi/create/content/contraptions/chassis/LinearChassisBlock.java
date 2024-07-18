@@ -6,76 +6,75 @@ import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllSpriteShifts;
 import com.simibubi.create.foundation.block.connected.CTSpriteShiftEntry;
 import com.simibubi.create.foundation.block.connected.ConnectedTextureBehaviour;
-
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.world.BlockRenderView;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldAccess;
 
 public class LinearChassisBlock extends AbstractChassisBlock {
 
-	public static final BooleanProperty STICKY_TOP = BooleanProperty.create("sticky_top");
-	public static final BooleanProperty STICKY_BOTTOM = BooleanProperty.create("sticky_bottom");
+	public static final BooleanProperty STICKY_TOP = BooleanProperty.of("sticky_top");
+	public static final BooleanProperty STICKY_BOTTOM = BooleanProperty.of("sticky_bottom");
 
-	public LinearChassisBlock(Properties properties) {
+	public LinearChassisBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(STICKY_TOP, false)
-			.setValue(STICKY_BOTTOM, false));
+		setDefaultState(getDefaultState().with(STICKY_TOP, false)
+			.with(STICKY_BOTTOM, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+	protected void appendProperties(Builder<Block, BlockState> builder) {
 		builder.add(STICKY_TOP, STICKY_BOTTOM);
-		super.createBlockStateDefinition(builder);
+		super.appendProperties(builder);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockPos placedOnPos = context.getClickedPos()
-			.relative(context.getClickedFace()
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockPos placedOnPos = context.getBlockPos()
+			.offset(context.getSide()
 				.getOpposite());
-		BlockState blockState = context.getLevel()
+		BlockState blockState = context.getWorld()
 			.getBlockState(placedOnPos);
 
 		if (context.getPlayer() == null || !context.getPlayer()
-			.isShiftKeyDown()) {
+			.isSneaking()) {
 			if (isChassis(blockState))
-				return defaultBlockState().setValue(AXIS, blockState.getValue(AXIS));
-			return defaultBlockState().setValue(AXIS, context.getNearestLookingDirection()
+				return getDefaultState().with(AXIS, blockState.get(AXIS));
+			return getDefaultState().with(AXIS, context.getPlayerLookDirection()
 				.getAxis());
 		}
-		return super.getStateForPlacement(context);
+		return super.getPlacementState(context);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction side, BlockState other, LevelAccessor p_196271_4_,
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction side, BlockState other, WorldAccess p_196271_4_,
 		BlockPos p_196271_5_, BlockPos p_196271_6_) {
 		BooleanProperty property = getGlueableSide(state, side);
-		if (property == null || !sameKind(state, other) || state.getValue(AXIS) != other.getValue(AXIS))
+		if (property == null || !sameKind(state, other) || state.get(AXIS) != other.get(AXIS))
 			return state;
-		return state.setValue(property, false);
+		return state.with(property, false);
 	}
 
 	@Override
 	public BooleanProperty getGlueableSide(BlockState state, Direction face) {
-		if (face.getAxis() != state.getValue(AXIS))
+		if (face.getAxis() != state.get(AXIS))
 			return null;
-		return face.getAxisDirection() == AxisDirection.POSITIVE ? STICKY_TOP : STICKY_BOTTOM;
+		return face.getDirection() == AxisDirection.POSITIVE ? STICKY_TOP : STICKY_BOTTOM;
 	}
 
 	@Override
-	protected boolean glueAllowedOnSide(BlockGetter world, BlockPos pos, BlockState state, Direction side) {
-		BlockState other = world.getBlockState(pos.relative(side));
-		return !sameKind(other, state) || state.getValue(AXIS) != other.getValue(AXIS);
+	protected boolean glueAllowedOnSide(BlockView world, BlockPos pos, BlockState state, Direction side) {
+		BlockState other = world.getBlockState(pos.offset(side));
+		return !sameKind(other, state) || state.get(AXIS) != other.get(AXIS);
 	}
 
 	public static boolean isChassis(BlockState state) {
@@ -89,26 +88,26 @@ public class LinearChassisBlock extends AbstractChassisBlock {
 	public static class ChassisCTBehaviour extends ConnectedTextureBehaviour.Base {
 
 		@Override
-		public CTSpriteShiftEntry getShift(BlockState state, Direction direction, @Nullable TextureAtlasSprite sprite) {
+		public CTSpriteShiftEntry getShift(BlockState state, Direction direction, @Nullable Sprite sprite) {
 			Block block = state.getBlock();
 			BooleanProperty glueableSide = ((LinearChassisBlock) block).getGlueableSide(state, direction);
 			if (glueableSide == null)
 				return AllBlocks.LINEAR_CHASSIS.has(state) ? AllSpriteShifts.CHASSIS_SIDE
 					: AllSpriteShifts.SECONDARY_CHASSIS_SIDE;
-			return state.getValue(glueableSide) ? AllSpriteShifts.CHASSIS_STICKY : AllSpriteShifts.CHASSIS;
+			return state.get(glueableSide) ? AllSpriteShifts.CHASSIS_STICKY : AllSpriteShifts.CHASSIS;
 		}
 
 		@Override
-		protected Direction getUpDirection(BlockAndTintGetter reader, BlockPos pos, BlockState state, Direction face) {
-			Axis axis = state.getValue(AXIS);
+		protected Direction getUpDirection(BlockRenderView reader, BlockPos pos, BlockState state, Direction face) {
+			Axis axis = state.get(AXIS);
 			if (face.getAxis() == axis)
 				return super.getUpDirection(reader, pos, state, face);
 			return Direction.get(AxisDirection.POSITIVE, axis);
 		}
 
 		@Override
-		protected Direction getRightDirection(BlockAndTintGetter reader, BlockPos pos, BlockState state, Direction face) {
-			Axis axis = state.getValue(AXIS);
+		protected Direction getRightDirection(BlockRenderView reader, BlockPos pos, BlockState state, Direction face) {
+			Axis axis = state.get(AXIS);
 			return axis != face.getAxis() && axis.isHorizontal() ? (face.getAxis()
 				.isHorizontal() ? Direction.DOWN : (axis == Axis.X ? Direction.NORTH : Direction.EAST))
 				: super.getRightDirection(reader, pos, state, face);
@@ -116,7 +115,7 @@ public class LinearChassisBlock extends AbstractChassisBlock {
 
 		@Override
 		protected boolean reverseUVsHorizontally(BlockState state, Direction face) {
-			Axis axis = state.getValue(AXIS);
+			Axis axis = state.get(AXIS);
 			boolean side = face.getAxis() != axis;
 			if (side && axis == Axis.X && face.getAxis()
 				.isHorizontal())
@@ -131,9 +130,9 @@ public class LinearChassisBlock extends AbstractChassisBlock {
 
 		@Override
 		public boolean reverseUVs(BlockState state, Direction face) {
-			Axis axis = state.getValue(AXIS);
+			Axis axis = state.get(AXIS);
 			boolean end = face.getAxis() == axis;
-			if (end && axis.isHorizontal() && (face.getAxisDirection() == AxisDirection.POSITIVE))
+			if (end && axis.isHorizontal() && (face.getDirection() == AxisDirection.POSITIVE))
 				return true;
 			if (!end && axis.isHorizontal() && face == Direction.DOWN)
 				return true;
@@ -141,12 +140,12 @@ public class LinearChassisBlock extends AbstractChassisBlock {
 		}
 
 		@Override
-		public boolean connectsTo(BlockState state, BlockState other, BlockAndTintGetter reader, BlockPos pos,
+		public boolean connectsTo(BlockState state, BlockState other, BlockRenderView reader, BlockPos pos,
 			BlockPos otherPos, Direction face) {
-			Axis axis = state.getValue(AXIS);
+			Axis axis = state.get(AXIS);
 			boolean superConnect = face.getAxis() == axis ? super.connectsTo(state, other, reader, pos, otherPos, face)
 				: sameKind(state, other);
-			return superConnect && axis == other.getValue(AXIS);
+			return superConnect && axis == other.get(AXIS);
 		}
 
 	}

@@ -3,31 +3,29 @@ package com.simibubi.create.content.equipment.goggles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
-
+import net.minecraft.block.DispenserBlock;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ArmorItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.world.World;
 import com.simibubi.create.AllItems;
-
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.DispenserBlock;
 
 public class GogglesItem extends Item {
 
-	private static final List<Predicate<Player>> IS_WEARING_PREDICATES = new ArrayList<>();
+	private static final List<Predicate<PlayerEntity>> IS_WEARING_PREDICATES = new ArrayList<>();
 	static {
-		addIsWearingPredicate(player -> AllItems.GOGGLES.isIn(player.getItemBySlot(EquipmentSlot.HEAD)));
+		addIsWearingPredicate(player -> AllItems.GOGGLES.isIn(player.getEquippedStack(EquipmentSlot.HEAD)));
 	}
 
-	public GogglesItem(Properties properties) {
+	public GogglesItem(Settings properties) {
 		super(properties);
-		DispenserBlock.registerBehavior(this, ArmorItem.DISPENSE_ITEM_BEHAVIOR);
+		DispenserBlock.registerBehavior(this, ArmorItem.DISPENSER_BEHAVIOR);
 	}
 
 	// Set in properties
@@ -35,21 +33,21 @@ public class GogglesItem extends Item {
 		return EquipmentSlot.HEAD;
 	}
 
-	public InteractionResultHolder<ItemStack> use(Level worldIn, Player playerIn, InteractionHand handIn) {
-		ItemStack itemstack = playerIn.getItemInHand(handIn);
-		EquipmentSlot equipmentslottype = Mob.getEquipmentSlotForItem(itemstack);
-		ItemStack itemstack1 = playerIn.getItemBySlot(equipmentslottype);
+	public TypedActionResult<ItemStack> use(World worldIn, PlayerEntity playerIn, Hand handIn) {
+		ItemStack itemstack = playerIn.getStackInHand(handIn);
+		EquipmentSlot equipmentslottype = MobEntity.getPreferredEquipmentSlot(itemstack);
+		ItemStack itemstack1 = playerIn.getEquippedStack(equipmentslottype);
 		if (itemstack1.isEmpty()) {
-			playerIn.setItemSlot(equipmentslottype, itemstack.copy());
+			playerIn.equipStack(equipmentslottype, itemstack.copy());
 			itemstack.setCount(0);
-			return new InteractionResultHolder<>(InteractionResult.SUCCESS, itemstack);
+			return new TypedActionResult<>(ActionResult.SUCCESS, itemstack);
 		} else {
-			return new InteractionResultHolder<>(InteractionResult.FAIL, itemstack);
+			return new TypedActionResult<>(ActionResult.FAIL, itemstack);
 		}
 	}
 
-	public static boolean isWearingGoggles(Player player) {
-		for (Predicate<Player> predicate : IS_WEARING_PREDICATES) {
+	public static boolean isWearingGoggles(PlayerEntity player) {
+		for (Predicate<PlayerEntity> predicate : IS_WEARING_PREDICATES) {
 			if (predicate.test(player)) {
 				return true;
 			}
@@ -61,7 +59,7 @@ public class GogglesItem extends Item {
 	 * Use this method to add custom entry points to the goggles overlay, e.g. custom
 	 * armor, handheld alternatives, etc.
 	 */
-	public static void addIsWearingPredicate(Predicate<Player> predicate) {
+	public static void addIsWearingPredicate(Predicate<PlayerEntity> predicate) {
 		IS_WEARING_PREDICATES.add(predicate);
 	}
 

@@ -1,8 +1,6 @@
 package com.simibubi.create.compat.rei.category;
 
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.compat.rei.category.animations.AnimatedCrafter;
 import com.simibubi.create.compat.rei.display.CreateDisplay;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
@@ -16,12 +14,13 @@ import me.shedaniel.rei.api.client.gui.widgets.Widgets;
 import me.shedaniel.rei.api.common.entry.EntryIngredient;
 import me.shedaniel.rei.api.common.util.EntryIngredients;
 import me.shedaniel.rei.api.common.util.EntryStacks;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.util.collection.DefaultedList;
 
 public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRecipe> {
 
@@ -70,7 +69,7 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 		float scale = getScale(recipe);
 		FloatingDimension slotSize = new FloatingDimension(18 * scale, 18 * scale);
 
-		NonNullList<Ingredient> ingredients = recipe.getIngredients();
+		DefaultedList<Ingredient> ingredients = recipe.getIngredients();
 		for (int i = 0; i < ingredients.size(); i++) {
 			float f = 19 * scale;
 			int xPosition = (int) (x + 1 + (i % getWidth(recipe)) * f) + pos.x;
@@ -89,11 +88,11 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 	}
 
 	@Override
-	public void draw(CraftingRecipe recipe, GuiGraphics graphics, double mouseX, double mouseY) {
-		PoseStack matrixStack = graphics.pose();
-		matrixStack.pushPose();
+	public void draw(CraftingRecipe recipe, DrawContext graphics, double mouseX, double mouseY) {
+		MatrixStack matrixStack = graphics.getMatrices();
+		matrixStack.push();
 		matrixStack.translate(0, -4, 0); // why?
-		matrixStack.pushPose();
+		matrixStack.push();
 		float scale = getScale(recipe);
 		matrixStack.translate(getXPadding(recipe), getYPadding(recipe), 0);
 
@@ -102,20 +101,20 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 				int row = i / getWidth(recipe);
 				int col = i % getWidth(recipe);
 
-				matrixStack.pushPose();
+				matrixStack.push();
 				matrixStack.translate(col * 19 * scale, row * 19 * scale, 0);
 				matrixStack.scale(scale, scale, scale);
 				AllGuiTextures.JEI_SLOT.render(graphics, 0, 0);
-				matrixStack.popPose();
+				matrixStack.pop();
 			}
 
-		matrixStack.popPose();
+		matrixStack.pop();
 
 		AllGuiTextures.JEI_SLOT.render(graphics, 133, 80);
 		AllGuiTextures.JEI_DOWN_ARROW.render(graphics, 128, 59);
 		crafter.draw(graphics, 129, 25);
 
-		matrixStack.pushPose();
+		matrixStack.push();
 		matrixStack.translate(0, 0, 300);
 
 		int amount = 0;
@@ -125,8 +124,8 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 			amount++;
 		}
 
-		graphics.drawString(Minecraft.getInstance().font, String.valueOf(amount), 142, 39, 0xFFFFFF, true);
-		matrixStack.popPose();
-		matrixStack.popPose();
+		graphics.drawText(MinecraftClient.getInstance().textRenderer, String.valueOf(amount), 142, 39, 0xFFFFFF, true);
+		matrixStack.pop();
+		matrixStack.pop();
 	}
 }

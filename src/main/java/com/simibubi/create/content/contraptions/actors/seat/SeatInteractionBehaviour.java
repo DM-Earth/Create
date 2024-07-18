@@ -3,16 +3,15 @@ package com.simibubi.create.content.contraptions.actors.seat;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.behaviour.MovingInteractionBehaviour;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
 
 public class SeatInteractionBehaviour extends MovingInteractionBehaviour {
 
 	@Override
-	public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos,
+	public boolean handlePlayerInteraction(PlayerEntity player, Hand activeHand, BlockPos localPos,
 		AbstractContraptionEntity contraptionEntity) {
 		return false;
 	}

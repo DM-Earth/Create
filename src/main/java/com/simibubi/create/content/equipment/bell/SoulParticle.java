@@ -1,23 +1,21 @@
 package com.simibubi.create.content.equipment.bell;
 
 import org.joml.Quaternionf;
-
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllParticleTypes;
 import io.github.fabricators_of_create.porting_lib.util.ParticleHelper;
-
-import net.minecraft.client.Camera;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.particle.SpriteSet;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.util.Mth;
+import net.minecraft.client.particle.SpriteProvider;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 
 public class SoulParticle extends CustomRotationParticle {
 
-	private final SpriteSet animatedSprite;
+	private final SpriteProvider animatedSprite;
 
 	protected int startTicks;
 	protected int endTicks;
@@ -42,12 +40,12 @@ public class SoulParticle extends CustomRotationParticle {
 	protected boolean isVisible = true;
 	protected int perimeterFrames = 8;
 
-	public SoulParticle(ClientLevel worldIn, double x, double y, double z, double vx, double vy, double vz,
-		SpriteSet spriteSet, ParticleOptions data) {
+	public SoulParticle(ClientWorld worldIn, double x, double y, double z, double vx, double vy, double vz,
+		SpriteProvider spriteSet, ParticleEffect data) {
 		super(worldIn, x, y, z, spriteSet, 0);
 		this.animatedSprite = spriteSet;
-		this.quadSize = 0.5f;
-		this.setSize(this.quadSize, this.quadSize);
+		this.scale = 0.5f;
+		this.setBoundingBoxSpacing(this.scale, this.scale);
 
 		this.loopLength = loopFrames + (int) (this.random.nextFloat() * 5f - 4f);
 		this.startTicks = startFrames + (int) (this.random.nextFloat() * 5f - 4f);
@@ -62,7 +60,7 @@ public class SoulParticle extends CustomRotationParticle {
 		this.isExpandingPerimeter = data instanceof ExpandingPerimeterData;
 		this.animationStage = !isPerimeter ? new StartAnimation(this) : new PerimeterAnimation(this);
 		if (isPerimeter) {
-			yo = y -= .5f - 1 / 128f;
+			prevPosY = y -= .5f - 1 / 128f;
 			totalFrames = perimeterFrames;
 			isVisible = false;
 		}
@@ -73,34 +71,34 @@ public class SoulParticle extends CustomRotationParticle {
 		animationStage.tick();
 		animationStage = animationStage.getNext();
 
-		BlockPos pos = BlockPos.containing(x, y, z);
+		BlockPos pos = BlockPos.ofFloored(x, y, z);
 		if (animationStage == null)
-			remove();
-		if (!SoulPulseEffect.isDark(level, pos)) {
+			markDead();
+		if (!SoulPulseEffect.isDark(world, pos)) {
 			isVisible = true;
 			if (!isPerimeter)
-				remove();
+				markDead();
 		} else if (isPerimeter)
 			isVisible = false;
 	}
 
 	@Override
-	public void render(VertexConsumer builder, Camera camera, float partialTicks) {
+	public void buildGeometry(VertexConsumer builder, Camera camera, float partialTicks) {
 		if (!isVisible)
 			return;
-		super.render(builder, camera, partialTicks);
+		super.buildGeometry(builder, camera, partialTicks);
 	}
 
 	public void setFrame(int frame) {
 		if (frame >= 0 && frame < totalFrames)
-			setSprite(animatedSprite.get(frame, totalFrames));
+			setSprite(animatedSprite.getSprite(frame, totalFrames));
 	}
 
 	@Override
 	public Quaternionf getCustomRotation(Camera camera, float partialTicks) {
 		if (isPerimeter)
-			return Axis.XP.rotationDegrees(90);
-		return new Quaternionf().rotationXYZ(0, -camera.getYRot() * Mth.DEG_TO_RAD, 0);
+			return RotationAxis.POSITIVE_X.rotationDegrees(90);
+		return new Quaternionf().rotationXYZ(0, -camera.getYaw() * MathHelper.RADIANS_PER_DEGREE, 0);
 	}
 
 	public static class Data extends BasicParticleData<SoulParticle> {

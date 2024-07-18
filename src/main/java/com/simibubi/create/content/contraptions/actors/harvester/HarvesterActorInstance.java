@@ -12,15 +12,14 @@ import com.simibubi.create.content.contraptions.render.ActorInstance;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class HarvesterActorInstance extends ActorInstance {
     static float originOffset = 1 / 16f;
-    static Vec3 rotOffset = new Vec3(0.5f, -2 * originOffset + 0.5f, originOffset + 0.5f);
+    static Vec3d rotOffset = new Vec3d(0.5f, -2 * originOffset + 0.5f, originOffset + 0.5f);
 
     protected ModelData harvester;
     private Direction facing;
@@ -38,11 +37,11 @@ public class HarvesterActorInstance extends ActorInstance {
 
         BlockState state = context.state;
 
-        facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+        facing = state.get(Properties.HORIZONTAL_FACING);
 
         harvester = material.getModel(getRollingPartial(), state).createInstance();
 
-        horizontalAngle = facing.toYRot() + ((facing.getAxis() == Direction.Axis.X) ? 180 : 0);
+        horizontalAngle = facing.asRotation() + ((facing.getAxis() == Direction.Axis.X) ? 180 : 0);
 
 		harvester.setBlockLight(localBlockLight());
 	}
@@ -51,7 +50,7 @@ public class HarvesterActorInstance extends ActorInstance {
 		return AllPartialModels.HARVESTER_BLADE;
 	}
 	
-	protected Vec3 getRotationOffset() {
+	protected Vec3d getRotationOffset() {
 		return rotOffset;
 	}
 	

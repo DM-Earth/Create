@@ -1,7 +1,8 @@
 package com.simibubi.create.foundation.gui;
 
 import java.util.function.BiConsumer;
-
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import com.simibubi.create.foundation.gui.widget.Label;
 import com.simibubi.create.foundation.gui.widget.ScrollInput;
 import com.simibubi.create.foundation.gui.widget.SelectionScrollInput;
@@ -10,17 +11,14 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Pair;
 
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.components.EditBox;
-
 public class ModularGuiLineBuilder {
 
 	private ModularGuiLine target;
-	private Font font;
+	private TextRenderer font;
 	private int x;
 	private int y;
 
-	public ModularGuiLineBuilder(Font font, ModularGuiLine target, int x, int y) {
+	public ModularGuiLineBuilder(TextRenderer font, ModularGuiLine target, int x, int y) {
 		this.font = font;
 		this.target = target;
 		this.x = x;
@@ -60,9 +58,9 @@ public class ModularGuiLineBuilder {
 		target.add(Pair.of(input, dataKey));
 	}
 
-	public ModularGuiLineBuilder addIntegerTextInput(int x, int width, BiConsumer<EditBox, TooltipArea> inputTransform,
+	public ModularGuiLineBuilder addIntegerTextInput(int x, int width, BiConsumer<TextFieldWidget, TooltipArea> inputTransform,
 		String dataKey) {
-		return addTextInput(x, width, inputTransform.andThen((editBox, $) -> editBox.setFilter(s -> {
+		return addTextInput(x, width, inputTransform.andThen((editBox, $) -> editBox.setTextPredicate(s -> {
 			if (s.isEmpty())
 				return true;
 			try {
@@ -74,11 +72,11 @@ public class ModularGuiLineBuilder {
 		})), dataKey);
 	}
 
-	public ModularGuiLineBuilder addTextInput(int x, int width, BiConsumer<EditBox, TooltipArea> inputTransform,
+	public ModularGuiLineBuilder addTextInput(int x, int width, BiConsumer<TextFieldWidget, TooltipArea> inputTransform,
 		String dataKey) {
-		EditBox input = new EditBox(font, x + this.x + 5, y, width - 9, 8, Components.immutableEmpty());
-		input.setBordered(false);
-		input.setTextColor(0xffffff);
+		TextFieldWidget input = new TextFieldWidget(font, x + this.x + 5, y, width - 9, 8, Components.immutableEmpty());
+		input.setDrawsBackground(false);
+		input.setEditableColor(0xffffff);
 		input.setFocused(false);
 		input.mouseClicked(0, 0, 0);
 		TooltipArea tooltipArea = new TooltipArea(this.x + x, y - 4, width, 18);

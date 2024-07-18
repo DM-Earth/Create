@@ -2,18 +2,17 @@ package com.simibubi.create.content.logistics.filter;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.world.World;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
 import com.simibubi.create.foundation.utility.Pair;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 
 public class FilterItemStack {
 
@@ -22,7 +21,7 @@ public class FilterItemStack {
 	private FluidStack filterFluidStack;
 
 	public static FilterItemStack of(ItemStack filter) {
-		if (filter.hasTag()) {
+		if (filter.hasNbt()) {
 			if (AllItems.FILTER.isIn(filter))
 				return new ListFilterItemStack(filter);
 			if (AllItems.ATTRIBUTE_FILTER.isIn(filter))
@@ -32,8 +31,8 @@ public class FilterItemStack {
 		return new FilterItemStack(filter);
 	}
 
-	public static FilterItemStack of(CompoundTag tag) {
-		return of(ItemStack.of(tag));
+	public static FilterItemStack of(NbtCompound tag) {
+		return of(ItemStack.fromNbt(tag));
 	}
 
 	public static FilterItemStack empty() {
@@ -44,9 +43,9 @@ public class FilterItemStack {
 		return filterItemStack.isEmpty();
 	}
 
-	public CompoundTag serializeNBT() {
-		CompoundTag ret = new CompoundTag();
-		filterItemStack.save(ret);
+	public NbtCompound serializeNBT() {
+		NbtCompound ret = new NbtCompound();
+		filterItemStack.writeNbt(ret);
 		return ret;
 	}
 
@@ -54,7 +53,7 @@ public class FilterItemStack {
 		return filterItemStack;
 	}
 
-	public FluidStack fluid(Level level) {
+	public FluidStack fluid(World level) {
 		resolveFluid(level);
 		return filterFluidStack;
 	}
@@ -65,21 +64,21 @@ public class FilterItemStack {
 
 	//
 
-	public boolean test(Level world, ItemStack stack) {
+	public boolean test(World world, ItemStack stack) {
 		return test(world, stack, false);
 	}
 
-	public boolean test(Level world, FluidStack stack) {
+	public boolean test(World world, FluidStack stack) {
 		return test(world, stack, true);
 	}
 
-	public boolean test(Level world, ItemStack stack, boolean matchNBT) {
+	public boolean test(World world, ItemStack stack, boolean matchNBT) {
 		if (isEmpty())
 			return true;
 		return FilterItem.testDirect(filterItemStack, stack, matchNBT);
 	}
 
-	public boolean test(Level world, FluidStack stack, boolean matchNBT) {
+	public boolean test(World world, FluidStack stack, boolean matchNBT) {
 		if (isEmpty())
 			return true;
 		if (stack.isEmpty())
@@ -91,13 +90,13 @@ public class FilterItemStack {
 			return false;
 		if (!matchNBT)
 			return filterFluidStack.getFluid()
-				.isSame(stack.getFluid());
+				.matchesType(stack.getFluid());
 		return filterFluidStack.isFluidEqual(stack);
 	}
 
 	//
 
-	private void resolveFluid(Level world) {
+	private void resolveFluid(World world) {
 		if (!fluidExtracted) {
 			fluidExtracted = true;
 			if (GenericItemEmptying.canItemBeEmptied(world, filterItemStack))
@@ -120,7 +119,7 @@ public class FilterItemStack {
 
 		protected ListFilterItemStack(ItemStack filter) {
 			super(filter);
-			boolean defaults = !filter.hasTag();
+			boolean defaults = !filter.hasNbt();
 
 			containedItems = new ArrayList<>();
 			ItemStackHandler items = FilterItem.getFilterItems(filter);
@@ -131,15 +130,15 @@ public class FilterItemStack {
 			}
 
 			shouldRespectNBT = !defaults ? false
-				: filter.getTag()
+				: filter.getNbt()
 					.getBoolean("RespectNBT");
 			isBlacklist = defaults ? false
-				: filter.getTag()
+				: filter.getNbt()
 					.getBoolean("Blacklist");
 		}
 
 		@Override
-		public boolean test(Level world, ItemStack stack, boolean matchNBT) {
+		public boolean test(World world, ItemStack stack, boolean matchNBT) {
 			if (containedItems.isEmpty())
 				return super.test(world, stack, matchNBT);
 			for (FilterItemStack filterItemStack : containedItems)
@@ -149,7 +148,7 @@ public class FilterItemStack {
 		}
 
 		@Override
-		public boolean test(Level world, FluidStack stack, boolean matchNBT) {
+		public boolean test(World world, FluidStack stack, boolean matchNBT) {
 			for (FilterItemStack filterItemStack : containedItems)
 				if (filterItemStack.test(world, stack, shouldRespectNBT))
 					return !isBlacklist;
@@ -169,18 +168,18 @@ public class FilterItemStack {
 
 		protected AttributeFilterItemStack(ItemStack filter) {
 			super(filter);
-			boolean defaults = !filter.hasTag();
+			boolean defaults = !filter.hasNbt();
 
 			attributeTests = new ArrayList<>();
 			whitelistMode = WhitelistMode.values()[defaults ? 0
-				: filter.getTag()
+				: filter.getNbt()
 					.getInt("WhitelistMode")];
 
-			ListTag attributes = defaults ? new ListTag()
-				: filter.getTag()
-					.getList("MatchedAttributes", Tag.TAG_COMPOUND);
-			for (Tag inbt : attributes) {
-				CompoundTag compound = (CompoundTag) inbt;
+			NbtList attributes = defaults ? new NbtList()
+				: filter.getNbt()
+					.getList("MatchedAttributes", NbtElement.COMPOUND_TYPE);
+			for (NbtElement inbt : attributes) {
+				NbtCompound compound = (NbtCompound) inbt;
 				ItemAttribute attribute = ItemAttribute.fromNBT(compound);
 				if (attribute != null)
 					attributeTests.add(Pair.of(attribute, compound.getBoolean("Inverted")));
@@ -188,12 +187,12 @@ public class FilterItemStack {
 		}
 
 		@Override
-		public boolean test(Level world, FluidStack stack, boolean matchNBT) {
+		public boolean test(World world, FluidStack stack, boolean matchNBT) {
 			return false;
 		}
 
 		@Override
-		public boolean test(Level world, ItemStack stack, boolean matchNBT) {
+		public boolean test(World world, ItemStack stack, boolean matchNBT) {
 			if (attributeTests.isEmpty())
 				return super.test(world, stack, matchNBT);
 			for (Pair<ItemAttribute, Boolean> test : attributeTests) {

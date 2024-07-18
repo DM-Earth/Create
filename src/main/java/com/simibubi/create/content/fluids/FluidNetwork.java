@@ -24,15 +24,15 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.Level;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class FluidNetwork {
 
 	private static int CYCLES_PER_TICK = 16;
 
-	Level world;
+	World world;
 	BlockFace start;
 
 	Supplier<Storage<FluidVariant>> sourceSupplier;
@@ -47,7 +47,7 @@ public class FluidNetwork {
 	List<Pair<BlockFace, Storage<FluidVariant>>> targets;
 	Map<BlockPos, WeakReference<FluidTransportBehaviour>> cache;
 
-	public FluidNetwork(Level world, BlockFace location, Supplier<Storage<FluidVariant>> sourceSupplier) {
+	public FluidNetwork(World world, BlockFace location, Supplier<Storage<FluidVariant>> sourceSupplier) {
 		this.world = world;
 		this.start = location;
 		this.sourceSupplier = sourceSupplier;
@@ -171,7 +171,7 @@ public class FluidNetwork {
 			return;
 		for (Pair<BlockFace, Storage<FluidVariant>> pair : targets) {
 			if (pair.getSecond()
-				!= null && world.getGameTime() % 40 != 0)
+				!= null && world.getTime() % 40 != 0)
 				continue;
 			PipeConnection pipeConnection = get(pair.getFirst());
 			if (pipeConnection == null)
@@ -285,7 +285,7 @@ public class FluidNetwork {
 	}
 
 	private boolean isPresent(BlockFace location) {
-		return world.isLoaded(location.getPos());
+		return world.canSetBlock(location.getPos());
 	}
 
 	@Nullable

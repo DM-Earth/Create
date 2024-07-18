@@ -1,13 +1,13 @@
 package com.simibubi.create.content.redstone.link.controller;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
 
 public class LinkedControllerStopLecternPacket extends LinkedControllerPacketBase {
 
-	public LinkedControllerStopLecternPacket(FriendlyByteBuf buffer) {
+	public LinkedControllerStopLecternPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
@@ -16,11 +16,11 @@ public class LinkedControllerStopLecternPacket extends LinkedControllerPacketBas
 	}
 
 	@Override
-	protected void handleLectern(ServerPlayer player, LecternControllerBlockEntity lectern) {
+	protected void handleLectern(ServerPlayerEntity player, LecternControllerBlockEntity lectern) {
 		lectern.tryStopUsing(player);
 	}
 
 	@Override
-	protected void handleItem(ServerPlayer player, ItemStack heldItem) { }
+	protected void handleItem(ServerPlayerEntity player, ItemStack heldItem) { }
 
 }

@@ -9,10 +9,9 @@ import com.simibubi.create.foundation.ponder.Selection;
 import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class PulleyScenes {
 
@@ -77,7 +76,7 @@ public class PulleyScenes {
 		ElementLink<WorldSectionElement> chassis =
 			scene.world.showIndependentSection(util.select.fromTo(2, 1, 1, 0, 2, 1), Direction.SOUTH);
 		scene.world.moveSection(chassis, util.vector.of(1, 0, 1), 0);
-		scene.world.replaceBlocks(util.select.fromTo(0, 2, 1, 2, 1, 1), Blocks.OAK_PLANKS.defaultBlockState(), false);
+		scene.world.replaceBlocks(util.select.fromTo(0, 2, 1, 2, 1, 1), Blocks.OAK_PLANKS.getDefaultState(), false);
 
 		scene.idle(5);
 		scene.world.showSectionAndMerge(util.select.position(2, 1, 0), Direction.SOUTH, chassis);
@@ -132,7 +131,7 @@ public class PulleyScenes {
 
 		scene.world.showSection(util.select.position(pulleyPos), Direction.SOUTH);
 		ElementLink<WorldSectionElement> glass =
-			scene.world.showIndependentSection(util.select.position(pulleyPos.below()), Direction.UP);
+			scene.world.showIndependentSection(util.select.position(pulleyPos.down()), Direction.UP);
 		scene.idle(20);
 
 		scene.world.toggleRedstonePower(redstoneStuff);
@@ -161,7 +160,7 @@ public class PulleyScenes {
 		scene.world.hideSection(util.select.position(flowerPos), Direction.DOWN);
 		scene.idle(40);
 
-		scene.world.setBlock(flowerPos, Blocks.BLUE_ORCHID.defaultBlockState(), false);
+		scene.world.setBlock(flowerPos, Blocks.BLUE_ORCHID.getDefaultState(), false);
 		scene.world.showSection(util.select.position(flowerPos), Direction.DOWN);
 		scene.overlay.showCenteredScrollInput(pulleyPos, Direction.UP, 60);
 		scene.overlay.showControls(new InputWindowElement(util.vector.topOf(pulleyPos), Pointing.DOWN).rightClick(),

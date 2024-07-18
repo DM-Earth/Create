@@ -9,9 +9,8 @@ import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.Direction;
 
 public class ToolBoxInstance extends BlockEntityInstance<ToolboxBlockEntity> implements DynamicInstance {
 
@@ -22,13 +21,13 @@ public class ToolBoxInstance extends BlockEntityInstance<ToolboxBlockEntity> imp
 	public ToolBoxInstance(MaterialManager materialManager, ToolboxBlockEntity blockEntity) {
 		super(materialManager, blockEntity);
 
-		facing = blockState.getValue(ToolboxBlock.FACING)
+		facing = blockState.get(ToolboxBlock.FACING)
 				.getOpposite();
 	}
 
 	@Override
 	public void init() {
-		BlockState blockState = blockEntity.getBlockState();
+		BlockState blockState = blockEntity.getCachedState();
 
 		Instancer<ModelData> drawerModel = materialManager.defaultSolid()
 				.material(Materials.TRANSFORMED)
@@ -62,7 +61,7 @@ public class ToolBoxInstance extends BlockEntityInstance<ToolboxBlockEntity> imp
 		lid.loadIdentity()
 				.translate(instancePos)
 				.centre()
-				.rotateY(-facing.toYRot())
+				.rotateY(-facing.asRotation())
 				.unCentre()
 				.translate(0, 6 / 16f, 12 / 16f)
 				.rotateX(135 * lidAngle)
@@ -72,7 +71,7 @@ public class ToolBoxInstance extends BlockEntityInstance<ToolboxBlockEntity> imp
 			drawers[offset].loadIdentity()
 					.translate(instancePos)
 					.centre()
-					.rotateY(-facing.toYRot())
+					.rotateY(-facing.asRotation())
 					.unCentre()
 					.translate(0, offset * 1 / 8f, -drawerOffset * .175f * (2 - offset));
 		}

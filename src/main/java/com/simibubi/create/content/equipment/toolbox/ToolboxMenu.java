@@ -6,40 +6,40 @@ import com.simibubi.create.AllMenuTypes;
 import com.simibubi.create.foundation.gui.menu.MenuBase;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.SlotItemHandler;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.util.math.BlockPos;
 
 public class ToolboxMenu extends MenuBase<ToolboxBlockEntity> {
 
-	public ToolboxMenu(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	public ToolboxMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id, inv, extraData);
 	}
 
-	public ToolboxMenu(MenuType<?> type, int id, Inventory inv, ToolboxBlockEntity be) {
+	public ToolboxMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, ToolboxBlockEntity be) {
 		super(type, id, inv, be);
 		be.startOpen(player);
 	}
 
-	public static ToolboxMenu create(int id, Inventory inv, ToolboxBlockEntity be) {
+	public static ToolboxMenu create(int id, PlayerInventory inv, ToolboxBlockEntity be) {
 		return new ToolboxMenu(AllMenuTypes.TOOLBOX.get(), id, inv, be);
 	}
 
 	@Override
-	protected ToolboxBlockEntity createOnClient(FriendlyByteBuf extraData) {
+	protected ToolboxBlockEntity createOnClient(PacketByteBuf extraData) {
 		BlockPos readBlockPos = extraData.readBlockPos();
-		CompoundTag readNbt = extraData.readNbt();
+		NbtCompound readNbt = extraData.readNbt();
 
-		ClientLevel world = Minecraft.getInstance().level;
+		ClientWorld world = MinecraftClient.getInstance().world;
 		BlockEntity blockEntity = world.getBlockEntity(readBlockPos);
 		if (blockEntity instanceof ToolboxBlockEntity) {
 			ToolboxBlockEntity toolbox = (ToolboxBlockEntity) blockEntity;
@@ -51,19 +51,19 @@ public class ToolboxMenu extends MenuBase<ToolboxBlockEntity> {
 	}
 
 	@Override
-	public ItemStack quickMoveStack(Player player, int index) {
+	public ItemStack quickMove(PlayerEntity player, int index) {
 		Slot clickedSlot = getSlot(index);
-		if (!clickedSlot.hasItem())
+		if (!clickedSlot.hasStack())
 			return ItemStack.EMPTY;
 
-		ItemStack stack = clickedSlot.getItem();
+		ItemStack stack = clickedSlot.getStack();
 		int size = contentHolder.inventory.getSlotCount();
 		boolean success = false;
 		if (index < size) {
-			success = !moveItemStackTo(stack, size, slots.size(), false);
+			success = !insertItem(stack, size, slots.size(), false);
 			contentHolder.inventory.onContentsChanged(index);
 		} else
-			success = !moveItemStackTo(stack, 0, size - 1, false);
+			success = !insertItem(stack, 0, size - 1, false);
 
 		return success ? ItemStack.EMPTY : stack;
 	}
@@ -74,35 +74,35 @@ public class ToolboxMenu extends MenuBase<ToolboxBlockEntity> {
 	}
 
 	@Override
-	public void clicked(int index, int flags, ClickType type, Player player) {
+	public void onSlotClick(int index, int flags, SlotActionType type, PlayerEntity player) {
 		int size = contentHolder.inventory.getSlotCount();
 
 		if (index >= 0 && index < size) {
-			ItemStack itemInClickedSlot = getSlot(index).getItem();
-			ItemStack carried = getCarried();
+			ItemStack itemInClickedSlot = getSlot(index).getStack();
+			ItemStack carried = getCursorStack();
 
-			if (type == ClickType.PICKUP && !carried.isEmpty() && !itemInClickedSlot.isEmpty()
+			if (type == SlotActionType.PICKUP && !carried.isEmpty() && !itemInClickedSlot.isEmpty()
 				&& ToolboxInventory.canItemsShareCompartment(itemInClickedSlot, carried)) {
 				int subIndex = index % STACKS_PER_COMPARTMENT;
 				if (subIndex != STACKS_PER_COMPARTMENT - 1) {
-					clicked(index - subIndex + STACKS_PER_COMPARTMENT - 1, flags, type, player);
+					onSlotClick(index - subIndex + STACKS_PER_COMPARTMENT - 1, flags, type, player);
 					return;
 				}
 			}
 
-			if (type == ClickType.PICKUP && carried.isEmpty() && itemInClickedSlot.isEmpty())
-				if (!player.level().isClientSide) {
+			if (type == SlotActionType.PICKUP && carried.isEmpty() && itemInClickedSlot.isEmpty())
+				if (!player.getWorld().isClient) {
 					contentHolder.inventory.filters.set(index / STACKS_PER_COMPARTMENT, ItemStack.EMPTY);
 					contentHolder.sendData();
 				}
 
 		}
-		super.clicked(index, flags, type, player);
+		super.onSlotClick(index, flags, type, player);
 	}
 
 	@Override
-	public boolean canDragTo(Slot slot) {
-		return slot.index > contentHolder.inventory.getSlotCount() && super.canDragTo(slot);
+	public boolean canInsertIntoSlot(Slot slot) {
+		return slot.id > contentHolder.inventory.getSlotCount() && super.canInsertIntoSlot(slot);
 	}
 
 	public ItemStack getFilter(int compartment) {
@@ -113,7 +113,7 @@ public class ToolboxMenu extends MenuBase<ToolboxBlockEntity> {
 		int count = 0;
 		int baseSlot = compartment * STACKS_PER_COMPARTMENT;
 		for (int i = 0; i < STACKS_PER_COMPARTMENT; i++)
-			count += getSlot(baseSlot + i).getItem()
+			count += getSlot(baseSlot + i).getStack()
 				.getCount();
 		return count;
 	}
@@ -150,9 +150,9 @@ public class ToolboxMenu extends MenuBase<ToolboxBlockEntity> {
 	}
 
 	@Override
-	public void removed(Player playerIn) {
-		super.removed(playerIn);
-		if (!playerIn.level().isClientSide)
+	public void onClosed(PlayerEntity playerIn) {
+		super.onClosed(playerIn);
+		if (!playerIn.getWorld().isClient)
 			contentHolder.stopOpen(playerIn);
 	}
 

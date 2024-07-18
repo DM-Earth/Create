@@ -8,8 +8,7 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
 
 /**
  * Event that is fired just before a SmartBlockEntity is being deserialized<br>
@@ -52,7 +51,7 @@ public class BlockEntityBehaviourEvent {
 	}
 
 	public BlockState getBlockState() {
-		return smartBlockEntity.getBlockState();
+		return smartBlockEntity.getCachedState();
 	}
 
 	public interface Callback {

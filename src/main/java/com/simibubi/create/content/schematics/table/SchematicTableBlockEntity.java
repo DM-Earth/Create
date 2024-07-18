@@ -1,27 +1,25 @@
 package com.simibubi.create.content.schematics.table;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.IInteractionChecker;
 import com.simibubi.create.foundation.utility.Lang;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
-
-public class SchematicTableBlockEntity extends SmartBlockEntity implements MenuProvider, IInteractionChecker {
+public class SchematicTableBlockEntity extends SmartBlockEntity implements NamedScreenHandlerFactory, IInteractionChecker {
 
 	public SchematicTableInventory inventory;
 	public boolean isUploading;
@@ -37,7 +35,7 @@ public class SchematicTableBlockEntity extends SmartBlockEntity implements MenuP
 		@Override
 		protected void onContentsChanged(int slot) {
 			super.onContentsChanged(slot);
-			setChanged();
+			markDirty();
 		}
 	}
 
@@ -48,13 +46,13 @@ public class SchematicTableBlockEntity extends SmartBlockEntity implements MenuP
 		uploadingProgress = 0;
 	}
 
-	public void sendToMenu(FriendlyByteBuf buffer) {
-		buffer.writeBlockPos(getBlockPos());
-		buffer.writeNbt(getUpdateTag());
+	public void sendToMenu(PacketByteBuf buffer) {
+		buffer.writeBlockPos(getPos());
+		buffer.writeNbt(toInitialChunkDataNbt());
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		inventory.deserializeNBT(compound.getCompound("Inventory"));
 		super.read(compound, clientPacket);
 		if (!clientPacket)
@@ -71,7 +69,7 @@ public class SchematicTableBlockEntity extends SmartBlockEntity implements MenuP
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		compound.put("Inventory", inventory.serializeNBT());
 		super.write(compound, clientPacket);
 
@@ -87,7 +85,7 @@ public class SchematicTableBlockEntity extends SmartBlockEntity implements MenuP
 		// Update Client block entity
 		if (sendUpdate) {
 			sendUpdate = false;
-			level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 6);
+			world.updateListeners(pos, getCachedState(), getCachedState(), 6);
 		}
 	}
 
@@ -107,22 +105,22 @@ public class SchematicTableBlockEntity extends SmartBlockEntity implements MenuP
 	}
 
 	@Override
-	public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
+	public ScreenHandler createMenu(int id, PlayerInventory inv, PlayerEntity player) {
 		return SchematicTableMenu.create(id, inv, this);
 	}
 
 	@Override
-	public Component getDisplayName() {
+	public Text getDisplayName() {
 		return Lang.translateDirect("gui.schematicTable.title");
 	}
 
 	@Override
-	public boolean canPlayerUse(Player player) {
-		if (level == null || level.getBlockEntity(worldPosition) != this) {
+	public boolean canPlayerUse(PlayerEntity player) {
+		if (world == null || world.getBlockEntity(pos) != this) {
 			return false;
 		}
-		return player.distanceToSqr(worldPosition.getX() + 0.5D, worldPosition.getY() + 0.5D,
-			worldPosition.getZ() + 0.5D) <= 64.0D;
+		return player.squaredDistanceTo(pos.getX() + 0.5D, pos.getY() + 0.5D,
+			pos.getZ() + 0.5D) <= 64.0D;
 	}
 
 	@Override

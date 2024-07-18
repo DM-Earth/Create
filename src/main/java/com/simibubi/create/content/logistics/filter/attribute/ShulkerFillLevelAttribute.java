@@ -6,16 +6,14 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.ShulkerBoxBlock;
+import net.minecraft.inventory.Inventories;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.collection.DefaultedList;
 import com.simibubi.create.content.logistics.filter.ItemAttribute;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.NonNullList;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.ShulkerBoxBlock;
 
 public class ShulkerFillLevelAttribute implements ItemAttribute {
 	public static final ShulkerFillLevelAttribute EMPTY = new ShulkerFillLevelAttribute(null);
@@ -53,13 +51,13 @@ public class ShulkerFillLevelAttribute implements ItemAttribute {
 	}
 
 	@Override
-	public void writeNBT(CompoundTag nbt) {
+	public void writeNBT(NbtCompound nbt) {
 		if (levels != null)
 			nbt.putString("id", levels.key);
 	}
 
 	@Override
-	public ItemAttribute readNBT(CompoundTag nbt) {
+	public ItemAttribute readNBT(NbtCompound nbt) {
 		return nbt.contains("id") ? new ShulkerFillLevelAttribute(ShulkerLevels.fromKey(nbt.getString("id"))) : EMPTY;
 	}
 
@@ -82,13 +80,13 @@ public class ShulkerFillLevelAttribute implements ItemAttribute {
 		}
 
 		private static boolean isShulker(ItemStack stack) {
-			return Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
+			return Block.getBlockFromItem(stack.getItem()) instanceof ShulkerBoxBlock;
 		}
 
 		public boolean canApply(ItemStack testStack) {
 			if (!isShulker(testStack))
 				return false;
-			CompoundTag compoundnbt = testStack.getTagElement("BlockEntityTag");
+			NbtCompound compoundnbt = testStack.getSubNbt("BlockEntityTag");
 			if (compoundnbt == null)
 				return requiredSize.test(0);
 			if (compoundnbt.contains("LootTable", 8))
@@ -98,9 +96,9 @@ public class ShulkerFillLevelAttribute implements ItemAttribute {
 				if (rawSize < 27)
 					return requiredSize.test(rawSize);
 
-				NonNullList<ItemStack> inventory = NonNullList.withSize(27, ItemStack.EMPTY);
-				ContainerHelper.loadAllItems(compoundnbt, inventory);
-				boolean isFull = inventory.stream().allMatch(itemStack -> !itemStack.isEmpty() && itemStack.getCount() == itemStack.getMaxStackSize());
+				DefaultedList<ItemStack> inventory = DefaultedList.ofSize(27, ItemStack.EMPTY);
+				Inventories.readNbt(compoundnbt, inventory);
+				boolean isFull = inventory.stream().allMatch(itemStack -> !itemStack.isEmpty() && itemStack.getCount() == itemStack.getMaxCount());
 				return requiredSize.test(isFull ? Integer.MAX_VALUE : rawSize);
 			}
 			return requiredSize.test(0);

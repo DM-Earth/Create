@@ -6,41 +6,39 @@ import java.util.Map;
 import java.util.function.UnaryOperator;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.entity.MobSpawnerBlockEntity;
+import net.minecraft.item.EnchantedBookItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.text.Text;
 import com.simibubi.create.AllBlockEntityTypes;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.EnchantedBookItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
 
 public final class NBTProcessors {
 
-	private static final Map<BlockEntityType<?>, UnaryOperator<CompoundTag>> processors = new HashMap<>();
-	private static final Map<BlockEntityType<?>, UnaryOperator<CompoundTag>> survivalProcessors = new HashMap<>();
+	private static final Map<BlockEntityType<?>, UnaryOperator<NbtCompound>> processors = new HashMap<>();
+	private static final Map<BlockEntityType<?>, UnaryOperator<NbtCompound>> survivalProcessors = new HashMap<>();
 
-	public static synchronized void addProcessor(BlockEntityType<?> type, UnaryOperator<CompoundTag> processor) {
+	public static synchronized void addProcessor(BlockEntityType<?> type, UnaryOperator<NbtCompound> processor) {
 		processors.put(type, processor);
 	}
 
 	public static synchronized void addSurvivalProcessor(BlockEntityType<?> type,
-		UnaryOperator<CompoundTag> processor) {
+		UnaryOperator<NbtCompound> processor) {
 		survivalProcessors.put(type, processor);
 	}
 
 	static {
 		String[] signSides = new String[] { "front_text", "back_text" };
-		UnaryOperator<CompoundTag> signProcessor = data -> {
+		UnaryOperator<NbtCompound> signProcessor = data -> {
 			for (String side : signSides) {
-				if (data.contains(side, Tag.TAG_COMPOUND)) {
-					CompoundTag sideData = data.getCompound(side);
-					if (sideData.contains("messages", Tag.TAG_LIST)) {
-						ListTag messages = sideData.getList("messages", Tag.TAG_STRING);
+				if (data.contains(side, NbtElement.COMPOUND_TYPE)) {
+					NbtCompound sideData = data.getCompound(side);
+					if (sideData.contains("messages", NbtElement.LIST_TYPE)) {
+						NbtList messages = sideData.getList("messages", NbtElement.STRING_TYPE);
 						for (int i = 0; i < messages.size(); i++) {
 							String string = messages.getString(i);
 							if (textComponentHasClickEvent(string)) {
@@ -56,20 +54,20 @@ public final class NBTProcessors {
 		addProcessor(BlockEntityType.HANGING_SIGN, signProcessor);
 
 		addProcessor(BlockEntityType.LECTERN, data -> {
-			if (!data.contains("Book", Tag.TAG_COMPOUND))
+			if (!data.contains("Book", NbtElement.COMPOUND_TYPE))
 				return data;
-			CompoundTag book = data.getCompound("Book");
+			NbtCompound book = data.getCompound("Book");
 
-			if (!book.contains("tag", Tag.TAG_COMPOUND))
+			if (!book.contains("tag", NbtElement.COMPOUND_TYPE))
 				return data;
-			CompoundTag tag = book.getCompound("tag");
+			NbtCompound tag = book.getCompound("tag");
 
-			if (!tag.contains("pages", Tag.TAG_LIST))
+			if (!tag.contains("pages", NbtElement.LIST_TYPE))
 				return data;
-			ListTag pages = tag.getList("pages", Tag.TAG_STRING);
+			NbtList pages = tag.getList("pages", NbtElement.STRING_TYPE);
 
-			for (Tag inbt : pages) {
-				if (textComponentHasClickEvent(inbt.getAsString()))
+			for (NbtElement inbt : pages) {
+				if (textComponentHasClickEvent(inbt.asString()))
 					return null;
 			}
 			return data;
@@ -78,15 +76,15 @@ public final class NBTProcessors {
 		addProcessor(AllBlockEntityTypes.PLACARD.get(), itemProcessor("Item"));
 	}
 
-	public static UnaryOperator<CompoundTag> itemProcessor(String tagKey) {
+	public static UnaryOperator<NbtCompound> itemProcessor(String tagKey) {
 		return data -> {
-			CompoundTag compound = data.getCompound(tagKey);
+			NbtCompound compound = data.getCompound(tagKey);
 			if (!compound.contains("tag", 10))
 				return data;
-			CompoundTag itemTag = compound.getCompound("tag");
+			NbtCompound itemTag = compound.getCompound("tag");
 			if (itemTag == null)
 				return data;
-			HashSet<String> keys = new HashSet<>(itemTag.getAllKeys());
+			HashSet<String> keys = new HashSet<>(itemTag.getKeys());
 			for (String key : keys)
 				if (isUnsafeItemNBTKey(key))
 					itemTag.remove(key);
@@ -97,19 +95,19 @@ public final class NBTProcessors {
 	}
 
 	public static ItemStack withUnsafeNBTDiscarded(ItemStack stack) {
-		if (stack.getTag() == null)
+		if (stack.getNbt() == null)
 			return stack;
 		ItemStack copy = stack.copy();
-		stack.getTag()
-			.getAllKeys()
+		stack.getNbt()
+			.getKeys()
 			.stream()
 			.filter(NBTProcessors::isUnsafeItemNBTKey)
-			.forEach(copy::removeTagKey);
+			.forEach(copy::removeSubNbt);
 		return copy;
 	}
 
 	public static boolean isUnsafeItemNBTKey(String name) {
-		if (name.equals(EnchantedBookItem.TAG_STORED_ENCHANTMENTS))
+		if (name.equals(EnchantedBookItem.STORED_ENCHANTMENTS_KEY))
 			return false;
 		if (name.equals("Enchantments"))
 			return false;
@@ -123,7 +121,7 @@ public final class NBTProcessors {
 	}
 
 	public static boolean textComponentHasClickEvent(String json) {
-		Component component = Component.Serializer.fromJson(json.isEmpty() ? "\"\"" : json);
+		Text component = Text.Serializer.fromJson(json.isEmpty() ? "\"\"" : json);
 		return component != null && component.getStyle() != null && component.getStyle()
 			.getClickEvent() != null;
 	}
@@ -131,7 +129,7 @@ public final class NBTProcessors {
 	private NBTProcessors() {}
 
 	@Nullable
-	public static CompoundTag process(BlockEntity blockEntity, CompoundTag compound, boolean survival) {
+	public static NbtCompound process(BlockEntity blockEntity, NbtCompound compound, boolean survival) {
 		if (compound == null)
 			return null;
 		BlockEntityType<?> type = blockEntity.getType();
@@ -141,9 +139,9 @@ public final class NBTProcessors {
 		if (compound != null && processors.containsKey(type))
 			return processors.get(type)
 				.apply(compound);
-		if (blockEntity instanceof SpawnerBlockEntity)
+		if (blockEntity instanceof MobSpawnerBlockEntity)
 			return compound;
-		if (blockEntity.onlyOpCanSetNbt())
+		if (blockEntity.copyItemDataRequiresOperator())
 			return null;
 		return compound;
 	}

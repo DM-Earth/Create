@@ -5,55 +5,55 @@ import com.simibubi.create.AllMenuTypes;
 import com.simibubi.create.foundation.gui.menu.MenuBase;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.SlotItemHandler;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.screen.slot.Slot;
 
 public class SchematicTableMenu extends MenuBase<SchematicTableBlockEntity> {
 
 	private Slot inputSlot;
 	private Slot outputSlot;
 
-	public SchematicTableMenu(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	public SchematicTableMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id, inv, extraData);
 	}
 
-	public SchematicTableMenu(MenuType<?> type, int id, Inventory inv, SchematicTableBlockEntity be) {
+	public SchematicTableMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, SchematicTableBlockEntity be) {
 		super(type, id, inv, be);
 	}
 
-	public static SchematicTableMenu create(int id, Inventory inv, SchematicTableBlockEntity be) {
+	public static SchematicTableMenu create(int id, PlayerInventory inv, SchematicTableBlockEntity be) {
 		return new SchematicTableMenu(AllMenuTypes.SCHEMATIC_TABLE.get(), id, inv, be);
 	}
 
 	public boolean canWrite() {
-		return inputSlot.hasItem() && !outputSlot.hasItem();
+		return inputSlot.hasStack() && !outputSlot.hasStack();
 	}
 
 	@Override
-	public ItemStack quickMoveStack(Player playerIn, int index) {
+	public ItemStack quickMove(PlayerEntity playerIn, int index) {
 		Slot clickedSlot = getSlot(index);
-		if (!clickedSlot.hasItem())
+		if (!clickedSlot.hasStack())
 			return ItemStack.EMPTY;
 
-		ItemStack stack = clickedSlot.getItem();
+		ItemStack stack = clickedSlot.getStack();
 		if (index < 2)
-			moveItemStackTo(stack, 2, slots.size(), false);
+			insertItem(stack, 2, slots.size(), false);
 		else
-			moveItemStackTo(stack, 0, 1, false);
+			insertItem(stack, 0, 1, false);
 
 		return ItemStack.EMPTY;
 	}
 
 	@Override
-	protected SchematicTableBlockEntity createOnClient(FriendlyByteBuf extraData) {
-		ClientLevel world = Minecraft.getInstance().level;
+	protected SchematicTableBlockEntity createOnClient(PacketByteBuf extraData) {
+		ClientWorld world = MinecraftClient.getInstance().world;
 		BlockEntity blockEntity = world.getBlockEntity(extraData.readBlockPos());
 		if (blockEntity instanceof SchematicTableBlockEntity schematicTable) {
 			schematicTable.readClient(extraData.readNbt());
@@ -70,7 +70,7 @@ public class SchematicTableMenu extends MenuBase<SchematicTableBlockEntity> {
 	protected void addSlots() {
 		inputSlot = new SlotItemHandler(contentHolder.inventory, 0, 21, 57) {
 			@Override
-			public boolean mayPlace(ItemStack stack) {
+			public boolean canInsert(ItemStack stack) {
 				return AllItems.EMPTY_SCHEMATIC.isIn(stack) || AllItems.SCHEMATIC_AND_QUILL.isIn(stack)
 						|| AllItems.SCHEMATIC.isIn(stack);
 			}
@@ -78,7 +78,7 @@ public class SchematicTableMenu extends MenuBase<SchematicTableBlockEntity> {
 
 		outputSlot = new SlotItemHandler(contentHolder.inventory, 1, 166, 57) {
 			@Override
-			public boolean mayPlace(ItemStack stack) {
+			public boolean canInsert(ItemStack stack) {
 				return false;
 			}
 		};

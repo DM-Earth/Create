@@ -29,15 +29,15 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
 
 public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation, IMultiBlockEntityContainer.Fluid, CustomRenderBoundingBoxBlockEntity, SidedStorageBlockEntity {
 
@@ -81,7 +81,7 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
 	protected void updateConnectivity() {
 		updateConnectivity = false;
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		if (!isController())
 			return;
@@ -98,8 +98,8 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		}
 
 		if (lastKnownPos == null)
-			lastKnownPos = getBlockPos();
-		else if (!lastKnownPos.equals(worldPosition) && worldPosition != null) {
+			lastKnownPos = getPos();
+		else if (!lastKnownPos.equals(pos) && pos != null) {
 			onPositionChanged();
 			return;
 		}
@@ -119,25 +119,25 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
 	@Override
 	public boolean isController() {
-		return controller == null || worldPosition.getX() == controller.getX()
-			&& worldPosition.getY() == controller.getY() && worldPosition.getZ() == controller.getZ();
+		return controller == null || pos.getX() == controller.getX()
+			&& pos.getY() == controller.getY() && pos.getZ() == controller.getZ();
 	}
 
 	@Override
 	public void initialize() {
 		super.initialize();
 		sendData();
-		if (level.isClientSide)
+		if (world.isClient)
 			invalidateRenderBoundingBox();
 	}
 
 	private void onPositionChanged() {
 		removeController(true);
-		lastKnownPos = worldPosition;
+		lastKnownPos = pos;
 	}
 
 	protected void onFluidStackChanged(FluidStack newFluidStack) {
-		if (!hasLevel())
+		if (!hasWorld())
 			return;
 
 		FluidVariantAttributeHandler handler = FluidVariantAttributes.getHandlerOrDefault(newFluidStack.getFluid());
@@ -152,11 +152,11 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
 			for (int xOffset = 0; xOffset < width; xOffset++) {
 				for (int zOffset = 0; zOffset < width; zOffset++) {
-					BlockPos pos = this.worldPosition.offset(xOffset, yOffset, zOffset);
-					FluidTankBlockEntity tankAt = ConnectivityHandler.partAt(getType(), level, pos);
+					BlockPos pos = this.pos.add(xOffset, yOffset, zOffset);
+					FluidTankBlockEntity tankAt = ConnectivityHandler.partAt(getType(), world, pos);
 					if (tankAt == null)
 						continue;
-					level.updateNeighbourForOutputSignal(pos, tankAt.getBlockState()
+					world.updateComparators(pos, tankAt.getCachedState()
 						.getBlock());
 					if (tankAt.luminosity == actualLuminosity)
 						continue;
@@ -165,8 +165,8 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			}
 		}
 
-		if (!level.isClientSide) {
-			setChanged();
+		if (!world.isClient) {
+			markDirty();
 			sendData();
 		}
 
@@ -179,7 +179,7 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	protected void setLuminosity(int luminosity) {
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		if (this.luminosity == luminosity)
 			return;
@@ -188,16 +188,16 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	protected void updateStateLuminosity() {
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		int actualLuminosity = luminosity;
 		FluidTankBlockEntity controllerBE = getControllerBE();
 		if (controllerBE == null || !controllerBE.window)
 			actualLuminosity = 0;
 		refreshBlockState();
-		BlockState state = getBlockState();
-		if (state.getValue(FluidTankBlock.LIGHT_LEVEL) != actualLuminosity) {
-			level.setBlock(worldPosition, state.setValue(FluidTankBlock.LIGHT_LEVEL, actualLuminosity), 23);
+		BlockState state = getCachedState();
+		if (state.get(FluidTankBlock.LIGHT_LEVEL) != actualLuminosity) {
+			world.setBlockState(pos, state.with(FluidTankBlock.LIGHT_LEVEL, actualLuminosity), 23);
 		}
 	}
 
@@ -206,7 +206,7 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	public FluidTankBlockEntity getControllerBE() {
 		if (isController())
 			return this;
-		BlockEntity blockEntity = level.getBlockEntity(controller);
+		BlockEntity blockEntity = world.getBlockEntity(controller);
 		if (blockEntity instanceof FluidTankBlockEntity)
 			return (FluidTankBlockEntity) blockEntity;
 		return null;
@@ -221,7 +221,7 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	public void removeController(boolean keepFluids) {
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		updateConnectivity = true;
 		if (!keepFluids)
@@ -232,16 +232,16 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		boiler.clear();
 		onFluidStackChanged(tankInventory.getFluid());
 
-		BlockState state = getBlockState();
+		BlockState state = getCachedState();
 		if (FluidTankBlock.isTank(state)) {
-			state = state.setValue(FluidTankBlock.BOTTOM, true);
-			state = state.setValue(FluidTankBlock.TOP, true);
-			state = state.setValue(FluidTankBlock.SHAPE, window ? Shape.WINDOW : Shape.PLAIN);
-			getLevel().setBlock(worldPosition, state, 23);
+			state = state.with(FluidTankBlock.BOTTOM, true);
+			state = state.with(FluidTankBlock.TOP, true);
+			state = state.with(FluidTankBlock.SHAPE, window ? Shape.WINDOW : Shape.PLAIN);
+			getWorld().setBlockState(pos, state, 23);
 		}
 
 		refreshCapability();
-		setChanged();
+		markDirty();
 		sendData();
 	}
 
@@ -286,8 +286,8 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			for (int xOffset = 0; xOffset < width; xOffset++) {
 				for (int zOffset = 0; zOffset < width; zOffset++) {
 
-					BlockPos pos = this.worldPosition.offset(xOffset, yOffset, zOffset);
-					BlockState blockState = level.getBlockState(pos);
+					BlockPos pos = this.pos.add(xOffset, yOffset, zOffset);
+					BlockState blockState = world.getBlockState(pos);
 					if (!FluidTankBlock.isTank(blockState))
 						continue;
 
@@ -305,12 +305,12 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 							shape = Shape.WINDOW;
 					}
 
-					level.setBlock(pos, blockState.setValue(FluidTankBlock.SHAPE, shape), 23);
-					BlockEntity be = level.getBlockEntity(pos);
+					world.setBlockState(pos, blockState.with(FluidTankBlock.SHAPE, shape), 23);
+					BlockEntity be = world.getBlockEntity(pos);
 					if (be instanceof FluidTankBlockEntity tankAt)
 						tankAt.updateStateLuminosity();
-					level.getChunkSource()
-							.getLightEngine()
+					world.getChunkManager()
+							.getLightingProvider()
 							.checkBlock(pos);
 				}
 			}
@@ -331,8 +331,8 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			for (int yOffset = 0; yOffset < height; yOffset++)
 				for (int xOffset = 0; xOffset < width; xOffset++)
 					for (int zOffset = 0; zOffset < width; zOffset++)
-						if (level.getBlockEntity(
-							worldPosition.offset(xOffset, yOffset, zOffset)) instanceof FluidTankBlockEntity fbe)
+						if (world.getBlockEntity(
+							pos.add(xOffset, yOffset, zOffset)) instanceof FluidTankBlockEntity fbe)
 							fbe.refreshCapability();
 		}
 
@@ -344,13 +344,13 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
 	@Override
 	public void setController(BlockPos controller) {
-		if (level.isClientSide && !isVirtual())
+		if (world.isClient && !isVirtual())
 			return;
 		if (controller.equals(this.controller))
 			return;
 		this.controller = controller;
 		refreshCapability();
-		setChanged();
+		markDirty();
 		sendData();
 	}
 
@@ -365,27 +365,27 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
 	@Override
 	public BlockPos getController() {
-		return isController() ? worldPosition : controller;
+		return isController() ? pos : controller;
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
+	protected Box createRenderBoundingBox() {
 		if (isController())
-			return super.createRenderBoundingBox().expandTowards(width - 1, height - 1, width - 1);
+			return super.createRenderBoundingBox().stretch(width - 1, height - 1, width - 1);
 		else
 			return super.createRenderBoundingBox();
 	}
 
 	@Nullable
 	public FluidTankBlockEntity getOtherFluidTankBlockEntity(Direction direction) {
-		BlockEntity otherBE = level.getBlockEntity(worldPosition.relative(direction));
+		BlockEntity otherBE = world.getBlockEntity(pos.offset(direction));
 		if (otherBE instanceof FluidTankBlockEntity)
 			return (FluidTankBlockEntity) otherBE;
 		return null;
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		FluidTankBlockEntity controllerBE = getControllerBE();
 		if (controllerBE == null)
 			return false;
@@ -396,7 +396,7 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 
 		BlockPos controllerBefore = controller;
@@ -410,9 +410,9 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		lastKnownPos = null;
 
 		if (compound.contains("LastKnownPos"))
-			lastKnownPos = NbtUtils.readBlockPos(compound.getCompound("LastKnownPos"));
+			lastKnownPos = NbtHelper.toBlockPos(compound.getCompound("LastKnownPos"));
 		if (compound.contains("Controller"))
-			controller = NbtUtils.readBlockPos(compound.getCompound("Controller"));
+			controller = NbtHelper.toBlockPos(compound.getCompound("Controller"));
 
 		if (isController()) {
 			window = compound.getBoolean("Window");
@@ -440,8 +440,8 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		boolean changeOfController =
 			controllerBefore == null ? controller != null : !controllerBefore.equals(controller);
 		if (changeOfController || prevSize != width || prevHeight != height) {
-			if (hasLevel())
-				level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 16);
+			if (hasWorld())
+				world.updateListeners(getPos(), getCachedState(), getCachedState(), 16);
 			if (isController())
 				tankInventory.setCapacity(getCapacityMultiplier() * getTotalTankSize());
 			invalidateRenderBoundingBox();
@@ -453,10 +453,10 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 					.startWithValue(fillState);
 			fluidLevel.chase(fillState, 0.5f, Chaser.EXP);
 		}
-		if (luminosity != prevLum && hasLevel())
-			level.getChunkSource()
-				.getLightEngine()
-				.checkBlock(worldPosition);
+		if (luminosity != prevLum && hasWorld())
+			world.getChunkManager()
+				.getLightingProvider()
+				.checkBlock(pos);
 
 		if (compound.contains("LazySync"))
 			fluidLevel.chase(fluidLevel.getChaseTarget(), 0.125f, Chaser.EXP);
@@ -467,17 +467,17 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		if (updateConnectivity)
 			compound.putBoolean("Uninitialized", true);
 		compound.put("Boiler", boiler.write());
 		if (lastKnownPos != null)
-			compound.put("LastKnownPos", NbtUtils.writeBlockPos(lastKnownPos));
+			compound.put("LastKnownPos", NbtHelper.fromBlockPos(lastKnownPos));
 		if (!isController())
-			compound.put("Controller", NbtUtils.writeBlockPos(controller));
+			compound.put("Controller", NbtHelper.fromBlockPos(controller));
 		if (isController()) {
 			compound.putBoolean("Window", window);
-			compound.put("TankContent", tankInventory.writeToNBT(new CompoundTag()));
+			compound.put("TankContent", tankInventory.writeToNBT(new NbtCompound()));
 			compound.putInt("Size", width);
 			compound.putInt("Height", height);
 		}
@@ -543,17 +543,17 @@ public class FluidTankBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
 	@Override
 	public void notifyMultiUpdated() {
-		BlockState state = this.getBlockState();
+		BlockState state = this.getCachedState();
 		if (FluidTankBlock.isTank(state)) { // safety
-			state = state.setValue(FluidTankBlock.BOTTOM, getController().getY() == getBlockPos().getY());
-			state = state.setValue(FluidTankBlock.TOP, getController().getY() + height - 1 == getBlockPos().getY());
-			level.setBlock(getBlockPos(), state, 6);
+			state = state.with(FluidTankBlock.BOTTOM, getController().getY() == getPos().getY());
+			state = state.with(FluidTankBlock.TOP, getController().getY() + height - 1 == getPos().getY());
+			world.setBlockState(getPos(), state, 6);
 		}
 		if (isController())
 			setWindows(window);
 		onFluidStackChanged(tankInventory.getFluid());
 		updateBoilerState();
-		setChanged();
+		markDirty();
 	}
 
 	@Override

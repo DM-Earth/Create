@@ -2,10 +2,9 @@ package com.simibubi.create.content.equipment.zapper.terrainzapper;
 
 import com.simibubi.create.content.equipment.zapper.ConfigureZapperPacket;
 import com.simibubi.create.content.equipment.zapper.PlacementPatterns;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.Hand;
 
 public class ConfigureWorldshaperPacket extends ConfigureZapperPacket {
 
@@ -16,7 +15,7 @@ public class ConfigureWorldshaperPacket extends ConfigureZapperPacket {
 	protected TerrainTools tool;
 	protected PlacementOptions placement;
 
-	public ConfigureWorldshaperPacket(InteractionHand hand, PlacementPatterns pattern, TerrainBrushes brush, int brushParamX, int brushParamY, int brushParamZ, TerrainTools tool, PlacementOptions placement) {
+	public ConfigureWorldshaperPacket(Hand hand, PlacementPatterns pattern, TerrainBrushes brush, int brushParamX, int brushParamY, int brushParamZ, TerrainTools tool, PlacementOptions placement) {
 		super(hand, pattern);
 		this.brush = brush;
 		this.brushParamX = brushParamX;
@@ -26,25 +25,25 @@ public class ConfigureWorldshaperPacket extends ConfigureZapperPacket {
 		this.placement = placement;
 	}
 
-	public ConfigureWorldshaperPacket(FriendlyByteBuf buffer) {
+	public ConfigureWorldshaperPacket(PacketByteBuf buffer) {
 		super(buffer);
-		brush = buffer.readEnum(TerrainBrushes.class);
+		brush = buffer.readEnumConstant(TerrainBrushes.class);
 		brushParamX = buffer.readVarInt();
 		brushParamY = buffer.readVarInt();
 		brushParamZ = buffer.readVarInt();
-		tool = buffer.readEnum(TerrainTools.class);
-		placement = buffer.readEnum(PlacementOptions.class);
+		tool = buffer.readEnumConstant(TerrainTools.class);
+		placement = buffer.readEnumConstant(PlacementOptions.class);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		super.write(buffer);
-		buffer.writeEnum(brush);
+		buffer.writeEnumConstant(brush);
 		buffer.writeVarInt(brushParamX);
 		buffer.writeVarInt(brushParamY);
 		buffer.writeVarInt(brushParamZ);
-		buffer.writeEnum(tool);
-		buffer.writeEnum(placement);
+		buffer.writeEnumConstant(tool);
+		buffer.writeEnumConstant(placement);
 	}
 
 	@Override

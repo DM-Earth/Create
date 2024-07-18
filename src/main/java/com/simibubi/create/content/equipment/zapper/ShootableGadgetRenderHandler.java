@@ -1,23 +1,22 @@
 package com.simibubi.create.content.equipment.zapper;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import io.github.fabricators_of_create.porting_lib.event.client.RenderHandCallback;
 import io.github.fabricators_of_create.porting_lib.event.client.RenderHandCallback.RenderHandEvent;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.ItemInHandRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.player.PlayerRenderer;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.PlayerEntityRenderer;
+import net.minecraft.client.render.item.HeldItemRenderer;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Arm;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
 
 public abstract class ShootableGadgetRenderHandler {
 
@@ -36,7 +35,7 @@ public abstract class ShootableGadgetRenderHandler {
 	}
 
 	public float getAnimation(boolean rightHand, float partialTicks) {
-		return Mth.lerp(partialTicks, rightHand ? lastRightHandAnimation : lastLeftHandAnimation,
+		return MathHelper.lerp(partialTicks, rightHand ? lastRightHandAnimation : lastLeftHandAnimation,
 			rightHand ? rightHandAnimation : leftHandAnimation);
 	}
 
@@ -44,9 +43,9 @@ public abstract class ShootableGadgetRenderHandler {
 		return 0.8f;
 	}
 
-	public void shoot(InteractionHand hand, Vec3 location) {
-		LocalPlayer player = Minecraft.getInstance().player;
-		boolean rightHand = hand == InteractionHand.MAIN_HAND ^ player.getMainArm() == HumanoidArm.LEFT;
+	public void shoot(Hand hand, Vec3d location) {
+		ClientPlayerEntity player = MinecraftClient.getInstance().player;
+		boolean rightHand = hand == Hand.MAIN_HAND ^ player.getMainArm() == Arm.LEFT;
 		if (rightHand) {
 			rightHandAnimation = .2f;
 			dontReequipRight = false;
@@ -57,13 +56,13 @@ public abstract class ShootableGadgetRenderHandler {
 		playSound(hand, location);
 	}
 
-	protected abstract void playSound(InteractionHand hand, Vec3 position);
+	protected abstract void playSound(Hand hand, Vec3d position);
 
 	protected abstract boolean appliesTo(ItemStack stack);
 
-	protected abstract void transformTool(PoseStack ms, float flip, float equipProgress, float recoil, float pt);
+	protected abstract void transformTool(MatrixStack ms, float flip, float equipProgress, float recoil, float pt);
 
-	protected abstract void transformHand(PoseStack ms, float flip, float equipProgress, float recoil, float pt);
+	protected abstract void transformHand(MatrixStack ms, float flip, float equipProgress, float recoil, float pt);
 
 	public void registerListeners() {
 		RenderHandCallback.EVENT.register(this::onRenderPlayerHand);
@@ -74,20 +73,20 @@ public abstract class ShootableGadgetRenderHandler {
 		if (!appliesTo(heldItem))
 			return;
 
-		Minecraft mc = Minecraft.getInstance();
-		AbstractClientPlayer player = mc.player;
-		PlayerRenderer playerrenderer = (PlayerRenderer) mc.getEntityRenderDispatcher()
+		MinecraftClient mc = MinecraftClient.getInstance();
+		AbstractClientPlayerEntity player = mc.player;
+		PlayerEntityRenderer playerrenderer = (PlayerEntityRenderer) mc.getEntityRenderDispatcher()
 			.getRenderer(player);
-		ItemInHandRenderer firstPersonRenderer = mc.getEntityRenderDispatcher().getItemInHandRenderer();
+		HeldItemRenderer firstPersonRenderer = mc.getEntityRenderDispatcher().getHeldItemRenderer();
 
-		PoseStack ms = event.getPoseStack();
-		MultiBufferSource buffer = event.getMultiBufferSource();
+		MatrixStack ms = event.getPoseStack();
+		VertexConsumerProvider buffer = event.getMultiBufferSource();
 		int light = event.getPackedLight();
 		float pt = event.getPartialTicks();
 
-		boolean rightHand = event.getHand() == InteractionHand.MAIN_HAND ^ mc.player.getMainArm() == HumanoidArm.LEFT;
-		float recoil = rightHand ? Mth.lerp(pt, lastRightHandAnimation, rightHandAnimation)
-			: Mth.lerp(pt, lastLeftHandAnimation, leftHandAnimation);
+		boolean rightHand = event.getHand() == Hand.MAIN_HAND ^ mc.player.getMainArm() == Arm.LEFT;
+		float recoil = rightHand ? MathHelper.lerp(pt, lastRightHandAnimation, rightHandAnimation)
+			: MathHelper.lerp(pt, lastLeftHandAnimation, leftHandAnimation);
 		float equipProgress = event.getEquipProgress();
 
 		if (rightHand && (rightHandAnimation > .01f || dontReequipRight))
@@ -96,52 +95,52 @@ public abstract class ShootableGadgetRenderHandler {
 			equipProgress = 0;
 
 		// Render arm
-		ms.pushPose();
-		RenderSystem.setShaderTexture(0, player.getSkinTextureLocation());
+		ms.push();
+		RenderSystem.setShaderTexture(0, player.getSkinTexture());
 
 		float flip = rightHand ? 1.0F : -1.0F;
-		float f1 = Mth.sqrt(event.getSwingProgress());
-		float f2 = -0.3F * Mth.sin(f1 * (float) Math.PI);
-		float f3 = 0.4F * Mth.sin(f1 * ((float) Math.PI * 2F));
-		float f4 = -0.4F * Mth.sin(event.getSwingProgress() * (float) Math.PI);
-		float f5 = Mth.sin(event.getSwingProgress() * event.getSwingProgress() * (float) Math.PI);
-		float f6 = Mth.sin(f1 * (float) Math.PI);
+		float f1 = MathHelper.sqrt(event.getSwingProgress());
+		float f2 = -0.3F * MathHelper.sin(f1 * (float) Math.PI);
+		float f3 = 0.4F * MathHelper.sin(f1 * ((float) Math.PI * 2F));
+		float f4 = -0.4F * MathHelper.sin(event.getSwingProgress() * (float) Math.PI);
+		float f5 = MathHelper.sin(event.getSwingProgress() * event.getSwingProgress() * (float) Math.PI);
+		float f6 = MathHelper.sin(f1 * (float) Math.PI);
 
 		ms.translate(flip * (f2 + 0.64F - .1f), f3 + -0.4F + equipProgress * -0.6F, f4 + -0.72F + .3f + recoil);
-		ms.mulPose(Axis.YP.rotationDegrees(flip * 75.0F));
-		ms.mulPose(Axis.YP.rotationDegrees(flip * f6 * 70.0F));
-		ms.mulPose(Axis.ZP.rotationDegrees(flip * f5 * -20.0F));
+		ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(flip * 75.0F));
+		ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(flip * f6 * 70.0F));
+		ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(flip * f5 * -20.0F));
 		ms.translate(flip * -1.0F, 3.6F, 3.5F);
-		ms.mulPose(Axis.ZP.rotationDegrees(flip * 120.0F));
-		ms.mulPose(Axis.XP.rotationDegrees(200.0F));
-		ms.mulPose(Axis.YP.rotationDegrees(flip * -135.0F));
+		ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(flip * 120.0F));
+		ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(200.0F));
+		ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(flip * -135.0F));
 		ms.translate(flip * 5.6F, 0.0F, 0.0F);
-		ms.mulPose(Axis.YP.rotationDegrees(flip * 40.0F));
+		ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(flip * 40.0F));
 		transformHand(ms, flip, equipProgress, recoil, pt);
 		if (rightHand)
-			playerrenderer.renderRightHand(ms, buffer, light, player);
+			playerrenderer.renderRightArm(ms, buffer, light, player);
 		else
-			playerrenderer.renderLeftHand(ms, buffer, light, player);
-		ms.popPose();
+			playerrenderer.renderLeftArm(ms, buffer, light, player);
+		ms.pop();
 
 		// Render gadget
-		ms.pushPose();
+		ms.push();
 		ms.translate(flip * (f2 + 0.64F - .1f), f3 + -0.4F + equipProgress * -0.6F, f4 + -0.72F - 0.1f + recoil);
-		ms.mulPose(Axis.YP.rotationDegrees(flip * f6 * 70.0F));
-		ms.mulPose(Axis.ZP.rotationDegrees(flip * f5 * -20.0F));
+		ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(flip * f6 * 70.0F));
+		ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(flip * f5 * -20.0F));
 		transformTool(ms, flip, equipProgress, recoil, pt);
 		firstPersonRenderer.renderItem(mc.player, heldItem,
-			rightHand ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND
-				: ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
+			rightHand ? ModelTransformationMode.FIRST_PERSON_RIGHT_HAND
+				: ModelTransformationMode.FIRST_PERSON_LEFT_HAND,
 			!rightHand, ms, buffer, light);
-		ms.popPose();
+		ms.pop();
 
 		event.setCanceled(true);
 	}
 
-	public void dontAnimateItem(InteractionHand hand) {
-		LocalPlayer player = Minecraft.getInstance().player;
-		boolean rightHand = hand == InteractionHand.MAIN_HAND ^ player.getMainArm() == HumanoidArm.LEFT;
+	public void dontAnimateItem(Hand hand) {
+		ClientPlayerEntity player = MinecraftClient.getInstance().player;
+		boolean rightHand = hand == Hand.MAIN_HAND ^ player.getMainArm() == Arm.LEFT;
 		dontReequipRight |= rightHand;
 		dontReequipLeft |= !rightHand;
 	}

@@ -4,9 +4,6 @@ import java.lang.ref.WeakReference;
 import java.util.Collection;
 
 import javax.annotation.Nullable;
-
-import net.minecraft.world.phys.HitResult;
-
 import org.apache.commons.lang3.mutable.MutableObject;
 
 import com.jamieswhiteshirt.reachentityattributes.ReachEntityAttributes;
@@ -23,32 +20,33 @@ import com.simibubi.create.foundation.utility.VecHelper;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.player.RemotePlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.network.OtherClientPlayerEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
 
 public class ContraptionHandlerClient {
 
 	@Environment(EnvType.CLIENT)
-	public static void preventRemotePlayersWalkingAnimations(Player player) {
+	public static void preventRemotePlayersWalkingAnimations(PlayerEntity player) {
 //		if (event.phase == Phase.START)
 //			return;
-		if (!(player instanceof RemotePlayer))
+		if (!(player instanceof OtherClientPlayerEntity))
 			return;
-		RemotePlayer remotePlayer = (RemotePlayer) player;
-		CompoundTag data = remotePlayer.getCustomData();
+		OtherClientPlayerEntity remotePlayer = (OtherClientPlayerEntity) player;
+		NbtCompound data = remotePlayer.getCustomData();
 		if (!data.contains("LastOverrideLimbSwingUpdate"))
 			return;
 
@@ -61,35 +59,35 @@ public class ContraptionHandlerClient {
 		}
 
 		float limbSwing = data.getFloat("OverrideLimbSwing");
-		remotePlayer.xo = remotePlayer.getX() - (limbSwing / 4);
-		remotePlayer.zo = remotePlayer.getZ();
+		remotePlayer.prevX = remotePlayer.getX() - (limbSwing / 4);
+		remotePlayer.prevZ = remotePlayer.getZ();
 	}
 
 	@Environment(EnvType.CLIENT)
-	public static InteractionResult rightClickingOnContraptionsGetsHandledLocally(Minecraft mc, HitResult result, InteractionHand hand) {
-		if (Minecraft.getInstance().screen != null) // this is the only input event that doesn't check this?
-			return InteractionResult.PASS;
+	public static ActionResult rightClickingOnContraptionsGetsHandledLocally(MinecraftClient mc, HitResult result, Hand hand) {
+		if (MinecraftClient.getInstance().currentScreen != null) // this is the only input event that doesn't check this?
+			return ActionResult.PASS;
 
-		LocalPlayer player = mc.player;
+		ClientPlayerEntity player = mc.player;
 
 		if (player == null)
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		if (player.isSpectator())
-			return InteractionResult.PASS;
-		if (mc.level == null)
-			return InteractionResult.PASS;
-		if (mc.gameMode == null)
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
+		if (mc.world == null)
+			return ActionResult.PASS;
+		if (mc.interactionManager == null)
+			return ActionResult.PASS;
 //		if (!event.isUseItem())
 //			return InteractionResult.PASS;
 
-		Couple<Vec3> rayInputs = getRayInputs(player);
-		Vec3 origin = rayInputs.getFirst();
-		Vec3 target = rayInputs.getSecond();
-		AABB aabb = new AABB(origin, target).inflate(16);
+		Couple<Vec3d> rayInputs = getRayInputs(player);
+		Vec3d origin = rayInputs.getFirst();
+		Vec3d target = rayInputs.getSecond();
+		Box aabb = new Box(origin, target).expand(16);
 
 		Collection<WeakReference<AbstractContraptionEntity>> contraptions =
-			ContraptionHandler.loadedContraptions.get(mc.level)
+			ContraptionHandler.loadedContraptions.get(mc.world)
 				.values();
 
 		for (WeakReference<AbstractContraptionEntity> ref : contraptions) {
@@ -104,7 +102,7 @@ public class ContraptionHandlerClient {
 			if (rayTraceResult == null)
 				continue;
 
-			Direction face = rayTraceResult.getDirection();
+			Direction face = rayTraceResult.getSide();
 			BlockPos pos = rayTraceResult.getBlockPos();
 
 			if (contraptionEntity.handlePlayerInteraction(player, pos, face, hand)) {
@@ -113,36 +111,36 @@ public class ContraptionHandlerClient {
 			} else
 				continue;
 
-			return InteractionResult.FAIL;
+			return ActionResult.FAIL;
 		}
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
-	private static boolean handleSpecialInteractions(AbstractContraptionEntity contraptionEntity, Player player,
-		BlockPos localPos, Direction side, InteractionHand interactionHand) {
-		if (AllItems.WRENCH.isIn(player.getItemInHand(interactionHand))
+	private static boolean handleSpecialInteractions(AbstractContraptionEntity contraptionEntity, PlayerEntity player,
+		BlockPos localPos, Direction side, Hand interactionHand) {
+		if (AllItems.WRENCH.isIn(player.getStackInHand(interactionHand))
 			&& contraptionEntity instanceof CarriageContraptionEntity car)
 			return TrainRelocator.carriageWrenched(car.toGlobalVector(VecHelper.getCenterOf(localPos), 1), car);
 		return false;
 	}
 
 	@Environment(EnvType.CLIENT)
-	public static Couple<Vec3> getRayInputs(LocalPlayer player) {
-		Minecraft mc = Minecraft.getInstance();
-		Vec3 origin = RaycastHelper.getTraceOrigin(player);
-		double reach = ReachEntityAttributes.getReachDistance(player, mc.gameMode.getPickRange());
-		if (mc.hitResult != null && mc.hitResult.getLocation() != null)
-			reach = Math.min(mc.hitResult.getLocation()
+	public static Couple<Vec3d> getRayInputs(ClientPlayerEntity player) {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		Vec3d origin = RaycastHelper.getTraceOrigin(player);
+		double reach = ReachEntityAttributes.getReachDistance(player, mc.interactionManager.getReachDistance());
+		if (mc.crosshairTarget != null && mc.crosshairTarget.getPos() != null)
+			reach = Math.min(mc.crosshairTarget.getPos()
 				.distanceTo(origin), reach);
-		Vec3 target = RaycastHelper.getTraceTarget(player, reach, origin);
+		Vec3d target = RaycastHelper.getTraceTarget(player, reach, origin);
 		return Couple.create(origin, target);
 	}
 
 	@Nullable
-	public static BlockHitResult rayTraceContraption(Vec3 origin, Vec3 target,
+	public static BlockHitResult rayTraceContraption(Vec3d origin, Vec3d target,
 		AbstractContraptionEntity contraptionEntity) {
-		Vec3 localOrigin = contraptionEntity.toLocalVector(origin, 1);
-		Vec3 localTarget = contraptionEntity.toLocalVector(target, 1);
+		Vec3d localOrigin = contraptionEntity.toLocalVector(origin, 1);
+		Vec3d localTarget = contraptionEntity.toLocalVector(target, 1);
 		Contraption contraption = contraptionEntity.getContraption();
 
 		MutableObject<BlockHitResult> mutableResult = new MutableObject<>();
@@ -150,18 +148,18 @@ public class ContraptionHandlerClient {
 			for (Direction d : Iterate.directions) {
 				if (d == Direction.UP)
 					continue;
-				BlockPos pos = d == Direction.DOWN ? p : p.relative(d);
+				BlockPos pos = d == Direction.DOWN ? p : p.offset(d);
 				StructureBlockInfo blockInfo = contraption.getBlocks()
 					.get(pos);
 				if (blockInfo == null)
 					continue;
 				BlockState state = blockInfo.state();
-				VoxelShape raytraceShape = state.getShape(contraption.getContraptionWorld(), BlockPos.ZERO.below());
+				VoxelShape raytraceShape = state.getOutlineShape(contraption.getContraptionWorld(), BlockPos.ORIGIN.down());
 				if (raytraceShape.isEmpty())
 					continue;
 				if (contraption.isHiddenInPortal(pos))
 					continue;
-				BlockHitResult rayTrace = raytraceShape.clip(localOrigin, localTarget, pos);
+				BlockHitResult rayTrace = raytraceShape.raycast(localOrigin, localTarget, pos);
 				if (rayTrace != null) {
 					mutableResult.setValue(rayTrace);
 					return true;

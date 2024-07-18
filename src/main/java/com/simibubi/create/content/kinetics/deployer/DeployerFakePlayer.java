@@ -12,7 +12,25 @@ import io.github.fabricators_of_create.porting_lib.entity.events.LivingEntityEve
 import io.github.fabricators_of_create.porting_lib.util.UsernameCache;
 
 import net.fabricmc.fabric.api.entity.FakePlayer;
-
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityPose;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.mob.CreeperEntity;
+import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.ClientConnection;
+import net.minecraft.network.NetworkSide;
+import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.mojang.authlib.GameProfile;
@@ -22,30 +40,10 @@ import com.simibubi.create.infrastructure.config.CKinetics;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.Connection;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.Pose;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
 public class DeployerFakePlayer extends FakePlayer {
 
-	private static final Connection NETWORK_MANAGER = new Connection(PacketFlow.CLIENTBOUND);
+	private static final ClientConnection NETWORK_MANAGER = new ClientConnection(NetworkSide.CLIENTBOUND);
 	public static final UUID fallbackID = UUID.fromString("9e2faded-cafe-4ec2-c314-dad129ae971d");
 	Pair<BlockPos, Float> blockBreakingProgress;
 	ItemStack spawnedItemEffects;
@@ -53,7 +51,7 @@ public class DeployerFakePlayer extends FakePlayer {
 	public boolean onMinecartContraption;
 	private UUID owner;
 
-	public DeployerFakePlayer(ServerLevel world, @Nullable UUID owner) {
+	public DeployerFakePlayer(ServerWorld world, @Nullable UUID owner) {
 		super(world, new DeployerGameProfile(fallbackID, "Deployer", owner));
 		// fabric: use the default FakePacketListener
 //		connection = new FakePlayNetHandler(world.getServer(), this);
@@ -61,50 +59,50 @@ public class DeployerFakePlayer extends FakePlayer {
 	}
 
 	@Override
-	public OptionalInt openMenu(MenuProvider menuProvider) {
+	public OptionalInt openHandledScreen(NamedScreenHandlerFactory menuProvider) {
 		return OptionalInt.empty();
 	}
 
 	@Override
-	public Component getDisplayName() {
+	public Text getDisplayName() {
 		return Lang.translateDirect("block.deployer.damage_source_name");
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public float getEyeHeight(Pose poseIn) {
+	public float getEyeHeight(EntityPose poseIn) {
 		return 0;
 	}
 
 	@Override
-	public Vec3 position() {
-		return new Vec3(getX(), getY(), getZ());
+	public Vec3d getPos() {
+		return new Vec3d(getX(), getY(), getZ());
 	}
 
 	@Override
-	public float getCurrentItemAttackStrengthDelay() {
+	public float getAttackCooldownProgressPerTick() {
 		return 1 / 64f;
 	}
 
 	@Override
-	public boolean canEat(boolean ignoreHunger) {
+	public boolean canConsume(boolean ignoreHunger) {
 		return false;
 	}
 
 	@Override
-	public ItemStack eat(Level world, ItemStack stack) {
-		stack.shrink(1);
+	public ItemStack eatFood(World world, ItemStack stack) {
+		stack.decrement(1);
 		return stack;
 	}
 
 	@Override
-	public boolean canBeAffected(MobEffectInstance pEffectInstance) {
+	public boolean canHaveStatusEffect(StatusEffectInstance pEffectInstance) {
 		return false;
 	}
 
 	@Override
-	public UUID getUUID() {
-		return owner == null ? super.getUUID() : owner;
+	public UUID getUuid() {
+		return owner == null ? super.getUuid() : owner;
 	}
 
 	public static void deployerHasEyesOnHisFeet(EntityEvents.Size event) {
@@ -113,30 +111,30 @@ public class DeployerFakePlayer extends FakePlayer {
 	}
 
 	public static boolean deployerCollectsDropsFromKilledEntities(LivingEntity target, DamageSource source, Collection<ItemEntity> drops, int lootingLevel, boolean recentlyHit) {
-		Entity trueSource = source.getEntity();
+		Entity trueSource = source.getAttacker();
 		if (trueSource != null && trueSource instanceof DeployerFakePlayer) {
 			DeployerFakePlayer fakePlayer = (DeployerFakePlayer) trueSource;
 			drops
 				.forEach(stack -> fakePlayer.getInventory()
-					.placeItemBackInInventory(stack.getItem()));
+					.offerOrDrop(stack.getStack()));
 			return true;
 		}
 		return false;
 	}
 
 	@Override
-	protected boolean doesEmitEquipEvent(EquipmentSlot p_217035_) {
+	protected boolean isArmorSlot(EquipmentSlot p_217035_) {
 		return false;
 	}
 
 	@Override
 	public void remove(RemovalReason p_150097_) {
-		if (blockBreakingProgress != null && !level().isClientSide)
-			level().destroyBlockProgress(getId(), blockBreakingProgress.getKey(), -1);
+		if (blockBreakingProgress != null && !getWorld().isClient)
+			getWorld().setBlockBreakingInfo(getId(), blockBreakingProgress.getKey(), -1);
 		super.remove(p_150097_);
 	}
 
-	public static int deployerKillsDoNotSpawnXP(int i, Player player, LivingEntity entity) {
+	public static int deployerKillsDoNotSpawnXP(int i, PlayerEntity player, LivingEntity entity) {
 		if (player instanceof DeployerFakePlayer)
 			return 0;
 		return i;
@@ -146,7 +144,7 @@ public class DeployerFakePlayer extends FakePlayer {
 		if (!(event.getOriginalTarget() instanceof DeployerFakePlayer))
 			return;
 		LivingEntity entityLiving = (LivingEntity) event.getEntity();
-		if (!(entityLiving instanceof Mob mob))
+		if (!(entityLiving instanceof MobEntity mob))
 			return;
 
 		CKinetics.DeployerAggroSetting setting = AllConfigs.server().kinetics.ignoreDeployerAttacks.get();
@@ -156,7 +154,7 @@ public class DeployerFakePlayer extends FakePlayer {
 			event.setCanceled(true);
 			break;
 		case CREEPERS:
-			if (mob instanceof Creeper)
+			if (mob instanceof CreeperEntity)
 				event.setCanceled(true);
 			break;
 		case NONE:

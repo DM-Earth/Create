@@ -16,68 +16,68 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.world.World;
 
 public class MinecartCouplingItem extends Item {
 
-	public MinecartCouplingItem(Properties p_i48487_1_) {
+	public MinecartCouplingItem(Settings p_i48487_1_) {
 		super(p_i48487_1_);
 	}
 
-	public static InteractionResult handleInteractionWithMinecart(Player player, Level world, InteractionHand hand, Entity interacted, @Nullable EntityHitResult hitResult) {
+	public static ActionResult handleInteractionWithMinecart(PlayerEntity player, World world, Hand hand, Entity interacted, @Nullable EntityHitResult hitResult) {
 		if (player.isSpectator()) // forge checks this, fabric does not
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		if (AdventureUtil.isAdventure(player))
-			return InteractionResult.PASS;
-		if (!(interacted instanceof AbstractMinecart))
-			return InteractionResult.PASS;
-		AbstractMinecart minecart = (AbstractMinecart) interacted;
+			return ActionResult.PASS;
+		if (!(interacted instanceof AbstractMinecartEntity))
+			return ActionResult.PASS;
+		AbstractMinecartEntity minecart = (AbstractMinecartEntity) interacted;
 		if (player == null)
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		MinecartController controller = minecart.create$getController();
 
-		ItemStack heldItem = player.getItemInHand(hand);
+		ItemStack heldItem = player.getStackInHand(hand);
 		if (AllItems.MINECART_COUPLING.isIn(heldItem)) {
-			if (!onCouplingInteractOnMinecart(player.level(), minecart, player, controller))
-				return InteractionResult.PASS;
+			if (!onCouplingInteractOnMinecart(player.getWorld(), minecart, player, controller))
+				return ActionResult.PASS;
 		} else if (AllItems.WRENCH.isIn(heldItem)) {
-			if (!onWrenchInteractOnMinecart(player.level(), minecart, player, controller))
-				return InteractionResult.PASS;
+			if (!onWrenchInteractOnMinecart(player.getWorld(), minecart, player, controller))
+				return ActionResult.PASS;
 		} else
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
-	protected static boolean onCouplingInteractOnMinecart(Level world,
-		AbstractMinecart minecart, Player player, MinecartController controller) {
+	protected static boolean onCouplingInteractOnMinecart(World world,
+		AbstractMinecartEntity minecart, PlayerEntity player, MinecartController controller) {
 		if (controller.isFullyCoupled()) {
-			if (world.isClientSide) // fabric: on forge this only runs on server, here we only run
+			if (world.isClient) // fabric: on forge this only runs on server, here we only run
 				// on client to avoid an incorrect message due to differences in timing across loaders.
 				// on forge, the process is client -> server -> packet -> couple
 				// on fabric, the process is client -> packet -> couple -> server
 				CouplingHandler.status(player, "two_couplings_max");
 			return true;
 		}
-		if (world != null && world.isClientSide)
+		if (world != null && world.isClient)
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> cartClicked(player, minecart));
 		return true;
 	}
 
-	private static boolean onWrenchInteractOnMinecart(Level world, AbstractMinecart minecart, Player player,
+	private static boolean onWrenchInteractOnMinecart(World world, AbstractMinecartEntity minecart, PlayerEntity player,
 		MinecartController controller) {
 		int couplings = (controller.isConnectedToCoupling() ? 1 : 0) + (controller.isLeadingCoupling() ? 1 : 0);
 		if (couplings == 0)
 			return false;
-		if (world.isClientSide)
+		if (world.isClient)
 			return true;
 
 		for (boolean forward : Iterate.trueAndFalse) {
@@ -89,13 +89,13 @@ public class MinecartCouplingItem extends Item {
 		controller.decouple();
 		if (!player.isCreative())
 			player.getInventory()
-				.placeItemBackInInventory(new ItemStack(AllItems.MINECART_COUPLING.get(), couplings));
+				.offerOrDrop(new ItemStack(AllItems.MINECART_COUPLING.get(), couplings));
 		return true;
 	}
 
 	@Environment(EnvType.CLIENT)
-	private static void cartClicked(Player player, AbstractMinecart interacted) {
-		CouplingHandlerClient.onCartClicked(player, (AbstractMinecart) interacted);
+	private static void cartClicked(PlayerEntity player, AbstractMinecartEntity interacted) {
+		CouplingHandlerClient.onCartClicked(player, (AbstractMinecartEntity) interacted);
 	}
 
 }

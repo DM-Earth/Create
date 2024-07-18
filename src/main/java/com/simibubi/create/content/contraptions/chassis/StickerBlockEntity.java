@@ -15,12 +15,12 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class StickerBlockEntity extends SmartBlockEntity {
 
@@ -39,26 +39,26 @@ public class StickerBlockEntity extends SmartBlockEntity {
 	@Override
 	public void initialize() {
 		super.initialize();
-		if (!level.isClientSide)
+		if (!world.isClient)
 			return;
 		piston.startWithValue(isBlockStateExtended() ? 1 : 0);
 	}
 
 	public boolean isBlockStateExtended() {
-		BlockState blockState = getBlockState();
-		boolean extended = AllBlocks.STICKER.has(blockState) && blockState.getValue(StickerBlock.EXTENDED);
+		BlockState blockState = getCachedState();
+		boolean extended = AllBlocks.STICKER.has(blockState) && blockState.get(StickerBlock.EXTENDED);
 		return extended;
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (!level.isClientSide)
+		if (!world.isClient)
 			return;
 		piston.tickChaser();
 
 		if (isAttachedToBlock() && piston.getValue(0) != piston.getValue() && piston.getValue() == 1) {
-			SuperGlueItem.spawnParticles(level, worldPosition, getBlockState().getValue(StickerBlock.FACING), true);
+			SuperGlueItem.spawnParticles(world, pos, getCachedState().get(StickerBlock.FACING), true);
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> playSound(true));
 		}
 
@@ -74,20 +74,20 @@ public class StickerBlockEntity extends SmartBlockEntity {
 	}
 
 	public boolean isAttachedToBlock() {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!AllBlocks.STICKER.has(blockState))
 			return false;
-		Direction direction = blockState.getValue(StickerBlock.FACING);
-		return SuperGlueEntity.isValidFace(level, worldPosition.relative(direction), direction.getOpposite());
+		Direction direction = blockState.get(StickerBlock.FACING);
+		return SuperGlueEntity.isValidFace(world, pos.offset(direction), direction.getOpposite());
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 	}
 	
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		if (clientPacket)
 			update = true;
@@ -95,7 +95,7 @@ public class StickerBlockEntity extends SmartBlockEntity {
 
 	@Environment(EnvType.CLIENT)
 	public void playSound(boolean attach) {
-		AllSoundEvents.SLIME_ADDED.play(level, Minecraft.getInstance().player, worldPosition, 0.35f, attach ? 0.75f : 0.2f);
+		AllSoundEvents.SLIME_ADDED.play(world, MinecraftClient.getInstance().player, pos, 0.35f, attach ? 0.75f : 0.2f);
 	}
 
 

@@ -13,15 +13,14 @@ import com.simibubi.create.foundation.ponder.element.ParrotElement;
 import com.simibubi.create.foundation.ponder.element.ParrotElement.FacePointOfInterestPose;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class TrainStationScenes {
 
@@ -37,7 +36,7 @@ public class TrainStationScenes {
 			scene.idle(1);
 		}
 
-		BlockState air = Blocks.AIR.defaultBlockState();
+		BlockState air = Blocks.AIR.getDefaultState();
 		scene.world.setBlock(util.grid.at(10, 2, 6), air, false);
 		scene.world.setBlock(util.grid.at(6, 2, 6), air, false);
 		scene.world.setBlock(util.grid.at(3, 2, 6), air, false);
@@ -54,17 +53,17 @@ public class TrainStationScenes {
 		Selection train3 = util.select.fromTo(7, 2, 1, 3, 3, 3);
 
 		BlockPos stationPos = util.grid.at(11, 1, 3);
-		Vec3 marker = util.vector.topOf(11, 0, 6)
+		Vec3d marker = util.vector.topOf(11, 0, 6)
 			.add(0, 3 / 16f, 0);
-		Vec3 stationTop = util.vector.topOf(stationPos);
+		Vec3d stationTop = util.vector.topOf(stationPos);
 
-		AABB bb = new AABB(util.vector.topOf(11, 0, 6), util.vector.topOf(11, 0, 6)).move(0, 2 / 16f, 0);
+		Box bb = new Box(util.vector.topOf(11, 0, 6), util.vector.topOf(11, 0, 6)).offset(0, 2 / 16f, 0);
 
 		scene.overlay.showControls(new InputWindowElement(marker, Pointing.DOWN).rightClick()
 			.withItem(AllBlocks.TRACK_STATION.asStack()), 40);
 		scene.idle(6);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb.inflate(.45f, 1 / 16f, .45f), 100);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb.expand(.45f, 1 / 16f, .45f), 100);
 		scene.idle(10);
 
 		scene.overlay.showText(70)
@@ -77,7 +76,7 @@ public class TrainStationScenes {
 		scene.world.showSection(station, Direction.DOWN);
 		scene.idle(15);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb,
-			new AABB(stationPos).contract(1 / 16f, 2 / 16f, 1 / 16f), 20);
+			new Box(stationPos).shrink(1 / 16f, 2 / 16f, 1 / 16f), 20);
 		scene.idle(25);
 
 		scene.overlay.showText(80)
@@ -104,7 +103,7 @@ public class TrainStationScenes {
 			60);
 		scene.idle(6);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, bb, bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, bb, bb.inflate(.45f, 1 / 16f, .45f), 80);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, bb, bb.expand(.45f, 1 / 16f, .45f), 80);
 		scene.idle(10);
 		scene.overlay.showText(70)
 			.pointAt(marker)
@@ -189,15 +188,15 @@ public class TrainStationScenes {
 		scene.world.showSectionAndMerge(util.select.position(5, 3, 5), Direction.SOUTH, trainElement2);
 		scene.idle(10);
 
-		AABB glue1 = new AABB(util.grid.at(10, 2, 6));
-		AABB glue2 = new AABB(util.grid.at(4, 2, 6));
+		Box glue1 = new Box(util.grid.at(10, 2, 6));
+		Box glue2 = new Box(util.grid.at(4, 2, 6));
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, glue2, glue2, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, glue2, glue2.inflate(2, 0, 1)
-			.expandTowards(1, 3, 0), 60);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, glue2, glue2.expand(2, 0, 1)
+			.stretch(1, 3, 0), 60);
 		scene.idle(5);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, glue1, glue1, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, glue1, glue1.inflate(1.25, 0, .25)
-			.expandTowards(0, 1, 0), 60);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, glue1, glue1.expand(1.25, 0, .25)
+			.stretch(0, 1, 0), 60);
 		scene.idle(15);
 		scene.overlay.showControls(new InputWindowElement(util.vector.topOf(util.grid.at(4, 2, 6)), Pointing.UP)
 			.withItem(AllItems.SUPER_GLUE.asStack()), 40);
@@ -309,7 +308,7 @@ public class TrainStationScenes {
 		scene.world.moveSection(trainElement3, util.vector.of(0, 0, 4), 0);
 		scene.idle(15);
 
-		Vec3 target = util.vector.topOf(util.grid.at(5, 3, 6));
+		Vec3d target = util.vector.topOf(util.grid.at(5, 3, 6));
 		scene.overlay.showControls(new InputWindowElement(target, Pointing.DOWN).rightClick()
 			.withWrench(), 75);
 		scene.idle(15);
@@ -358,7 +357,7 @@ public class TrainStationScenes {
 
 		ElementLink<WorldSectionElement> trainElement = scene.world.showIndependentSection(train, Direction.DOWN);
 		scene.world.moveSection(trainElement, util.vector.of(-4, 0, 0), 0);
-		Vec3 target = util.vector.centerOf(2, 3, 6);
+		Vec3d target = util.vector.centerOf(2, 3, 6);
 		ElementLink<ParrotElement> birb = scene.special.createBirb(target, FacePointOfInterestPose::new);
 		scene.idle(10);
 
@@ -373,20 +372,20 @@ public class TrainStationScenes {
 		scene.idle(6);
 		scene.special.movePointOfInterest(util.grid.at(9, 4, 6));
 
-		Vec3 marker = util.vector.topOf(8, 0, 6)
+		Vec3d marker = util.vector.topOf(8, 0, 6)
 			.add(0, 3 / 16f, 0);
-		AABB bb = new AABB(marker, marker);
+		Box bb = new Box(marker, marker);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb.inflate(.45f, 0, .45f), 40);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb.expand(.45f, 0, .45f), 40);
 		scene.idle(15);
 
-		AABB bb2 = new AABB(marker, marker).move(-.45, 0, 0);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb2, bb2.move(-4, 0, 0), 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb2, bb2.expandTowards(-4, 0, 0), 20);
+		Box bb2 = new Box(marker, marker).offset(-.45, 0, 0);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb2, bb2.offset(-4, 0, 0), 1);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb2, bb2.stretch(-4, 0, 0), 20);
 		scene.idle(15);
 
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb.inflate(.45f, 0, .45f), 25);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb2, bb2.expandTowards(-4, 0, 0), 25);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb.expand(.45f, 0, .45f), 25);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb2, bb2.stretch(-4, 0, 0), 25);
 		scene.idle(20);
 
 		scene.world.showSection(redstone, Direction.SOUTH);
@@ -434,16 +433,16 @@ public class TrainStationScenes {
 		scene.idle(6);
 
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb.inflate(.45f, 0, .45f), 40);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb.expand(.45f, 0, .45f), 40);
 		scene.idle(15);
 
-		bb2 = new AABB(marker, marker).move(.45, 0, 0);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb2, bb2.move(4, 0, 0), 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb2, bb2.expandTowards(4, 0, 0), 20);
+		bb2 = new Box(marker, marker).offset(.45, 0, 0);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb2, bb2.offset(4, 0, 0), 1);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb2, bb2.stretch(4, 0, 0), 20);
 		scene.idle(15);
 
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, bb, bb.inflate(.45f, 0, .45f), 45);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, bb2, bb2.expandTowards(4, 0, 0), 45);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, bb, bb.expand(.45f, 0, .45f), 45);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, bb2, bb2.stretch(4, 0, 0), 45);
 		scene.idle(20);
 
 		scene.special.movePointOfInterest(util.grid.at(11, 2, 5));

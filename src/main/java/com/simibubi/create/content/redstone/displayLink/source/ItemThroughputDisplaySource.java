@@ -6,22 +6,21 @@ import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.FloatTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.MutableComponent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtFloat;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.text.MutableText;
 
 public class ItemThroughputDisplaySource extends AccumulatedItemCountDisplaySource {
 
 	static final int POOL_SIZE = 10;
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
-		CompoundTag conf = context.sourceConfig();
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+		NbtCompound conf = context.sourceConfig();
 		if (conf.contains("Inactive"))
 			return ZERO.copy();
 
@@ -31,8 +30,8 @@ public class ItemThroughputDisplaySource extends AccumulatedItemCountDisplaySour
 		if (rate > 0) {
 			long previousTime = conf.getLong("LastReceived");
 			long gameTime = context.blockEntity()
-				.getLevel()
-				.getGameTime();
+				.getWorld()
+				.getTime();
 			int diff = (int) (gameTime - previousTime);
 			if (diff > 0) {
 				// Too long since last item
@@ -48,14 +47,14 @@ public class ItemThroughputDisplaySource extends AccumulatedItemCountDisplaySour
 	}
 
 	public void itemReceived(DisplayLinkBlockEntity be, int amount) {
-		if (be.getBlockState()
-			.getOptionalValue(DisplayLinkBlock.POWERED)
+		if (be.getCachedState()
+			.getOrEmpty(DisplayLinkBlock.POWERED)
 			.orElse(true))
 			return;
 
-		CompoundTag conf = be.getSourceConfig();
-		long gameTime = be.getLevel()
-			.getGameTime();
+		NbtCompound conf = be.getSourceConfig();
+		long gameTime = be.getWorld()
+			.getTime();
 
 		if (!conf.contains("LastReceived")) {
 			conf.putLong("LastReceived", gameTime);
@@ -63,16 +62,16 @@ public class ItemThroughputDisplaySource extends AccumulatedItemCountDisplaySour
 		}
 
 		long previousTime = conf.getLong("LastReceived");
-		ListTag rates = conf.getList("PrevRates", Tag.TAG_FLOAT);
+		NbtList rates = conf.getList("PrevRates", NbtElement.FLOAT_TYPE);
 
 		if (rates.size() != POOL_SIZE) {
-			rates = new ListTag();
+			rates = new NbtList();
 			for (int i = 0; i < POOL_SIZE; i++)
-				rates.add(FloatTag.valueOf(-1));
+				rates.add(NbtFloat.of(-1));
 		}
 
 		int poolIndex = conf.getInt("Index") % POOL_SIZE;
-		rates.set(poolIndex, FloatTag.valueOf((float) (amount / (double) (gameTime - previousTime))));
+		rates.set(poolIndex, NbtFloat.of((float) (amount / (double) (gameTime - previousTime))));
 
 		float rate = 0;
 		int validIntervals = 0;

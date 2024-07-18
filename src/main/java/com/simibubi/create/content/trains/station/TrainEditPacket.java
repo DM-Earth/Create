@@ -1,7 +1,10 @@
 package com.simibubi.create.content.trains.station;
 
 import java.util.UUID;
-
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.entity.Train;
@@ -9,41 +12,36 @@ import com.simibubi.create.content.trains.entity.TrainIconType;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.simibubi.create.foundation.utility.Components;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
-
 public class TrainEditPacket extends SimplePacketBase {
 
 	private String name;
 	private UUID id;
-	private ResourceLocation iconType;
+	private Identifier iconType;
 
-	public TrainEditPacket(UUID id, String name, ResourceLocation iconType) {
+	public TrainEditPacket(UUID id, String name, Identifier iconType) {
 		this.name = name;
 		this.id = id;
 		this.iconType = iconType;
 	}
 
-	public TrainEditPacket(FriendlyByteBuf buffer) {
-		id = buffer.readUUID();
-		name = buffer.readUtf(256);
-		iconType = buffer.readResourceLocation();
+	public TrainEditPacket(PacketByteBuf buffer) {
+		id = buffer.readUuid();
+		name = buffer.readString(256);
+		iconType = buffer.readIdentifier();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeUUID(id);
-		buffer.writeUtf(name);
-		buffer.writeResourceLocation(iconType);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeUuid(id);
+		buffer.writeString(name);
+		buffer.writeIdentifier(iconType);
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer sender = context.getSender();
-			Level level = sender == null ? null : sender.level();
+			ServerPlayerEntity sender = context.getSender();
+			World level = sender == null ? null : sender.getWorld();
 			Train train = Create.RAILWAYS.sided(level).trains.get(id);
 			if (train == null)
 				return;
@@ -59,11 +57,11 @@ public class TrainEditPacket extends SimplePacketBase {
 
 	public static class TrainEditReturnPacket extends TrainEditPacket {
 
-		public TrainEditReturnPacket(FriendlyByteBuf buffer) {
+		public TrainEditReturnPacket(PacketByteBuf buffer) {
 			super(buffer);
 		}
 
-		public TrainEditReturnPacket(UUID id, String name, ResourceLocation iconType) {
+		public TrainEditReturnPacket(UUID id, String name, Identifier iconType) {
 			super(id, name, iconType);
 		}
 

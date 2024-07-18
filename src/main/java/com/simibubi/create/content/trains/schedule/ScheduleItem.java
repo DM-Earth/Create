@@ -15,58 +15,58 @@ import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Lang;
 
 import io.github.fabricators_of_create.porting_lib.util.NetworkHooks;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
-public class ScheduleItem extends Item implements MenuProvider {
+public class ScheduleItem extends Item implements NamedScreenHandlerFactory {
 
-	public ScheduleItem(Properties pProperties) {
+	public ScheduleItem(Settings pProperties) {
 		super(pProperties);
 	}
 
 	@Override
-	public InteractionResult useOn(UseOnContext context) {
+	public ActionResult useOnBlock(ItemUsageContext context) {
 		if (context.getPlayer() == null)
-			return InteractionResult.PASS;
-		return use(context.getLevel(), context.getPlayer(), context.getHand()).getResult();
+			return ActionResult.PASS;
+		return use(context.getWorld(), context.getPlayer(), context.getHand()).getResult();
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
-		ItemStack heldItem = player.getItemInHand(hand);
+	public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
+		ItemStack heldItem = player.getStackInHand(hand);
 
-		if (!player.isShiftKeyDown() && hand == InteractionHand.MAIN_HAND) {
-			if (!world.isClientSide && player instanceof ServerPlayer)
-				NetworkHooks.openScreen((ServerPlayer) player, this, buf -> {
-					buf.writeItem(heldItem);
+		if (!player.isSneaking() && hand == Hand.MAIN_HAND) {
+			if (!world.isClient && player instanceof ServerPlayerEntity)
+				NetworkHooks.openScreen((ServerPlayerEntity) player, this, buf -> {
+					buf.writeItemStack(heldItem);
 				});
-			return InteractionResultHolder.success(heldItem);
+			return TypedActionResult.success(heldItem);
 		}
-		return InteractionResultHolder.pass(heldItem);
+		return TypedActionResult.pass(heldItem);
 	}
 
-	public InteractionResult handScheduleTo(ItemStack pStack, Player pPlayer, LivingEntity pInteractionTarget,
-		InteractionHand pUsedHand) {
-		InteractionResult pass = InteractionResult.PASS;
+	public ActionResult handScheduleTo(ItemStack pStack, PlayerEntity pPlayer, LivingEntity pInteractionTarget,
+		Hand pUsedHand) {
+		ActionResult pass = ActionResult.PASS;
 
 		Schedule schedule = getSchedule(pStack);
 		if (schedule == null)
@@ -76,8 +76,8 @@ public class ScheduleItem extends Item implements MenuProvider {
 		Entity rootVehicle = pInteractionTarget.getRootVehicle();
 		if (!(rootVehicle instanceof CarriageContraptionEntity))
 			return pass;
-		if (pPlayer.level().isClientSide)
-			return InteractionResult.SUCCESS;
+		if (pPlayer.getWorld().isClient)
+			return ActionResult.SUCCESS;
 
 		CarriageContraptionEntity entity = (CarriageContraptionEntity) rootVehicle;
 		Contraption contraption = entity.getContraption();
@@ -85,54 +85,54 @@ public class ScheduleItem extends Item implements MenuProvider {
 
 			Train train = entity.getCarriage().train;
 			if (train == null)
-				return InteractionResult.SUCCESS;
+				return ActionResult.SUCCESS;
 
 			Integer seatIndex = contraption.getSeatMapping()
-				.get(pInteractionTarget.getUUID());
+				.get(pInteractionTarget.getUuid());
 			if (seatIndex == null)
-				return InteractionResult.SUCCESS;
+				return ActionResult.SUCCESS;
 			BlockPos seatPos = contraption.getSeats()
 				.get(seatIndex);
 			Couple<Boolean> directions = cc.conductorSeats.get(seatPos);
 			if (directions == null) {
-				pPlayer.displayClientMessage(Lang.translateDirect("schedule.non_controlling_seat"), true);
-				AllSoundEvents.DENY.playOnServer(pPlayer.level(), pPlayer.blockPosition(), 1, 1);
-				return InteractionResult.SUCCESS;
+				pPlayer.sendMessage(Lang.translateDirect("schedule.non_controlling_seat"), true);
+				AllSoundEvents.DENY.playOnServer(pPlayer.getWorld(), pPlayer.getBlockPos(), 1, 1);
+				return ActionResult.SUCCESS;
 			}
 
 			if (train.runtime.getSchedule() != null) {
-				AllSoundEvents.DENY.playOnServer(pPlayer.level(), pPlayer.blockPosition(), 1, 1);
-				pPlayer.displayClientMessage(Lang.translateDirect("schedule.remove_with_empty_hand"), true);
-				return InteractionResult.SUCCESS;
+				AllSoundEvents.DENY.playOnServer(pPlayer.getWorld(), pPlayer.getBlockPos(), 1, 1);
+				pPlayer.sendMessage(Lang.translateDirect("schedule.remove_with_empty_hand"), true);
+				return ActionResult.SUCCESS;
 			}
 
 			if (schedule.entries.isEmpty()) {
-				AllSoundEvents.DENY.playOnServer(pPlayer.level(), pPlayer.blockPosition(), 1, 1);
-				pPlayer.displayClientMessage(Lang.translateDirect("schedule.no_stops"), true);
-				return InteractionResult.SUCCESS;
+				AllSoundEvents.DENY.playOnServer(pPlayer.getWorld(), pPlayer.getBlockPos(), 1, 1);
+				pPlayer.sendMessage(Lang.translateDirect("schedule.no_stops"), true);
+				return ActionResult.SUCCESS;
 			}
 
 			train.runtime.setSchedule(schedule, false);
 			AllAdvancements.CONDUCTOR.awardTo(pPlayer);
-			AllSoundEvents.CONFIRM.playOnServer(pPlayer.level(), pPlayer.blockPosition(), 1, 1);
-			pPlayer.displayClientMessage(Lang.translateDirect("schedule.applied_to_train")
-				.withStyle(ChatFormatting.GREEN), true);
-			pStack.shrink(1);
-			pPlayer.setItemInHand(pUsedHand, pStack.isEmpty() ? ItemStack.EMPTY : pStack);
+			AllSoundEvents.CONFIRM.playOnServer(pPlayer.getWorld(), pPlayer.getBlockPos(), 1, 1);
+			pPlayer.sendMessage(Lang.translateDirect("schedule.applied_to_train")
+				.formatted(Formatting.GREEN), true);
+			pStack.decrement(1);
+			pPlayer.setStackInHand(pUsedHand, pStack.isEmpty() ? ItemStack.EMPTY : pStack);
 		}
 
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public void appendHoverText(ItemStack stack, Level worldIn, List<Component> tooltip, TooltipFlag flagIn) {
+	public void appendTooltip(ItemStack stack, World worldIn, List<Text> tooltip, TooltipContext flagIn) {
 		Schedule schedule = getSchedule(stack);
 		if (schedule == null || schedule.entries.isEmpty())
 			return;
 
-		MutableComponent caret = Components.literal("> ").withStyle(ChatFormatting.GRAY);
-		MutableComponent arrow = Components.literal("-> ").withStyle(ChatFormatting.GRAY);
+		MutableText caret = Components.literal("> ").formatted(Formatting.GRAY);
+		MutableText arrow = Components.literal("-> ").formatted(Formatting.GRAY);
 
 		List<ScheduleEntry> entries = schedule.entries;
 		for (int i = 0; i < entries.size(); i++) {
@@ -140,31 +140,31 @@ public class ScheduleItem extends Item implements MenuProvider {
 			ScheduleEntry entry = entries.get(i);
 			if (!(entry.instruction instanceof DestinationInstruction destination))
 				continue;
-			ChatFormatting format = current ? ChatFormatting.YELLOW : ChatFormatting.GOLD;
-			MutableComponent prefix = current ? arrow : caret;
+			Formatting format = current ? Formatting.YELLOW : Formatting.GOLD;
+			MutableText prefix = current ? arrow : caret;
 			tooltip.add(prefix.copy()
-				.append(Components.literal(destination.getFilter()).withStyle(format)));
+				.append(Components.literal(destination.getFilter()).formatted(format)));
 		}
 	}
 
 	public static Schedule getSchedule(ItemStack pStack) {
-		if (!pStack.hasTag())
+		if (!pStack.hasNbt())
 			return null;
-		if (!pStack.getTag()
+		if (!pStack.getNbt()
 			.contains("Schedule"))
 			return null;
-		return Schedule.fromTag(pStack.getTagElement("Schedule"));
+		return Schedule.fromTag(pStack.getSubNbt("Schedule"));
 	}
 
 	@Override
-	public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
-		ItemStack heldItem = player.getMainHandItem();
+	public ScreenHandler createMenu(int id, PlayerInventory inv, PlayerEntity player) {
+		ItemStack heldItem = player.getMainHandStack();
 		return new ScheduleMenu(AllMenuTypes.SCHEDULE.get(), id, inv, heldItem);
 	}
 
 	@Override
-	public Component getDisplayName() {
-		return getDescription();
+	public Text getDisplayName() {
+		return getName();
 	}
 
 }

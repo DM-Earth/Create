@@ -2,7 +2,19 @@ package com.simibubi.create.content.kinetics.press;
 
 import java.util.List;
 import java.util.Optional;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllTags;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
@@ -24,19 +36,6 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandlerContainer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.NonNullList;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity implements PressingBehaviourSpecifics {
 
@@ -50,9 +49,9 @@ public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity implem
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return new AABB(worldPosition).expandTowards(0, -1.5, 0)
-			.expandTowards(0, 1, 0);
+	protected Box createRenderBoundingBox() {
+		return new Box(pos).stretch(0, -1.5, 0)
+			.stretch(0, 1, 0);
 	}
 
 	@Override
@@ -88,7 +87,7 @@ public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity implem
 			SmartInventory inputs = basin.get()
 				.getInputInventory();
 			for (int slot = 0; slot < inputs.getSlotCount(); slot++) {
-				ItemStack stackInSlot = inputs.getItem(slot);
+				ItemStack stackInSlot = inputs.getStack(slot);
 				if (stackInSlot.isEmpty())
 					continue;
 				pressingBehaviour.particleItems.add(stackInSlot);
@@ -99,21 +98,21 @@ public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity implem
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		if (getBehaviour(AdvancementBehaviour.TYPE).isOwnerPresent())
 			compound.putInt("TracksCreated", tracksCreated);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		tracksCreated = compound.getInt("TracksCreated");
 	}
 
 	@Override
 	public boolean tryProcessInWorld(ItemEntity itemEntity, boolean simulate) {
-		ItemStack item = itemEntity.getItem();
+		ItemStack item = itemEntity.getStack();
 		Optional<PressingRecipe> recipe = getRecipe(item);
 		if (!recipe.isPresent())
 			return false;
@@ -124,20 +123,20 @@ public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity implem
 		pressingBehaviour.particleItems.add(item);
 		if (canProcessInBulk() || item.getCount() == 1) {
 			RecipeApplier.applyRecipeOn(itemEntity, recipe.get());
-			itemCreated = itemEntity.getItem()
+			itemCreated = itemEntity.getStack()
 				.copy();
 		} else {
-			for (ItemStack result : RecipeApplier.applyRecipeOn(level, ItemHandlerHelper.copyStackWithSize(item, 1),
+			for (ItemStack result : RecipeApplier.applyRecipeOn(world, ItemHandlerHelper.copyStackWithSize(item, 1),
 				recipe.get())) {
 				if (itemCreated.isEmpty())
 					itemCreated = result.copy();
 				ItemEntity created =
-					new ItemEntity(level, itemEntity.getX(), itemEntity.getY(), itemEntity.getZ(), result);
-				created.setDefaultPickUpDelay();
-				created.setDeltaMovement(VecHelper.offsetRandomly(Vec3.ZERO, level.random, .05f));
-				level.addFreshEntity(created);
+					new ItemEntity(world, itemEntity.getX(), itemEntity.getY(), itemEntity.getZ(), result);
+				created.setToDefaultPickupDelay();
+				created.setVelocity(VecHelper.offsetRandomly(Vec3d.ZERO, world.random, .05f));
+				world.spawnEntity(created);
 			}
-			item.shrink(1);
+			item.decrement(1);
 		}
 
 		if (!itemCreated.isEmpty())
@@ -153,7 +152,7 @@ public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity implem
 		if (simulate)
 			return true;
 		pressingBehaviour.particleItems.add(input.stack);
-		List<ItemStack> outputs = RecipeApplier.applyRecipeOn(level,
+		List<ItemStack> outputs = RecipeApplier.applyRecipeOn(world,
 			canProcessInBulk() ? input.stack : ItemHandlerHelper.copyStackWithSize(input.stack, 1), recipe.get());
 
 		for (ItemStack created : outputs) {
@@ -177,27 +176,27 @@ public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity implem
 			basinChecker.scheduleUpdate();
 	}
 
-	private static final Container pressingInv = new ItemStackHandlerContainer(1);
+	private static final Inventory pressingInv = new ItemStackHandlerContainer(1);
 
 	public Optional<PressingRecipe> getRecipe(ItemStack item) {
 		Optional<PressingRecipe> assemblyRecipe =
-			SequencedAssemblyRecipe.getRecipe(level, item, AllRecipeTypes.PRESSING.getType(), PressingRecipe.class);
+			SequencedAssemblyRecipe.getRecipe(world, item, AllRecipeTypes.PRESSING.getType(), PressingRecipe.class);
 		if (assemblyRecipe.isPresent())
 			return assemblyRecipe;
 
-		pressingInv.setItem(0, item);
-		return AllRecipeTypes.PRESSING.find(pressingInv, level);
+		pressingInv.setStack(0, item);
+		return AllRecipeTypes.PRESSING.find(pressingInv, world);
 	}
 
-	public static <C extends Container> boolean canCompress(Recipe<C> recipe) {
+	public static <C extends Inventory> boolean canCompress(Recipe<C> recipe) {
 		if (!(recipe instanceof CraftingRecipe) || !AllConfigs.server().recipes.allowShapedSquareInPress.get())
 			return false;
-		NonNullList<Ingredient> ingredients = recipe.getIngredients();
+		DefaultedList<Ingredient> ingredients = recipe.getIngredients();
 		return (ingredients.size() == 4 || ingredients.size() == 9) && ItemHelper.matchAllIngredients(ingredients);
 	}
 
 	@Override
-	protected <C extends Container> boolean matchStaticFilters(Recipe<C> recipe) {
+	protected <C extends Inventory> boolean matchStaticFilters(Recipe<C> recipe) {
 		return (recipe instanceof CraftingRecipe && !(recipe instanceof MechanicalCraftingRecipe) && canCompress(recipe)
 			&& !AllRecipeTypes.shouldIgnoreInAutomation(recipe))
 			|| recipe.getType() == AllRecipeTypes.COMPACTING.getType();

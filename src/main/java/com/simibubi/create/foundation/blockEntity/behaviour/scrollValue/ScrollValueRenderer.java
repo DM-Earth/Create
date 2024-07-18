@@ -2,7 +2,18 @@ package com.simibubi.create.foundation.blockEntity.behaviour.scrollValue;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllKeys;
@@ -17,31 +28,18 @@ import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
-
 public class ScrollValueRenderer {
 
 	public static void tick() {
-		Minecraft mc = Minecraft.getInstance();
-		HitResult target = mc.hitResult;
+		MinecraftClient mc = MinecraftClient.getInstance();
+		HitResult target = mc.crosshairTarget;
 		if (target == null || !(target instanceof BlockHitResult))
 			return;
 
 		BlockHitResult result = (BlockHitResult) target;
-		ClientLevel world = mc.level;
+		ClientWorld world = mc.world;
 		BlockPos pos = result.getBlockPos();
-		Direction face = result.getDirection();
+		Direction face = result.getSide();
 
 		ScrollValueBehaviour behaviour = BlockEntityBehaviour.get(world, pos, ScrollValueBehaviour.TYPE);
 		if (behaviour == null)
@@ -50,18 +48,18 @@ public class ScrollValueRenderer {
 			CreateClient.OUTLINER.remove(pos);
 			return;
 		}
-		ItemStack mainhandItem = mc.player.getItemInHand(InteractionHand.MAIN_HAND);
+		ItemStack mainhandItem = mc.player.getStackInHand(Hand.MAIN_HAND);
 		boolean clipboard = AllBlocks.CLIPBOARD.isIn(mainhandItem);
 		if (behaviour.needsWrench && !AllItems.WRENCH.isIn(mainhandItem) && !clipboard)
 			return;
-		boolean highlight = behaviour.testHit(target.getLocation()) && !clipboard;
+		boolean highlight = behaviour.testHit(target.getPos()) && !clipboard;
 
 		if (behaviour instanceof BulkScrollValueBehaviour && AllKeys.ctrlDown()) {
 			BulkScrollValueBehaviour bulkScrolling = (BulkScrollValueBehaviour) behaviour;
 			for (SmartBlockEntity smartBlockEntity : bulkScrolling.getBulk()) {
 				ScrollValueBehaviour other = smartBlockEntity.getBehaviour(ScrollValueBehaviour.TYPE);
 				if (other != null)
-					addBox(world, smartBlockEntity.getBlockPos(), face, other, highlight);
+					addBox(world, smartBlockEntity.getPos(), face, other, highlight);
 			}
 		} else
 			addBox(world, pos, face, behaviour, highlight);
@@ -69,18 +67,18 @@ public class ScrollValueRenderer {
 		if (!highlight)
 			return;
 
-		List<MutableComponent> tip = new ArrayList<>();
+		List<MutableText> tip = new ArrayList<>();
 		tip.add(behaviour.label.copy());
 		tip.add(Lang.translateDirect("gui.value_settings.hold_to_edit"));
 		CreateClient.VALUE_SETTINGS_HANDLER.showHoverTip(tip);
 	}
 
-	protected static void addBox(ClientLevel world, BlockPos pos, Direction face, ScrollValueBehaviour behaviour,
+	protected static void addBox(ClientWorld world, BlockPos pos, Direction face, ScrollValueBehaviour behaviour,
 		boolean highlight) {
-		AABB bb = new AABB(Vec3.ZERO, Vec3.ZERO).inflate(.5f)
-			.contract(0, 0, -.5f)
-			.move(0, 0, -.125f);
-		Component label = behaviour.label;
+		Box bb = new Box(Vec3d.ZERO, Vec3d.ZERO).expand(.5f)
+			.shrink(0, 0, -.5f)
+			.offset(0, 0, -.125f);
+		Text label = behaviour.label;
 		ValueBox box;
 
 		if (behaviour instanceof ScrollOptionBehaviour) {
@@ -89,7 +87,7 @@ public class ScrollValueRenderer {
 			box = new TextValueBox(label, bb, pos, Components.literal(behaviour.formatValue()));
 		}
 
-		if (!AdventureUtil.isAdventure(Minecraft.getInstance().player))
+		if (!AdventureUtil.isAdventure(MinecraftClient.getInstance().player))
 			box.passive(!highlight)
 			.wideOutline();
 

@@ -8,7 +8,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.Create;
 import com.simibubi.create.compat.rei.category.animations.AnimatedItemDrain;
 import com.simibubi.create.compat.rei.display.CreateDisplay;
@@ -33,14 +32,13 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
 
@@ -61,7 +59,7 @@ public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
 			Item item = stack.getItem();
 			if (item == Items.POTION || item == Items.SPLASH_POTION || item == Items.LINGERING_POTION) {
 				FluidStack fluidFromPotionItem = PotionFluidHandler.getFluidFromPotionItem(stack);
-				Ingredient potion = Ingredient.of(stack);
+				Ingredient potion = Ingredient.ofStacks(stack);
 				consumer.accept(new ProcessingRecipeBuilder<>(EmptyingRecipe::new, Create.asResource("potions"))
 					.withItemIngredients(potion)
 					.withFluidOutputs(fluidFromPotionItem)
@@ -83,11 +81,11 @@ public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
 			if (result.isEmpty())
 				return;
 
-			Ingredient ingredient = Ingredient.of(stack);
-			ResourceLocation itemName = BuiltInRegistries.ITEM
-					.getKey(stack.getItem());
-			ResourceLocation fluidName = BuiltInRegistries.FLUID
-					.getKey(extracted.getFluid());
+			Ingredient ingredient = Ingredient.ofStacks(stack);
+			Identifier itemName = Registries.ITEM
+					.getId(stack.getItem());
+			Identifier fluidName = Registries.FLUID
+					.getId(extracted.getFluid());
 
 			consumer.accept(new ProcessingRecipeBuilder<>(EmptyingRecipe::new,
 				Create.asResource("empty_" + itemName.getNamespace() + "_" + itemName.getPath() + "_of_"
@@ -103,7 +101,7 @@ public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
 		FluidStack fluidOutput = display.getRecipe().getResultingFluid();
 		List<ItemStack> matchingIngredients = Arrays.asList(display.getRecipe().getIngredients()
 				.get(0)
-				.getItems());
+				.getMatchingStacks());
 
 		Slot fluidSlot = basicSlot(origin.x + 132, origin.y + 8)
 				.markOutput()
@@ -121,7 +119,7 @@ public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
 	}
 
 	@Override
-	public void draw(EmptyingRecipe recipe, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(EmptyingRecipe recipe, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SLOT.render(graphics, 131, 7);
 		AllGuiTextures.JEI_SLOT.render(graphics, 26, 7);
 		getRenderedSlot(recipe, 0).render(graphics, 131, 26);

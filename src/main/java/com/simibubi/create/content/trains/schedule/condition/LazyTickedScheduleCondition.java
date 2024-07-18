@@ -1,9 +1,8 @@
 package com.simibubi.create.content.trains.schedule.condition;
 
 import com.simibubi.create.content.trains.entity.Train;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.world.World;
 
 public abstract class LazyTickedScheduleCondition extends ScheduleWaitCondition {
 
@@ -14,7 +13,7 @@ public abstract class LazyTickedScheduleCondition extends ScheduleWaitCondition 
 	}
 	
 	@Override
-	public boolean tickCompletion(Level level, Train train, CompoundTag context) {
+	public boolean tickCompletion(World level, Train train, NbtCompound context) {
 		int time = context.getInt("Time");
 		if (time % tickRate == 0) {
 			if (lazyTickCompletion(level, train, context))
@@ -25,6 +24,6 @@ public abstract class LazyTickedScheduleCondition extends ScheduleWaitCondition 
 		return false;
 	}
 
-	protected abstract boolean lazyTickCompletion(Level level, Train train, CompoundTag context);
+	protected abstract boolean lazyTickCompletion(World level, Train train, NbtCompound context);
 	
 }

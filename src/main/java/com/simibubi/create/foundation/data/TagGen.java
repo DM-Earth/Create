@@ -14,39 +14,29 @@ import com.tterrag.registrate.util.nullness.NonNullFunction;
 
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagProvider;
-
-import net.minecraft.core.HolderLookup;
-
+import net.minecraft.block.Block;
+import net.minecraft.data.server.tag.TagProvider;
+import net.minecraft.data.server.tag.TagProvider.ProvidedTagBuilder;
+import net.minecraft.item.BlockItem;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.registry.tag.TagBuilder;
+import net.minecraft.registry.tag.TagKey;
 import org.jetbrains.annotations.NotNull;
-
-import net.minecraft.core.Holder;
-import net.minecraft.data.tags.TagsProvider;
-import net.minecraft.data.tags.TagsProvider.TagAppender;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagBuilder;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
 
 public class TagGen {
 	public static <T extends Block, P> NonNullFunction<BlockBuilder<T, P>, BlockBuilder<T, P>> axeOrPickaxe() {
-		return b -> b.tag(BlockTags.MINEABLE_WITH_AXE)
-			.tag(BlockTags.MINEABLE_WITH_PICKAXE);
+		return b -> b.tag(BlockTags.AXE_MINEABLE)
+			.tag(BlockTags.PICKAXE_MINEABLE);
 	}
 
 	public static <T extends Block, P> NonNullFunction<BlockBuilder<T, P>, BlockBuilder<T, P>> axeOnly() {
-		return b -> b.tag(BlockTags.MINEABLE_WITH_AXE);
+		return b -> b.tag(BlockTags.AXE_MINEABLE);
 	}
 
 	public static <T extends Block, P> NonNullFunction<BlockBuilder<T, P>, BlockBuilder<T, P>> pickaxeOnly() {
-		return b -> b.tag(BlockTags.MINEABLE_WITH_PICKAXE);
+		return b -> b.tag(BlockTags.PICKAXE_MINEABLE);
 	}
 
 	public static <T extends Block, P> NonNullFunction<BlockBuilder<T, P>, ItemBuilder<BlockItem, BlockBuilder<T, P>>> tagBlockAndItem(
@@ -61,12 +51,12 @@ public class TagGen {
 		};
 	}
 
-	public static <T extends TagAppender<?>> T addOptional(T appender, Mods mod, String id) {
+	public static <T extends ProvidedTagBuilder<?>> T addOptional(T appender, Mods mod, String id) {
 		appender.addOptional(mod.asResource(id));
 		return appender;
 	}
 
-	public static <T extends TagAppender<?>> T addOptional(T appender, Mods mod, String... ids) {
+	public static <T extends ProvidedTagBuilder<?>> T addOptional(T appender, Mods mod, String... ids) {
 		for (String id : ids) {
 			appender.addOptional(mod.asResource(id));
 		}
@@ -76,11 +66,11 @@ public class TagGen {
 	public static class CreateTagsProvider<T> {
 
 		private RegistrateTagsProvider<T> provider;
-		private Function<T, ResourceKey<T>> keyExtractor;
+		private Function<T, RegistryKey<T>> keyExtractor;
 
-		public CreateTagsProvider(RegistrateTagsProvider<T> provider, Function<T, Holder.Reference<T>> refExtractor) {
+		public CreateTagsProvider(RegistrateTagsProvider<T> provider, Function<T, RegistryEntry.Reference<T>> refExtractor) {
 			this.provider = provider;
-			this.keyExtractor = refExtractor.andThen(Holder.Reference::key);
+			this.keyExtractor = refExtractor.andThen(RegistryEntry.Reference::registryKey);
 		}
 
 		public CreateTagAppender<T> tag(TagKey<T> tag) {
@@ -93,19 +83,19 @@ public class TagGen {
 		}
 	}
 
-	public static class CreateTagAppender<T> extends TagsProvider.TagAppender<T> {
+	public static class CreateTagAppender<T> extends TagProvider.ProvidedTagBuilder<T> {
 
-		private Function<T, ResourceKey<T>> keyExtractor;
+		private Function<T, RegistryKey<T>> keyExtractor;
 		// fabric: take the fabric builder, use it to call forceAddTag instead of addTag
 		private final FabricTagProvider<T>.FabricTagBuilder fabricBuilder;
 
-		public CreateTagAppender(FabricTagProvider<T>.FabricTagBuilder fabricBuilder, Function<T, ResourceKey<T>> pKeyExtractor) {
+		public CreateTagAppender(FabricTagProvider<T>.FabricTagBuilder fabricBuilder, Function<T, RegistryKey<T>> pKeyExtractor) {
 			super(getBuilder(fabricBuilder));
 			this.keyExtractor = pKeyExtractor;
 			this.fabricBuilder = fabricBuilder;
 		}
 
-		private static TagBuilder getBuilder(TagAppender<?> appender) {
+		private static TagBuilder getBuilder(ProvidedTagBuilder<?> appender) {
 			return ((TagAppenderAccessor) appender).getBuilder();
 		}
 
@@ -124,7 +114,7 @@ public class TagGen {
 
 		@Override
 		@NotNull
-		public TagAppender<T> addTag(@NotNull TagKey<T> tag) {
+		public ProvidedTagBuilder<T> addTag(@NotNull TagKey<T> tag) {
 			this.fabricBuilder.forceAddTag(tag);
 			return this;
 		}

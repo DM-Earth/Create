@@ -8,22 +8,22 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import vazkii.botania.api.block.PetalApothecary;
 
 public class ApothecaryFilling extends BlockSpoutingBehaviour {
 
 	static Boolean BOTANIA_PRESENT = null;
 
-	private final ResourceLocation APOTHECARY = new ResourceLocation("botania", "altar");
+	private final Identifier APOTHECARY = new Identifier("botania", "altar");
 
 	@Override
-	public long fillBlock(Level level, BlockPos pos, SpoutBlockEntity spout, FluidStack availableFluid,
+	public long fillBlock(World level, BlockPos pos, SpoutBlockEntity spout, FluidStack availableFluid,
 						  boolean simulate) {
 		if (!enabled())
 			return 0;
@@ -32,7 +32,7 @@ public class ApothecaryFilling extends BlockSpoutingBehaviour {
 		if (te == null)
 			return 0;
 
-		ResourceLocation registryName = RegisteredObjects.getKeyOrThrow(te.getType());
+		Identifier registryName = RegisteredObjects.getKeyOrThrow(te.getType());
 		if (!registryName.equals(APOTHECARY))
 			return 0;
 

@@ -1,10 +1,9 @@
 package com.simibubi.create.foundation.map;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.map.MapState;
 
 public interface CustomRenderedMapDecoration {
-	void render(PoseStack poseStack, MultiBufferSource bufferSource, boolean active, int packedLight, MapItemSavedData mapData, int index);
+	void render(MatrixStack poseStack, VertexConsumerProvider bufferSource, boolean active, int packedLight, MapState mapData, int index);
 }

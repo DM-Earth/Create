@@ -1,8 +1,8 @@
 package com.simibubi.create.foundation.data;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
 
 @MethodsReturnNonnullByDefault
 public class SharedProperties {

@@ -15,32 +15,32 @@ import com.simibubi.create.foundation.utility.VecHelper;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class DrillMovementBehaviour extends BlockBreakingMovementBehaviour {
 
 	@Override
 	public boolean isActive(MovementContext context) {
 		return super.isActive(context)
-			&& !VecHelper.isVecPointingTowards(context.relativeMotion, context.state.getValue(DrillBlock.FACING)
+			&& !VecHelper.isVecPointingTowards(context.relativeMotion, context.state.get(DrillBlock.FACING)
 				.getOpposite());
 	}
 
 	@Override
-	public Vec3 getActiveAreaOffset(MovementContext context) {
-		return Vec3.atLowerCornerOf(context.state.getValue(DrillBlock.FACING)
-			.getNormal()).scale(.65f);
+	public Vec3d getActiveAreaOffset(MovementContext context) {
+		return Vec3d.of(context.state.get(DrillBlock.FACING)
+			.getVector()).multiply(.65f);
 	}
 
 	@Override
 	@Environment(value = EnvType.CLIENT)
 	public void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
         if (!ContraptionRenderDispatcher.canInstance())
 			DrillRenderer.renderInContraption(context, renderWorld, matrices, buffer);
 	}
@@ -57,12 +57,12 @@ public class DrillMovementBehaviour extends BlockBreakingMovementBehaviour {
 	}
 
 	@Override
-	protected DamageSource getDamageSource(Level level) {
+	protected DamageSource getDamageSource(World level) {
 		return CreateDamageSources.drill(level);
 	}
 
 	@Override
-	public boolean canBreak(Level world, BlockPos breakingPos, BlockState state) {
+	public boolean canBreak(World world, BlockPos breakingPos, BlockState state) {
 		return super.canBreak(world, breakingPos, state) && !state.getCollisionShape(world, breakingPos)
 			.isEmpty() && !AllTags.AllBlockTags.TRACKS.matches(state);
 	}

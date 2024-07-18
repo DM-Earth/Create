@@ -2,7 +2,6 @@ package com.simibubi.create.content.contraptions.actors.trainControls;
 
 import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.simibubi.create.content.contraptions.render.ContraptionMatrices;
@@ -11,36 +10,36 @@ import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 
 public class ControlsRenderer {
 
 	public static void render(MovementContext context, VirtualRenderWorld renderWorld, ContraptionMatrices matrices,
-		MultiBufferSource buffer, float equipAnimation, float firstLever, float secondLever) {
+		VertexConsumerProvider buffer, float equipAnimation, float firstLever, float secondLever) {
 		BlockState state = context.state;
-		Direction facing = state.getValue(ControlsBlock.FACING);
+		Direction facing = state.get(ControlsBlock.FACING);
 
 		SuperByteBuffer cover = CachedBufferer.partial(AllPartialModels.TRAIN_CONTROLS_COVER, state);
 		float hAngle = 180 + AngleHelper.horizontalAngle(facing);
-		PoseStack ms = matrices.getModel();
+		MatrixStack ms = matrices.getModel();
 		cover.transform(ms)
 			.centre()
 			.rotateY(hAngle)
 			.unCentre()
 			.light(matrices.getWorld(), ContraptionRenderDispatcher.getContraptionWorldLight(context, renderWorld))
-			.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderType.cutoutMipped()));
+			.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderLayer.getCutoutMipped()));
 
-		double yOffset = Mth.lerp(equipAnimation * equipAnimation, -0.15f, 0.05f);
+		double yOffset = MathHelper.lerp(equipAnimation * equipAnimation, -0.15f, 0.05f);
 
 		for (boolean first : Iterate.trueAndFalse) {
-			float vAngle = (float) Mth.clamp(first ? firstLever * 70 - 25 : secondLever * 15, -45, 45);
+			float vAngle = (float) MathHelper.clamp(first ? firstLever * 70 - 25 : secondLever * 15, -45, 45);
 			SuperByteBuffer lever = CachedBufferer.partial(AllPartialModels.TRAIN_CONTROLS_LEVER, state);
-			ms.pushPose();
+			ms.push();
 			TransformStack.cast(ms)
 				.centre()
 				.rotateY(hAngle)
@@ -53,8 +52,8 @@ public class ControlsRenderer {
 				.translate(first ? 0 : 6 / 16f, 0, 0);
 			lever.transform(ms)
 				.light(matrices.getWorld(), ContraptionRenderDispatcher.getContraptionWorldLight(context, renderWorld))
-				.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderType.solid()));
-			ms.popPose();
+				.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderLayer.getSolid()));
+			ms.pop();
 		}
 
 	}

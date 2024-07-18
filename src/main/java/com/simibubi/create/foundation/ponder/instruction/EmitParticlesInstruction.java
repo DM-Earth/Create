@@ -3,40 +3,39 @@ package com.simibubi.create.foundation.ponder.instruction;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.ponder.PonderScene;
 import com.simibubi.create.foundation.ponder.PonderWorld;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.particle.ParticleManager;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.util.math.Vec3d;
 
 public class EmitParticlesInstruction extends TickingInstruction {
 
-	private Vec3 anchor;
+	private Vec3d anchor;
 	private Emitter emitter;
 	private float runsPerTick;
 
 	@FunctionalInterface
 	public static interface Emitter {
 
-		public static <T extends ParticleOptions> Emitter simple(T data, Vec3 motion) {
+		public static <T extends ParticleEffect> Emitter simple(T data, Vec3d motion) {
 			return (w, x, y, z) -> w.addParticle(data, x, y, z, motion.x, motion.y, motion.z);
 		}
 
-		public static <T extends ParticleOptions> Emitter withinBlockSpace(T data, Vec3 motion) {
+		public static <T extends ParticleEffect> Emitter withinBlockSpace(T data, Vec3d motion) {
 			return (w, x, y, z) -> w.addParticle(data, Math.floor(x) + Create.RANDOM.nextFloat(),
 					Math.floor(y) + Create.RANDOM.nextFloat(), Math.floor(z) + Create.RANDOM.nextFloat(), motion.x,
 					motion.y, motion.z);
 		}
 
-		static ParticleEngine paticleManager() {
-			return Minecraft.getInstance().particleEngine;
+		static ParticleManager paticleManager() {
+			return MinecraftClient.getInstance().particleManager;
 		}
 
 		public void create(PonderWorld world, double x, double y, double z);
 
 	}
 
-	public EmitParticlesInstruction(Vec3 anchor, Emitter emitter, float runsPerTick, int ticks) {
+	public EmitParticlesInstruction(Vec3d anchor, Emitter emitter, float runsPerTick, int ticks) {
 		super(false, ticks);
 		this.anchor = anchor;
 		this.emitter = emitter;

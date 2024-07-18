@@ -7,19 +7,18 @@ import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.fluid.FluidHelper;
 import com.simibubi.create.foundation.utility.BlockHelper;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.registry.tag.FluidTags;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class FluidReactions {
 
-	public static void handlePipeFlowCollision(Level level, BlockPos pos, FluidStack fluid, FluidStack fluid2) {
+	public static void handlePipeFlowCollision(World level, BlockPos pos, FluidStack fluid, FluidStack fluid2) {
 		Fluid f1 = fluid.getFluid();
 		Fluid f2 = fluid2.getFluid();
 
@@ -29,7 +28,7 @@ public class FluidReactions {
 		PipeCollisionEvent.Flow event = new PipeCollisionEvent.Flow(level, pos, f1, f2, null);
 		PipeCollisionEvent.FLOW.invoker().handleFlow(event);
 		if (event.getState() != null)
-			level.setBlockAndUpdate(pos, event.getState());
+			level.setBlockState(pos, event.getState());
 	}
 
 	public static void handlePipeFlowCollisionFallback(PipeCollisionEvent.Flow event) {
@@ -37,28 +36,28 @@ public class FluidReactions {
 		Fluid f2 = event.getSecondFluid();
 
 		if (f1 == Fluids.WATER && f2 == Fluids.LAVA || f2 == Fluids.WATER && f1 == Fluids.LAVA) {
-			event.setState(Blocks.COBBLESTONE.defaultBlockState());
+			event.setState(Blocks.COBBLESTONE.getDefaultState());
 		} else if (f1 == Fluids.LAVA && FluidHelper.hasBlockState(f2)) {
-			BlockState lavaInteraction = AllFluids.getLavaInteraction(FluidHelper.convertToFlowing(f2).defaultFluidState());
+			BlockState lavaInteraction = AllFluids.getLavaInteraction(FluidHelper.convertToFlowing(f2).getDefaultState());
 			if (lavaInteraction != null) {
 				event.setState(lavaInteraction);
 			}
 		} else if (f2 == Fluids.LAVA && FluidHelper.hasBlockState(f1)) {
-			BlockState lavaInteraction = AllFluids.getLavaInteraction(FluidHelper.convertToFlowing(f1).defaultFluidState());
+			BlockState lavaInteraction = AllFluids.getLavaInteraction(FluidHelper.convertToFlowing(f1).getDefaultState());
 			if (lavaInteraction != null) {
 				event.setState(lavaInteraction);
 			}
 		}
 	}
 
-	public static void handlePipeSpillCollision(Level level, BlockPos pos, Fluid pipeFluid, FluidState worldFluid) {
+	public static void handlePipeSpillCollision(World level, BlockPos pos, Fluid pipeFluid, FluidState worldFluid) {
 		Fluid pf = FluidHelper.convertToStill(pipeFluid);
-		Fluid wf = worldFluid.getType();
+		Fluid wf = worldFluid.getFluid();
 
 		PipeCollisionEvent.Spill event = new PipeCollisionEvent.Spill(level, pos, wf, pf, null);
 		PipeCollisionEvent.SPILL.invoker().handleSpill(event);
 		if (event.getState() != null) {
-			level.setBlockAndUpdate(pos, event.getState());
+			level.setBlockState(pos, event.getState());
 		}
 	}
 
@@ -67,22 +66,22 @@ public class FluidReactions {
 		Fluid wf = event.getWorldFluid();
 
 		if (FluidHelper.isTag(pf, FluidTags.WATER) && wf == Fluids.LAVA) {
-			event.setState(Blocks.OBSIDIAN.defaultBlockState());
+			event.setState(Blocks.OBSIDIAN.getDefaultState());
 		} else if (pf == Fluids.WATER && wf == Fluids.FLOWING_LAVA) {
-			event.setState(Blocks.COBBLESTONE.defaultBlockState());
+			event.setState(Blocks.COBBLESTONE.getDefaultState());
 		} else if (pf == Fluids.LAVA && wf == Fluids.WATER) {
-			event.setState(Blocks.STONE.defaultBlockState());
+			event.setState(Blocks.STONE.getDefaultState());
 		} else if (pf == Fluids.LAVA && wf == Fluids.FLOWING_WATER) {
-			event.setState(Blocks.COBBLESTONE.defaultBlockState());
+			event.setState(Blocks.COBBLESTONE.getDefaultState());
 		}
 
 		if (pf == Fluids.LAVA) {
-			BlockState lavaInteraction = AllFluids.getLavaInteraction(wf.defaultFluidState());
+			BlockState lavaInteraction = AllFluids.getLavaInteraction(wf.getDefaultState());
 			if (lavaInteraction != null) {
 				event.setState(lavaInteraction);
 			}
 		} else if (wf == Fluids.FLOWING_LAVA && FluidHelper.hasBlockState(pf)) {
-			BlockState lavaInteraction = AllFluids.getLavaInteraction(FluidHelper.convertToFlowing(pf).defaultFluidState());
+			BlockState lavaInteraction = AllFluids.getLavaInteraction(FluidHelper.convertToFlowing(pf).getDefaultState());
 			if (lavaInteraction != null) {
 				event.setState(lavaInteraction);
 			}

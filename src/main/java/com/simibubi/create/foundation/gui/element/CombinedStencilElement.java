@@ -1,10 +1,8 @@
 package com.simibubi.create.foundation.gui.element;
 
 import javax.annotation.Nonnull;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
 
 public class CombinedStencilElement extends StencilElement {
 
@@ -45,22 +43,22 @@ public class CombinedStencilElement extends StencilElement {
 	}
 
 	@Override
-	protected void renderStencil(GuiGraphics graphics) {
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+	protected void renderStencil(DrawContext graphics) {
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		element1.transform(ms);
 		element1.withBounds(width, height);
 		element1.renderStencil(graphics);
-		ms.popPose();
-		ms.pushPose();
+		ms.pop();
+		ms.push();
 		element2.transform(ms);
 		element2.withBounds(width, height);
 		element2.renderStencil(graphics);
-		ms.popPose();
+		ms.pop();
 	}
 
 	@Override
-	protected void renderElement(GuiGraphics graphics) {
+	protected void renderElement(DrawContext graphics) {
 		if (mode.rendersFirst())
 			element1.<StencilElement>withBounds(width, height).renderElement(graphics);
 

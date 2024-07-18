@@ -5,7 +5,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.graph.TrackNodeLocation.DiscoveredLocation;
 import com.simibubi.create.content.trains.track.BezierConnection;
@@ -14,28 +18,22 @@ import com.simibubi.create.content.trains.track.ITrackBlock;
 import com.simibubi.create.content.trains.track.TrackBlockEntity;
 import com.simibubi.create.foundation.utility.Couple;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
-
 public class TrackGraphHelper {
 
 	@Nullable
-	public static TrackGraphLocation getGraphLocationAt(Level level, BlockPos pos, AxisDirection targetDirection,
-		Vec3 targetAxis) {
+	public static TrackGraphLocation getGraphLocationAt(World level, BlockPos pos, AxisDirection targetDirection,
+		Vec3d targetAxis) {
 		BlockState trackBlockState = level.getBlockState(pos);
 		if (!(trackBlockState.getBlock()instanceof ITrackBlock track))
 			return null;
 
-		Vec3 axis = targetAxis.scale(targetDirection.getStep());
+		Vec3d axis = targetAxis.multiply(targetDirection.offset());
 		double length = axis.length();
 		TrackGraph graph = null;
 
 		// Case 1: Centre of block lies on a node
 
-		TrackNodeLocation location = new TrackNodeLocation(Vec3.atBottomCenterOf(pos)
+		TrackNodeLocation location = new TrackNodeLocation(Vec3d.ofBottomCenter(pos)
 			.add(0, track.getElevationAtCenter(level, pos, trackBlockState), 0)).in(level);
 		graph = Create.RAILWAYS.sided(level)
 			.getGraph(level, location);
@@ -45,10 +43,10 @@ public class TrackGraphHelper {
 				Map<TrackNode, TrackEdge> connectionsFrom = graph.getConnectionsFrom(node);
 				for (Entry<TrackNode, TrackEdge> entry : connectionsFrom.entrySet()) {
 					TrackNode backNode = entry.getKey();
-					Vec3 direction = entry.getValue()
+					Vec3d direction = entry.getValue()
 						.getDirection(true);
-					if (direction.scale(length)
-						.distanceToSqr(axis.scale(-1)) > 1 / 4096f)
+					if (direction.multiply(length)
+						.squaredDistanceTo(axis.multiply(-1)) > 1 / 4096f)
 						continue;
 
 					TrackGraphLocation graphLocation = new TrackGraphLocation();
@@ -63,7 +61,7 @@ public class TrackGraphHelper {
 		// Case 2: Center of block is between two nodes
 
 		Collection<DiscoveredLocation> ends = track.getConnected(level, pos, trackBlockState, true, null);
-		Vec3 start = Vec3.atBottomCenterOf(pos)
+		Vec3d start = Vec3d.ofBottomCenter(pos)
 			.add(0, track.getElevationAtCenter(level, pos, trackBlockState), 0);
 
 		TrackNode frontNode = null;
@@ -72,16 +70,16 @@ public class TrackGraphHelper {
 		boolean singleTrackPiece = true;
 
 		for (DiscoveredLocation current : ends) {
-			Vec3 offset = current.getLocation()
+			Vec3d offset = current.getLocation()
 				.subtract(start)
 				.normalize()
-				.scale(length);
+				.multiply(length);
 
-			Vec3 compareOffset = offset.multiply(1, 0, 1)
+			Vec3d compareOffset = offset.multiply(1, 0, 1)
 				.normalize();
-			boolean forward = compareOffset.distanceToSqr(axis.multiply(-1, 0, -1)
+			boolean forward = compareOffset.squaredDistanceTo(axis.multiply(-1, 0, -1)
 				.normalize()) < 1 / 4096f;
-			boolean backwards = compareOffset.distanceToSqr(axis.multiply(1, 0, 1)
+			boolean backwards = compareOffset.squaredDistanceTo(axis.multiply(1, 0, 1)
 				.normalize()) < 1 / 4096f;
 
 			if (!forward && !backwards)
@@ -102,10 +100,10 @@ public class TrackGraphHelper {
 					for (DiscoveredLocation discoveredLocation : list) {
 						if (discoveredLocation == previous)
 							continue;
-						Vec3 diff = discoveredLocation.getLocation()
+						Vec3d diff = discoveredLocation.getLocation()
 							.subtract(loc.getLocation());
-						if ((forward ? axis.scale(-1) : axis).distanceToSqr(diff.normalize()
-							.scale(length)) > 1 / 4096f)
+						if ((forward ? axis.multiply(-1) : axis).squaredDistanceTo(diff.normalize()
+							.multiply(length)) > 1 / 4096f)
 							continue;
 
 						previous = current;
@@ -145,7 +143,7 @@ public class TrackGraphHelper {
 	}
 
 	@Nullable
-	public static TrackGraphLocation getBezierGraphLocationAt(Level level, BlockPos pos, AxisDirection targetDirection,
+	public static TrackGraphLocation getBezierGraphLocationAt(World level, BlockPos pos, AxisDirection targetDirection,
 		BezierTrackPointLocation targetBezier) {
 		BlockState state = level.getBlockState(pos);
 

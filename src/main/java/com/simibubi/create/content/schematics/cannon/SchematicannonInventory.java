@@ -5,8 +5,7 @@ import com.simibubi.create.AllItems;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
 
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.item.Items;
 
 public class SchematicannonInventory extends ItemStackHandler {
 	private final SchematicannonBlockEntity blockEntity;
@@ -19,7 +18,7 @@ public class SchematicannonInventory extends ItemStackHandler {
 	@Override
 	protected void onContentsChanged(int slot) {
 		super.onContentsChanged(slot);
-		blockEntity.setChanged();
+		blockEntity.markDirty();
 	}
 
 	@Override

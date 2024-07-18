@@ -12,13 +12,13 @@ import com.simibubi.create.Create;
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricRecipeProvider;
-import net.minecraft.data.recipes.FinishedRecipe;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.data.server.recipe.RecipeJsonProvider;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.registry.tag.TagKey;
 
 public abstract class CreateRecipeProvider extends FabricRecipeProvider {
 
@@ -29,7 +29,7 @@ public abstract class CreateRecipeProvider extends FabricRecipeProvider {
 	}
 
 	@Override
-	public void buildRecipes(Consumer<FinishedRecipe> p_200404_1_) {
+	public void generate(Consumer<RecipeJsonProvider> p_200404_1_) {
 		all.forEach(c -> c.register(p_200404_1_));
 		Create.LOGGER.info(getName() + " registered " + all.size() + " recipe" + (all.size() == 1 ? "" : "s"));
 	}
@@ -41,7 +41,7 @@ public abstract class CreateRecipeProvider extends FabricRecipeProvider {
 
 	@FunctionalInterface
 	public interface GeneratedRecipe {
-		void register(Consumer<FinishedRecipe> consumer);
+		void register(Consumer<RecipeJsonProvider> consumer);
 	}
 
 	protected static class Marker {
@@ -73,23 +73,23 @@ public abstract class CreateRecipeProvider extends FabricRecipeProvider {
 			return Tags.Items.STONE;
 		}
 
-		static ItemLike andesite() {
+		static ItemConvertible andesite() {
 			return AllItems.ANDESITE_ALLOY.get();
 		}
 
-		static ItemLike shaft() {
+		static ItemConvertible shaft() {
 			return AllBlocks.SHAFT.get();
 		}
 
-		static ItemLike cog() {
+		static ItemConvertible cog() {
 			return AllBlocks.COGWHEEL.get();
 		}
 
-		static ItemLike largeCog() {
+		static ItemConvertible largeCog() {
 			return AllBlocks.LARGE_COGWHEEL.get();
 		}
 
-		static ItemLike andesiteCasing() {
+		static ItemConvertible andesiteCasing() {
 			return AllBlocks.ANDESITE_CASING.get();
 		}
 
@@ -121,23 +121,23 @@ public abstract class CreateRecipeProvider extends FabricRecipeProvider {
 			return AllTags.forgeItemTag("obsidian_plates");
 		}
 
-		static ItemLike brassCasing() {
+		static ItemConvertible brassCasing() {
 			return AllBlocks.BRASS_CASING.get();
 		}
 
-		static ItemLike railwayCasing() {
+		static ItemConvertible railwayCasing() {
 			return AllBlocks.RAILWAY_CASING.get();
 		}
 
-		static ItemLike electronTube() {
+		static ItemConvertible electronTube() {
 			return AllItems.ELECTRON_TUBE.get();
 		}
 
-		static ItemLike precisionMechanism() {
+		static ItemConvertible precisionMechanism() {
 			return AllItems.PRECISION_MECHANISM.get();
 		}
 
-		static ItemLike copperBlock() {
+		static ItemConvertible copperBlock() {
 			return Items.COPPER_BLOCK;
 		}
 
@@ -153,7 +153,7 @@ public abstract class CreateRecipeProvider extends FabricRecipeProvider {
 			return AllTags.forgeItemTag("wheat_flour");
 		}
 
-		static ItemLike copper() {
+		static ItemConvertible copper() {
 			return Items.COPPER_INGOT;
 		}
 
@@ -173,20 +173,20 @@ public abstract class CreateRecipeProvider extends FabricRecipeProvider {
 			return AllTags.forgeItemTag("zinc_nuggets");
 		}
 
-		static ItemLike copperCasing() {
+		static ItemConvertible copperCasing() {
 			return AllBlocks.COPPER_CASING.get();
 		}
 
-		static ItemLike refinedRadiance() {
+		static ItemConvertible refinedRadiance() {
 			return AllItems.REFINED_RADIANCE.get();
 		}
 
-		static ItemLike shadowSteel() {
+		static ItemConvertible shadowSteel() {
 			return AllItems.SHADOW_STEEL.get();
 		}
 
 		static Ingredient netherite() {
-			return Ingredient.of(AllTags.forgeItemTag("netherite_ingots"));
+			return Ingredient.fromTag(AllTags.forgeItemTag("netherite_ingots"));
 		}
 
 	}

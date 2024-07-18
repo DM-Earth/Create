@@ -2,10 +2,34 @@ package com.simibubi.create.content.schematics.client;
 
 import java.util.List;
 import java.util.Vector;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.util.Window;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.GameMode;
+import net.minecraft.world.World;
 import com.google.common.collect.ImmutableList;
-import com.mojang.blaze3d.platform.Window;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllKeys;
@@ -24,37 +48,11 @@ import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.NBTHelper;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Vec3i;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
-
 public class SchematicHandler {
 
 	private String displayedSchematic;
 	private SchematicTransformation transformation;
-	private AABB bounds;
+	private Box bounds;
 	private boolean deployed;
 	private boolean active;
 	private ToolType currentTool;
@@ -81,8 +79,8 @@ public class SchematicHandler {
 	}
 
 	public void tick() {
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.gameMode.getPlayerMode() == GameType.SPECTATOR) {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc.interactionManager.getCurrentGameMode() == GameMode.SPECTATOR) {
 			if (active) {
 				active = false;
 				syncCooldown = 0;
@@ -96,7 +94,7 @@ public class SchematicHandler {
 		if (activeSchematicItem != null && transformation != null)
 			transformation.tick();
 
-		LocalPlayer player = mc.player;
+		ClientPlayerEntity player = mc.player;
 		ItemStack stack = findBlueprintInHand(player);
 		if (stack == null) {
 			active = false;
@@ -109,7 +107,7 @@ public class SchematicHandler {
 			return;
 		}
 
-		if (!active || !stack.getTag()
+		if (!active || !stack.getNbt()
 			.getString("File")
 			.equals(displayedSchematic))
 			init(player, stack);
@@ -127,9 +125,9 @@ public class SchematicHandler {
 			.updateSelection();
 	}
 
-	private void init(LocalPlayer player, ItemStack stack) {
+	private void init(ClientPlayerEntity player, ItemStack stack) {
 		loadSettings(stack);
-		displayedSchematic = stack.getTag()
+		displayedSchematic = stack.getNbt()
 			.getString("File");
 		active = true;
 		if (deployed) {
@@ -145,9 +143,9 @@ public class SchematicHandler {
 	}
 
 	private void setupRenderer() {
-		Level clientWorld = Minecraft.getInstance().level;
+		World clientWorld = MinecraftClient.getInstance().world;
 		StructureTemplate schematic =
-			SchematicItem.loadSchematic(clientWorld.holderLookup(Registries.BLOCK), activeSchematicItem);
+			SchematicItem.loadSchematic(clientWorld.createCommandRegistryWrapper(RegistryKeys.BLOCK), activeSchematicItem);
 		Vec3i size = schematic.getSize();
 		if (size.equals(Vec3i.ZERO))
 			return;
@@ -155,33 +153,33 @@ public class SchematicHandler {
 		SchematicWorld w = new SchematicWorld(clientWorld);
 		SchematicWorld wMirroredFB = new SchematicWorld(clientWorld);
 		SchematicWorld wMirroredLR = new SchematicWorld(clientWorld);
-		StructurePlaceSettings placementSettings = new StructurePlaceSettings();
+		StructurePlacementData placementSettings = new StructurePlacementData();
 		StructureTransform transform;
 		BlockPos pos;
 
-		pos = BlockPos.ZERO;
+		pos = BlockPos.ORIGIN;
 
 		try {
-			schematic.placeInWorld(w, pos, pos, placementSettings, w.getRandom(), Block.UPDATE_CLIENTS);
+			schematic.place(w, pos, pos, placementSettings, w.getRandom(), Block.NOTIFY_LISTENERS);
 		} catch (Exception e) {
-			Minecraft.getInstance().player.displayClientMessage(Lang.translate("schematic.error")
+			MinecraftClient.getInstance().player.sendMessage(Lang.translate("schematic.error")
 				.component(), false);
 			Create.LOGGER.error("Failed to load Schematic for Previewing", e);
 			return;
 		}
 
-		placementSettings.setMirror(Mirror.FRONT_BACK);
-		pos = BlockPos.ZERO.east(size.getX() - 1);
-		schematic.placeInWorld(wMirroredFB, pos, pos, placementSettings, wMirroredFB.getRandom(), Block.UPDATE_CLIENTS);
-		transform = new StructureTransform(placementSettings.getRotationPivot(), Axis.Y, Rotation.NONE,
+		placementSettings.setMirror(BlockMirror.FRONT_BACK);
+		pos = BlockPos.ORIGIN.east(size.getX() - 1);
+		schematic.place(wMirroredFB, pos, pos, placementSettings, wMirroredFB.getRandom(), Block.NOTIFY_LISTENERS);
+		transform = new StructureTransform(placementSettings.getPosition(), Axis.Y, BlockRotation.NONE,
 			placementSettings.getMirror());
 		for (BlockEntity be : wMirroredFB.getRenderedBlockEntities())
 			transform.apply(be);
 
-		placementSettings.setMirror(Mirror.LEFT_RIGHT);
-		pos = BlockPos.ZERO.south(size.getZ() - 1);
-		schematic.placeInWorld(wMirroredLR, pos, pos, placementSettings, wMirroredFB.getRandom(), Block.UPDATE_CLIENTS);
-		transform = new StructureTransform(placementSettings.getRotationPivot(), Axis.Y, Rotation.NONE,
+		placementSettings.setMirror(BlockMirror.LEFT_RIGHT);
+		pos = BlockPos.ORIGIN.south(size.getZ() - 1);
+		schematic.place(wMirroredLR, pos, pos, placementSettings, wMirroredFB.getRandom(), Block.NOTIFY_LISTENERS);
+		transform = new StructureTransform(placementSettings.getPosition(), Axis.Y, BlockRotation.NONE,
 			placementSettings.getMirror());
 		for (BlockEntity be : wMirroredLR.getRenderedBlockEntities())
 			transform.apply(be);
@@ -194,19 +192,19 @@ public class SchematicHandler {
 			.display(wMirroredLR);
 	}
 
-	public void render(PoseStack ms, SuperRenderTypeBuffer buffer, Vec3 camera) {
+	public void render(MatrixStack ms, SuperRenderTypeBuffer buffer, Vec3d camera) {
 		boolean present = activeSchematicItem != null;
 		if (!active && !present)
 			return;
 
 		if (active) {
-			ms.pushPose();
+			ms.push();
 			currentTool.getTool()
 				.renderTool(ms, buffer, camera);
-			ms.popPose();
+			ms.pop();
 		}
 
-		ms.pushPose();
+		ms.push();
 		transformation.applyTransformations(ms, camera);
 
 		if (!renderers.isEmpty()) {
@@ -229,7 +227,7 @@ public class SchematicHandler {
 		if (active)
 			currentTool.getTool()
 				.renderOnSchematic(ms, buffer);
-		ms.popPose();
+		ms.pop();
 
 	}
 
@@ -239,13 +237,13 @@ public class SchematicHandler {
 		}
 	}
 
-	public void renderOverlay(GuiGraphics graphics, float partialTicks, Window window) {
-		if (Minecraft.getInstance().options.hideGui || !active)
+	public void renderOverlay(DrawContext graphics, float partialTicks, Window window) {
+		if (MinecraftClient.getInstance().options.hudHidden || !active)
 			return;
 		if (activeSchematicItem != null)
 			this.overlay.renderOn(graphics, activeHotbarSlot);
 		currentTool.getTool()
-			.renderOverlay(graphics, partialTicks, window.getGuiScaledWidth(), window.getGuiScaledHeight());
+			.renderOverlay(graphics, partialTicks, window.getScaledWidth(), window.getScaledHeight());
 		selectionScreen.renderPassive(graphics, partialTicks);
 	}
 
@@ -254,12 +252,12 @@ public class SchematicHandler {
 			return false;
 		if (!pressed || button != 1)
 			return false;
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.player.isShiftKeyDown())
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc.player.isSneaking())
 			return false;
-		if (mc.hitResult instanceof BlockHitResult) {
-			BlockHitResult blockRayTraceResult = (BlockHitResult) mc.hitResult;
-			BlockState clickedBlock = mc.level.getBlockState(blockRayTraceResult.getBlockPos());
+		if (mc.crosshairTarget instanceof BlockHitResult) {
+			BlockHitResult blockRayTraceResult = (BlockHitResult) mc.crosshairTarget;
+			BlockState clickedBlock = mc.world.getBlockState(blockRayTraceResult.getBlockPos());
 			if (AllBlocks.SCHEMATICANNON.has(clickedBlock))
 				return false;
 			if (AllBlocks.DEPLOYER.has(clickedBlock))
@@ -279,7 +277,7 @@ public class SchematicHandler {
 			selectionScreen.focused = true;
 		if (!pressed && selectionScreen.focused) {
 			selectionScreen.focused = false;
-			selectionScreen.onClose();
+			selectionScreen.close();
 		}
 	}
 
@@ -297,22 +295,22 @@ public class SchematicHandler {
 		return false;
 	}
 
-	private ItemStack findBlueprintInHand(Player player) {
-		ItemStack stack = player.getMainHandItem();
+	private ItemStack findBlueprintInHand(PlayerEntity player) {
+		ItemStack stack = player.getMainHandStack();
 		if (!AllItems.SCHEMATIC.isIn(stack))
 			return null;
-		if (!stack.hasTag())
+		if (!stack.hasNbt())
 			return null;
 
 		activeSchematicItem = stack;
-		activeHotbarSlot = player.getInventory().selected;
+		activeHotbarSlot = player.getInventory().selectedSlot;
 		return stack;
 	}
 
-	private boolean itemLost(Player player) {
-		for (int i = 0; i < Inventory.getSelectionSize(); i++) {
-			if (!ItemStack.matches(player.getInventory()
-				.getItem(i), activeSchematicItem))
+	private boolean itemLost(PlayerEntity player) {
+		for (int i = 0; i < PlayerInventory.getHotbarSize(); i++) {
+			if (!ItemStack.areEqual(player.getInventory()
+				.getStack(i), activeSchematicItem))
 				continue;
 			return false;
 		}
@@ -337,17 +335,17 @@ public class SchematicHandler {
 	}
 
 	public void loadSettings(ItemStack blueprint) {
-		CompoundTag tag = blueprint.getTag();
-		BlockPos anchor = BlockPos.ZERO;
-		StructurePlaceSettings settings = SchematicItem.getSettings(blueprint);
+		NbtCompound tag = blueprint.getNbt();
+		BlockPos anchor = BlockPos.ORIGIN;
+		StructurePlacementData settings = SchematicItem.getSettings(blueprint);
 		transformation = new SchematicTransformation();
 
 		deployed = tag.getBoolean("Deployed");
 		if (deployed)
-			anchor = NbtUtils.readBlockPos(tag.getCompound("Anchor"));
-		Vec3i size = NBTHelper.readVec3i(tag.getList("Bounds", Tag.TAG_INT));
+			anchor = NbtHelper.toBlockPos(tag.getCompound("Anchor"));
+		Vec3i size = NBTHelper.readVec3i(tag.getList("Bounds", NbtElement.INT_TYPE));
 
-		bounds = new AABB(0, 0, 0, size.getX(), size.getY(), size.getZ());
+		bounds = new Box(0, 0, 0, size.getX(), size.getY(), size.getZ());
 		outline = new AABBOutline(bounds);
 		outline.getParams()
 			.colored(0x6886c5)
@@ -357,7 +355,7 @@ public class SchematicHandler {
 
 	public void deploy() {
 		if (!deployed) {
-			List<ToolType> tools = ToolType.getTools(Minecraft.getInstance().player.isCreative());
+			List<ToolType> tools = ToolType.getTools(MinecraftClient.getInstance().player.isCreative());
 			selectionScreen = new ToolSelectionScreen(tools, this::equip);
 		}
 		deployed = true;
@@ -370,9 +368,9 @@ public class SchematicHandler {
 
 	public void printInstantly() {
 		AllPackets.getChannel().sendToServer(new SchematicPlacePacket(activeSchematicItem.copy()));
-		CompoundTag nbt = activeSchematicItem.getTag();
+		NbtCompound nbt = activeSchematicItem.getNbt();
 		nbt.putBoolean("Deployed", false);
-		activeSchematicItem.setTag(nbt);
+		activeSchematicItem.setNbt(nbt);
 		SchematicInstances.clearHash(activeSchematicItem);
 		renderers.forEach(r -> r.setActive(false));
 		active = false;
@@ -383,7 +381,7 @@ public class SchematicHandler {
 		return active;
 	}
 
-	public AABB getBounds() {
+	public Box getBounds() {
 		return bounds;
 	}
 

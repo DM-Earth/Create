@@ -1,7 +1,7 @@
 package com.simibubi.create.content.schematics.requirement;
 
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
 
 public interface ISpecialBlockItemRequirement {
 

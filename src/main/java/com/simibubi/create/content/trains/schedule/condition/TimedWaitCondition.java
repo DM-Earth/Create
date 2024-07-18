@@ -7,16 +7,15 @@ import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.Level;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.world.World;
 
 public abstract class TimedWaitCondition extends ScheduleWaitCondition {
 
@@ -35,12 +34,12 @@ public abstract class TimedWaitCondition extends ScheduleWaitCondition {
 			this.key = key;
 		}
 
-		public static List<Component> translatedOptions() {
+		public static List<Text> translatedOptions() {
 			return Lang.translatedOptions(null, TICKS.key, SECONDS.key, MINUTES.key);
 		}
 	}
 
-	protected void requestDisplayIfNecessary(CompoundTag context, int time) {
+	protected void requestDisplayIfNecessary(NbtCompound context, int time) {
 		int ticksUntilDeparture = totalWaitTicks() - time;
 		if (ticksUntilDeparture < 20 * 60 && ticksUntilDeparture % 100 == 0)
 			requestStatusToUpdate(context);
@@ -57,18 +56,18 @@ public abstract class TimedWaitCondition extends ScheduleWaitCondition {
 		data.putInt("TimeUnit", TimeUnit.SECONDS.ordinal());
 	}
 
-	protected Component formatTime(boolean compact) {
+	protected Text formatTime(boolean compact) {
 		if (compact)
 			return Components.literal(getValue() + getUnit().suffix);
 		return Components.literal(getValue() + " ").append(Lang.translateDirect(getUnit().key));
 	}
 
 	@Override
-	public List<Component> getTitleAs(String type) {
+	public List<Text> getTitleAs(String type) {
 		return ImmutableList.of(
 			Components.translatable(getId().getNamespace() + ".schedule." + type + "." + getId().getPath()),
 			Lang.translateDirect("schedule.condition.for_x_time", formatTime(false))
-				.withStyle(ChatFormatting.DARK_AQUA));
+				.formatted(Formatting.DARK_AQUA));
 	}
 
 	@Override
@@ -77,7 +76,7 @@ public abstract class TimedWaitCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public List<Component> getSecondLineTooltip(int slot) {
+	public List<Text> getSecondLineTooltip(int slot) {
 		return ImmutableList.of(Lang.translateDirect("generic.duration"));
 	}
 
@@ -107,7 +106,7 @@ public abstract class TimedWaitCondition extends ScheduleWaitCondition {
 	}
 
 	@Override
-	public MutableComponent getWaitingStatus(Level level, Train train, CompoundTag tag) {
+	public MutableText getWaitingStatus(World level, Train train, NbtCompound tag) {
 		int time = tag.getInt("Time");
 		int ticksUntilDeparture = totalWaitTicks() - time;
 		boolean showInMinutes = ticksUntilDeparture >= 20 * 60;

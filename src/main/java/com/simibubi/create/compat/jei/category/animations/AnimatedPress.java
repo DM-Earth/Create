@@ -1,13 +1,12 @@
 package com.simibubi.create.compat.jei.category.animations;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.Direction;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.RotationAxis;
 
 public class AnimatedPress extends AnimatedKinetics {
 
@@ -18,12 +17,12 @@ public class AnimatedPress extends AnimatedKinetics {
 	}
 
 	@Override
-	public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
-		PoseStack matrixStack = graphics.pose();
-		matrixStack.pushPose();
+	public void draw(DrawContext graphics, int xOffset, int yOffset) {
+		MatrixStack matrixStack = graphics.getMatrices();
+		matrixStack.push();
 		matrixStack.translate(xOffset, yOffset, 200);
-		matrixStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
-		matrixStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 		int scale = basin ? 23 : 24;
 
 		blockElement(shaft(Direction.Axis.Z))
@@ -46,7 +45,7 @@ public class AnimatedPress extends AnimatedKinetics {
 					.scale(scale)
 					.render(graphics);
 
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 	private float getAnimatedHeadOffset() {

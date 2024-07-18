@@ -12,9 +12,9 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.collection.DefaultedList;
 
 @ParametersAreNonnullByDefault
 public class PackingCategory extends BasinCategory {
@@ -48,7 +48,7 @@ public class PackingCategory extends BasinCategory {
 		}
 
 		int i = 0;
-		NonNullList<Ingredient> ingredients = recipe.getIngredients();
+		DefaultedList<Ingredient> ingredients = recipe.getIngredients();
 		int size = ingredients.size();
 		int rows = size == 4 ? 2 : 3;
 		while (i < size) {
@@ -68,7 +68,7 @@ public class PackingCategory extends BasinCategory {
 	}
 
 	@Override
-	public void draw(BasinRecipe recipe, IRecipeSlotsView iRecipeSlotsView, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(BasinRecipe recipe, IRecipeSlotsView iRecipeSlotsView, DrawContext graphics, double mouseX, double mouseY) {
 		if (type == PackingType.COMPACTING) {
 			super.draw(recipe, iRecipeSlotsView, graphics, mouseX, mouseY);
 		} else {

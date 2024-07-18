@@ -12,44 +12,44 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 
 public class HandCrankBlock extends DirectionalKineticBlock
 	implements IBE<HandCrankBlockEntity>, ProperWaterloggedBlock {
 
-	public HandCrankBlock(Properties properties) {
+	public HandCrankBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return AllShapes.CRANK.get(state.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return AllShapes.CRANK.get(state.get(FACING));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(WATERLOGGED));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(WATERLOGGED));
 	}
 
 	public int getRotationSpeed() {
@@ -57,66 +57,66 @@ public class HandCrankBlock extends DirectionalKineticBlock
 	}
 
 	@Override
-	public RenderShape getRenderShape(BlockState state) {
-		return RenderShape.ENTITYBLOCK_ANIMATED;
+	public BlockRenderType getRenderType(BlockState state) {
+		return BlockRenderType.ENTITYBLOCK_ANIMATED;
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
 		if (player.isSpectator())
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
-		withBlockEntityDo(worldIn, pos, be -> be.turn(player.isShiftKeyDown()));
-		if (!player.getItemInHand(handIn)
-			.is(AllItems.EXTENDO_GRIP.get()))
-			player.causeFoodExhaustion(getRotationSpeed() * AllConfigs.server().kinetics.crankHungerMultiplier.getF());
+		withBlockEntityDo(worldIn, pos, be -> be.turn(player.isSneaking()));
+		if (!player.getStackInHand(handIn)
+			.isOf(AllItems.EXTENDO_GRIP.get()))
+			player.addExhaustion(getRotationSpeed() * AllConfigs.server().kinetics.crankHungerMultiplier.getF());
 
-		if (player.getFoodData()
+		if (player.getHungerManager()
 			.getFoodLevel() == 0)
 			AllAdvancements.HAND_CRANK.awardTo(player);
 
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
+	public BlockState getPlacementState(ItemPlacementContext context) {
 		Direction preferred = getPreferredFacing(context);
-		BlockState defaultBlockState = withWater(defaultBlockState(), context);
+		BlockState defaultBlockState = withWater(getDefaultState(), context);
 		if (preferred == null || (context.getPlayer() != null && context.getPlayer()
-			.isShiftKeyDown()))
-			return defaultBlockState.setValue(FACING, context.getClickedFace());
-		return defaultBlockState.setValue(FACING, preferred.getOpposite());
+			.isSneaking()))
+			return defaultBlockState.with(FACING, context.getSide());
+		return defaultBlockState.with(FACING, preferred.getOpposite());
 	}
 
 	@Override
-	public boolean canSurvive(BlockState state, LevelReader worldIn, BlockPos pos) {
-		Direction facing = state.getValue(FACING)
+	public boolean canPlaceAt(BlockState state, WorldView worldIn, BlockPos pos) {
+		Direction facing = state.get(FACING)
 			.getOpposite();
-		BlockPos neighbourPos = pos.relative(facing);
+		BlockPos neighbourPos = pos.offset(facing);
 		BlockState neighbour = worldIn.getBlockState(neighbourPos);
 		return !neighbour.getCollisionShape(worldIn, neighbourPos)
 			.isEmpty();
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
+	public void neighborUpdate(BlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
 		boolean isMoving) {
-		if (worldIn.isClientSide)
+		if (worldIn.isClient)
 			return;
 
-		Direction blockFacing = state.getValue(FACING);
-		if (fromPos.equals(pos.relative(blockFacing.getOpposite()))) {
-			if (!canSurvive(state, worldIn, pos)) {
-				worldIn.destroyBlock(pos, true);
+		Direction blockFacing = state.get(FACING);
+		if (fromPos.equals(pos.offset(blockFacing.getOpposite()))) {
+			if (!canPlaceAt(state, worldIn, pos)) {
+				worldIn.breakBlock(pos, true);
 				return;
 			}
 		}
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pDirection, BlockState pNeighborState,
+		WorldAccess pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
 		updateWater(pLevel, pState, pCurrentPos);
 		return pState;
 	}
@@ -127,14 +127,14 @@ public class HandCrankBlock extends DirectionalKineticBlock
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return face == state.getValue(FACING)
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		return face == state.get(FACING)
 			.getOpposite();
 	}
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(FACING)
+		return state.get(FACING)
 			.getAxis();
 	}
 
@@ -149,7 +149,7 @@ public class HandCrankBlock extends DirectionalKineticBlock
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

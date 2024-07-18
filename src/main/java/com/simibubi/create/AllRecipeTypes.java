@@ -2,7 +2,15 @@ package com.simibubi.create;
 
 import java.util.Optional;
 import java.util.function.Supplier;
-
+import net.minecraft.inventory.Inventory;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.recipe.SpecialRecipeSerializer;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.compat.rei.ConversionRecipe;
@@ -29,16 +37,6 @@ import com.simibubi.create.foundation.recipe.IRecipeTypeInfo;
 import com.simibubi.create.foundation.utility.Lang;
 
 import io.github.fabricators_of_create.porting_lib.util.ShapedRecipeUtil;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
-import net.minecraft.world.level.Level;
 
 public enum AllRecipeTypes implements IRecipeTypeInfo {
 
@@ -61,9 +59,9 @@ public enum AllRecipeTypes implements IRecipeTypeInfo {
 	MECHANICAL_CRAFTING(MechanicalCraftingRecipe.Serializer::new),
 	SEQUENCED_ASSEMBLY(SequencedAssemblyRecipeSerializer::new),
 
-	TOOLBOX_DYEING(() -> new SimpleCraftingRecipeSerializer<>(ToolboxDyeingRecipe::new), () -> RecipeType.CRAFTING, false);
+	TOOLBOX_DYEING(() -> new SpecialRecipeSerializer<>(ToolboxDyeingRecipe::new), () -> RecipeType.CRAFTING, false);
 
-	private final ResourceLocation id;
+	private final Identifier id;
 	private final RecipeSerializer<?> serializerObject;
 	@Nullable
 	private final RecipeType<?> typeObject;
@@ -72,10 +70,10 @@ public enum AllRecipeTypes implements IRecipeTypeInfo {
 	AllRecipeTypes(Supplier<RecipeSerializer<?>> serializerSupplier, Supplier<RecipeType<?>> typeSupplier, boolean registerType) {
 		String name = Lang.asId(name());
 		id = Create.asResource(name);
-		serializerObject = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id, serializerSupplier.get());
+		serializerObject = Registry.register(Registries.RECIPE_SERIALIZER, id, serializerSupplier.get());
 		if (registerType) {
 			typeObject = typeSupplier.get();
-			Registry.register(BuiltInRegistries.RECIPE_TYPE, id, typeObject);
+			Registry.register(Registries.RECIPE_TYPE, id, typeObject);
 			type = typeSupplier;
 		} else {
 			typeObject = null;
@@ -86,9 +84,9 @@ public enum AllRecipeTypes implements IRecipeTypeInfo {
 	AllRecipeTypes(Supplier<RecipeSerializer<?>> serializerSupplier) {
 		String name = Lang.asId(name());
 		id = Create.asResource(name);
-		serializerObject = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id, serializerSupplier.get());
+		serializerObject = Registry.register(Registries.RECIPE_SERIALIZER, id, serializerSupplier.get());
 		typeObject = simpleType(id);
-		Registry.register(BuiltInRegistries.RECIPE_TYPE, id, typeObject);
+		Registry.register(Registries.RECIPE_TYPE, id, typeObject);
 		type = () -> typeObject;
 	}
 
@@ -96,7 +94,7 @@ public enum AllRecipeTypes implements IRecipeTypeInfo {
 		this(() -> new ProcessingRecipeSerializer<>(processingFactory));
 	}
 
-	public static <T extends Recipe<?>> RecipeType<T> simpleType(ResourceLocation id) {
+	public static <T extends Recipe<?>> RecipeType<T> simpleType(Identifier id) {
 		String stringId = id.toString();
 		return new RecipeType<T>() {
 			@Override
@@ -112,7 +110,7 @@ public enum AllRecipeTypes implements IRecipeTypeInfo {
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return id;
 	}
 
@@ -128,9 +126,9 @@ public enum AllRecipeTypes implements IRecipeTypeInfo {
 		return (T) type.get();
 	}
 
-	public <C extends Container, T extends Recipe<C>> Optional<T> find(C inv, Level world) {
+	public <C extends Inventory, T extends Recipe<C>> Optional<T> find(C inv, World world) {
 		return world.getRecipeManager()
-			.getRecipeFor(getType(), inv, world);
+			.getFirstMatch(getType(), inv, world);
 	}
 
 	public static boolean shouldIgnoreInAutomation(Recipe<?> recipe) {

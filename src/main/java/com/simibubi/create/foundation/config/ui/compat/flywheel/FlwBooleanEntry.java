@@ -1,8 +1,6 @@
 package com.simibubi.create.foundation.config.ui.compat.flywheel;
 
 import com.jozufozu.flywheel.config.Option;
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.gui.Theme;
 import com.simibubi.create.foundation.gui.UIRenderHelper;
@@ -10,7 +8,7 @@ import com.simibubi.create.foundation.gui.element.RenderElement;
 import com.simibubi.create.foundation.gui.widget.BoxWidget;
 
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.AbstractWidgetAccessor;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
 
 public class FlwBooleanEntry extends FlwValueEntry<Boolean> {
 	RenderElement enabled;
@@ -48,7 +46,7 @@ public class FlwBooleanEntry extends FlwValueEntry<Boolean> {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY,
+	public void render(DrawContext graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY,
 					   boolean p_230432_9_, float partialTicks) {
 		super.render(graphics, index, y, x, width, height, mouseX, mouseY, p_230432_9_, partialTicks);
 

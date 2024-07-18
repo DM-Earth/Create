@@ -9,21 +9,20 @@ import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.ParticleRenderType;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.particle.ParticleTextureSheet;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
 
 public class PonderWorldParticles {
 
-	private final Map<ParticleRenderType, Queue<Particle>> byType = Maps.newIdentityHashMap();
+	private final Map<ParticleTextureSheet, Queue<Particle>> byType = Maps.newIdentityHashMap();
 	private final Queue<Particle> queue = Queues.newArrayDeque();
 
 	PonderWorld world;
@@ -43,7 +42,7 @@ public class PonderWorldParticles {
 		if (queue.isEmpty())
 			return;
 		while ((particle = this.queue.poll()) != null)
-			this.byType.computeIfAbsent(particle.getRenderType(), $ -> EvictingQueue.create(16384))
+			this.byType.computeIfAbsent(particle.getType(), $ -> EvictingQueue.create(16384))
 				.add(particle);
 	}
 
@@ -60,41 +59,41 @@ public class PonderWorldParticles {
 		}
 	}
 
-	public void renderParticles(PoseStack ms, MultiBufferSource buffer, Camera renderInfo, float pt) {
-		Minecraft mc = Minecraft.getInstance();
-		LightTexture lightTexture = mc.gameRenderer.lightTexture();
+	public void renderParticles(MatrixStack ms, VertexConsumerProvider buffer, Camera renderInfo, float pt) {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		LightmapTextureManager lightTexture = mc.gameRenderer.getLightmapTextureManager();
 
-		lightTexture.turnOnLightLayer();
+		lightTexture.enable();
 		RenderSystem.enableDepthTest();
-		PoseStack posestack = RenderSystem.getModelViewStack();
-		posestack.pushPose();
-		posestack.mulPoseMatrix(ms.last().pose());
+		MatrixStack posestack = RenderSystem.getModelViewStack();
+		posestack.push();
+		posestack.multiplyPositionMatrix(ms.peek().getPositionMatrix());
 		RenderSystem.applyModelViewMatrix();
 
-		for (ParticleRenderType iparticlerendertype : this.byType.keySet()) {
-			if (iparticlerendertype == ParticleRenderType.NO_RENDER)
+		for (ParticleTextureSheet iparticlerendertype : this.byType.keySet()) {
+			if (iparticlerendertype == ParticleTextureSheet.NO_RENDER)
 				continue;
 			Iterable<Particle> iterable = this.byType.get(iparticlerendertype);
 			if (iterable != null) {
 				RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-				RenderSystem.setShader(GameRenderer::getParticleShader);
+				RenderSystem.setShader(GameRenderer::getParticleProgram);
 
-				Tesselator tessellator = Tesselator.getInstance();
-				BufferBuilder bufferbuilder = tessellator.getBuilder();
+				Tessellator tessellator = Tessellator.getInstance();
+				BufferBuilder bufferbuilder = tessellator.getBuffer();
 				iparticlerendertype.begin(bufferbuilder, mc.getTextureManager());
 
 				for (Particle particle : iterable)
-					particle.render(bufferbuilder, renderInfo, pt);
+					particle.buildGeometry(bufferbuilder, renderInfo, pt);
 
-				iparticlerendertype.end(tessellator);
+				iparticlerendertype.draw(tessellator);
 			}
 		}
 
-		posestack.popPose();
+		posestack.pop();
 		RenderSystem.applyModelViewMatrix();
 		RenderSystem.depthMask(true);
 		RenderSystem.disableBlend();
-		lightTexture.turnOffLightLayer();
+		lightTexture.disable();
 	}
 
 	public void clearEffects() {

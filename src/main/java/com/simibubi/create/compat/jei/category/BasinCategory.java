@@ -26,10 +26,10 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Ingredient;
 
 @ParametersAreNonnullByDefault
 public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
@@ -51,7 +51,7 @@ public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
 
 		for (Pair<Ingredient, MutableInt> pair : condensedIngredients) {
 			List<ItemStack> stacks = new ArrayList<>();
-			for (ItemStack itemStack : pair.getFirst().getItems()) {
+			for (ItemStack itemStack : pair.getFirst().getMatchingStacks()) {
 				ItemStack copy = itemStack.copy();
 				copy.setCount(pair.getSecond().getValue());
 				stacks.add(copy);
@@ -113,7 +113,7 @@ public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
 	}
 
 	@Override
-	public void draw(BasinRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(BasinRecipe recipe, IRecipeSlotsView recipeSlotsView, DrawContext graphics, double mouseX, double mouseY) {
 		HeatCondition requiredHeat = recipe.getRequiredHeat();
 
 		boolean noHeat = requiredHeat == HeatCondition.NONE;
@@ -131,7 +131,7 @@ public class BasinCategory extends CreateRecipeCategory<BasinRecipe> {
 
 		AllGuiTextures heatBar = noHeat ? AllGuiTextures.JEI_NO_HEAT_BAR : AllGuiTextures.JEI_HEAT_BAR;
 		heatBar.render(graphics, 4, 80);
-		graphics.drawString(Minecraft.getInstance().font, Lang.translateDirect(requiredHeat.getTranslationKey()), 9,
+		graphics.drawText(MinecraftClient.getInstance().textRenderer, Lang.translateDirect(requiredHeat.getTranslationKey()), 9,
 				86, requiredHeat.getColor(), false);
 	}
 

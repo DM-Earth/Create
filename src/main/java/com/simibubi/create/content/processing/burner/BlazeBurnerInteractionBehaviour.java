@@ -15,27 +15,26 @@ import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class BlazeBurnerInteractionBehaviour extends MovingInteractionBehaviour {
 
 	@Override
-	public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos,
+	public boolean handlePlayerInteraction(PlayerEntity player, Hand activeHand, BlockPos localPos,
 		AbstractContraptionEntity contraptionEntity) {
 		if (AdventureUtil.isAdventure(player))
 			return false;
-		ItemStack itemInHand = player.getItemInHand(activeHand);
+		ItemStack itemInHand = player.getStackInHand(activeHand);
 
 		if (!(contraptionEntity instanceof CarriageContraptionEntity carriageEntity))
 			return false;
-		if (activeHand == InteractionHand.OFF_HAND)
+		if (activeHand == Hand.OFF_HAND)
 			return false;
 		Contraption contraption = carriageEntity.getContraption();
 		if (!(contraption instanceof CarriageContraption carriageContraption))
@@ -43,8 +42,8 @@ public class BlazeBurnerInteractionBehaviour extends MovingInteractionBehaviour 
 
 		StructureBlockInfo info = carriageContraption.getBlocks()
 			.get(localPos);
-		if (info == null || !info.state().hasProperty(BlazeBurnerBlock.HEAT_LEVEL)
-			|| info.state().getValue(BlazeBurnerBlock.HEAT_LEVEL) == HeatLevel.NONE)
+		if (info == null || !info.state().contains(BlazeBurnerBlock.HEAT_LEVEL)
+			|| info.state().get(BlazeBurnerBlock.HEAT_LEVEL) == HeatLevel.NONE)
 			return false;
 
 		Direction assemblyDirection = carriageContraption.getAssemblyDirection();
@@ -55,28 +54,28 @@ public class BlazeBurnerInteractionBehaviour extends MovingInteractionBehaviour 
 			Train train = carriageEntity.getCarriage().train;
 			if (train == null)
 				return false;
-			if (player.level().isClientSide)
+			if (player.getWorld().isClient)
 				return true;
 
 			if (train.runtime.getSchedule() != null) {
 				if (train.runtime.paused && !train.runtime.completed) {
 					train.runtime.paused = false;
-					AllSoundEvents.CONFIRM.playOnServer(player.level(), player.blockPosition(), 1, 1);
-					player.displayClientMessage(Lang.translateDirect("schedule.continued"), true);
+					AllSoundEvents.CONFIRM.playOnServer(player.getWorld(), player.getBlockPos(), 1, 1);
+					player.sendMessage(Lang.translateDirect("schedule.continued"), true);
 					return true;
 				}
 
 				if (!itemInHand.isEmpty()) {
-					AllSoundEvents.DENY.playOnServer(player.level(), player.blockPosition(), 1, 1);
-					player.displayClientMessage(Lang.translateDirect("schedule.remove_with_empty_hand"), true);
+					AllSoundEvents.DENY.playOnServer(player.getWorld(), player.getBlockPos(), 1, 1);
+					player.sendMessage(Lang.translateDirect("schedule.remove_with_empty_hand"), true);
 					return true;
 				}
 
 				AllSoundEvents.playItemPickup(player);
-				player.displayClientMessage(Lang.translateDirect(
+				player.sendMessage(Lang.translateDirect(
 					train.runtime.isAutoSchedule ? "schedule.auto_removed_from_train" : "schedule.removed_from_train"),
 					true);
-				player.setItemInHand(activeHand, train.runtime.returnSchedule());
+				player.setStackInHand(activeHand, train.runtime.returnSchedule());
 				return true;
 			}
 
@@ -88,23 +87,23 @@ public class BlazeBurnerInteractionBehaviour extends MovingInteractionBehaviour 
 				return false;
 
 			if (schedule.entries.isEmpty()) {
-				AllSoundEvents.DENY.playOnServer(player.level(), player.blockPosition(), 1, 1);
-				player.displayClientMessage(Lang.translateDirect("schedule.no_stops"), true);
+				AllSoundEvents.DENY.playOnServer(player.getWorld(), player.getBlockPos(), 1, 1);
+				player.sendMessage(Lang.translateDirect("schedule.no_stops"), true);
 				return true;
 			}
 
 			train.runtime.setSchedule(schedule, false);
 			AllAdvancements.CONDUCTOR.awardTo(player);
-			AllSoundEvents.CONFIRM.playOnServer(player.level(), player.blockPosition(), 1, 1);
-			player.displayClientMessage(Lang.translateDirect("schedule.applied_to_train")
-				.withStyle(ChatFormatting.GREEN), true);
-			itemInHand.shrink(1);
-			player.setItemInHand(activeHand, itemInHand.isEmpty() ? ItemStack.EMPTY : itemInHand);
+			AllSoundEvents.CONFIRM.playOnServer(player.getWorld(), player.getBlockPos(), 1, 1);
+			player.sendMessage(Lang.translateDirect("schedule.applied_to_train")
+				.formatted(Formatting.GREEN), true);
+			itemInHand.decrement(1);
+			player.setStackInHand(activeHand, itemInHand.isEmpty() ? ItemStack.EMPTY : itemInHand);
 			return true;
 		}
 
-		player.displayClientMessage(Lang.translateDirect("schedule.non_controlling_seat"), true);
-		AllSoundEvents.DENY.playOnServer(player.level(), player.blockPosition(), 1, 1);
+		player.sendMessage(Lang.translateDirect("schedule.non_controlling_seat"), true);
+		AllSoundEvents.DENY.playOnServer(player.getWorld(), player.getBlockPos(), 1, 1);
 		return true;
 	}
 

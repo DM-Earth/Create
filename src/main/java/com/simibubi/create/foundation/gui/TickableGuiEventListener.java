@@ -1,7 +1,7 @@
 package com.simibubi.create.foundation.gui;
 
-import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.Element;
 
-public interface TickableGuiEventListener extends GuiEventListener {
+public interface TickableGuiEventListener extends Element {
 	void tick();
 }

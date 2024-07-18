@@ -18,14 +18,14 @@ import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class PortableStorageInterfaceMovement implements MovementBehaviour {
 
@@ -33,10 +33,10 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 	static final String _clientPrevPos_ = "ClientPrevPos";
 
 	@Override
-	public Vec3 getActiveAreaOffset(MovementContext context) {
-		return Vec3.atLowerCornerOf(context.state.getValue(PortableStorageInterfaceBlock.FACING)
-			.getNormal())
-			.scale(1.85f);
+	public Vec3d getActiveAreaOffset(MovementContext context) {
+		return Vec3d.of(context.state.get(PortableStorageInterfaceBlock.FACING)
+			.getVector())
+			.multiply(1.85f);
 	}
 
 	@Override
@@ -54,7 +54,7 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 	@Override
 	@Environment(EnvType.CLIENT)
 	public void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
 		if (!ContraptionRenderDispatcher.canInstance())
 			PortableStorageInterfaceRenderer.renderInContraption(context, renderWorld, matrices, buffer);
 	}
@@ -70,15 +70,15 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 
 	@Override
 	public void tick(MovementContext context) {
-		if (context.world.isClientSide)
+		if (context.world.isClient)
 			getAnimation(context).tickChaser();
 
 		boolean onCarriage = context.contraption instanceof CarriageContraption;
 		if (onCarriage && context.motion.length() > 1 / 4f)
 			return;
 
-		if (context.world.isClientSide) {
-			BlockPos pos = BlockPos.containing(context.position);
+		if (context.world.isClient) {
+			BlockPos pos = BlockPos.ofFloored(context.position);
 			if (!findInterface(context, pos))
 				reset(context);
 			return;
@@ -87,11 +87,11 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 		if (!context.data.contains(_workingPos_))
 			return;
 
-		BlockPos pos = NbtUtils.readBlockPos(context.data.getCompound(_workingPos_));
-		Vec3 target = VecHelper.getCenterOf(pos);
+		BlockPos pos = NbtHelper.toBlockPos(context.data.getCompound(_workingPos_));
+		Vec3d target = VecHelper.getCenterOf(pos);
 
 		if (!context.stall && !onCarriage
-			&& context.position.closerThan(target, target.distanceTo(context.position.add(context.motion))))
+			&& context.position.isInRange(target, target.distanceTo(context.position.add(context.motion))))
 			context.stall = true;
 
 		Optional<Direction> currentFacingIfValid = getCurrentFacingIfValid(context);
@@ -131,17 +131,17 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 		if (psi.isPowered())
 			return false;
 
-		context.data.put(_workingPos_, NbtUtils.writeBlockPos(psi.getBlockPos()));
-		if (!context.world.isClientSide) {
-			Vec3 diff = VecHelper.getCenterOf(psi.getBlockPos())
+		context.data.put(_workingPos_, NbtHelper.fromBlockPos(psi.getPos()));
+		if (!context.world.isClient) {
+			Vec3d diff = VecHelper.getCenterOf(psi.getPos())
 				.subtract(context.position);
-			diff = VecHelper.project(diff, Vec3.atLowerCornerOf(currentFacing.getNormal()));
+			diff = VecHelper.project(diff, Vec3d.of(currentFacing.getVector()));
 			float distance = (float) (diff.length() + 1.85f - 1);
 			psi.startTransferringTo(context.contraption, distance);
 		} else {
-			context.data.put(_clientPrevPos_, NbtUtils.writeBlockPos(pos));
+			context.data.put(_clientPrevPos_, NbtHelper.fromBlockPos(pos));
 			if (context.contraption instanceof CarriageContraption || context.contraption.entity.isStalled()
-				|| context.motion.lengthSqr() == 0)
+				|| context.motion.lengthSquared() == 0)
 				getAnimation(context).chase(psi.getConnectionDistance() / 2, 0.25f, Chaser.LINEAR);
 		}
 
@@ -165,11 +165,11 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 		getAnimation(context).chase(0, 0.25f, Chaser.LINEAR);
 	}
 
-	private PortableStorageInterfaceBlockEntity findStationaryInterface(Level world, BlockPos pos, BlockState state,
+	private PortableStorageInterfaceBlockEntity findStationaryInterface(World world, BlockPos pos, BlockState state,
 		Direction facing) {
 		for (int i = 0; i < 2; i++) {
 			PortableStorageInterfaceBlockEntity interfaceAt =
-				getStationaryInterfaceAt(world, pos.relative(facing, i), state, facing);
+				getStationaryInterfaceAt(world, pos.offset(facing, i), state, facing);
 			if (interfaceAt == null)
 				continue;
 			return interfaceAt;
@@ -177,7 +177,7 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 		return null;
 	}
 
-	private PortableStorageInterfaceBlockEntity getStationaryInterfaceAt(Level world, BlockPos pos, BlockState state,
+	private PortableStorageInterfaceBlockEntity getStationaryInterfaceAt(World world, BlockPos pos, BlockState state,
 		Direction facing) {
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		if (!(blockEntity instanceof PortableStorageInterfaceBlockEntity psi))
@@ -185,7 +185,7 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 		BlockState blockState = world.getBlockState(pos);
 		if (blockState.getBlock() != state.getBlock())
 			return null;
-		if (blockState.getValue(PortableStorageInterfaceBlock.FACING) != facing.getOpposite())
+		if (blockState.get(PortableStorageInterfaceBlock.FACING) != facing.getOpposite())
 			return null;
 		if (psi.isPowered())
 			return null;
@@ -193,11 +193,11 @@ public class PortableStorageInterfaceMovement implements MovementBehaviour {
 	}
 
 	private Optional<Direction> getCurrentFacingIfValid(MovementContext context) {
-		Vec3 directionVec = Vec3.atLowerCornerOf(context.state.getValue(PortableStorageInterfaceBlock.FACING)
-			.getNormal());
+		Vec3d directionVec = Vec3d.of(context.state.get(PortableStorageInterfaceBlock.FACING)
+			.getVector());
 		directionVec = context.rotation.apply(directionVec);
-		Direction facingFromVector = Direction.getNearest(directionVec.x, directionVec.y, directionVec.z);
-		if (directionVec.distanceTo(Vec3.atLowerCornerOf(facingFromVector.getNormal())) > 1 / 2f)
+		Direction facingFromVector = Direction.getFacing(directionVec.x, directionVec.y, directionVec.z);
+		if (directionVec.distanceTo(Vec3d.of(facingFromVector.getVector())) > 1 / 2f)
 			return Optional.empty();
 		return Optional.of(facingFromVector);
 	}

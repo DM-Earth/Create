@@ -8,13 +8,12 @@ import com.simibubi.create.content.trains.schedule.ScheduleRuntime;
 import com.simibubi.create.content.trains.schedule.ScheduleRuntime.State;
 import com.simibubi.create.content.trains.station.GlobalStation;
 import com.simibubi.create.content.trains.station.StationBlockEntity;
-
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.text.MutableText;
 
 public class TrainStatusDisplaySource extends SingleLineDisplaySource {
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
 		if (!(context.getSourceBlockEntity() instanceof StationBlockEntity observerBE))
 			return EMPTY_LINE;
 		GlobalStation observer = observerBE.getStation();

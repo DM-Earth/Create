@@ -13,10 +13,10 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.StoragePreconditions;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.material.FlowingFluid;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
+import net.minecraft.fluid.FlowableFluid;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.util.math.BlockPos;
 
 public class HosePulleyFluidHandler implements SingleSlotStorage<FluidVariant> {
 
@@ -90,11 +90,11 @@ public class HosePulleyFluidHandler implements SingleSlotStorage<FluidVariant> {
 
 	@Override
 	public FluidVariant getResource() {
-		if (!internalTank.isResourceBlank() || drainer.blockEntity.getLevel() == null) return internalTank.getResource();
-		FluidState state = drainer.blockEntity.getLevel().getFluidState(rootPosGetter.get());
-		Fluid f = state.getType();
-		if (f instanceof FlowingFluid flowing) f = flowing.getSource();
-		if (!f.isSource(state)) return FluidVariant.blank();
+		if (!internalTank.isResourceBlank() || drainer.blockEntity.getWorld() == null) return internalTank.getResource();
+		FluidState state = drainer.blockEntity.getWorld().getFluidState(rootPosGetter.get());
+		Fluid f = state.getFluid();
+		if (f instanceof FlowableFluid flowing) f = flowing.getStill();
+		if (!f.isStill(state)) return FluidVariant.blank();
 		return FluidVariant.of(f);
 	}
 

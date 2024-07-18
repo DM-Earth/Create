@@ -1,13 +1,12 @@
 package com.simibubi.create.foundation.item;
 
+import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.render.entity.model.BipedEntityModel.ArmPose;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Hand;
 import org.jetbrains.annotations.Nullable;
-
-import net.minecraft.client.model.HumanoidModel.ArmPose;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
 
 public interface CustomArmPoseItem {
 	@Nullable
-	ArmPose getArmPose(ItemStack stack, AbstractClientPlayer player, InteractionHand hand);
+	ArmPose getArmPose(ItemStack stack, AbstractClientPlayerEntity player, Hand hand);
 }

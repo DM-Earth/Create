@@ -7,11 +7,10 @@ import com.tterrag.registrate.util.entry.ItemEntry;
 import com.tterrag.registrate.util.entry.ItemProviderEntry;
 
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
-import net.minecraft.world.item.Item;
-
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
+import net.minecraft.item.Item;
 
 public class HiddenItems {
 	/**

@@ -14,15 +14,15 @@ import net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
 import net.fabricmc.fabric.api.rendering.data.v1.RenderAttachedBlockView;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.inventory.InventoryMenu;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.screen.PlayerScreenHandler;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
 public class BeltModel extends ForwardingBakedModel implements CustomParticleIconModel {
 
@@ -33,7 +33,7 @@ public class BeltModel extends ForwardingBakedModel implements CustomParticleIco
 	}
 
 	@Override
-	public TextureAtlasSprite getParticleIcon(Object data) {
+	public Sprite getParticleIcon(Object data) {
 		if (data instanceof RenderData renderData) {
 			CasingType type = renderData.casingType();
 			if (type == CasingType.NONE || type == CasingType.BRASS)
@@ -49,7 +49,7 @@ public class BeltModel extends ForwardingBakedModel implements CustomParticleIco
 	}
 
 	@Override
-	public void emitBlockQuads(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context) {
+	public void emitBlockQuads(BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context) {
 		if (!(blockView instanceof RenderAttachedBlockView attachmentView
 				&& attachmentView.getBlockEntityRenderAttachment(pos) instanceof RenderData data)) {
 			super.emitBlockQuads(blockView, state, pos, randomSupplier, context);
@@ -66,9 +66,9 @@ public class BeltModel extends ForwardingBakedModel implements CustomParticleIco
 		}
 
 		if (!brassCasing) {
-			SpriteFinder spriteFinder = SpriteFinder.get(Minecraft.getInstance().getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS));
+			SpriteFinder spriteFinder = SpriteFinder.get(MinecraftClient.getInstance().getBakedModelManager().getAtlas(PlayerScreenHandler.BLOCK_ATLAS_TEXTURE));
 			context.pushTransform(quad -> {
-				TextureAtlasSprite sprite = spriteFinder.find(quad, 0);
+				Sprite sprite = spriteFinder.find(quad, 0);
 				if (sprite == SPRITE_SHIFT.getOriginal()) {
 					for (int vertex = 0; vertex < 4; vertex++) {
 						float u = quad.spriteU(vertex, 0);
@@ -86,7 +86,7 @@ public class BeltModel extends ForwardingBakedModel implements CustomParticleIco
 		super.emitBlockQuads(blockView, state, pos, randomSupplier, context);
 
 		if (cover) {
-			boolean alongX = state.getValue(BeltBlock.HORIZONTAL_FACING)
+			boolean alongX = state.get(BeltBlock.HORIZONTAL_FACING)
 				.getAxis() == Axis.X;
 			BakedModel coverModel =
 				(brassCasing ? alongX ? AllPartialModels.BRASS_BELT_COVER_X : AllPartialModels.BRASS_BELT_COVER_Z

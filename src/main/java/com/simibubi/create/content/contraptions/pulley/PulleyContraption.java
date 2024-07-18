@@ -7,9 +7,9 @@ import com.simibubi.create.content.contraptions.render.ContraptionLighter;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
@@ -29,7 +29,7 @@ public class PulleyContraption extends TranslatingContraption {
 	}
 
 	@Override
-	public boolean assemble(Level world, BlockPos pos) throws AssemblyException {
+	public boolean assemble(World world, BlockPos pos) throws AssemblyException {
 		if (!searchMovedStructure(world, pos, null))
 			return false;
 		startMoving(world);
@@ -47,14 +47,14 @@ public class PulleyContraption extends TranslatingContraption {
 	}
 
 	@Override
-	public CompoundTag writeNBT(boolean spawnPacket) {
-		CompoundTag tag = super.writeNBT(spawnPacket);
+	public NbtCompound writeNBT(boolean spawnPacket) {
+		NbtCompound tag = super.writeNBT(spawnPacket);
 		tag.putInt("InitialOffset", initialOffset);
 		return tag;
 	}
 
 	@Override
-	public void readNBT(Level world, CompoundTag nbt, boolean spawnData) {
+	public void readNBT(World world, NbtCompound nbt, boolean spawnData) {
 		initialOffset = nbt.getInt("InitialOffset");
 		super.readNBT(world, nbt, spawnData);
 	}

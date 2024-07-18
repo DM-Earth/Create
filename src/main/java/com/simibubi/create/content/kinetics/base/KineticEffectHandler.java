@@ -2,17 +2,16 @@ package com.simibubi.create.content.kinetics.base;
 
 import com.simibubi.create.content.kinetics.base.IRotate.SpeedLevel;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
 
 public class KineticEffectHandler {
 
@@ -26,9 +25,9 @@ public class KineticEffectHandler {
 	}
 
 	public void tick() {
-		Level world = kte.getLevel();
+		World world = kte.getWorld();
 
-		if (world.isClientSide) {
+		if (world.isClient) {
 			if (overStressedTime > 0)
 				if (--overStressedTime == 0)
 					if (kte.isOverStressed()) {
@@ -55,16 +54,16 @@ public class KineticEffectHandler {
 		particleSpawnCountdown = 2;
 	}
 
-	public void spawnEffect(ParticleOptions particle, float maxMotion, int amount) {
-		Level world = kte.getLevel();
+	public void spawnEffect(ParticleEffect particle, float maxMotion, int amount) {
+		World world = kte.getWorld();
 		if (world == null)
 			return;
-		if (!world.isClientSide)
+		if (!world.isClient)
 			return;
-		RandomSource r = world.random;
+		Random r = world.random;
 		for (int i = 0; i < amount; i++) {
-			Vec3 motion = VecHelper.offsetRandomly(Vec3.ZERO, r, maxMotion);
-			Vec3 position = VecHelper.getCenterOf(kte.getBlockPos());
+			Vec3d motion = VecHelper.offsetRandomly(Vec3d.ZERO, r, maxMotion);
+			Vec3d position = VecHelper.getCenterOf(kte.getPos());
 			world.addParticle(particle, position.x, position.y, position.z, motion.x, motion.y, motion.z);
 		}
 	}
@@ -74,7 +73,7 @@ public class KineticEffectHandler {
 		if (speed == 0)
 			return;
 
-		BlockState state = kte.getBlockState();
+		BlockState state = kte.getCachedState();
 		Block block = state.getBlock();
 		if (!(block instanceof KineticBlock))
 			return;
@@ -84,24 +83,24 @@ public class KineticEffectHandler {
 		float radius2 = kb.getParticleTargetRadius();
 
 		Axis axis = kb.getRotationAxis(state);
-		BlockPos pos = kte.getBlockPos();
-		Level world = kte.getLevel();
+		BlockPos pos = kte.getPos();
+		World world = kte.getWorld();
 		if (axis == null)
 			return;
 		if (world == null)
 			return;
 
 		char axisChar = axis.name().charAt(0);
-		Vec3 vec = VecHelper.getCenterOf(pos);
+		Vec3d vec = VecHelper.getCenterOf(pos);
 		SpeedLevel speedLevel = SpeedLevel.of(speed);
 		int color = speedLevel.getColor();
 		int particleSpeed = speedLevel.getParticleSpeed();
 		particleSpeed *= Math.signum(speed);
 
-		if (world instanceof ServerLevel) {
+		if (world instanceof ServerWorld) {
 			RotationIndicatorParticleData particleData =
 				new RotationIndicatorParticleData(color, particleSpeed, radius1, radius2, 10, axisChar);
-			((ServerLevel) world).sendParticles(particleData, vec.x, vec.y, vec.z, 20, 0, 0, 0, 1);
+			((ServerWorld) world).spawnParticles(particleData, vec.x, vec.y, vec.z, 20, 0, 0, 0, 1);
 		}
 	}
 

@@ -22,22 +22,21 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
 
 import com.tterrag.registrate.fabric.EnvExecutor;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
@@ -75,37 +74,37 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 		PoweredShaftBlockEntity shaft = getShaft();
 
 		if (tank == null || shaft == null) {
-			if (level.isClientSide())
+			if (world.isClient())
 				return;
 			if (shaft == null)
 				return;
-			if (!shaft.getBlockPos()
-				.subtract(worldPosition)
+			if (!shaft.getPos()
+				.subtract(pos)
 				.equals(shaft.enginePos))
 				return;
 			if (shaft.engineEfficiency == 0)
 				return;
-			Direction facing = SteamEngineBlock.getFacing(getBlockState());
-			if (level.isLoaded(worldPosition.relative(facing.getOpposite())))
-				shaft.update(worldPosition, 0, 0);
+			Direction facing = SteamEngineBlock.getFacing(getCachedState());
+			if (world.canSetBlock(pos.offset(facing.getOpposite())))
+				shaft.update(pos, 0, 0);
 			return;
 		}
 
 		boolean verticalTarget = false;
-		BlockState shaftState = shaft.getBlockState();
+		BlockState shaftState = shaft.getCachedState();
 		Axis targetAxis = Axis.X;
 		if (shaftState.getBlock()instanceof IRotate ir)
 			targetAxis = ir.getRotationAxis(shaftState);
 		verticalTarget = targetAxis == Axis.Y;
 
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!AllBlocks.STEAM_ENGINE.has(blockState))
 			return;
 		Direction facing = SteamEngineBlock.getFacing(blockState);
 		if (facing.getAxis() == Axis.Y)
-			facing = blockState.getValue(SteamEngineBlock.FACING);
+			facing = blockState.get(SteamEngineBlock.FACING);
 
-		float efficiency = Mth.clamp(tank.boiler.getEngineEfficiency(tank.getTotalTankSize()), 0, 1);
+		float efficiency = MathHelper.clamp(tank.boiler.getEngineEfficiency(tank.getTotalTankSize()), 0, 1);
 		if (efficiency > 0)
 
 			award(AllAdvancements.STEAM_ENGINE);
@@ -125,9 +124,9 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 			conveyedSpeedLevel *= -1;
 		}
 
-		shaft.update(worldPosition, conveyedSpeedLevel, efficiency);
+		shaft.update(pos, conveyedSpeedLevel, efficiency);
 
-		if (!level.isClientSide)
+		if (!world.isClient)
 			return;
 
 		EnvExecutor.runWhenOn(EnvType.CLIENT, () -> this::spawnParticles);
@@ -137,24 +136,24 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 	public void remove() {
 		PoweredShaftBlockEntity shaft = getShaft();
 		if (shaft != null)
-			shaft.remove(worldPosition);
+			shaft.remove(pos);
 		super.remove();
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	protected AABB createRenderBoundingBox() {
-		return super.createRenderBoundingBox().inflate(2);
+	protected Box createRenderBoundingBox() {
+		return super.createRenderBoundingBox().expand(2);
 	}
 
 	public PoweredShaftBlockEntity getShaft() {
 		PoweredShaftBlockEntity shaft = target.get();
-		if (shaft == null || shaft.isRemoved() || !shaft.canBePoweredBy(worldPosition)) {
+		if (shaft == null || shaft.isRemoved() || !shaft.canBePoweredBy(pos)) {
 			if (shaft != null)
 				target = new WeakReference<>(null);
-			Direction facing = SteamEngineBlock.getFacing(getBlockState());
-			BlockEntity anyShaftAt = level.getBlockEntity(worldPosition.relative(facing, 2));
-			if (anyShaftAt instanceof PoweredShaftBlockEntity ps && ps.canBePoweredBy(worldPosition))
+			Direction facing = SteamEngineBlock.getFacing(getCachedState());
+			BlockEntity anyShaftAt = world.getBlockEntity(pos.offset(facing, 2));
+			if (anyShaftAt instanceof PoweredShaftBlockEntity ps && ps.canBePoweredBy(pos))
 				target = new WeakReference<>(shaft = ps);
 		}
 		return shaft;
@@ -165,8 +164,8 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 		if (tank == null || tank.isRemoved()) {
 			if (tank != null)
 				source = new WeakReference<>(null);
-			Direction facing = SteamEngineBlock.getFacing(getBlockState());
-			BlockEntity be = level.getBlockEntity(worldPosition.relative(facing.getOpposite()));
+			Direction facing = SteamEngineBlock.getFacing(getCachedState());
+			BlockEntity be = world.getBlockEntity(pos.offset(facing.getOpposite()));
 			if (be instanceof FluidTankBlockEntity tankBe)
 				source = new WeakReference<>(tank = tankBe);
 		}
@@ -183,7 +182,7 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 		PoweredShaftBlockEntity ste = target.get();
 		if (ste == null)
 			return;
-		if (!ste.isPoweredBy(worldPosition) || ste.engineEfficiency == 0)
+		if (!ste.isPoweredBy(pos) || ste.engineEfficiency == 0)
 			return;
 		if (targetAngle == null)
 			return;
@@ -210,25 +209,25 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 			FluidTankBlockEntity controller = sourceBE.getControllerBE();
 			if (controller != null && controller.boiler != null) {
 				float volume = 3f / Math.max(2, controller.boiler.attachedEngines / 6);
-				float pitch = 1.18f - level.random.nextFloat() * .25f;
-				level.playLocalSound(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(),
-					SoundEvents.CANDLE_EXTINGUISH, SoundSource.BLOCKS, volume, pitch, false);
-				AllSoundEvents.STEAM.playAt(level, worldPosition, volume / 16, .8f, false);
+				float pitch = 1.18f - world.random.nextFloat() * .25f;
+				world.playSound(pos.getX(), pos.getY(), pos.getZ(),
+					SoundEvents.BLOCK_CANDLE_EXTINGUISH, SoundCategory.BLOCKS, volume, pitch, false);
+				AllSoundEvents.STEAM.playAt(world, pos, volume / 16, .8f, false);
 			}
 		}
 
-		Direction facing = SteamEngineBlock.getFacing(getBlockState());
+		Direction facing = SteamEngineBlock.getFacing(getCachedState());
 
-		Vec3 offset = VecHelper.rotate(new Vec3(0, 0, 1).add(VecHelper.offsetRandomly(Vec3.ZERO, level.random, 1)
+		Vec3d offset = VecHelper.rotate(new Vec3d(0, 0, 1).add(VecHelper.offsetRandomly(Vec3d.ZERO, world.random, 1)
 			.multiply(1, 1, 0)
 			.normalize()
-			.scale(.5f)), AngleHelper.verticalAngle(facing), Axis.X);
+			.multiply(.5f)), AngleHelper.verticalAngle(facing), Axis.X);
 		offset = VecHelper.rotate(offset, AngleHelper.horizontalAngle(facing), Axis.Y);
-		Vec3 v = offset.scale(.5f)
-			.add(Vec3.atCenterOf(worldPosition));
-		Vec3 m = offset.subtract(Vec3.atLowerCornerOf(facing.getNormal())
-			.scale(.75f));
-		level.addParticle(new SteamJetParticleData(1), v.x, v.y, v.z, m.x, m.y, m.z);
+		Vec3d v = offset.multiply(.5f)
+			.add(Vec3d.ofCenter(pos));
+		Vec3d m = offset.subtract(Vec3d.of(facing.getVector())
+			.multiply(.75f));
+		world.addParticle(new SteamJetParticleData(1), v.x, v.y, v.z, m.x, m.y, m.z);
 
 		prevAngle = angle;
 	}
@@ -237,7 +236,7 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 	@Environment(EnvType.CLIENT)
 	public Float getTargetAngle() {
 		float angle = 0;
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!AllBlocks.STEAM_ENGINE.has(blockState))
 			return null;
 
@@ -250,11 +249,11 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 			return null;
 
 		axis = KineticBlockEntityRenderer.getRotationAxisOf(shaft);
-		angle = KineticBlockEntityRenderer.getAngleForTe(shaft, shaft.getBlockPos(), axis);
+		angle = KineticBlockEntityRenderer.getAngleForTe(shaft, shaft.getPos(), axis);
 
 		if (axis == facingAxis)
 			return null;
-		if (axis.isHorizontal() && (facingAxis == Axis.X ^ facing.getAxisDirection() == AxisDirection.POSITIVE))
+		if (axis.isHorizontal() && (facingAxis == Axis.X ^ facing.getDirection() == AxisDirection.POSITIVE))
 			angle *= -1;
 		if (axis == Axis.X && facing == Direction.DOWN)
 			angle *= -1;
@@ -262,7 +261,7 @@ public class SteamEngineBlockEntity extends SmartBlockEntity implements IHaveGog
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		PoweredShaftBlockEntity shaft = getShaft();
 		return shaft == null ? false : shaft.addToEngineTooltip(tooltip, isPlayerSneaking);
 	}

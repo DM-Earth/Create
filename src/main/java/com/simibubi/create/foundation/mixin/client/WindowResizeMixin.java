@@ -6,21 +6,20 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import com.mojang.blaze3d.platform.Window;
 import com.simibubi.create.foundation.gui.UIRenderHelper;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.util.Window;
 
-@Mixin(Minecraft.class)
+@Mixin(MinecraftClient.class)
 public class WindowResizeMixin {
 	@Shadow
 	@Final
 	private Window window;
 
-	@Inject(method = "resizeDisplay()V", at = @At("TAIL"))
+	@Inject(method = "onResolutionChanged()V", at = @At("TAIL"))
 	private void create$updateWindowSize(CallbackInfo ci) {
 		UIRenderHelper.updateWindowSize(window);
 	}

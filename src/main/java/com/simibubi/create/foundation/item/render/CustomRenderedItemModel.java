@@ -1,11 +1,10 @@
 package com.simibubi.create.foundation.item.render;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import io.github.fabricators_of_create.porting_lib.models.TransformTypeDependentItemBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
 
 public class CustomRenderedItemModel extends ForwardingBakedModel implements TransformTypeDependentItemBakedModel {
 
@@ -14,12 +13,12 @@ public class CustomRenderedItemModel extends ForwardingBakedModel implements Tra
 	}
 
 	@Override
-	public boolean isCustomRenderer() {
+	public boolean isBuiltin() {
 		return true;
 	}
 
 	@Override
-	public BakedModel applyTransform(ItemDisplayContext cameraItemDisplayContext, PoseStack mat,
+	public BakedModel applyTransform(ModelTransformationMode cameraItemDisplayContext, MatrixStack mat,
 									 boolean leftHand, DefaultTransform defaultTransform) {
 		// fabric: apply the wrapped model transforms, but render this model
 		defaultTransform.apply(wrapped);

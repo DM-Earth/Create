@@ -2,11 +2,9 @@ package com.simibubi.create.content.kinetics.transmission.sequencer;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.text.Text;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.network.chat.Component;
 
 public enum SequencerInstructions {
 
@@ -49,8 +47,8 @@ public enum SequencerInstructions {
 		return this == TURN_ANGLE || this == TURN_DISTANCE;
 	}
 
-	static List<Component> getOptions() {
-		List<Component> options = new ArrayList<>();
+	static List<Text> getOptions() {
+		List<Text> options = new ArrayList<>();
 		for (SequencerInstructions entry : values())
 			options.add(Lang.translateDirect(entry.descriptiveTranslationKey));
 		return options;

@@ -1,13 +1,12 @@
 package com.simibubi.create.infrastructure.worldgen;
 
 import java.util.function.Predicate;
-
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.levelgen.GenerationStep.Decoration;
-import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectionContext;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.world.gen.GenerationStep.Feature;
+import net.minecraft.world.gen.feature.PlacedFeature;
 
 public class AllBiomeModifiers {
 	public static void bootstrap() {
@@ -19,7 +18,7 @@ public class AllBiomeModifiers {
 		addOre(isNether, AllPlacedFeatures.STRIATED_ORES_NETHER);
 	}
 
-	private static void addOre(Predicate<BiomeSelectionContext> test, ResourceKey<PlacedFeature> feature) {
-		BiomeModifications.addFeature(test, Decoration.UNDERGROUND_ORES, feature);
+	private static void addOre(Predicate<BiomeSelectionContext> test, RegistryKey<PlacedFeature> feature) {
+		BiomeModifications.addFeature(test, Feature.UNDERGROUND_ORES, feature);
 	}
 }

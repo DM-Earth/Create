@@ -24,27 +24,27 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.World;
 
 public class AirCurrent {
 
 	public final IAirCurrentSource source;
-	public AABB bounds = new AABB(0, 0, 0, 0, 0, 0);
+	public Box bounds = new Box(0, 0, 0, 0, 0, 0);
 	public List<AirCurrentSegment> segments = new ArrayList<>();
 	public Direction direction;
 	public boolean pushing;
@@ -61,12 +61,12 @@ public class AirCurrent {
 	public void tick() {
 		if (direction == null)
 			rebuild();
-		Level world = source.getAirCurrentWorld();
-		if (world != null && world.isClientSide) {
+		World world = source.getAirCurrentWorld();
+		if (world != null && world.isClient) {
 			float offset = pushing ? 0.5f : maxDistance + .5f;
-			Vec3 pos = VecHelper.getCenterOf(source.getAirCurrentPos())
-				.add(Vec3.atLowerCornerOf(direction.getNormal())
-					.scale(offset));
+			Vec3d pos = VecHelper.getCenterOf(source.getAirCurrentPos())
+				.add(Vec3d.of(direction.getVector())
+					.multiply(offset));
 			if (world.random.nextFloat() < AllConfigs.client().fanParticleDensity.get())
 				world.addParticle(new AirFlowParticleData(source.getAirCurrentPos()), pos.x, pos.y, pos.z, 0, 0, 0);
 		}
@@ -75,7 +75,7 @@ public class AirCurrent {
 		tickAffectedHandlers();
 	}
 
-	protected void tickAffectedEntities(Level world) {
+	protected void tickAffectedEntities(World world) {
 		for (Iterator<Entity> iterator = caughtEntities.iterator(); iterator.hasNext();) {
 			Entity entity = iterator.next();
 			if (!entity.isAlive() || !entity.getBoundingBox()
@@ -84,28 +84,28 @@ public class AirCurrent {
 				continue;
 			}
 
-			Vec3i flow = (pushing ? direction : direction.getOpposite()).getNormal();
+			Vec3i flow = (pushing ? direction : direction.getOpposite()).getVector();
 			float speed = Math.abs(source.getSpeed());
-			float sneakModifier = entity.isShiftKeyDown() ? 4096f : 512f;
-			double entityDistance = VecHelper.alignedDistanceToFace(entity.position(), source.getAirCurrentPos(), direction);
+			float sneakModifier = entity.isSneaking() ? 4096f : 512f;
+			double entityDistance = VecHelper.alignedDistanceToFace(entity.getPos(), source.getAirCurrentPos(), direction);
 			// entityDistanceOld should be removed eventually. Remember that entityDistanceOld cannot be 0 while entityDistance can,
 			// so division by 0 must be avoided.
-			double entityDistanceOld = entity.position().distanceTo(VecHelper.getCenterOf(source.getAirCurrentPos()));
+			double entityDistanceOld = entity.getPos().distanceTo(VecHelper.getCenterOf(source.getAirCurrentPos()));
 			float acceleration = (float) (speed / sneakModifier / (entityDistanceOld / maxDistance));
-			Vec3 previousMotion = entity.getDeltaMovement();
+			Vec3d previousMotion = entity.getVelocity();
 			float maxAcceleration = 5;
 
-			double xIn = Mth.clamp(flow.getX() * acceleration - previousMotion.x, -maxAcceleration, maxAcceleration);
-			double yIn = Mth.clamp(flow.getY() * acceleration - previousMotion.y, -maxAcceleration, maxAcceleration);
-			double zIn = Mth.clamp(flow.getZ() * acceleration - previousMotion.z, -maxAcceleration, maxAcceleration);
+			double xIn = MathHelper.clamp(flow.getX() * acceleration - previousMotion.x, -maxAcceleration, maxAcceleration);
+			double yIn = MathHelper.clamp(flow.getY() * acceleration - previousMotion.y, -maxAcceleration, maxAcceleration);
+			double zIn = MathHelper.clamp(flow.getZ() * acceleration - previousMotion.z, -maxAcceleration, maxAcceleration);
 
-			entity.setDeltaMovement(previousMotion.add(new Vec3(xIn, yIn, zIn).scale(1 / 8f)));
+			entity.setVelocity(previousMotion.add(new Vec3d(xIn, yIn, zIn).multiply(1 / 8f)));
 			entity.fallDistance = 0;
 			EnvExecutor.runWhenOn(EnvType.CLIENT,
-				() -> () -> enableClientPlayerSound(entity, Mth.clamp(speed / 128f * .4f, 0.01f, .4f)));
+				() -> () -> enableClientPlayerSound(entity, MathHelper.clamp(speed / 128f * .4f, 0.01f, .4f)));
 
-			if (entity instanceof ServerPlayer)
-				((ServerGamePacketListenerImplAccessor) ((ServerPlayer) entity).connection).create$setAboveGroundTickCount(0);
+			if (entity instanceof ServerPlayerEntity)
+				((ServerGamePacketListenerImplAccessor) ((ServerPlayerEntity) entity).networkHandler).create$setVehicleFloatingTicks(0);
 
 			FanProcessingType processingType = getTypeAt((float) entityDistance);
 
@@ -113,8 +113,8 @@ public class AirCurrent {
 				continue;
 
 			if (entity instanceof ItemEntity itemEntity) {
-				if (world != null && world.isClientSide) {
-					processingType.spawnProcessingParticles(world, entity.position());
+				if (world != null && world.isClient) {
+					processingType.spawnProcessingParticles(world, entity.getPos());
 					continue;
 				}
 				if (FanProcessing.canProcess(itemEntity, processingType))
@@ -130,8 +130,8 @@ public class AirCurrent {
 	}
 
 	public static boolean isPlayerCreativeFlying(Entity entity) {
-		if (entity instanceof Player) {
-			Player player = (Player) entity;
+		if (entity instanceof PlayerEntity) {
+			PlayerEntity player = (PlayerEntity) entity;
 			return player.isCreative() && player.getAbilities().flying;
 		}
 		return false;
@@ -140,11 +140,11 @@ public class AirCurrent {
 	public void tickAffectedHandlers() {
 		for (Pair<TransportedItemStackHandlerBehaviour, FanProcessingType> pair : affectedItemHandlers) {
 			TransportedItemStackHandlerBehaviour handler = pair.getKey();
-			Level world = handler.getWorld();
+			World world = handler.getWorld();
 			FanProcessingType processingType = pair.getRight();
 
 			handler.handleProcessingOnAllItems(transported -> {
-				if (world.isClientSide) {
+				if (world.isClient) {
 					processingType.spawnProcessingParticles(world, handler.getWorldPositionOf(transported));
 					return TransportedResult.doNothing();
 				}
@@ -160,7 +160,7 @@ public class AirCurrent {
 		if (source.getSpeed() == 0) {
 			maxDistance = 0;
 			segments.clear();
-			bounds = new AABB(0, 0, 0, 0, 0, 0);
+			bounds = new Box(0, 0, 0, 0, 0, 0);
 			return;
 		}
 
@@ -168,11 +168,11 @@ public class AirCurrent {
 		pushing = source.getAirFlowDirection() == direction;
 		maxDistance = source.getMaxDistance();
 
-		Level world = source.getAirCurrentWorld();
+		World world = source.getAirCurrentWorld();
 		BlockPos start = source.getAirCurrentPos();
 		float max = this.maxDistance;
 		Direction facing = direction;
-		Vec3 directionVec = Vec3.atLowerCornerOf(facing.getNormal());
+		Vec3d directionVec = Vec3d.of(facing.getVector());
 		maxDistance = getFlowLimit(world, start, max, facing);
 
 		// Determine segments with transported fluids/gases
@@ -187,7 +187,7 @@ public class AirCurrent {
 		int toOffset = pushing ? -1 : 0;
 
 		for (int i = searchStart; i * searchStep <= searchEnd * searchStep; i += searchStep) {
-			BlockPos currentPos = start.relative(direction, i);
+			BlockPos currentPos = start.offset(direction, i);
 			FanProcessingType newType = FanProcessingType.getAt(world, currentPos);
 			if (newType != AllFanProcessingTypes.NONE) {
 				type = newType;
@@ -211,25 +211,25 @@ public class AirCurrent {
 
 		// Build Bounding Box
 		if (maxDistance < 0.25f)
-			bounds = new AABB(0, 0, 0, 0, 0, 0);
+			bounds = new Box(0, 0, 0, 0, 0, 0);
 		else {
 			float factor = maxDistance - 1;
-			Vec3 scale = directionVec.scale(factor);
+			Vec3d scale = directionVec.multiply(factor);
 			if (factor > 0)
-				bounds = new AABB(start.relative(direction)).expandTowards(scale);
+				bounds = new Box(start.offset(direction)).stretch(scale);
 			else {
-				bounds = new AABB(start.relative(direction)).contract(scale.x, scale.y, scale.z)
-					.move(scale);
+				bounds = new Box(start.offset(direction)).shrink(scale.x, scale.y, scale.z)
+					.offset(scale);
 			}
 		}
 
 		findAffectedHandlers();
 	}
 
-	public static float getFlowLimit(Level world, BlockPos start, float max, Direction facing) {
+	public static float getFlowLimit(World world, BlockPos start, float max, Direction facing) {
 		for (int i = 0; i < max; i++) {
-			BlockPos currentPos = start.relative(facing, i + 1);
-			if (!world.isLoaded(currentPos)) {
+			BlockPos currentPos = start.offset(facing, i + 1);
+			if (!world.canSetBlock(currentPos)) {
 				return i;
 			}
 
@@ -243,7 +243,7 @@ public class AirCurrent {
 			if (shape.isEmpty()) {
 				continue;
 			}
-			if (shape == Shapes.block()) {
+			if (shape == VoxelShapes.fullCube()) {
 				return i;
 			}
 			double shapeDepth = findMaxDepth(shape, facing);
@@ -269,19 +269,19 @@ public class AirCurrent {
 	// If there is a hole, the result will be Double.POSITIVE_INFINITY.
 	private static double findMaxDepth(VoxelShape shape, Direction direction) {
 		Direction.Axis axis = direction.getAxis();
-		Direction.AxisDirection axisDirection = direction.getAxisDirection();
+		Direction.AxisDirection axisDirection = direction.getDirection();
 		double maxDepth = 0;
 
 		for (double[] coordinates : DEPTH_TEST_COORDINATES) {
 			double depth;
 			if (axisDirection == Direction.AxisDirection.POSITIVE) {
-				double min = shape.min(axis, coordinates[0], coordinates[1]);
+				double min = shape.getStartingCoord(axis, coordinates[0], coordinates[1]);
 				if (min == Double.POSITIVE_INFINITY) {
 					return Double.POSITIVE_INFINITY;
 				}
 				depth = min;
 			} else {
-				double max = shape.max(axis, coordinates[0], coordinates[1]);
+				double max = shape.getEndingCoord(axis, coordinates[0], coordinates[1]);
 				if (max == Double.NEGATIVE_INFINITY) {
 					return Double.POSITIVE_INFINITY;
 				}
@@ -309,15 +309,15 @@ public class AirCurrent {
 	}
 
 	public void findAffectedHandlers() {
-		Level world = source.getAirCurrentWorld();
+		World world = source.getAirCurrentWorld();
 		BlockPos start = source.getAirCurrentPos();
 		affectedItemHandlers.clear();
 		int limit = getLimit();
 		for (int i = 1; i <= limit; i++) {
 			FanProcessingType segmentType = getTypeAt(i - 1);
 			for (int offset : Iterate.zeroAndOne) {
-				BlockPos pos = start.relative(direction, i)
-					.below(offset);
+				BlockPos pos = start.offset(direction, i)
+					.down(offset);
 				TransportedItemStackHandlerBehaviour behaviour =
 					BlockEntityBehaviour.get(world, pos, TransportedItemStackHandlerBehaviour.TYPE);
 				if (behaviour != null) {
@@ -336,7 +336,7 @@ public class AirCurrent {
 	public void findEntities() {
 		caughtEntities.clear();
 		caughtEntities = source.getAirCurrentWorld()
-			.getEntities(null, bounds);
+			.getOtherEntities(null, bounds);
 	}
 
 	public FanProcessingType getTypeAt(float offset) {
@@ -371,18 +371,18 @@ public class AirCurrent {
 
 	@Environment(EnvType.CLIENT)
 	private static void enableClientPlayerSound(Entity e, float maxVolume) {
-		if (e != Minecraft.getInstance()
+		if (e != MinecraftClient.getInstance()
 			.getCameraEntity())
 			return;
 
 		isClientPlayerInAirCurrent = true;
 
-		float pitch = (float) Mth.clamp(e.getDeltaMovement()
+		float pitch = (float) MathHelper.clamp(e.getVelocity()
 			.length() * .5f, .5f, 2f);
 
-		if (flyingSound == null || flyingSound.isStopped()) {
-			flyingSound = new AirCurrentSound(SoundEvents.ELYTRA_FLYING, pitch);
-			Minecraft.getInstance()
+		if (flyingSound == null || flyingSound.isDone()) {
+			flyingSound = new AirCurrentSound(SoundEvents.ITEM_ELYTRA_FLYING, pitch);
+			MinecraftClient.getInstance()
 				.getSoundManager()
 				.play(flyingSound);
 		}

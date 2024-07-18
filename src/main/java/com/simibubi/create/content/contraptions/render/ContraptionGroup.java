@@ -2,14 +2,13 @@ package com.simibubi.create.content.contraptions.render;
 
 import com.jozufozu.flywheel.backend.instancing.instancing.InstancedMaterialGroup;
 import com.jozufozu.flywheel.backend.instancing.instancing.InstancingEngine;
-
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.render.RenderLayer;
 
 public class ContraptionGroup<P extends ContraptionProgram> extends InstancedMaterialGroup<P> {
 
 	private final FlwContraption contraption;
 
-	public ContraptionGroup(FlwContraption contraption, InstancingEngine<P> owner, RenderType type) {
+	public ContraptionGroup(FlwContraption contraption, InstancingEngine<P> owner, RenderLayer type) {
 		super(owner, type);
 
 		this.contraption = contraption;

@@ -12,16 +12,15 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.core.Registry;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.client.particle.ParticleFactory;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleType;
 
-public class FluidParticleData implements ParticleOptions, ICustomParticleData<FluidParticleData> {
+public class FluidParticleData implements ParticleEffect, ICustomParticleData<FluidParticleData> {
 
 	private ParticleType<FluidParticleData> type;
 	private FluidStack fluid;
@@ -36,13 +35,13 @@ public class FluidParticleData implements ParticleOptions, ICustomParticleData<F
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public ParticleProvider<FluidParticleData> getFactory() {
+	public ParticleFactory<FluidParticleData> getFactory() {
 		return this::create;
 	}
 
 	// fabric: lambda funk
 	@Environment(EnvType.CLIENT)
-	private Particle create(FluidParticleData type, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+	private Particle create(FluidParticleData type, ClientWorld level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
 		return FluidStackParticle.create(type.type, level, type.fluid, x, y, z, xSpeed, ySpeed, zSpeed);
 	}
 
@@ -52,12 +51,12 @@ public class FluidParticleData implements ParticleOptions, ICustomParticleData<F
 	}
 
 	@Override
-	public void writeToNetwork(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		fluid.writeToPacket(buffer);
 	}
 
 	@Override
-	public String writeToString() {
+	public String asString() {
 		return RegisteredObjects.getKeyOrThrow(type) + " " + RegisteredObjects.getKeyOrThrow(fluid.getFluid());
 	}
 
@@ -76,22 +75,22 @@ public class FluidParticleData implements ParticleOptions, ICustomParticleData<F
 			.forGetter(p -> p.fluid))
 		.apply(i, fs -> new FluidParticleData(AllParticleTypes.FLUID_DRIP.get(), fs)));
 
-	public static final ParticleOptions.Deserializer<FluidParticleData> DESERIALIZER =
-		new ParticleOptions.Deserializer<FluidParticleData>() {
+	public static final ParticleEffect.Factory<FluidParticleData> DESERIALIZER =
+		new ParticleEffect.Factory<FluidParticleData>() {
 
 			// TODO Fluid particles on command
-			public FluidParticleData fromCommand(ParticleType<FluidParticleData> particleTypeIn, StringReader reader)
+			public FluidParticleData read(ParticleType<FluidParticleData> particleTypeIn, StringReader reader)
 				throws CommandSyntaxException {
 				return new FluidParticleData(particleTypeIn, new FluidStack(Fluids.WATER, 1));
 			}
 
-			public FluidParticleData fromNetwork(ParticleType<FluidParticleData> particleTypeIn, FriendlyByteBuf buffer) {
+			public FluidParticleData read(ParticleType<FluidParticleData> particleTypeIn, PacketByteBuf buffer) {
 				return new FluidParticleData(particleTypeIn, FluidStack.readFromPacket(buffer));
 			}
 		};
 
 	@Override
-	public Deserializer<FluidParticleData> getDeserializer() {
+	public Factory<FluidParticleData> getDeserializer() {
 		return DESERIALIZER;
 	}
 

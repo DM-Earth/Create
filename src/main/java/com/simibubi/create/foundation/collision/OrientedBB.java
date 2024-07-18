@@ -1,25 +1,24 @@
 package com.simibubi.create.foundation.collision;
 
 import com.simibubi.create.foundation.collision.ContinuousOBBCollider.ContinuousSeparationManifold;
-
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 
 public class OrientedBB {
 
-	Vec3 center;
-	Vec3 extents;
+	Vec3d center;
+	Vec3d extents;
 	Matrix3d rotation;
 
-	public OrientedBB(AABB bb) {
+	public OrientedBB(Box bb) {
 		this(bb.getCenter(), extentsFromBB(bb), new Matrix3d().asIdentity());
 	}
 
 	public OrientedBB() {
-		this(Vec3.ZERO, Vec3.ZERO, new Matrix3d().asIdentity());
+		this(Vec3d.ZERO, Vec3d.ZERO, new Matrix3d().asIdentity());
 	}
 
-	public OrientedBB(Vec3 center, Vec3 extents, Matrix3d rotation) {
+	public OrientedBB(Vec3d center, Vec3d extents, Matrix3d rotation) {
 		this.setCenter(center);
 		this.extents = extents;
 		this.setRotation(rotation);
@@ -29,19 +28,19 @@ public class OrientedBB {
 		return new OrientedBB(center, extents, rotation);
 	}
 
-	public Vec3 intersect(AABB bb) {
-		Vec3 extentsA = extentsFromBB(bb);
-		Vec3 intersects = OBBCollider.separateBBs(bb.getCenter(), center, extentsA, extents, rotation);
+	public Vec3d intersect(Box bb) {
+		Vec3d extentsA = extentsFromBB(bb);
+		Vec3d intersects = OBBCollider.separateBBs(bb.getCenter(), center, extentsA, extents, rotation);
 		return intersects;
 	}
 
-	public ContinuousSeparationManifold intersect(AABB bb, Vec3 motion) {
-		Vec3 extentsA = extentsFromBB(bb);
+	public ContinuousSeparationManifold intersect(Box bb, Vec3d motion) {
+		Vec3d extentsA = extentsFromBB(bb);
 		return ContinuousOBBCollider.separateBBs(bb.getCenter(), center, extentsA, extents, rotation, motion);
 	}
 
-	private static Vec3 extentsFromBB(AABB bb) {
-		return new Vec3(bb.getXsize() / 2, bb.getYsize() / 2, bb.getZsize() / 2);
+	private static Vec3d extentsFromBB(Box bb) {
+		return new Vec3d(bb.getXLength() / 2, bb.getYLength() / 2, bb.getZLength() / 2);
 	}
 
 	public Matrix3d getRotation() {
@@ -52,21 +51,21 @@ public class OrientedBB {
 		this.rotation = rotation;
 	}
 
-	public Vec3 getCenter() {
+	public Vec3d getCenter() {
 		return center;
 	}
 
-	public void setCenter(Vec3 center) {
+	public void setCenter(Vec3d center) {
 		this.center = center;
 	}
 
-	public void move(Vec3 offset) {
+	public void move(Vec3d offset) {
 		setCenter(getCenter().add(offset));
 	}
 
-	public AABB getAsAABB() {
-		return new AABB(0, 0, 0, 0, 0, 0).move(center)
-			.inflate(extents.x, extents.y, extents.z);
+	public Box getAsAABB() {
+		return new Box(0, 0, 0, 0, 0, 0).offset(center)
+			.expand(extents.x, extents.y, extents.z);
 	}
 
 	/*

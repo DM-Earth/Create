@@ -5,22 +5,22 @@ import com.mojang.serialization.Codec;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
-import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.client.particle.ParticleEngine.SpriteParticleRegistration;
-import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleOptions.Deserializer;
-import net.minecraft.core.particles.ParticleType;
+import net.minecraft.client.particle.ParticleFactory;
+import net.minecraft.client.particle.ParticleManager;
+import net.minecraft.client.particle.ParticleManager.SpriteAwareFactory;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleEffect.Factory;
+import net.minecraft.particle.ParticleType;
 
-public interface ICustomParticleDataWithSprite<T extends ParticleOptions> extends ICustomParticleData<T> {
+public interface ICustomParticleDataWithSprite<T extends ParticleEffect> extends ICustomParticleData<T> {
 
-	Deserializer<T> getDeserializer();
+	Factory<T> getDeserializer();
 
 	public default ParticleType<T> createType() {
 		return new ParticleType<T>(false, getDeserializer()) {
 
 			@Override
-			public Codec<T> codec() {
+			public Codec<T> getCodec() {
 				return ICustomParticleDataWithSprite.this.getCodec(this);
 			}
 		};
@@ -28,16 +28,16 @@ public interface ICustomParticleDataWithSprite<T extends ParticleOptions> extend
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	default ParticleProvider<T> getFactory() {
+	default ParticleFactory<T> getFactory() {
 		throw new IllegalAccessError("This particle type uses a metaFactory!");
 	}
 
 	@Environment(EnvType.CLIENT)
-	public SpriteParticleRegistration<T> getMetaFactory();
+	public SpriteAwareFactory<T> getMetaFactory();
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public default void register(ParticleType<T> type, ParticleEngine particles) {
+	public default void register(ParticleType<T> type, ParticleManager particles) {
 		ParticleFactoryRegistry.getInstance().register(type, getMetaFactory()::create);
 	}
 }

@@ -5,36 +5,35 @@ import com.simibubi.create.AllRecipeTypes;
 
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import io.github.fabricators_of_create.porting_lib.util.TagUtil;
+import net.minecraft.block.Block;
+import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.recipe.SpecialCraftingRecipe;
+import net.minecraft.recipe.book.CraftingRecipeCategory;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.CustomRecipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
+public class ToolboxDyeingRecipe extends SpecialCraftingRecipe {
 
-public class ToolboxDyeingRecipe extends CustomRecipe {
-
-	public ToolboxDyeingRecipe(ResourceLocation rl, CraftingBookCategory category) {
+	public ToolboxDyeingRecipe(Identifier rl, CraftingRecipeCategory category) {
 		super(rl, category);
 	}
 
 	@Override
-	public boolean matches(CraftingContainer inventory, Level world) {
+	public boolean matches(RecipeInputInventory inventory, World world) {
 		int toolboxes = 0;
 		int dyes = 0;
 
-		for (int i = 0; i < inventory.getContainerSize(); ++i) {
-			ItemStack stack = inventory.getItem(i);
+		for (int i = 0; i < inventory.size(); ++i) {
+			ItemStack stack = inventory.getStack(i);
 			if (!stack.isEmpty()) {
-				if (Block.byItem(stack.getItem()) instanceof ToolboxBlock) {
+				if (Block.getBlockFromItem(stack.getItem()) instanceof ToolboxBlock) {
 					++toolboxes;
 				} else {
-					if (!stack.is(Tags.Items.DYES))
+					if (!stack.isIn(Tags.Items.DYES))
 						return false;
 					++dyes;
 				}
@@ -49,14 +48,14 @@ public class ToolboxDyeingRecipe extends CustomRecipe {
 	}
 
 	@Override
-	public ItemStack assemble(CraftingContainer inventory, RegistryAccess pRegistryAccess) {
+	public ItemStack craft(RecipeInputInventory inventory, DynamicRegistryManager pRegistryAccess) {
 		ItemStack toolbox = ItemStack.EMPTY;
 		DyeColor color = DyeColor.BROWN;
 
-		for (int i = 0; i < inventory.getContainerSize(); ++i) {
-			ItemStack stack = inventory.getItem(i);
+		for (int i = 0; i < inventory.size(); ++i) {
+			ItemStack stack = inventory.getStack(i);
 			if (!stack.isEmpty()) {
-				if (Block.byItem(stack.getItem()) instanceof ToolboxBlock) {
+				if (Block.getBlockFromItem(stack.getItem()) instanceof ToolboxBlock) {
 					toolbox = stack;
 				} else {
 					DyeColor color1 = TagUtil.getColorFromStack(stack);
@@ -69,8 +68,8 @@ public class ToolboxDyeingRecipe extends CustomRecipe {
 
 		ItemStack dyedToolbox = AllBlocks.TOOLBOXES.get(color)
 			.asStack();
-		if (toolbox.hasTag()) {
-			dyedToolbox.setTag(toolbox.getTag()
+		if (toolbox.hasNbt()) {
+			dyedToolbox.setNbt(toolbox.getNbt()
 				.copy());
 		}
 
@@ -78,7 +77,7 @@ public class ToolboxDyeingRecipe extends CustomRecipe {
 	}
 
 	@Override
-	public boolean canCraftInDimensions(int width, int height) {
+	public boolean fits(int width, int height) {
 		return width * height >= 2;
 	}
 

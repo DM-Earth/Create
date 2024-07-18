@@ -2,8 +2,7 @@ package com.simibubi.create.foundation.utility;
 
 import java.util.Comparator;
 import java.util.function.Function;
-
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 
 public class IntAttached<V> extends Pair<Integer, V> {
 
@@ -43,8 +42,8 @@ public class IntAttached<V> extends Pair<Integer, V> {
 		return getSecond();
 	}
 
-	public CompoundTag serializeNBT(Function<V, CompoundTag> serializer) {
-		CompoundTag nbt = new CompoundTag();
+	public NbtCompound serializeNBT(Function<V, NbtCompound> serializer) {
+		NbtCompound nbt = new NbtCompound();
 		nbt.put("Item", serializer.apply(getValue()));
 		nbt.putInt("Location", getFirst());
 		return nbt;
@@ -54,7 +53,7 @@ public class IntAttached<V> extends Pair<Integer, V> {
 		return (i1, i2) -> Integer.compare(i2.getFirst(), i1.getFirst());
 	}
 
-	public static <T> IntAttached<T> read(CompoundTag nbt, Function<CompoundTag, T> deserializer) {
+	public static <T> IntAttached<T> read(NbtCompound nbt, Function<NbtCompound, T> deserializer) {
 		return IntAttached.with(nbt.getInt("Location"), deserializer.apply(nbt.getCompound("Item")));
 	}
 

@@ -1,7 +1,29 @@
 package com.simibubi.create.content.equipment.blueprint;
 
 import java.util.Collection;
-
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.decoration.AbstractDecorationEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Ingredient.Entry;
+import net.minecraft.recipe.Ingredient.StackEntry;
+import net.minecraft.recipe.Ingredient.TagEntry;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.JsonHelper;
+import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.logistics.filter.AttributeFilterMenu.WhitelistMode;
 import com.simibubi.create.content.logistics.filter.FilterItem;
@@ -9,77 +31,53 @@ import com.simibubi.create.content.logistics.filter.ItemAttribute;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
 import io.github.fabricators_of_create.porting_lib.util.MultiItemValue;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.NonNullList;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.TagKey;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.decoration.HangingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Ingredient.ItemValue;
-import net.minecraft.world.item.crafting.Ingredient.TagValue;
-import net.minecraft.world.item.crafting.Ingredient.Value;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.ShapedRecipe;
-import net.minecraft.world.level.Level;
 
 public class BlueprintItem extends Item {
 
-	public BlueprintItem(Properties p_i48487_1_) {
+	public BlueprintItem(Settings p_i48487_1_) {
 		super(p_i48487_1_);
 	}
 
 	@Override
-	public InteractionResult useOn(UseOnContext ctx) {
-		Direction face = ctx.getClickedFace();
-		Player player = ctx.getPlayer();
-		ItemStack stack = ctx.getItemInHand();
-		BlockPos pos = ctx.getClickedPos()
-				.relative(face);
+	public ActionResult useOnBlock(ItemUsageContext ctx) {
+		Direction face = ctx.getSide();
+		PlayerEntity player = ctx.getPlayer();
+		ItemStack stack = ctx.getStack();
+		BlockPos pos = ctx.getBlockPos()
+				.offset(face);
 
-		if (player != null && !player.mayUseItemAt(pos, face, stack))
-			return InteractionResult.FAIL;
+		if (player != null && !player.canPlaceOn(pos, face, stack))
+			return ActionResult.FAIL;
 
-		Level world = ctx.getLevel();
-		HangingEntity hangingentity = new BlueprintEntity(world, pos, face, face.getAxis()
-				.isHorizontal() ? Direction.DOWN : ctx.getHorizontalDirection());
-		CompoundTag compoundnbt = stack.getTag();
+		World world = ctx.getWorld();
+		AbstractDecorationEntity hangingentity = new BlueprintEntity(world, pos, face, face.getAxis()
+				.isHorizontal() ? Direction.DOWN : ctx.getHorizontalPlayerFacing());
+		NbtCompound compoundnbt = stack.getNbt();
 
 		if (compoundnbt != null)
-			EntityType.updateCustomEntityTag(world, player, hangingentity, compoundnbt);
-		if (!hangingentity.survives())
-			return InteractionResult.CONSUME;
-		if (!world.isClientSide) {
-			hangingentity.playPlacementSound();
-			world.addFreshEntity(hangingentity);
+			EntityType.loadFromEntityNbt(world, player, hangingentity, compoundnbt);
+		if (!hangingentity.canStayAttached())
+			return ActionResult.CONSUME;
+		if (!world.isClient) {
+			hangingentity.onPlace();
+			world.spawnEntity(hangingentity);
 		}
 
-		stack.shrink(1);
-		return InteractionResult.sidedSuccess(world.isClientSide);
+		stack.decrement(1);
+		return ActionResult.success(world.isClient);
 	}
 
-	protected boolean canPlace(Player p_200127_1_, Direction p_200127_2_, ItemStack p_200127_3_,
+	protected boolean canPlace(PlayerEntity p_200127_1_, Direction p_200127_2_, ItemStack p_200127_3_,
 							   BlockPos p_200127_4_) {
-		return p_200127_1_.mayUseItemAt(p_200127_4_, p_200127_2_, p_200127_3_);
+		return p_200127_1_.canPlaceOn(p_200127_4_, p_200127_2_, p_200127_3_);
 	}
 
-	public static void assignCompleteRecipe(Level level, ItemStackHandler inv, Recipe<?> recipe) {
-		NonNullList<Ingredient> ingredients = recipe.getIngredients();
+	public static void assignCompleteRecipe(World level, ItemStackHandler inv, Recipe<?> recipe) {
+		DefaultedList<Ingredient> ingredients = recipe.getIngredients();
 
 		for (int i = 0; i < 9; i++)
 			inv.setStackInSlot(i, ItemStack.EMPTY);
-		inv.setStackInSlot(9, recipe.getResultItem(level.registryAccess()));
+		inv.setStackInSlot(9, recipe.getOutput(level.getRegistryManager()));
 
 		if (recipe instanceof ShapedRecipe) {
 			ShapedRecipe shapedRecipe = (ShapedRecipe) recipe;
@@ -94,7 +92,7 @@ public class BlueprintItem extends Item {
 	}
 
 	private static ItemStack convertIngredientToFilter(Ingredient ingredient) {
-		Ingredient.Value[] acceptedItems = ingredient.values;
+		Ingredient.Entry[] acceptedItems = ingredient.entries;
 		if (acceptedItems == null || acceptedItems.length > 18)
 			return ItemStack.EMPTY;
 		if (acceptedItems.length == 0)
@@ -106,30 +104,30 @@ public class BlueprintItem extends Item {
 		ItemStackHandler filterItems = FilterItem.getFilterItems(result);
 		for (int i = 0; i < acceptedItems.length; i++)
 			filterItems.setStackInSlot(i, convertIItemListToFilter(acceptedItems[i]));
-		result.getOrCreateTag()
+		result.getOrCreateNbt()
 				.put("Items", filterItems.serializeNBT());
 		return result;
 	}
 
-	private static ItemStack convertIItemListToFilter(Value itemList) {
-		Collection<ItemStack> stacks = itemList.getItems();
-		if (itemList instanceof ItemValue) {
+	private static ItemStack convertIItemListToFilter(Entry itemList) {
+		Collection<ItemStack> stacks = itemList.getStacks();
+		if (itemList instanceof StackEntry) {
 			for (ItemStack itemStack : stacks)
 				return itemStack;
 		}
 
-		if (itemList instanceof TagValue) {
-			ResourceLocation resourcelocation = new ResourceLocation(GsonHelper.getAsString(itemList.serialize(), "tag"));
+		if (itemList instanceof TagEntry) {
+			Identifier resourcelocation = new Identifier(JsonHelper.getString(itemList.toJson(), "tag"));
 			ItemStack filterItem = AllItems.ATTRIBUTE_FILTER.asStack();
-			filterItem.getOrCreateTag()
+			filterItem.getOrCreateNbt()
 					.putInt("WhitelistMode", WhitelistMode.WHITELIST_DISJ.ordinal());
-			ListTag attributes = new ListTag();
-			ItemAttribute at = new ItemAttribute.InTag(TagKey.create(Registries.ITEM, resourcelocation));
-			CompoundTag compoundNBT = new CompoundTag();
+			NbtList attributes = new NbtList();
+			ItemAttribute at = new ItemAttribute.InTag(TagKey.of(RegistryKeys.ITEM, resourcelocation));
+			NbtCompound compoundNBT = new NbtCompound();
 			at.serializeNBT(compoundNBT);
 			compoundNBT.putBoolean("Inverted", false);
 			attributes.add(compoundNBT);
-			filterItem.getOrCreateTag()
+			filterItem.getOrCreateNbt()
 					.put("MatchedAttributes", attributes);
 			return filterItem;
 		}
@@ -143,7 +141,7 @@ public class BlueprintItem extends Item {
 					break;
 				filterItems.setStackInSlot(i++, itemStack);
 			}
-			CompoundTag tag = result.getOrCreateTag();
+			NbtCompound tag = result.getOrCreateNbt();
 			tag.put("Items", filterItems.serializeNBT());
 			tag.putBoolean("RespectNBT", true);
 			return result;

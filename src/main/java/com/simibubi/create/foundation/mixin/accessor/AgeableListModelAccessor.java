@@ -1,16 +1,15 @@
 package com.simibubi.create.foundation.mixin.accessor;
 
+import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.render.entity.model.AnimalModel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
-import net.minecraft.client.model.AgeableListModel;
-import net.minecraft.client.model.geom.ModelPart;
-
-@Mixin(AgeableListModel.class)
+@Mixin(AnimalModel.class)
 public interface AgeableListModelAccessor {
-	@Invoker("headParts")
-	Iterable<ModelPart> create$callHeadParts();
+	@Invoker("getHeadParts")
+	Iterable<ModelPart> create$callGetHeadParts();
 
-	@Invoker("bodyParts")
-	Iterable<ModelPart> create$callBodyParts();
+	@Invoker("getBodyParts")
+	Iterable<ModelPart> create$callGetBodyParts();
 }

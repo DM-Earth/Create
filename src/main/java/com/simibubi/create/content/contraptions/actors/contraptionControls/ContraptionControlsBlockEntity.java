@@ -1,9 +1,19 @@
 package com.simibubi.create.content.contraptions.actors.contraptionControls;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllTags.AllItemTags;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsBlock;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
@@ -16,18 +26,6 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class ContraptionControlsBlockEntity extends SmartBlockEntity {
 
@@ -59,9 +57,9 @@ public class ContraptionControlsBlockEntity extends SmartBlockEntity {
 	}
 
 	public void updatePoweredState() {
-		if (level.isClientSide())
+		if (world.isClient())
 			return;
-		boolean powered = level.hasNeighborSignal(worldPosition);
+		boolean powered = world.isReceivingRedstonePower(pos);
 		if (this.powered == powered)
 			return;
 		this.powered = powered;
@@ -78,7 +76,7 @@ public class ContraptionControlsBlockEntity extends SmartBlockEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (!level.isClientSide())
+		if (!world.isClient())
 			return;
 		tickAnimations();
 		int value = disabled ? 4 * 45 : 0;
@@ -92,21 +90,21 @@ public class ContraptionControlsBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		super.read(tag, clientPacket);
 		disabled = tag.getBoolean("Disabled");
 		powered = tag.getBoolean("Powered");
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 		tag.putBoolean("Disabled", disabled);
 		tag.putBoolean("Powered", powered);
 	}
 
-	public static void sendStatus(Player player, ItemStack filter, boolean enabled) {
-		MutableComponent state = Lang.translate("contraption.controls.actor_toggle." + (enabled ? "on" : "off"))
+	public static void sendStatus(PlayerEntity player, ItemStack filter, boolean enabled) {
+		MutableText state = Lang.translate("contraption.controls.actor_toggle." + (enabled ? "on" : "off"))
 			.color(DyeHelper.DYE_TABLE.get(enabled ? DyeColor.LIME : DyeColor.ORANGE)
 				.getFirst())
 			.component();
@@ -117,7 +115,7 @@ public class ContraptionControlsBlockEntity extends SmartBlockEntity {
 			return;
 		}
 
-		Lang.translate("contraption.controls.specific_actor_toggle", filter.getHoverName()
+		Lang.translate("contraption.controls.specific_actor_toggle", filter.getName()
 			.getString(), state)
 			.sendStatus(player);
 	}
@@ -125,15 +123,15 @@ public class ContraptionControlsBlockEntity extends SmartBlockEntity {
 	public static class ControlsSlot extends ValueBoxTransform.Sided {
 
 		@Override
-		public Vec3 getLocalOffset(BlockState state) {
-			Direction facing = state.getValue(ControlsBlock.FACING);
+		public Vec3d getLocalOffset(BlockState state) {
+			Direction facing = state.get(ControlsBlock.FACING);
 			float yRot = AngleHelper.horizontalAngle(facing);
 			return VecHelper.rotateCentered(VecHelper.voxelSpace(8, 12f, 5.5f), yRot, Axis.Y);
 		}
 
 		@Override
-		public void rotate(BlockState state, PoseStack ms) {
-			Direction facing = state.getValue(ControlsBlock.FACING);
+		public void rotate(BlockState state, MatrixStack ms) {
+			Direction facing = state.get(ControlsBlock.FACING);
 			float yRot = AngleHelper.horizontalAngle(facing);
 			TransformStack.cast(ms)
 				.rotateY(yRot + 180)
@@ -146,8 +144,8 @@ public class ContraptionControlsBlockEntity extends SmartBlockEntity {
 		}
 
 		@Override
-		protected Vec3 getSouthLocation() {
-			return Vec3.ZERO;
+		protected Vec3d getSouthLocation() {
+			return Vec3d.ZERO;
 		}
 
 	}

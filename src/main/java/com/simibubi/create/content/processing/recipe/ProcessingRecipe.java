@@ -6,7 +6,17 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.collection.DefaultedList;
 import org.slf4j.Logger;
 
 import com.google.gson.JsonObject;
@@ -16,27 +26,15 @@ import com.simibubi.create.foundation.fluid.FluidIngredient;
 import com.simibubi.create.foundation.recipe.IRecipeTypeInfo;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.NonNullList;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.RecipeType;
-
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
-public abstract class ProcessingRecipe<T extends Container> implements Recipe<T> {
+public abstract class ProcessingRecipe<T extends Inventory> implements Recipe<T> {
 
-	protected ResourceLocation id;
-	protected NonNullList<Ingredient> ingredients;
-	protected NonNullList<ProcessingOutput> results;
-	protected NonNullList<FluidIngredient> fluidIngredients;
-	protected NonNullList<FluidStack> fluidResults;
+	protected Identifier id;
+	protected DefaultedList<Ingredient> ingredients;
+	protected DefaultedList<ProcessingOutput> results;
+	protected DefaultedList<FluidIngredient> fluidIngredients;
+	protected DefaultedList<FluidStack> fluidResults;
 	protected int processingDuration;
 	protected HeatCondition requiredHeat;
 
@@ -85,7 +83,7 @@ public abstract class ProcessingRecipe<T extends Container> implements Recipe<T>
 
 	//
 
-	private void validate(ResourceLocation recipeTypeId) {
+	private void validate(Identifier recipeTypeId) {
 		String messageHeader = "Your custom " + recipeTypeId + " recipe (" + id.toString() + ")";
 		Logger logger = Create.LOGGER;
 		int ingredientCount = ingredients.size();
@@ -119,11 +117,11 @@ public abstract class ProcessingRecipe<T extends Container> implements Recipe<T>
 	}
 
 	@Override
-	public NonNullList<Ingredient> getIngredients() {
+	public DefaultedList<Ingredient> getIngredients() {
 		return ingredients;
 	}
 
-	public NonNullList<FluidIngredient> getFluidIngredients() {
+	public DefaultedList<FluidIngredient> getFluidIngredients() {
 		return fluidIngredients;
 	}
 
@@ -131,7 +129,7 @@ public abstract class ProcessingRecipe<T extends Container> implements Recipe<T>
 		return results;
 	}
 
-	public NonNullList<FluidStack> getFluidResults() {
+	public DefaultedList<FluidStack> getFluidResults() {
 		return fluidResults;
 	}
 
@@ -171,24 +169,24 @@ public abstract class ProcessingRecipe<T extends Container> implements Recipe<T>
 	// IRecipe<> paperwork
 
 	@Override
-	public ItemStack assemble(T inv, RegistryAccess registryAccess) {
-		return getResultItem(registryAccess);
+	public ItemStack craft(T inv, DynamicRegistryManager registryAccess) {
+		return getOutput(registryAccess);
 	}
 
 	@Override
-	public boolean canCraftInDimensions(int width, int height) {
+	public boolean fits(int width, int height) {
 		return true;
 	}
 
 	@Override
-	public ItemStack getResultItem(RegistryAccess registryAccess) {
+	public ItemStack getOutput(DynamicRegistryManager registryAccess) {
 		return getRollableResults().isEmpty() ? ItemStack.EMPTY
 			: getRollableResults().get(0)
 				.getStack();
 	}
 
 	@Override
-	public boolean isSpecial() {
+	public boolean isIgnoredInRecipeBook() {
 		return true;
 	}
 
@@ -199,7 +197,7 @@ public abstract class ProcessingRecipe<T extends Container> implements Recipe<T>
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return id;
 	}
 
@@ -221,10 +219,10 @@ public abstract class ProcessingRecipe<T extends Container> implements Recipe<T>
 
 	public void readAdditional(JsonObject json) {}
 
-	public void readAdditional(FriendlyByteBuf buffer) {}
+	public void readAdditional(PacketByteBuf buffer) {}
 
 	public void writeAdditional(JsonObject json) {}
 
-	public void writeAdditional(FriendlyByteBuf buffer) {}
+	public void writeAdditional(PacketByteBuf buffer) {}
 
 }

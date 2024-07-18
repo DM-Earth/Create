@@ -3,16 +3,14 @@ package com.simibubi.create.content.contraptions.actors.trainControls;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
-
+import net.minecraft.entity.Entity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
 public class ControlsInputPacket extends SimplePacketBase {
 
@@ -31,7 +29,7 @@ public class ControlsInputPacket extends SimplePacketBase {
 		this.stopControlling = stopControlling;
 	}
 
-	public ControlsInputPacket(FriendlyByteBuf buffer) {
+	public ControlsInputPacket(PacketByteBuf buffer) {
 		contraptionEntityId = buffer.readInt();
 		activatedButtons = new ArrayList<>();
 		press = buffer.readBoolean();
@@ -43,7 +41,7 @@ public class ControlsInputPacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(contraptionEntityId);
 		buffer.writeBoolean(press);
 		buffer.writeVarInt(activatedButtons.size());
@@ -55,14 +53,14 @@ public class ControlsInputPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
-			Level world = player.getCommandSenderWorld();
-			UUID uniqueID = player.getUUID();
+			ServerPlayerEntity player = context.getSender();
+			World world = player.getEntityWorld();
+			UUID uniqueID = player.getUuid();
 
 			if (player.isSpectator() && press)
 				return;
 
-			Entity entity = world.getEntity(contraptionEntityId);
+			Entity entity = world.getEntityById(contraptionEntityId);
 			if (!(entity instanceof AbstractContraptionEntity ace))
 				return;
 			if (stopControlling) {
@@ -70,8 +68,8 @@ public class ControlsInputPacket extends SimplePacketBase {
 				return;
 			}
 
-			if (ace.toGlobalVector(Vec3.atCenterOf(controlsPos), 0)
-				.closerThan(player.position(), 16))
+			if (ace.toGlobalVector(Vec3d.ofCenter(controlsPos), 0)
+				.isInRange(player.getPos(), 16))
 				ControlsServerHandler.receivePressed(world, ace, controlsPos, uniqueID, activatedButtons, press);
 		});
 		return true;

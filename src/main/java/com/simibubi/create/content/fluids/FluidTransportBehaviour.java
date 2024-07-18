@@ -7,7 +7,13 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.BlockRenderView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.fluids.pipes.EncasedPipeBlock;
 import com.simibubi.create.content.fluids.pump.PumpBlock;
@@ -17,14 +23,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.WorldAttached;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.state.BlockState;
 
 public abstract class FluidTransportBehaviour extends BlockEntityBehaviour {
 
@@ -59,9 +57,9 @@ public abstract class FluidTransportBehaviour extends BlockEntityBehaviour {
 	@Override
 	public void tick() {
 		super.tick();
-		Level world = getWorld();
+		World world = getWorld();
 		BlockPos pos = getPos();
-		boolean onServer = !world.isClientSide || blockEntity.isVirtual();
+		boolean onServer = !world.isClient || blockEntity.isVirtual();
 
 		if (interfaces == null)
 			return;
@@ -128,7 +126,7 @@ public abstract class FluidTransportBehaviour extends BlockEntityBehaviour {
 			for (PipeConnection connection : connections) {
 				FluidStack internalFluid = singleSource != connection ? availableFlow : FluidStack.EMPTY;
 				Predicate<FluidStack> extractionPredicate =
-					extracted -> canPullFluidFrom(extracted, blockEntity.getBlockState(), connection.side);
+					extracted -> canPullFluidFrom(extracted, blockEntity.getCachedState(), connection.side);
 				sendUpdate |= connection.manageFlows(world, pos, internalFluid, extractionPredicate);
 			}
 
@@ -141,7 +139,7 @@ public abstract class FluidTransportBehaviour extends BlockEntityBehaviour {
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 		super.read(nbt, clientPacket);
 		if (interfaces == null)
 			interfaces = new IdentityHashMap<>();
@@ -156,11 +154,11 @@ public abstract class FluidTransportBehaviour extends BlockEntityBehaviour {
 		}
 
 		interfaces.values()
-			.forEach(connection -> connection.deserializeNBT(nbt, blockEntity.getBlockPos(), clientPacket));
+			.forEach(connection -> connection.deserializeNBT(nbt, blockEntity.getPos(), clientPacket));
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		super.write(nbt, clientPacket);
 		if (clientPacket)
 			createConnectionData();
@@ -213,7 +211,7 @@ public abstract class FluidTransportBehaviour extends BlockEntityBehaviour {
 	public void wipePressure() {
 		if (interfaces != null)
 			for (Direction d : Iterate.directions) {
-				if (!canHaveFlowToward(blockEntity.getBlockState(), d))
+				if (!canHaveFlowToward(blockEntity.getCachedState(), d))
 					interfaces.remove(d);
 				else
 					interfaces.computeIfAbsent(d, PipeConnection::new);
@@ -230,24 +228,24 @@ public abstract class FluidTransportBehaviour extends BlockEntityBehaviour {
 			return;
 		interfaces = new IdentityHashMap<>();
 		for (Direction d : Iterate.directions)
-			if (canHaveFlowToward(blockEntity.getBlockState(), d))
+			if (canHaveFlowToward(blockEntity.getCachedState(), d))
 				interfaces.put(d, new PipeConnection(d));
 	}
 
-	public AttachmentTypes getRenderedRimAttachment(BlockAndTintGetter world, BlockPos pos, BlockState state,
+	public AttachmentTypes getRenderedRimAttachment(BlockRenderView world, BlockPos pos, BlockState state,
 		Direction direction) {
 		if (!canHaveFlowToward(state, direction))
 			return AttachmentTypes.NONE;
 
-		BlockPos offsetPos = pos.relative(direction);
+		BlockPos offsetPos = pos.offset(direction);
 		BlockState facingState = world.getBlockState(offsetPos);
 
 		if (facingState.getBlock() instanceof PumpBlock
-			&& facingState.getValue(PumpBlock.FACING) == direction.getOpposite())
+			&& facingState.get(PumpBlock.FACING) == direction.getOpposite())
 			return AttachmentTypes.NONE;
 
 		if (AllBlocks.ENCASED_FLUID_PIPE.has(facingState)
-			&& facingState.getValue(EncasedPipeBlock.FACING_TO_PROPERTY_MAP.get(direction.getOpposite())))
+			&& facingState.get(EncasedPipeBlock.FACING_TO_PROPERTY_MAP.get(direction.getOpposite())))
 			return AttachmentTypes.RIM;
 
 		if (FluidPropagator.hasFluidCapability(world, offsetPos, direction.getOpposite())
@@ -294,14 +292,14 @@ public abstract class FluidTransportBehaviour extends BlockEntityBehaviour {
 	public static final WorldAttached<Map<BlockPos, Map<Direction, PipeConnection>>> interfaceTransfer =
 		new WorldAttached<>($ -> new HashMap<>());
 
-	public static void cacheFlows(LevelAccessor world, BlockPos pos) {
+	public static void cacheFlows(WorldAccess world, BlockPos pos) {
 		FluidTransportBehaviour pipe = BlockEntityBehaviour.get(world, pos, FluidTransportBehaviour.TYPE);
 		if (pipe != null)
 			interfaceTransfer.get(world)
 				.put(pos, pipe.interfaces);
 	}
 
-	public static void loadFlows(LevelAccessor world, BlockPos pos) {
+	public static void loadFlows(WorldAccess world, BlockPos pos) {
 		FluidTransportBehaviour newPipe = BlockEntityBehaviour.get(world, pos, FluidTransportBehaviour.TYPE);
 		if (newPipe != null)
 			newPipe.interfaces = interfaceTransfer.get(world)

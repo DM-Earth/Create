@@ -22,11 +22,11 @@ import me.shedaniel.rei.api.client.gui.drag.DraggableStack;
 import me.shedaniel.rei.api.client.gui.drag.DraggableStackVisitor;
 import me.shedaniel.rei.api.client.gui.drag.DraggedAcceptorResult;
 import me.shedaniel.rei.api.client.gui.drag.DraggingContext;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.item.ItemStack;
+import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.shape.VoxelShape;
 
 public class GhostIngredientHandler<T extends GhostItemMenu<?>>
 		implements DraggableStackVisitor<AbstractSimiContainerScreen<T>> {
@@ -39,7 +39,7 @@ public class GhostIngredientHandler<T extends GhostItemMenu<?>>
 			int x = cursor.getX();
 			int y = cursor.getY();
 			Optional<BoundsProvider> target = bounds.filter(b -> {
-				AABB box = b.bounds().bounds();
+				Box box = b.bounds().getBoundingBox();
 				double minX = box.minX;
 				double minY = box.minY;
 				double maxX = box.maxX;
@@ -64,9 +64,9 @@ public class GhostIngredientHandler<T extends GhostItemMenu<?>>
 		boolean isAttributeFilter = gui instanceof AttributeFilterScreen;
 
 		if (stack.getStack().getValue() instanceof ItemStack) {
-			for (int i = 36; i < gui.getMenu().slots.size(); i++) {
-				if (gui.getMenu().slots.get(i)
-						.isActive())
+			for (int i = 36; i < gui.getScreenHandler().slots.size(); i++) {
+				if (gui.getScreenHandler().slots.get(i)
+						.isEnabled())
 					targets.add(new GhostTarget<>(gui, i - 36, isAttributeFilter));
 
 				// Only accept items in 1st slot. 2nd is used for functionality, don't wanna
@@ -95,7 +95,7 @@ public class GhostIngredientHandler<T extends GhostItemMenu<?>>
 			this.gui = gui;
 			this.slotIndex = slotIndex;
 			this.isAttributeFilter = isAttributeFilter;
-			Slot slot = gui.getMenu().slots.get(slotIndex + 36);
+			Slot slot = gui.getScreenHandler().slots.get(slotIndex + 36);
 			AbstractContainerScreenAccessor access = (AbstractContainerScreenAccessor) gui;
 			this.area = new Rectangle(access.port_lib$getGuiLeft() + slot.x, access.port_lib$getGuiTop() + slot.y, 16, 16);
 		}
@@ -103,7 +103,7 @@ public class GhostIngredientHandler<T extends GhostItemMenu<?>>
 		public void accept(I ingredient) {
 			ItemStack stack = ((ItemStack) ingredient).copy();
 			stack.setCount(1);
-			gui.getMenu().ghostInventory.setStackInSlot(slotIndex, stack);
+			gui.getScreenHandler().ghostInventory.setStackInSlot(slotIndex, stack);
 
 			if (isAttributeFilter)
 				return;

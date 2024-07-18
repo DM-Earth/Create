@@ -1,23 +1,20 @@
 package com.simibubi.create.content.kinetics.steamEngine;
 
 import java.util.List;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.Registries;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
 import com.simibubi.create.content.kinetics.BlockStressValues;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class PoweredShaftBlockEntity extends GeneratingKineticBlockEntity {
 
@@ -41,15 +38,15 @@ public class PoweredShaftBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	public void update(BlockPos sourcePos, int direction, float efficiency) {
-		BlockPos key = worldPosition.subtract(sourcePos);
+		BlockPos key = pos.subtract(sourcePos);
 		enginePos = key;
 		float prev = engineEfficiency;
 		engineEfficiency = efficiency;
 		int prevDirection = this.movementDirection;
-		if (Mth.equal(efficiency, prev) && prevDirection == direction)
+		if (MathHelper.approximatelyEquals(efficiency, prev) && prevDirection == direction)
 			return;
 
-		capacityKey = level.getBlockState(sourcePos)
+		capacityKey = world.getBlockState(sourcePos)
 				.getBlock();
 		this.movementDirection = direction;
 		updateGeneratedRotation();
@@ -71,17 +68,17 @@ public class PoweredShaftBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	public boolean isPoweredBy(BlockPos globalPos) {
-		BlockPos key = worldPosition.subtract(globalPos);
+		BlockPos key = pos.subtract(globalPos);
 		return key.equals(enginePos);
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		compound.putInt("Direction", movementDirection);
 		if (initialTicks > 0)
 			compound.putInt("Warmup", initialTicks);
 		if (enginePos != null && capacityKey != null) {
-			compound.put("EnginePos", NbtUtils.writeBlockPos(enginePos));
+			compound.put("EnginePos", NbtHelper.fromBlockPos(enginePos));
 			compound.putFloat("EnginePower", engineEfficiency);
 			compound.putString("EngineType", RegisteredObjects.getKeyOrThrow(capacityKey)
 					.toString());
@@ -90,16 +87,16 @@ public class PoweredShaftBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		movementDirection = compound.getInt("Direction");
 		initialTicks = compound.getInt("Warmup");
 		enginePos = null;
 		engineEfficiency = 0;
 		if (compound.contains("EnginePos")) {
-			enginePos = NbtUtils.readBlockPos(compound.getCompound("EnginePos"));
+			enginePos = NbtHelper.toBlockPos(compound.getCompound("EnginePos"));
 			engineEfficiency = compound.getFloat("EnginePower");
-			capacityKey = BuiltInRegistries.BLOCK.get(new ResourceLocation(compound.getString("EngineType")));
+			capacityKey = Registries.BLOCK.get(new Identifier(compound.getString("EngineType")));
 		}
 	}
 
@@ -125,16 +122,16 @@ public class PoweredShaftBlockEntity extends GeneratingKineticBlockEntity {
 
 	@Override
 	public int getRotationAngleOffset(Axis axis) {
-		int combinedCoords = axis.choose(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ());
+		int combinedCoords = axis.choose(pos.getX(), pos.getY(), pos.getZ());
 		return super.getRotationAngleOffset(axis) + (combinedCoords % 2 == 0 ? 180 : 0);
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		return false;
 	}
 
-	public boolean addToEngineTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToEngineTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		return super.addToGoggleTooltip(tooltip, isPlayerSneaking);
 	}
 

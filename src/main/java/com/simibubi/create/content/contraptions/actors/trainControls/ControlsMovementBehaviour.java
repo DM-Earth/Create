@@ -11,13 +11,12 @@ import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.item.ItemStack;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.Direction;
 
 public class ControlsMovementBehaviour implements MovementBehaviour {
 
@@ -42,7 +41,7 @@ public class ControlsMovementBehaviour implements MovementBehaviour {
 	@Override
 	public void tick(MovementContext context) {
 		MovementBehaviour.super.tick(context);
-		if (!context.world.isClientSide)
+		if (!context.world.isClient)
 			return;
 		if (!(context.temporaryData instanceof LeverAngles))
 			context.temporaryData = new LeverAngles();
@@ -55,7 +54,7 @@ public class ControlsMovementBehaviour implements MovementBehaviour {
 	@Override
 	@Environment(EnvType.CLIENT)
 	public void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
 		if (!(context.temporaryData instanceof LeverAngles angles))
 			return;
 
@@ -66,10 +65,10 @@ public class ControlsMovementBehaviour implements MovementBehaviour {
 		StructureBlockInfo info = context.contraption.getBlocks()
 			.get(context.localPos);
 		Direction initialOrientation = cce.getInitialOrientation()
-			.getCounterClockWise();
+			.rotateYCounterclockwise();
 		boolean inverted = false;
-		if (info != null && info.state().hasProperty(ControlsBlock.FACING))
-			inverted = !info.state().getValue(ControlsBlock.FACING)
+		if (info != null && info.state().contains(ControlsBlock.FACING))
+			inverted = !info.state().get(ControlsBlock.FACING)
 				.equals(initialOrientation);
 
 		if (ControlsHandler.getContraption() == entity && ControlsHandler.getControlsPos() != null

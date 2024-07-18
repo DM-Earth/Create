@@ -4,7 +4,8 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
-
+import net.minecraft.block.WoodType;
+import net.minecraft.util.DyeColor;
 import com.simibubi.create.foundation.block.connected.AllCTTypes;
 import com.simibubi.create.foundation.block.connected.CTSpriteShiftEntry;
 import com.simibubi.create.foundation.block.connected.CTSpriteShifter;
@@ -12,9 +13,6 @@ import com.simibubi.create.foundation.block.connected.CTType;
 import com.simibubi.create.foundation.block.render.SpriteShiftEntry;
 import com.simibubi.create.foundation.block.render.SpriteShifter;
 import com.simibubi.create.foundation.utility.Couple;
-
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.block.state.properties.WoodType;
 
 public class AllSpriteShifts {
 
@@ -90,7 +88,7 @@ public class AllSpriteShifts {
 			.forEach(woodType -> WOODEN_WINDOWS.put(woodType, vertical("palettes/" + woodType.name() + "_window")));
 
 		for (DyeColor color : DyeColor.values()) {
-			String id = color.getSerializedName();
+			String id = color.asString();
 			DYED_BELTS.put(color, get("block/belt", "block/belt/" + id + "_scroll"));
 			DYED_OFFSET_BELTS.put(color, get("block/belt_offset", "block/belt/" + id + "_scroll"));
 			DYED_DIAGONAL_BELTS.put(color, get("block/belt_diagonal", "block/belt/" + id + "_diagonal_scroll"));

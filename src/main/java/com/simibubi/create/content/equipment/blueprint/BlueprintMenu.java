@@ -10,33 +10,33 @@ import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandle
 import io.github.fabricators_of_create.porting_lib.transfer.item.SlotItemHandler;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.TransientCraftingContainer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.World;
 
 public class BlueprintMenu extends GhostItemMenu<BlueprintSection> {
 
-	public BlueprintMenu(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	public BlueprintMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id, inv, extraData);
 	}
 
-	public BlueprintMenu(MenuType<?> type, int id, Inventory inv, BlueprintSection section) {
+	public BlueprintMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, BlueprintSection section) {
 		super(type, id, inv, section);
 	}
 
-	public static BlueprintMenu create(int id, Inventory inv, BlueprintSection section) {
+	public static BlueprintMenu create(int id, PlayerInventory inv, BlueprintSection section) {
 		return new BlueprintMenu(AllMenuTypes.CRAFTING_BLUEPRINT.get(), id, inv, section);
 	}
 
@@ -61,15 +61,15 @@ public class BlueprintMenu extends GhostItemMenu<BlueprintSection> {
 	}
 
 	public void onCraftMatrixChanged() {
-		Level level = contentHolder.getBlueprintWorld();
-		if (level.isClientSide)
+		World level = contentHolder.getBlueprintWorld();
+		if (level.isClient)
 			return;
 
-		ServerPlayer serverplayerentity = (ServerPlayer) player;
-		CraftingContainer craftingInventory = new BlueprintCraftingInventory(this, ghostInventory);
+		ServerPlayerEntity serverplayerentity = (ServerPlayerEntity) player;
+		RecipeInputInventory craftingInventory = new BlueprintCraftingInventory(this, ghostInventory);
 		Optional<CraftingRecipe> optional = player.getServer()
 				.getRecipeManager()
-				.getRecipeFor(RecipeType.CRAFTING, craftingInventory, player.getCommandSenderWorld());
+				.getFirstMatch(RecipeType.CRAFTING, craftingInventory, player.getEntityWorld());
 
 		if (!optional.isPresent()) {
 			if (ghostInventory.getStackInSlot(9)
@@ -79,33 +79,33 @@ public class BlueprintMenu extends GhostItemMenu<BlueprintSection> {
 				return;
 
 			ghostInventory.setStackInSlot(9, ItemStack.EMPTY);
-			serverplayerentity.connection.send(new ClientboundContainerSetSlotPacket(containerId, incrementStateId(), 36 + 9, ItemStack.EMPTY));
+			serverplayerentity.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(syncId, nextRevision(), 36 + 9, ItemStack.EMPTY));
 			contentHolder.inferredIcon = false;
 			return;
 		}
 
 		CraftingRecipe icraftingrecipe = optional.get();
-		ItemStack itemstack = icraftingrecipe.assemble(craftingInventory, level.registryAccess());
+		ItemStack itemstack = icraftingrecipe.craft(craftingInventory, level.getRegistryManager());
 		ghostInventory.setStackInSlot(9, itemstack);
 		contentHolder.inferredIcon = true;
 		ItemStack toSend = itemstack.copy();
-		toSend.getOrCreateTag()
+		toSend.getOrCreateNbt()
 				.putBoolean("InferredFromRecipe", true);
-		serverplayerentity.connection.send(new ClientboundContainerSetSlotPacket(containerId, incrementStateId(), 36 + 9, toSend));
+		serverplayerentity.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(syncId, nextRevision(), 36 + 9, toSend));
 	}
 
 	@Override
-	public void setItem(int slotId, int stateId, ItemStack stack) {
+	public void setStackInSlot(int slotId, int stateId, ItemStack stack) {
 		if (slotId == 36 + 9) {
-			if (stack.hasTag()) {
-				contentHolder.inferredIcon = stack.getTag()
+			if (stack.hasNbt()) {
+				contentHolder.inferredIcon = stack.getNbt()
 						.getBoolean("InferredFromRecipe");
-				stack.getTag()
+				stack.getNbt()
 						.remove("InferredFromRecipe");
 			} else
 				contentHolder.inferredIcon = false;
 		}
-		super.setItem(slotId, stateId, stack);
+		super.setStackInSlot(slotId, stateId, stack);
 	}
 
 	@Override
@@ -125,10 +125,10 @@ public class BlueprintMenu extends GhostItemMenu<BlueprintSection> {
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	protected BlueprintSection createOnClient(FriendlyByteBuf extraData) {
+	protected BlueprintSection createOnClient(PacketByteBuf extraData) {
 		int entityID = extraData.readVarInt();
 		int section = extraData.readVarInt();
-		Entity entityByID = Minecraft.getInstance().level.getEntity(entityID);
+		Entity entityByID = MinecraftClient.getInstance().world.getEntityById(entityID);
 		if (!(entityByID instanceof BlueprintEntity))
 			return null;
 		BlueprintEntity blueprintEntity = (BlueprintEntity) entityByID;
@@ -137,18 +137,18 @@ public class BlueprintMenu extends GhostItemMenu<BlueprintSection> {
 	}
 
 	@Override
-	public boolean stillValid(Player player) {
+	public boolean canUse(PlayerEntity player) {
 		return contentHolder != null && contentHolder.canPlayerUse(player);
 	}
 
-	static class BlueprintCraftingInventory extends TransientCraftingContainer {
+	static class BlueprintCraftingInventory extends CraftingInventory {
 
-		public BlueprintCraftingInventory(AbstractContainerMenu menu, ItemStackHandler items) {
+		public BlueprintCraftingInventory(ScreenHandler menu, ItemStackHandler items) {
 			super(menu, 3, 3);
 			for (int y = 0; y < 3; y++) {
 				for (int x = 0; x < 3; x++) {
 					ItemStack stack = items.getStackInSlot(y * 3 + x);
-					setItem(y * 3 + x, stack == null ? ItemStack.EMPTY : stack.copy());
+					setStack(y * 3 + x, stack == null ? ItemStack.EMPTY : stack.copy());
 				}
 			}
 		}
@@ -161,18 +161,18 @@ public class BlueprintMenu extends GhostItemMenu<BlueprintSection> {
 
 		public BlueprintCraftSlot(ItemStackHandler itemHandler, int index, int xPosition, int yPosition) {
 			super(itemHandler, index, xPosition, yPosition);
-			this.index = index;
+			this.id = index;
 		}
 
 		@Override
-		public void setChanged() {
-			super.setChanged();
-			if (index == 9 && hasItem() && !contentHolder.getBlueprintWorld().isClientSide) {
+		public void markDirty() {
+			super.markDirty();
+			if (id == 9 && hasStack() && !contentHolder.getBlueprintWorld().isClient) {
 				contentHolder.inferredIcon = false;
-				ServerPlayer serverplayerentity = (ServerPlayer) player;
-				serverplayerentity.connection.send(new ClientboundContainerSetSlotPacket(containerId, incrementStateId(), 36 + 9, getItem()));
+				ServerPlayerEntity serverplayerentity = (ServerPlayerEntity) player;
+				serverplayerentity.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(syncId, nextRevision(), 36 + 9, getStack()));
 			}
-			if (index < 9)
+			if (id < 9)
 				onCraftMatrixChanged();
 		}
 

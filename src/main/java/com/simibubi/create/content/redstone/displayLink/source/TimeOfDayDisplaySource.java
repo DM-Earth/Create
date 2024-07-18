@@ -8,18 +8,17 @@ import com.simibubi.create.content.trains.display.FlapDisplaySection;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.server.level.ServerLevel;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.MutableText;
 
 public class TimeOfDayDisplaySource extends SingleLineDisplaySource {
 
-	public static final MutableComponent EMPTY_TIME = Components.literal("--:--");
+	public static final MutableText EMPTY_TIME = Components.literal("--:--");
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
-		if (!(context.level()instanceof ServerLevel sLevel))
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+		if (!(context.level()instanceof ServerWorld sLevel))
 			return EMPTY_TIME;
 		if (!(context.getSourceBlockEntity() instanceof CuckooClockBlockEntity ccbe))
 			return EMPTY_TIME;
@@ -28,13 +27,13 @@ public class TimeOfDayDisplaySource extends SingleLineDisplaySource {
 
 		boolean c12 = context.sourceConfig()
 			.getInt("Cycle") == 0;
-		boolean isNatural = sLevel.dimensionType()
+		boolean isNatural = sLevel.getDimension()
 			.natural();
 
-		int dayTime = (int) (sLevel.getDayTime() % 24000);
+		int dayTime = (int) (sLevel.getTimeOfDay() % 24000);
 		int hours = (dayTime / 1000 + 6) % 24;
 		int minutes = (dayTime % 1000) * 60 / 1000;
-		MutableComponent suffix = Lang.translateDirect("generic.daytime." + (hours > 11 ? "pm" : "am"));
+		MutableText suffix = Lang.translateDirect("generic.daytime." + (hours > 11 ? "pm" : "am"));
 
 		minutes = minutes / 5 * 5;
 		if (c12) {
@@ -48,7 +47,7 @@ public class TimeOfDayDisplaySource extends SingleLineDisplaySource {
 			minutes = Create.RANDOM.nextInt(40) + 60;
 		}
 
-		MutableComponent component = Components.literal(
+		MutableText component = Components.literal(
 			(hours < 10 ? " " : "") + hours + ":" + (minutes < 10 ? "0" : "") + minutes + (c12 ? " " : ""));
 
 		return c12 ? component.append(suffix) : component;

@@ -91,55 +91,55 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.CombinedStorage;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.IdMapper;
-import net.minecraft.core.HolderGetter;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.protocol.game.DebugPackets;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.ai.village.poi.PoiTypes;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.ButtonBlock;
-import net.minecraft.world.level.block.ChestBlock;
-import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.world.level.block.PressurePlateBlock;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.SimpleWaterloggedBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.ChestType;
-import net.minecraft.world.level.block.state.properties.PistonType;
-import net.minecraft.world.level.chunk.HashMapPalette;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.BooleanOp;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.ButtonBlock;
+import net.minecraft.block.ChestBlock;
+import net.minecraft.block.DoorBlock;
+import net.minecraft.block.PressurePlateBlock;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.Waterloggable;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.enums.ChestType;
+import net.minecraft.block.enums.PistonType;
+import net.minecraft.block.piston.PistonBehavior;
+import net.minecraft.entity.Entity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.RegistryEntryLookup;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.network.DebugInfoSender;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.collection.IdList;
+import net.minecraft.util.function.BooleanBiFunction;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.chunk.BiMapPalette;
+import net.minecraft.world.poi.PointOfInterestTypes;
 
 public abstract class Contraption {
 
-	public Optional<List<AABB>> simplifiedEntityColliders;
+	public Optional<List<Box>> simplifiedEntityColliders;
 	public AbstractContraptionEntity entity;
 
-	public AABB bounds;
+	public Box bounds;
 	public BlockPos anchor;
 	public boolean stalled;
 	public boolean hasUniversalCreativeCrate;
@@ -150,7 +150,7 @@ public abstract class Contraption {
 	protected Map<BlockPos, MovingInteractionBehaviour> interactors;
 	protected List<ItemStack> disabledActors;
 
-	protected List<AABB> superglue;
+	protected List<Box> superglue;
 	protected List<BlockPos> seats;
 	protected Map<UUID, Integer> seatMapping;
 	protected Map<UUID, BlockFace> stabilizedSubContraptions;
@@ -191,30 +191,30 @@ public abstract class Contraption {
 
 	public ContraptionWorld getContraptionWorld() {
 		if (world == null)
-			world = new ContraptionWorld(entity.level(), this);
+			world = new ContraptionWorld(entity.getWorld(), this);
 		return world;
 	}
 
-	public abstract boolean assemble(Level world, BlockPos pos) throws AssemblyException;
+	public abstract boolean assemble(World world, BlockPos pos) throws AssemblyException;
 
 	public abstract boolean canBeStabilized(Direction facing, BlockPos localPos);
 
 	public abstract ContraptionType getType();
 
-	protected boolean customBlockPlacement(LevelAccessor world, BlockPos pos, BlockState state) {
+	protected boolean customBlockPlacement(WorldAccess world, BlockPos pos, BlockState state) {
 		return false;
 	}
 
-	protected boolean customBlockRemoval(LevelAccessor world, BlockPos pos, BlockState state) {
+	protected boolean customBlockRemoval(WorldAccess world, BlockPos pos, BlockState state) {
 		return false;
 	}
 
-	protected boolean addToInitialFrontier(Level world, BlockPos pos, Direction forcedDirection,
+	protected boolean addToInitialFrontier(World world, BlockPos pos, Direction forcedDirection,
 										   Queue<BlockPos> frontier) throws AssemblyException {
 		return true;
 	}
 
-	public static Contraption fromNBT(Level world, CompoundTag nbt, boolean spawnData) {
+	public static Contraption fromNBT(World world, NbtCompound nbt, boolean spawnData) {
 		String type = nbt.getString("Type");
 		Contraption contraption = ContraptionType.fromType(type);
 		contraption.readNBT(world, nbt, spawnData);
@@ -223,7 +223,7 @@ public abstract class Contraption {
 		return contraption;
 	}
 
-	public boolean searchMovedStructure(Level world, BlockPos pos, @Nullable Direction forcedDirection)
+	public boolean searchMovedStructure(World world, BlockPos pos, @Nullable Direction forcedDirection)
 			throws AssemblyException {
 		initialPassengers.clear();
 		Queue<BlockPos> frontier = new UniqueLinkedList<>();
@@ -231,7 +231,7 @@ public abstract class Contraption {
 		anchor = pos;
 
 		if (bounds == null)
-			bounds = new AABB(BlockPos.ZERO);
+			bounds = new Box(BlockPos.ORIGIN);
 
 		if (!BlockMovementChecks.isBrittle(world.getBlockState(pos)))
 			frontier.add(pos);
@@ -253,7 +253,7 @@ public abstract class Contraption {
 		for (BlockFace blockFace : pendingSubContraptions) {
 			Direction face = blockFace.getFace();
 			StabilizedContraption subContraption = new StabilizedContraption(face);
-			Level world = entity.level();
+			World world = entity.getWorld();
 			BlockPos pos = blockFace.getPos();
 			try {
 				if (!subContraption.assemble(world, pos))
@@ -261,12 +261,12 @@ public abstract class Contraption {
 			} catch (AssemblyException e) {
 				continue;
 			}
-			subContraption.removeBlocksFromWorld(world, BlockPos.ZERO);
+			subContraption.removeBlocksFromWorld(world, BlockPos.ORIGIN);
 			OrientedContraptionEntity movedContraption = OrientedContraptionEntity.create(world, subContraption, face);
 			BlockPos anchor = blockFace.getConnectedPos();
-			movedContraption.setPos(anchor.getX() + .5f, anchor.getY(), anchor.getZ() + .5f);
-			world.addFreshEntity(movedContraption);
-			stabilizedSubContraptions.put(movedContraption.getUUID(), new BlockFace(toLocalPos(pos), face));
+			movedContraption.setPosition(anchor.getX() + .5f, anchor.getY(), anchor.getZ() + .5f);
+			world.spawnEntity(movedContraption);
+			stabilizedSubContraptions.put(movedContraption.getUuid(), new BlockFace(toLocalPos(pos), face));
 		}
 
 		storage.createHandlers();
@@ -280,14 +280,14 @@ public abstract class Contraption {
 		}
 	}
 
-	public void onEntityInitialize(Level world, AbstractContraptionEntity contraptionEntity) {
-		if (world.isClientSide)
+	public void onEntityInitialize(World world, AbstractContraptionEntity contraptionEntity) {
+		if (world.isClient)
 			return;
 
-		for (OrientedContraptionEntity orientedCE : world.getEntitiesOfClass(OrientedContraptionEntity.class,
+		for (OrientedContraptionEntity orientedCE : world.getNonSpectatingEntities(OrientedContraptionEntity.class,
 				contraptionEntity.getBoundingBox()
-						.inflate(1)))
-			if (stabilizedSubContraptions.containsKey(orientedCE.getUUID()))
+						.expand(1)))
+			if (stabilizedSubContraptions.containsKey(orientedCE.getUuid()))
 				orientedCE.startRiding(contraptionEntity);
 
 		for (BlockPos seatPos : getSeats()) {
@@ -304,16 +304,16 @@ public abstract class Contraption {
 	/**
 	 * move the first block in frontier queue
 	 */
-	protected boolean moveBlock(Level world, @Nullable Direction forcedDirection, Queue<BlockPos> frontier,
+	protected boolean moveBlock(World world, @Nullable Direction forcedDirection, Queue<BlockPos> frontier,
 								Set<BlockPos> visited) throws AssemblyException {
 		BlockPos pos = frontier.poll();
 		if (pos == null)
 			return false;
 		visited.add(pos);
 
-		if (world.isOutsideBuildHeight(pos))
+		if (world.isOutOfHeightLimit(pos))
 			return true;
-		if (!world.isLoaded(pos))
+		if (!world.canSetBlock(pos))
 			throw AssemblyException.unloadedChunk(pos);
 		if (isAnchoringBlockAt(pos))
 			return true;
@@ -338,19 +338,19 @@ public abstract class Contraption {
 		if (AllBlocks.GANTRY_SHAFT.has(state))
 			moveGantryShaft(world, pos, frontier, visited, state);
 
-		if (AllBlocks.STICKER.has(state) && state.getValue(StickerBlock.EXTENDED)) {
-			Direction offset = state.getValue(StickerBlock.FACING);
-			BlockPos attached = pos.relative(offset);
+		if (AllBlocks.STICKER.has(state) && state.get(StickerBlock.EXTENDED)) {
+			Direction offset = state.get(StickerBlock.FACING);
+			BlockPos attached = pos.offset(offset);
 			if (!visited.contains(attached)
 					&& !BlockMovementChecks.isNotSupportive(world.getBlockState(attached), offset.getOpposite()))
 				frontier.add(attached);
 		}
 
 		// Double Chest halves stick together
-		if (state.hasProperty(ChestBlock.TYPE) && state.hasProperty(ChestBlock.FACING)
-				&& state.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
-			Direction offset = ChestBlock.getConnectedDirection(state);
-			BlockPos attached = pos.relative(offset);
+		if (state.contains(ChestBlock.CHEST_TYPE) && state.contains(ChestBlock.FACING)
+				&& state.get(ChestBlock.CHEST_TYPE) != ChestType.SINGLE) {
+			Direction offset = ChestBlock.getFacing(state);
+			BlockPos attached = pos.offset(offset);
 			if (!visited.contains(attached))
 				frontier.add(attached);
 		}
@@ -358,8 +358,8 @@ public abstract class Contraption {
 		// Bogeys tend to have sticky sides
 		if (state.getBlock() instanceof AbstractBogeyBlock<?> bogey)
 			for (Direction d : bogey.getStickySurfaces(world, pos, state))
-				if (!visited.contains(pos.relative(d)))
-					frontier.add(pos.relative(d));
+				if (!visited.contains(pos.offset(d)))
+					frontier.add(pos.offset(d));
 
 		// Bearings potentially create stabilized sub-contraptions
 		if (AllBlocks.MECHANICAL_BEARING.has(state))
@@ -387,14 +387,14 @@ public abstract class Contraption {
 			movePistonHead(world, pos, frontier, visited, state);
 
 		// Cart assemblers attach themselves
-		BlockPos posDown = pos.below();
+		BlockPos posDown = pos.down();
 		BlockState stateBelow = world.getBlockState(posDown);
 		if (!visited.contains(posDown) && AllBlocks.CART_ASSEMBLER.has(stateBelow))
 			frontier.add(posDown);
 
 		// Slime blocks and super glue drag adjacent blocks if possible
 		for (Direction offset : Iterate.directions) {
-			BlockPos offsetPos = pos.relative(offset);
+			BlockPos offsetPos = pos.offset(offset);
 			BlockState blockState = world.getBlockState(offsetPos);
 			if (isAnchoringBlockAt(offsetPos))
 				continue;
@@ -411,8 +411,8 @@ public abstract class Contraption {
 			boolean brittle = BlockMovementChecks.isBrittle(blockState);
 			boolean canStick = !brittle && StickinessUtil.canStickTo(state, blockState) && StickinessUtil.canStickTo(blockState, state);
 			if (canStick) {
-				if (state.getPistonPushReaction() == PushReaction.PUSH_ONLY
-						|| blockState.getPistonPushReaction() == PushReaction.PUSH_ONLY) {
+				if (state.getPistonBehavior() == PistonBehavior.PUSH_ONLY
+						|| blockState.getPistonBehavior() == PistonBehavior.PUSH_ONLY) {
 					canStick = false;
 				}
 				if (BlockMovementChecks.isNotSupportive(state, offset)) {
@@ -435,96 +435,96 @@ public abstract class Contraption {
 			throw AssemblyException.structureTooLarge();
 	}
 
-	protected void movePistonHead(Level world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
+	protected void movePistonHead(World world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
 								  BlockState state) {
-		Direction direction = state.getValue(MechanicalPistonHeadBlock.FACING);
-		BlockPos offset = pos.relative(direction.getOpposite());
+		Direction direction = state.get(MechanicalPistonHeadBlock.FACING);
+		BlockPos offset = pos.offset(direction.getOpposite());
 		if (!visited.contains(offset)) {
 			BlockState blockState = world.getBlockState(offset);
-			if (isExtensionPole(blockState) && blockState.getValue(PistonExtensionPoleBlock.FACING)
+			if (isExtensionPole(blockState) && blockState.get(PistonExtensionPoleBlock.FACING)
 					.getAxis() == direction.getAxis())
 				frontier.add(offset);
 			if (blockState.getBlock() instanceof MechanicalPistonBlock) {
-				Direction pistonFacing = blockState.getValue(MechanicalPistonBlock.FACING);
+				Direction pistonFacing = blockState.get(MechanicalPistonBlock.FACING);
 				if (pistonFacing == direction
-						&& blockState.getValue(MechanicalPistonBlock.STATE) == PistonState.EXTENDED)
+						&& blockState.get(MechanicalPistonBlock.STATE) == PistonState.EXTENDED)
 					frontier.add(offset);
 			}
 		}
-		if (state.getValue(MechanicalPistonHeadBlock.TYPE) == PistonType.STICKY) {
-			BlockPos attached = pos.relative(direction);
+		if (state.get(MechanicalPistonHeadBlock.TYPE) == PistonType.STICKY) {
+			BlockPos attached = pos.offset(direction);
 			if (!visited.contains(attached))
 				frontier.add(attached);
 		}
 	}
 
-	protected void movePistonPole(Level world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
+	protected void movePistonPole(World world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
 								  BlockState state) {
-		for (Direction d : Iterate.directionsInAxis(state.getValue(PistonExtensionPoleBlock.FACING)
+		for (Direction d : Iterate.directionsInAxis(state.get(PistonExtensionPoleBlock.FACING)
 				.getAxis())) {
-			BlockPos offset = pos.relative(d);
+			BlockPos offset = pos.offset(d);
 			if (!visited.contains(offset)) {
 				BlockState blockState = world.getBlockState(offset);
-				if (isExtensionPole(blockState) && blockState.getValue(PistonExtensionPoleBlock.FACING)
+				if (isExtensionPole(blockState) && blockState.get(PistonExtensionPoleBlock.FACING)
 						.getAxis() == d.getAxis())
 					frontier.add(offset);
-				if (isPistonHead(blockState) && blockState.getValue(MechanicalPistonHeadBlock.FACING)
+				if (isPistonHead(blockState) && blockState.get(MechanicalPistonHeadBlock.FACING)
 						.getAxis() == d.getAxis())
 					frontier.add(offset);
 				if (blockState.getBlock() instanceof MechanicalPistonBlock) {
-					Direction pistonFacing = blockState.getValue(MechanicalPistonBlock.FACING);
+					Direction pistonFacing = blockState.get(MechanicalPistonBlock.FACING);
 					if (pistonFacing == d || pistonFacing == d.getOpposite()
-							&& blockState.getValue(MechanicalPistonBlock.STATE) == PistonState.EXTENDED)
+							&& blockState.get(MechanicalPistonBlock.STATE) == PistonState.EXTENDED)
 						frontier.add(offset);
 				}
 			}
 		}
 	}
 
-	protected void moveGantryPinion(Level world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
+	protected void moveGantryPinion(World world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
 									BlockState state) {
-		BlockPos offset = pos.relative(state.getValue(GantryCarriageBlock.FACING));
+		BlockPos offset = pos.offset(state.get(GantryCarriageBlock.FACING));
 		if (!visited.contains(offset))
 			frontier.add(offset);
 		Axis rotationAxis = ((IRotate) state.getBlock()).getRotationAxis(state);
 		for (Direction d : Iterate.directionsInAxis(rotationAxis)) {
-			offset = pos.relative(d);
+			offset = pos.offset(d);
 			BlockState offsetState = world.getBlockState(offset);
-			if (AllBlocks.GANTRY_SHAFT.has(offsetState) && offsetState.getValue(GantryShaftBlock.FACING)
+			if (AllBlocks.GANTRY_SHAFT.has(offsetState) && offsetState.get(GantryShaftBlock.FACING)
 					.getAxis() == d.getAxis())
 				if (!visited.contains(offset))
 					frontier.add(offset);
 		}
 	}
 
-	protected void moveGantryShaft(Level world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
+	protected void moveGantryShaft(World world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
 								   BlockState state) {
 		for (Direction d : Iterate.directions) {
-			BlockPos offset = pos.relative(d);
+			BlockPos offset = pos.offset(d);
 			if (!visited.contains(offset)) {
 				BlockState offsetState = world.getBlockState(offset);
-				Direction facing = state.getValue(GantryShaftBlock.FACING);
+				Direction facing = state.get(GantryShaftBlock.FACING);
 				if (d.getAxis() == facing.getAxis() && AllBlocks.GANTRY_SHAFT.has(offsetState)
-						&& offsetState.getValue(GantryShaftBlock.FACING) == facing)
+						&& offsetState.get(GantryShaftBlock.FACING) == facing)
 					frontier.add(offset);
 				else if (AllBlocks.GANTRY_CARRIAGE.has(offsetState)
-						&& offsetState.getValue(GantryCarriageBlock.FACING) == d)
+						&& offsetState.get(GantryCarriageBlock.FACING) == d)
 					frontier.add(offset);
 			}
 		}
 	}
 
 	private void moveWindmillBearing(BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited, BlockState state) {
-		Direction facing = state.getValue(WindmillBearingBlock.FACING);
-		BlockPos offset = pos.relative(facing);
+		Direction facing = state.get(WindmillBearingBlock.FACING);
+		BlockPos offset = pos.offset(facing);
 		if (!visited.contains(offset))
 			frontier.add(offset);
 	}
 
 	private void moveBearing(BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited, BlockState state) {
-		Direction facing = state.getValue(MechanicalBearingBlock.FACING);
+		Direction facing = state.get(MechanicalBearingBlock.FACING);
 		if (!canBeStabilized(facing, pos.subtract(anchor))) {
-			BlockPos offset = pos.relative(facing);
+			BlockPos offset = pos.offset(facing);
 			if (!visited.contains(offset))
 				frontier.add(offset);
 			return;
@@ -541,24 +541,24 @@ public abstract class Contraption {
 			frontier.add(prevPos);
 	}
 
-	private void moveSeat(Level world, BlockPos pos) {
+	private void moveSeat(World world, BlockPos pos) {
 		BlockPos local = toLocalPos(pos);
 		getSeats().add(local);
-		List<SeatEntity> seatsEntities = world.getEntitiesOfClass(SeatEntity.class, new AABB(pos));
+		List<SeatEntity> seatsEntities = world.getNonSpectatingEntities(SeatEntity.class, new Box(pos));
 		if (!seatsEntities.isEmpty()) {
 			SeatEntity seat = seatsEntities.get(0);
-			List<Entity> passengers = seat.getPassengers();
+			List<Entity> passengers = seat.getPassengerList();
 			if (!passengers.isEmpty())
 				initialPassengers.put(local, passengers.get(0));
 		}
 	}
 
-	private void movePulley(Level world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited) {
+	private void movePulley(World world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited) {
 		int limit = AllConfigs.server().kinetics.maxRopeLength.get();
 		BlockPos ropePos = pos;
 		while (limit-- >= 0) {
-			ropePos = ropePos.below();
-			if (!world.isLoaded(ropePos))
+			ropePos = ropePos.down();
+			if (!world.canSetBlock(ropePos))
 				break;
 			BlockState ropeState = world.getBlockState(ropePos);
 			Block block = ropeState.getBlock();
@@ -571,23 +571,23 @@ public abstract class Contraption {
 		}
 	}
 
-	private boolean moveMechanicalPiston(Level world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
+	private boolean moveMechanicalPiston(World world, BlockPos pos, Queue<BlockPos> frontier, Set<BlockPos> visited,
 										 BlockState state) throws AssemblyException {
-		Direction direction = state.getValue(MechanicalPistonBlock.FACING);
-		PistonState pistonState = state.getValue(MechanicalPistonBlock.STATE);
+		Direction direction = state.get(MechanicalPistonBlock.FACING);
+		PistonState pistonState = state.get(MechanicalPistonBlock.STATE);
 		if (pistonState == PistonState.MOVING)
 			return false;
 
-		BlockPos offset = pos.relative(direction.getOpposite());
+		BlockPos offset = pos.offset(direction.getOpposite());
 		if (!visited.contains(offset)) {
 			BlockState poleState = world.getBlockState(offset);
-			if (AllBlocks.PISTON_EXTENSION_POLE.has(poleState) && poleState.getValue(PistonExtensionPoleBlock.FACING)
+			if (AllBlocks.PISTON_EXTENSION_POLE.has(poleState) && poleState.get(PistonExtensionPoleBlock.FACING)
 					.getAxis() == direction.getAxis())
 				frontier.add(offset);
 		}
 
 		if (pistonState == PistonState.EXTENDED || MechanicalPistonBlock.isStickyPiston(state)) {
-			offset = pos.relative(direction);
+			offset = pos.offset(direction);
 			if (!visited.contains(offset))
 				frontier.add(offset);
 		}
@@ -595,7 +595,7 @@ public abstract class Contraption {
 		return true;
 	}
 
-	private boolean moveChassis(Level world, BlockPos pos, Direction movementDirection, Queue<BlockPos> frontier,
+	private boolean moveChassis(World world, BlockPos pos, Direction movementDirection, Queue<BlockPos> frontier,
 								Set<BlockPos> visited) {
 		BlockEntity be = world.getBlockEntity(pos);
 		if (!(be instanceof ChassisBlockEntity))
@@ -611,25 +611,25 @@ public abstract class Contraption {
 		return true;
 	}
 
-	protected Pair<StructureBlockInfo, BlockEntity> capture(Level world, BlockPos pos) {
+	protected Pair<StructureBlockInfo, BlockEntity> capture(World world, BlockPos pos) {
 		BlockState blockstate = world.getBlockState(pos);
 		if (AllBlocks.REDSTONE_CONTACT.has(blockstate))
-			blockstate = blockstate.setValue(RedstoneContactBlock.POWERED, true);
+			blockstate = blockstate.with(RedstoneContactBlock.POWERED, true);
 		if (AllBlocks.POWERED_SHAFT.has(blockstate))
 			blockstate = BlockHelper.copyProperties(blockstate, AllBlocks.SHAFT.getDefaultState());
 		if (blockstate.getBlock() instanceof ControlsBlock && getType() == ContraptionType.CARRIAGE)
-			blockstate = blockstate.setValue(ControlsBlock.OPEN, true);
-		if (blockstate.hasProperty(SlidingDoorBlock.VISIBLE))
-			blockstate = blockstate.setValue(SlidingDoorBlock.VISIBLE, false);
+			blockstate = blockstate.with(ControlsBlock.OPEN, true);
+		if (blockstate.contains(SlidingDoorBlock.VISIBLE))
+			blockstate = blockstate.with(SlidingDoorBlock.VISIBLE, false);
 		if (blockstate.getBlock() instanceof ButtonBlock) {
-			blockstate = blockstate.setValue(ButtonBlock.POWERED, false);
-			world.scheduleTick(pos, blockstate.getBlock(), -1);
+			blockstate = blockstate.with(ButtonBlock.POWERED, false);
+			world.scheduleBlockTick(pos, blockstate.getBlock(), -1);
 		}
 		if (blockstate.getBlock() instanceof PressurePlateBlock) {
-			blockstate = blockstate.setValue(PressurePlateBlock.POWERED, false);
-			world.scheduleTick(pos, blockstate.getBlock(), -1);
+			blockstate = blockstate.with(PressurePlateBlock.POWERED, false);
+			world.scheduleBlockTick(pos, blockstate.getBlock(), -1);
 		}
-		CompoundTag compoundnbt = getBlockEntityNBT(world, pos);
+		NbtCompound compoundnbt = getBlockEntityNBT(world, pos);
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		if (blockEntity instanceof PoweredShaftBlockEntity)
 			blockEntity = AllBlockEntityTypes.BRACKETED_KINETIC.create(pos, blockstate);
@@ -643,7 +643,7 @@ public abstract class Contraption {
 
 		if (blocks.put(localPos, structureBlockInfo) != null)
 			return;
-		bounds = bounds.minmax(new AABB(localPos));
+		bounds = bounds.union(new Box(localPos));
 
 		BlockEntity be = pair.getValue();
 		storage.addBlock(localPos, be);
@@ -663,11 +663,11 @@ public abstract class Contraption {
 	}
 
 	@Nullable
-	protected CompoundTag getBlockEntityNBT(Level world, BlockPos pos) {
+	protected NbtCompound getBlockEntityNBT(World world, BlockPos pos) {
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		if (blockEntity == null)
 			return null;
-		CompoundTag nbt = blockEntity.saveWithFullMetadata();
+		NbtCompound nbt = blockEntity.createNbtWithIdentifyingData();
 		nbt.remove("x");
 		nbt.remove("y");
 		nbt.remove("z");
@@ -675,7 +675,7 @@ public abstract class Contraption {
 		if ((blockEntity instanceof FluidTankBlockEntity || blockEntity instanceof ItemVaultBlockEntity)
 				&& nbt.contains("Controller"))
 			nbt.put("Controller",
-					NbtUtils.writeBlockPos(toLocalPos(NbtUtils.readBlockPos(nbt.getCompound("Controller")))));
+					NbtHelper.fromBlockPos(toLocalPos(NbtHelper.toBlockPos(nbt.getCompound("Controller")))));
 
 		return nbt;
 	}
@@ -684,7 +684,7 @@ public abstract class Contraption {
 		return globalPos.subtract(anchor);
 	}
 
-	protected boolean movementAllowed(BlockState state, Level world, BlockPos pos) {
+	protected boolean movementAllowed(BlockState state, World world, BlockPos pos) {
 		return BlockMovementChecks.isMovementAllowed(state, world, pos);
 	}
 
@@ -692,50 +692,50 @@ public abstract class Contraption {
 		return pos.equals(anchor);
 	}
 
-	public void readNBT(Level world, CompoundTag nbt, boolean spawnData) {
+	public void readNBT(World world, NbtCompound nbt, boolean spawnData) {
 		blocks.clear();
 		presentBlockEntities.clear();
 		specialRenderedBlockEntities.clear();
 
-		Tag blocks = nbt.get("Blocks");
+		NbtElement blocks = nbt.get("Blocks");
 		// used to differentiate between the 'old' and the paletted serialization
 		boolean usePalettedDeserialization =
-				blocks != null && blocks.getId() == 10 && ((CompoundTag) blocks).contains("Palette");
+				blocks != null && blocks.getType() == 10 && ((NbtCompound) blocks).contains("Palette");
 		readBlocksCompound(blocks, world, usePalettedDeserialization);
 
 		actors.clear();
 		nbt.getList("Actors", 10)
 				.forEach(c -> {
-					CompoundTag comp = (CompoundTag) c;
-					StructureBlockInfo info = this.blocks.get(NbtUtils.readBlockPos(comp.getCompound("Pos")));
+					NbtCompound comp = (NbtCompound) c;
+					StructureBlockInfo info = this.blocks.get(NbtHelper.toBlockPos(comp.getCompound("Pos")));
 					if (info == null)
 						return;
 					MovementContext context = MovementContext.readNBT(world, info, comp, this);
 					getActors().add(MutablePair.of(info, context));
 				});
 
-		disabledActors = NBTHelper.readItemList(nbt.getList("DisabledActors", Tag.TAG_COMPOUND));
+		disabledActors = NBTHelper.readItemList(nbt.getList("DisabledActors", NbtElement.COMPOUND_TYPE));
 		for (ItemStack stack : disabledActors)
 			setActorsActive(stack, false);
 
 		superglue.clear();
-		NBTHelper.iterateCompoundList(nbt.getList("Superglue", Tag.TAG_COMPOUND),
+		NBTHelper.iterateCompoundList(nbt.getList("Superglue", NbtElement.COMPOUND_TYPE),
 				c -> superglue.add(SuperGlueEntity.readBoundingBox(c)));
 
 		seats.clear();
-		NBTHelper.iterateCompoundList(nbt.getList("Seats", Tag.TAG_COMPOUND), c -> seats.add(NbtUtils.readBlockPos(c)));
+		NBTHelper.iterateCompoundList(nbt.getList("Seats", NbtElement.COMPOUND_TYPE), c -> seats.add(NbtHelper.toBlockPos(c)));
 
 		seatMapping.clear();
-		NBTHelper.iterateCompoundList(nbt.getList("Passengers", Tag.TAG_COMPOUND),
-				c -> seatMapping.put(NbtUtils.loadUUID(NBTHelper.getINBT(c, "Id")), c.getInt("Seat")));
+		NBTHelper.iterateCompoundList(nbt.getList("Passengers", NbtElement.COMPOUND_TYPE),
+				c -> seatMapping.put(NbtHelper.toUuid(NBTHelper.getINBT(c, "Id")), c.getInt("Seat")));
 
 		stabilizedSubContraptions.clear();
-		NBTHelper.iterateCompoundList(nbt.getList("SubContraptions", Tag.TAG_COMPOUND),
-				c -> stabilizedSubContraptions.put(c.getUUID("Id"), BlockFace.fromNBT(c.getCompound("Location"))));
+		NBTHelper.iterateCompoundList(nbt.getList("SubContraptions", NbtElement.COMPOUND_TYPE),
+				c -> stabilizedSubContraptions.put(c.getUuid("Id"), BlockFace.fromNBT(c.getCompound("Location"))));
 
 		interactors.clear();
-		NBTHelper.iterateCompoundList(nbt.getList("Interactors", Tag.TAG_COMPOUND), c -> {
-			BlockPos pos = NbtUtils.readBlockPos(c.getCompound("Pos"));
+		NBTHelper.iterateCompoundList(nbt.getList("Interactors", NbtElement.COMPOUND_TYPE), c -> {
+			BlockPos pos = NbtHelper.toBlockPos(c.getCompound("Pos"));
 			StructureBlockInfo structureBlockInfo = getBlocks().get(pos);
 			if (structureBlockInfo == null)
 				return;
@@ -751,34 +751,34 @@ public abstract class Contraption {
 
 		stalled = nbt.getBoolean("Stalled");
 		hasUniversalCreativeCrate = nbt.getBoolean("BottomlessSupply");
-		anchor = NbtUtils.readBlockPos(nbt.getCompound("Anchor"));
+		anchor = NbtHelper.toBlockPos(nbt.getCompound("Anchor"));
 	}
 
-	public CompoundTag writeNBT(boolean spawnPacket) {
-		CompoundTag nbt = new CompoundTag();
+	public NbtCompound writeNBT(boolean spawnPacket) {
+		NbtCompound nbt = new NbtCompound();
 		nbt.putString("Type", getType().id);
 
-		CompoundTag blocksNBT = writeBlocksCompound();
+		NbtCompound blocksNBT = writeBlocksCompound();
 
-		ListTag actorsNBT = new ListTag();
+		NbtList actorsNBT = new NbtList();
 		for (MutablePair<StructureBlockInfo, MovementContext> actor : getActors()) {
 			MovementBehaviour behaviour = AllMovementBehaviours.getBehaviour(actor.left.state());
 			if (behaviour == null)
 				continue;
-			CompoundTag compound = new CompoundTag();
-			compound.put("Pos", NbtUtils.writeBlockPos(actor.left.pos()));
+			NbtCompound compound = new NbtCompound();
+			compound.put("Pos", NbtHelper.fromBlockPos(actor.left.pos()));
 			behaviour
 					.writeExtraData(actor.right);
 			actor.right.writeToNBT(compound);
 			actorsNBT.add(compound);
 		}
 
-		ListTag disabledActorsNBT = NBTHelper.writeItemList(disabledActors);
+		NbtList disabledActorsNBT = NBTHelper.writeItemList(disabledActors);
 
-		ListTag superglueNBT = new ListTag();
+		NbtList superglueNBT = new NbtList();
 		if (!spawnPacket) {
-			for (AABB glueEntry : superglue) {
-				CompoundTag c = new CompoundTag();
+			for (Box glueEntry : superglue) {
+				NbtCompound c = new NbtCompound();
 				SuperGlueEntity.writeBoundingBox(c, glueEntry);
 				superglueNBT.add(c);
 			}
@@ -786,24 +786,24 @@ public abstract class Contraption {
 
 		(spawnPacket ? getStorageForSpawnPacket() : storage).write(nbt, spawnPacket);
 
-		ListTag interactorNBT = new ListTag();
+		NbtList interactorNBT = new NbtList();
 		for (BlockPos pos : interactors.keySet()) {
-			CompoundTag c = new CompoundTag();
-			c.put("Pos", NbtUtils.writeBlockPos(pos));
+			NbtCompound c = new NbtCompound();
+			c.put("Pos", NbtHelper.fromBlockPos(pos));
 			interactorNBT.add(c);
 		}
 
-		nbt.put("Seats", NBTHelper.writeCompoundList(getSeats(), NbtUtils::writeBlockPos));
+		nbt.put("Seats", NBTHelper.writeCompoundList(getSeats(), NbtHelper::fromBlockPos));
 		nbt.put("Passengers", NBTHelper.writeCompoundList(getSeatMapping().entrySet(), e -> {
-			CompoundTag tag = new CompoundTag();
-			tag.put("Id", NbtUtils.createUUID(e.getKey()));
+			NbtCompound tag = new NbtCompound();
+			tag.put("Id", NbtHelper.fromUuid(e.getKey()));
 			tag.putInt("Seat", e.getValue());
 			return tag;
 		}));
 
 		nbt.put("SubContraptions", NBTHelper.writeCompoundList(stabilizedSubContraptions.entrySet(), e -> {
-			CompoundTag tag = new CompoundTag();
-			tag.putUUID("Id", e.getKey());
+			NbtCompound tag = new NbtCompound();
+			tag.putUuid("Id", e.getKey());
 			tag.put("Location", e.getValue()
 					.serializeNBT());
 			return tag;
@@ -814,12 +814,12 @@ public abstract class Contraption {
 		nbt.put("DisabledActors", disabledActorsNBT);
 		nbt.put("Interactors", interactorNBT);
 		nbt.put("Superglue", superglueNBT);
-		nbt.put("Anchor", NbtUtils.writeBlockPos(anchor));
+		nbt.put("Anchor", NbtHelper.fromBlockPos(anchor));
 		nbt.putBoolean("Stalled", stalled);
 		nbt.putBoolean("BottomlessSupply", hasUniversalCreativeCrate);
 
 		if (bounds != null) {
-			ListTag bb = NBTHelper.writeAABB(bounds);
+			NbtList bb = NBTHelper.writeAABB(bounds);
 			nbt.put("BoundsFront", bb);
 		}
 
@@ -830,16 +830,16 @@ public abstract class Contraption {
 		return storage;
 	}
 
-	private CompoundTag writeBlocksCompound() {
-		CompoundTag compound = new CompoundTag();
-		HashMapPalette<BlockState> palette = new HashMapPalette<>(new IdMapper<>(), 16, (i, s) -> {
+	private NbtCompound writeBlocksCompound() {
+		NbtCompound compound = new NbtCompound();
+		BiMapPalette<BlockState> palette = new BiMapPalette<>(new IdList<>(), 16, (i, s) -> {
 			throw new IllegalStateException("Palette Map index exceeded maximum");
 		});
-		ListTag blockList = new ListTag();
+		NbtList blockList = new NbtList();
 
 		for (StructureBlockInfo block : this.blocks.values()) {
-			int id = palette.idFor(block.state());
-			CompoundTag c = new CompoundTag();
+			int id = palette.index(block.state());
+			NbtCompound c = new NbtCompound();
 			c.putLong("Pos", block.pos().asLong());
 			c.putInt("State", id);
 			if (block.nbt() != null)
@@ -847,48 +847,48 @@ public abstract class Contraption {
 			blockList.add(c);
 		}
 
-		ListTag paletteNBT = new ListTag();
+		NbtList paletteNBT = new NbtList();
 		for (int i = 0; i < palette.getSize(); ++i)
-			paletteNBT.add(NbtUtils.writeBlockState(((HashMapPaletteAccessor<BlockState>) palette).port_lib$getValues().byId(i)));
+			paletteNBT.add(NbtHelper.fromBlockState(((HashMapPaletteAccessor<BlockState>) palette).port_lib$getValues().get(i)));
 		compound.put("Palette", paletteNBT);
 		compound.put("BlockList", blockList);
 
 		return compound;
 	}
 
-	private void readBlocksCompound(Tag compound, Level world, boolean usePalettedDeserialization) {
-		HolderGetter<Block> holderGetter = world.holderLookup(Registries.BLOCK);
-		HashMapPalette<BlockState> palette = null;
-		ListTag blockList;
+	private void readBlocksCompound(NbtElement compound, World world, boolean usePalettedDeserialization) {
+		RegistryEntryLookup<Block> holderGetter = world.createCommandRegistryWrapper(RegistryKeys.BLOCK);
+		BiMapPalette<BlockState> palette = null;
+		NbtList blockList;
 		if (usePalettedDeserialization) {
-			CompoundTag c = ((CompoundTag) compound);
-			palette = new HashMapPalette<>(new IdMapper<>(), 16, (i, s) -> {
+			NbtCompound c = ((NbtCompound) compound);
+			palette = new BiMapPalette<>(new IdList<>(), 16, (i, s) -> {
 				throw new IllegalStateException("Palette Map index exceeded maximum");
 			});
 
-			ListTag list = c.getList("Palette", 10);
+			NbtList list = c.getList("Palette", 10);
 			((HashMapPaletteAccessor) palette).port_lib$getValues().clear();
 			for (int i = 0; i < list.size(); ++i)
-				((HashMapPaletteAccessor) palette).port_lib$getValues().add(NbtUtils.readBlockState(holderGetter, list.getCompound(i)));
+				((HashMapPaletteAccessor) palette).port_lib$getValues().add(NbtHelper.toBlockState(holderGetter, list.getCompound(i)));
 
 			blockList = c.getList("BlockList", 10);
 		} else {
-			blockList = (ListTag) compound;
+			blockList = (NbtList) compound;
 		}
 
-		HashMapPalette<BlockState> finalPalette = palette;
+		BiMapPalette<BlockState> finalPalette = palette;
 		blockList.forEach(e -> {
-			CompoundTag c = (CompoundTag) e;
+			NbtCompound c = (NbtCompound) e;
 
 			StructureBlockInfo info =
 					usePalettedDeserialization ? readStructureBlockInfo(c, finalPalette) : legacyReadStructureBlockInfo(c, holderGetter);
 
 			this.blocks.put(info.pos(), info);
 
-			if (!world.isClientSide)
+			if (!world.isClient)
 				return;
 
-			CompoundTag tag = info.nbt();
+			NbtCompound tag = info.nbt();
 			if (tag == null)
 				return;
 
@@ -896,13 +896,13 @@ public abstract class Contraption {
 			tag.putInt("y", info.pos().getY());
 			tag.putInt("z", info.pos().getZ());
 
-			BlockEntity be = BlockEntity.loadStatic(info.pos(), info.state(), tag);
+			BlockEntity be = BlockEntity.createFromNbt(info.pos(), info.state(), tag);
 			if (be == null)
 				return;
-			be.setLevel(world);
+			be.setWorld(world);
 			if (be instanceof KineticBlockEntity kbe)
 				kbe.setSpeed(0);
-			be.getBlockState();
+			be.getCachedState();
 
 			MovementBehaviour movementBehaviour = AllMovementBehaviours.getBehaviour(info.state());
 			if (movementBehaviour == null || !movementBehaviour.hasSpecialInstancedRendering())
@@ -916,30 +916,30 @@ public abstract class Contraption {
 		});
 	}
 
-	private static StructureBlockInfo readStructureBlockInfo(CompoundTag blockListEntry,
-															 HashMapPalette<BlockState> palette) {
-		return new StructureBlockInfo(BlockPos.of(blockListEntry.getLong("Pos")),
-				Objects.requireNonNull(palette.valueFor(blockListEntry.getInt("State"))),
+	private static StructureBlockInfo readStructureBlockInfo(NbtCompound blockListEntry,
+															 BiMapPalette<BlockState> palette) {
+		return new StructureBlockInfo(BlockPos.fromLong(blockListEntry.getLong("Pos")),
+				Objects.requireNonNull(palette.get(blockListEntry.getInt("State"))),
 				blockListEntry.contains("Data") ? blockListEntry.getCompound("Data") : null);
 	}
 
-	private static StructureBlockInfo legacyReadStructureBlockInfo(CompoundTag blockListEntry, HolderGetter<Block> holderGetter) {
-		return new StructureBlockInfo(NbtUtils.readBlockPos(blockListEntry.getCompound("Pos")),
-				NbtUtils.readBlockState(holderGetter, blockListEntry.getCompound("Block")),
+	private static StructureBlockInfo legacyReadStructureBlockInfo(NbtCompound blockListEntry, RegistryEntryLookup<Block> holderGetter) {
+		return new StructureBlockInfo(NbtHelper.toBlockPos(blockListEntry.getCompound("Pos")),
+				NbtHelper.toBlockState(holderGetter, blockListEntry.getCompound("Block")),
 				blockListEntry.contains("Data") ? blockListEntry.getCompound("Data") : null);
 	}
 
-	public void removeBlocksFromWorld(Level world, BlockPos offset) {
+	public void removeBlocksFromWorld(World world, BlockPos offset) {
 		storage.removeStorageFromWorld();
 
 		glueToRemove.forEach(glue -> {
 			superglue.add(glue.getBoundingBox()
-					.move(Vec3.atLowerCornerOf(offset.offset(anchor))
-							.scale(-1)));
+					.offset(Vec3d.of(offset.add(anchor))
+							.multiply(-1)));
 			glue.discard();
 		});
 
-		List<BoundingBox> minimisedGlue = new ArrayList<>();
+		List<BlockBox> minimisedGlue = new ArrayList<>();
 		for (int i = 0; i < superglue.size(); i++)
 			minimisedGlue.add(null);
 
@@ -951,18 +951,18 @@ public abstract class Contraption {
 					continue;
 
 				for (int i = 0; i < superglue.size(); i++) {
-					AABB aabb = superglue.get(i);
+					Box aabb = superglue.get(i);
 					if (aabb == null
 							|| !aabb.contains(block.pos().getX() + .5, block.pos().getY() + .5, block.pos().getZ() + .5))
 						continue;
 					if (minimisedGlue.get(i) == null)
-						minimisedGlue.set(i, new BoundingBox(block.pos()));
+						minimisedGlue.set(i, new BlockBox(block.pos()));
 					else
 						minimisedGlue.set(i, BBHelper.encapsulate(minimisedGlue.get(i), block.pos()));
 				}
 
-				BlockPos add = block.pos().offset(anchor)
-						.offset(offset);
+				BlockPos add = block.pos().add(anchor)
+						.add(offset);
 				if (customBlockRemoval(world, add, block.state()))
 					continue;
 				BlockState oldState = world.getBlockState(add);
@@ -972,58 +972,58 @@ public abstract class Contraption {
 				if (blockMismatch)
 					iterator.remove();
 				world.removeBlockEntity(add);
-				int flags = Block.UPDATE_MOVE_BY_PISTON | Block.UPDATE_SUPPRESS_DROPS | Block.UPDATE_KNOWN_SHAPE
-						| Block.UPDATE_CLIENTS | Block.UPDATE_IMMEDIATE;
-				if (blockIn instanceof SimpleWaterloggedBlock && oldState.hasProperty(BlockStateProperties.WATERLOGGED)
-						&& oldState.getValue(BlockStateProperties.WATERLOGGED)) {
-					world.setBlock(add, Blocks.WATER.defaultBlockState(), flags);
+				int flags = Block.MOVED | Block.SKIP_DROPS | Block.FORCE_STATE
+						| Block.NOTIFY_LISTENERS | Block.REDRAW_ON_MAIN_THREAD;
+				if (blockIn instanceof Waterloggable && oldState.contains(Properties.WATERLOGGED)
+						&& oldState.get(Properties.WATERLOGGED)) {
+					world.setBlockState(add, Blocks.WATER.getDefaultState(), flags);
 					continue;
 				}
-				world.setBlock(add, Blocks.AIR.defaultBlockState(), flags);
+				world.setBlockState(add, Blocks.AIR.getDefaultState(), flags);
 			}
 		}
 
 		superglue.clear();
-		for (BoundingBox box : minimisedGlue) {
+		for (BlockBox box : minimisedGlue) {
 			if (box == null)
 				continue;
-			AABB bb = new AABB(box.minX(), box.minY(), box.minZ(), box.maxX() + 1, box.maxY() + 1, box.maxZ() + 1);
-			if (bb.getSize() > 1.01)
+			Box bb = new Box(box.getMinX(), box.getMinY(), box.getMinZ(), box.getMaxX() + 1, box.getMaxY() + 1, box.getMaxZ() + 1);
+			if (bb.getAverageSideLength() > 1.01)
 				superglue.add(bb);
 		}
 
 		for (StructureBlockInfo block : blocks.values()) {
-			BlockPos add = block.pos().offset(anchor)
-					.offset(offset);
+			BlockPos add = block.pos().add(anchor)
+					.add(offset);
 //			if (!shouldUpdateAfterMovement(block))
 //				continue;
 
-			int flags = Block.UPDATE_MOVE_BY_PISTON | Block.UPDATE_ALL;
-			world.sendBlockUpdated(add, block.state(), Blocks.AIR.defaultBlockState(), flags);
+			int flags = Block.MOVED | Block.NOTIFY_ALL;
+			world.updateListeners(add, block.state(), Blocks.AIR.getDefaultState(), flags);
 
 			// when the blockstate is set to air, the block's POI data is removed, but
 			// markAndNotifyBlock tries to
 			// remove it again, so to prevent an error from being logged by double-removal
 			// we add the POI data back now
 			// (code copied from ServerWorld.onBlockStateChange)
-			ServerLevel serverWorld = (ServerLevel) world;
-			PoiTypes.forState(block.state())
+			ServerWorld serverWorld = (ServerWorld) world;
+			PointOfInterestTypes.getTypeForState(block.state())
 				.ifPresent(poiType -> {
 					world.getServer()
 						.execute(() -> {
-							serverWorld.getPoiManager()
+							serverWorld.getPointOfInterestStorage()
 								.add(add, poiType);
-							DebugPackets.sendPoiAddedPacket(serverWorld, add);
+							DebugInfoSender.sendPoiAddition(serverWorld, add);
 						});
 				});
 
-			world.markAndNotifyBlock(add, world.getChunkAt(add), block.state(), Blocks.AIR.defaultBlockState(), flags,
+			world.markAndNotifyBlock(add, world.getWorldChunk(add), block.state(), Blocks.AIR.getDefaultState(), flags,
 					512);
-			block.state().updateIndirectNeighbourShapes(world, add, flags & -2);
+			block.state().prepare(world, add, flags & -2);
 		}
 	}
 
-	public void addBlocksToWorld(Level world, StructureTransform transform) {
+	public void addBlocksToWorld(World world, StructureTransform transform) {
 		if (disassembled)
 			return;
 		disassembled = true;
@@ -1041,54 +1041,54 @@ public abstract class Contraption {
 
 				if (nonBrittles)
 					for (Direction face : Iterate.directions)
-						state = state.updateShape(face, world.getBlockState(targetPos.relative(face)), world, targetPos,
-								targetPos.relative(face));
+						state = state.getStateForNeighborUpdate(face, world.getBlockState(targetPos.offset(face)), world, targetPos,
+								targetPos.offset(face));
 
 				BlockState blockState = world.getBlockState(targetPos);
-				if (blockState.getDestroySpeed(world, targetPos) == -1 || (state.getCollisionShape(world, targetPos)
+				if (blockState.getHardness(world, targetPos) == -1 || (state.getCollisionShape(world, targetPos)
 						.isEmpty()
 						&& !blockState.getCollisionShape(world, targetPos)
 						.isEmpty())) {
-					if (targetPos.getY() == world.getMinBuildHeight())
-						targetPos = targetPos.above();
-					world.levelEvent(2001, targetPos, Block.getId(state));
-					Block.dropResources(state, world, targetPos, null);
+					if (targetPos.getY() == world.getBottomY())
+						targetPos = targetPos.up();
+					world.syncWorldEvent(2001, targetPos, Block.getRawIdFromState(state));
+					Block.dropStacks(state, world, targetPos, null);
 					continue;
 				}
-				if (state.getBlock() instanceof SimpleWaterloggedBlock
-						&& state.hasProperty(BlockStateProperties.WATERLOGGED)) {
+				if (state.getBlock() instanceof Waterloggable
+						&& state.contains(Properties.WATERLOGGED)) {
 					FluidState FluidState = world.getFluidState(targetPos);
-					state = state.setValue(BlockStateProperties.WATERLOGGED, FluidState.getType() == Fluids.WATER);
+					state = state.with(Properties.WATERLOGGED, FluidState.getFluid() == Fluids.WATER);
 				}
 
-				world.destroyBlock(targetPos, true);
+				world.breakBlock(targetPos, true);
 
 				if (AllBlocks.SHAFT.has(state))
 					state = ShaftBlock.pickCorrectShaftType(state, world, targetPos);
-				if (state.hasProperty(SlidingDoorBlock.VISIBLE))
-					state = state.setValue(SlidingDoorBlock.VISIBLE, !state.getValue(SlidingDoorBlock.OPEN))
-							.setValue(SlidingDoorBlock.POWERED, false);
+				if (state.contains(SlidingDoorBlock.VISIBLE))
+					state = state.with(SlidingDoorBlock.VISIBLE, !state.get(SlidingDoorBlock.OPEN))
+							.with(SlidingDoorBlock.POWERED, false);
 				// Stop Sculk shriekers from getting "stuck" if moved mid-shriek.
-				if(state.is(Blocks.SCULK_SHRIEKER)){
-					state = Blocks.SCULK_SHRIEKER.defaultBlockState();
+				if(state.isOf(Blocks.SCULK_SHRIEKER)){
+					state = Blocks.SCULK_SHRIEKER.getDefaultState();
 				}
 
-				world.setBlock(targetPos, state, Block.UPDATE_MOVE_BY_PISTON | Block.UPDATE_ALL);
+				world.setBlockState(targetPos, state, Block.MOVED | Block.NOTIFY_ALL);
 
 				boolean verticalRotation = transform.rotationAxis == null || transform.rotationAxis.isHorizontal();
-				verticalRotation = verticalRotation && transform.rotation != Rotation.NONE;
+				verticalRotation = verticalRotation && transform.rotation != BlockRotation.NONE;
 				if (verticalRotation) {
 					if (state.getBlock() instanceof RopeBlock || state.getBlock() instanceof MagnetBlock
 						|| state.getBlock() instanceof DoorBlock)
-						world.destroyBlock(targetPos, true);
+						world.breakBlock(targetPos, true);
 				}
 
 				BlockEntity blockEntity = world.getBlockEntity(targetPos);
 
-				CompoundTag tag = block.nbt();
+				NbtCompound tag = block.nbt();
 
 				// Temporary fix: Calling load(CompoundTag tag) on a Sculk sensor causes it to not react to vibrations.
-				if(state.is(Blocks.SCULK_SENSOR) || state.is(Blocks.SCULK_SHRIEKER))
+				if(state.isOf(Blocks.SCULK_SENSOR) || state.isOf(Blocks.SCULK_SHRIEKER))
 					tag = null;
 
 				if (blockEntity != null)
@@ -1104,9 +1104,9 @@ public abstract class Contraption {
 					}
 
 					if (blockEntity instanceof IMultiBlockEntityContainer && tag.contains("LastKnownPos"))
-						tag.put("LastKnownPos", NbtUtils.writeBlockPos(BlockPos.ZERO.below(Integer.MAX_VALUE - 1)));
+						tag.put("LastKnownPos", NbtHelper.fromBlockPos(BlockPos.ORIGIN.down(Integer.MAX_VALUE - 1)));
 
-					blockEntity.load(tag);
+					blockEntity.readNbt(tag);
 					storage.addStorageToWorld(block, blockEntity);
 				}
 
@@ -1118,25 +1118,25 @@ public abstract class Contraption {
 			if (!shouldUpdateAfterMovement(block))
 				continue;
 			BlockPos targetPos = transform.apply(block.pos());
-			world.markAndNotifyBlock(targetPos, world.getChunkAt(targetPos), block.state(), block.state(),
-					Block.UPDATE_MOVE_BY_PISTON | Block.UPDATE_ALL, 512);
+			world.markAndNotifyBlock(targetPos, world.getWorldChunk(targetPos), block.state(), block.state(),
+					Block.MOVED | Block.NOTIFY_ALL, 512);
 		}
 
-		for (AABB box : superglue) {
-			box = new AABB(transform.apply(new Vec3(box.minX, box.minY, box.minZ)),
-					transform.apply(new Vec3(box.maxX, box.maxY, box.maxZ)));
-			if (!world.isClientSide)
-				world.addFreshEntity(new SuperGlueEntity(world, box));
+		for (Box box : superglue) {
+			box = new Box(transform.apply(new Vec3d(box.minX, box.minY, box.minZ)),
+					transform.apply(new Vec3d(box.maxX, box.maxY, box.maxZ)));
+			if (!world.isClient)
+				world.spawnEntity(new SuperGlueEntity(world, box));
 		}
 
 		storage.clear();
 	}
 
-	public void addPassengersToWorld(Level world, StructureTransform transform, List<Entity> seatedEntities) {
+	public void addPassengersToWorld(World world, StructureTransform transform, List<Entity> seatedEntities) {
 		for (Entity seatedEntity : seatedEntities) {
 			if (getSeatMapping().isEmpty())
 				continue;
-			Integer seatIndex = getSeatMapping().get(seatedEntity.getUUID());
+			Integer seatIndex = getSeatMapping().get(seatedEntity.getUuid());
 			if (seatIndex == null)
 				continue;
 			BlockPos seatPos = getSeats().get(seatIndex);
@@ -1150,7 +1150,7 @@ public abstract class Contraption {
 		}
 	}
 
-	public void startMoving(Level world) {
+	public void startMoving(World world) {
 		disabledActors.clear();
 
 		for (MutablePair<StructureBlockInfo, MovementContext> pair : actors) {
@@ -1203,17 +1203,17 @@ public abstract class Contraption {
 		return disabledActors;
 	}
 
-	public void stop(Level world) {
+	public void stop(World world) {
 		forEachActor(world, (behaviour, ctx) -> {
 			behaviour.stopMoving(ctx);
 			ctx.position = null;
-			ctx.motion = Vec3.ZERO;
-			ctx.relativeMotion = Vec3.ZERO;
+			ctx.motion = Vec3d.ZERO;
+			ctx.relativeMotion = Vec3d.ZERO;
 			ctx.rotation = v -> v;
 		});
 	}
 
-	public void forEachActor(Level world, BiConsumer<MovementBehaviour, MovementContext> callBack) {
+	public void forEachActor(World world, BiConsumer<MovementBehaviour, MovementContext> callBack) {
 		for (MutablePair<StructureBlockInfo, MovementContext> pair : actors) {
 			MovementBehaviour behaviour = AllMovementBehaviours.getBehaviour(pair.getLeft().state());
 			if (behaviour == null)
@@ -1223,7 +1223,7 @@ public abstract class Contraption {
 	}
 
 	protected boolean shouldUpdateAfterMovement(StructureBlockInfo info) {
-		if (PoiTypes.forState(info.state())
+		if (PointOfInterestTypes.getTypeForState(info.state())
 			.isPresent())
 			return false;
 		if (info.state().getBlock() instanceof SlidingDoorBlock)
@@ -1254,7 +1254,7 @@ public abstract class Contraption {
 			minZ = (int) bounds.minZ;
 		}
 
-		bounds = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+		bounds = new Box(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
 	public Map<UUID, Integer> getSeatMapping() {
@@ -1319,18 +1319,18 @@ public abstract class Contraption {
 	private void gatherBBsOffThread() {
 		getContraptionWorld();
 		simplifiedEntityColliderProvider = CompletableFuture.supplyAsync(() -> {
-					VoxelShape combinedShape = Shapes.empty();
+					VoxelShape combinedShape = VoxelShapes.empty();
 					for (Entry<BlockPos, StructureBlockInfo> entry : blocks.entrySet()) {
 						StructureBlockInfo info = entry.getValue();
 						BlockPos localPos = entry.getKey();
-						VoxelShape collisionShape = info.state().getCollisionShape(world, localPos, CollisionContext.empty());
+						VoxelShape collisionShape = info.state().getCollisionShape(world, localPos, ShapeContext.absent());
 						if (collisionShape.isEmpty())
 							continue;
-						combinedShape = Shapes.joinUnoptimized(combinedShape,
-								collisionShape.move(localPos.getX(), localPos.getY(), localPos.getZ()), BooleanOp.OR);
+						combinedShape = VoxelShapes.combine(combinedShape,
+								collisionShape.offset(localPos.getX(), localPos.getY(), localPos.getZ()), BooleanBiFunction.OR);
 					}
-					return combinedShape.optimize()
-							.toAabbs();
+					return combinedShape.simplify()
+							.getBoundingBoxes();
 				})
 				.thenAccept(r -> {
 					simplifiedEntityColliders = Optional.of(r);
@@ -1390,7 +1390,7 @@ public abstract class Contraption {
 		return false;
 	}
 
-	public Optional<List<AABB>> getSimplifiedEntityColliders() {
+	public Optional<List<Box>> getSimplifiedEntityColliders() {
 		return simplifiedEntityColliders;
 	}
 

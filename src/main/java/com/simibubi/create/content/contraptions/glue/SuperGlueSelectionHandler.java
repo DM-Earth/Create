@@ -3,7 +3,21 @@ package com.simibubi.create.content.contraptions.glue;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.item.ItemStack;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.hit.HitResult.Type;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import com.google.common.base.Objects;
 import com.jamieswhiteshirt.reachentityattributes.ReachEntityAttributes;
 import com.simibubi.create.AllPackets;
@@ -16,22 +30,6 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.RaycastHelper;
 import com.simibubi.create.foundation.utility.fabric.ReachUtil;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.HitResult.Type;
-import net.minecraft.world.phys.Vec3;
 
 public class SuperGlueSelectionHandler {
 
@@ -52,10 +50,10 @@ public class SuperGlueSelectionHandler {
 	private BlockPos soundSourceForRemoval;
 
 	public void tick() {
-		Minecraft mc = Minecraft.getInstance();
-		LocalPlayer player = mc.player;
+		MinecraftClient mc = MinecraftClient.getInstance();
+		ClientPlayerEntity player = mc.player;
 		BlockPos hovered = null;
-		ItemStack stack = player.getMainHandItem();
+		ItemStack stack = player.getMainHandStack();
 
 		if (!isGlue(stack)) {
 			if (firstPos != null)
@@ -65,34 +63,34 @@ public class SuperGlueSelectionHandler {
 
 		if (clusterCooldown > 0) {
 			if (clusterCooldown == 25)
-				player.displayClientMessage(Components.immutableEmpty(), true);
+				player.sendMessage(Components.immutableEmpty(), true);
 			CreateClient.OUTLINER.keep(clusterOutlineSlot);
 			clusterCooldown--;
 		}
 
-		AABB scanArea = player.getBoundingBox()
-			.inflate(32, 16, 32);
+		Box scanArea = player.getBoundingBox()
+			.expand(32, 16, 32);
 
-		List<SuperGlueEntity> glueNearby = mc.level.getEntitiesOfClass(SuperGlueEntity.class, scanArea);
+		List<SuperGlueEntity> glueNearby = mc.world.getNonSpectatingEntities(SuperGlueEntity.class, scanArea);
 
 		selected = null;
 		if (firstPos == null) {
 			double range = ReachUtil.reach(player) + 1;
-			Vec3 traceOrigin = RaycastHelper.getTraceOrigin(player);
-			Vec3 traceTarget = RaycastHelper.getTraceTarget(player, range, traceOrigin);
+			Vec3d traceOrigin = RaycastHelper.getTraceOrigin(player);
+			Vec3d traceTarget = RaycastHelper.getTraceTarget(player, range, traceOrigin);
 
 			double bestDistance = Double.MAX_VALUE;
 			for (SuperGlueEntity glueEntity : glueNearby) {
-				Optional<Vec3> clip = glueEntity.getBoundingBox()
-					.clip(traceOrigin, traceTarget);
+				Optional<Vec3d> clip = glueEntity.getBoundingBox()
+					.raycast(traceOrigin, traceTarget);
 				if (clip.isEmpty())
 					continue;
-				Vec3 vec3 = clip.get();
-				double distanceToSqr = vec3.distanceToSqr(traceOrigin);
+				Vec3d vec3 = clip.get();
+				double distanceToSqr = vec3.squaredDistanceTo(traceOrigin);
 				if (distanceToSqr > bestDistance)
 					continue;
 				selected = glueEntity;
-				soundSourceForRemoval = BlockPos.containing(vec3);
+				soundSourceForRemoval = BlockPos.ofFloored(vec3);
 				bestDistance = distanceToSqr;
 			}
 
@@ -107,7 +105,7 @@ public class SuperGlueSelectionHandler {
 			}
 		}
 
-		HitResult hitResult = mc.hitResult;
+		HitResult hitResult = mc.crosshairTarget;
 		if (hitResult != null && hitResult.getType() == Type.BLOCK)
 			hovered = ((BlockHitResult) hitResult).getBlockPos();
 
@@ -116,18 +114,18 @@ public class SuperGlueSelectionHandler {
 			return;
 		}
 
-		if (firstPos != null && !firstPos.closerThan(hovered, 24)) {
+		if (firstPos != null && !firstPos.isWithinDistance(hovered, 24)) {
 			Lang.translate("super_glue.too_far")
 				.color(FAIL)
 				.sendStatus(player);
 			return;
 		}
 
-		boolean cancel = player.isShiftKeyDown();
+		boolean cancel = player.isSneaking();
 		if (cancel && firstPos == null)
 			return;
 
-		AABB currentSelectionBox = getCurrentSelectionBox();
+		Box currentSelectionBox = getCurrentSelectionBox();
 
 		boolean unchanged = Objects.equal(hovered, hoveredPos);
 
@@ -171,7 +169,7 @@ public class SuperGlueSelectionHandler {
 
 		hoveredPos = hovered;
 
-		Set<BlockPos> cluster = SuperGlueSelectionHelper.searchGlueGroup(mc.level, firstPos, hoveredPos, true);
+		Set<BlockPos> cluster = SuperGlueSelectionHelper.searchGlueGroup(mc.world, firstPos, hoveredPos, true);
 		currentCluster = cluster;
 		glueRequired = 1;
 	}
@@ -180,18 +178,18 @@ public class SuperGlueSelectionHandler {
 		return stack.getItem() instanceof SuperGlueItem;
 	}
 
-	private AABB getCurrentSelectionBox() {
-		return firstPos == null || hoveredPos == null ? null : new AABB(firstPos, hoveredPos).expandTowards(1, 1, 1);
+	private Box getCurrentSelectionBox() {
+		return firstPos == null || hoveredPos == null ? null : new Box(firstPos, hoveredPos).stretch(1, 1, 1);
 	}
 
 	public boolean onMouseInput(boolean attack) {
-		Minecraft mc = Minecraft.getInstance();
-		LocalPlayer player = mc.player;
-		ClientLevel level = mc.level;
+		MinecraftClient mc = MinecraftClient.getInstance();
+		ClientPlayerEntity player = mc.player;
+		ClientWorld level = mc.world;
 
-		if (!isGlue(player.getMainHandItem()))
+		if (!isGlue(player.getMainHandStack()))
 			return false;
-		if (!player.mayBuild())
+		if (!player.canModifyBlocks())
 			return false;
 
 		if (attack) {
@@ -203,7 +201,7 @@ public class SuperGlueSelectionHandler {
 			return true;
 		}
 
-		if (player.isShiftKeyDown()) {
+		if (player.isSneaking()) {
 			if (firstPos != null) {
 				discard();
 				return true;
@@ -215,15 +213,15 @@ public class SuperGlueSelectionHandler {
 			return false;
 
 		Direction face = null;
-		if (mc.hitResult instanceof BlockHitResult bhr) {
-			face = bhr.getDirection();
+		if (mc.crosshairTarget instanceof BlockHitResult bhr) {
+			face = bhr.getSide();
 			BlockState blockState = level.getBlockState(hoveredPos);
 			if (blockState.getBlock()instanceof AbstractChassisBlock cb)
-				if (cb.getGlueableSide(blockState, bhr.getDirection()) != null)
+				if (cb.getGlueableSide(blockState, bhr.getSide()) != null)
 					return false;
 		}
 
-		player.swing(InteractionHand.MAIN_HAND);
+		player.swingHand(Hand.MAIN_HAND);
 		if (firstPos != null && currentCluster != null) {
 			boolean canReach = currentCluster.contains(hoveredPos);
 			boolean canAfford = SuperGlueSelectionHelper.collectGlueFromInventory(player, glueRequired, true);
@@ -241,12 +239,12 @@ public class SuperGlueSelectionHandler {
 		Lang.translate("super_glue.first_pos")
 			.sendStatus(player);
 		AllSoundEvents.SLIME_ADDED.playAt(level, firstPos, 0.5F, 0.85F, false);
-		level.playSound(player, firstPos, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 0.75f, 1);
+		level.playSound(player, firstPos, SoundEvents.ENTITY_ITEM_FRAME_ADD_ITEM, SoundCategory.BLOCKS, 0.75f, 1);
 		return true;
 	}
 
 	public void discard() {
-		LocalPlayer player = Minecraft.getInstance().player;
+		ClientPlayerEntity player = MinecraftClient.getInstance().player;
 		currentCluster = null;
 		firstPos = null;
 		Lang.translate("super_glue.abort")
@@ -255,10 +253,10 @@ public class SuperGlueSelectionHandler {
 	}
 
 	public void confirm() {
-		LocalPlayer player = Minecraft.getInstance().player;
+		ClientPlayerEntity player = MinecraftClient.getInstance().player;
 		AllPackets.getChannel().sendToServer(new SuperGlueSelectionPacket(firstPos, hoveredPos));
-		AllSoundEvents.SLIME_ADDED.playAt(player.level(), hoveredPos, 0.5F, 0.95F, false);
-		player.level().playSound(player, hoveredPos, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 0.75f, 1);
+		AllSoundEvents.SLIME_ADDED.playAt(player.getWorld(), hoveredPos, 0.5F, 0.95F, false);
+		player.getWorld().playSound(player, hoveredPos, SoundEvents.ENTITY_ITEM_FRAME_ADD_ITEM, SoundCategory.BLOCKS, 0.75f, 1);
 
 		if (currentCluster != null)
 			CreateClient.OUTLINER.showCluster(clusterOutlineSlot, currentCluster)

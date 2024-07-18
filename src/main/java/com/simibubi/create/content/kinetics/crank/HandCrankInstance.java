@@ -6,9 +6,8 @@ import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.simibubi.create.content.kinetics.base.SingleRotatingInstance;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
 
 public class HandCrankInstance extends SingleRotatingInstance<HandCrankBlockEntity> implements DynamicInstance {
 
@@ -17,7 +16,7 @@ public class HandCrankInstance extends SingleRotatingInstance<HandCrankBlockEnti
 
 	public HandCrankInstance(MaterialManager modelManager, HandCrankBlockEntity blockEntity) {
 		super(modelManager, blockEntity);
-		facing = blockState.getValue(BlockStateProperties.FACING);
+		facing = blockState.get(Properties.FACING);
 		Instancer<ModelData> model = blockEntity.getRenderedHandleInstance(getTransformMaterial());
 		crank = model.createInstance();
 		rotateCrank();

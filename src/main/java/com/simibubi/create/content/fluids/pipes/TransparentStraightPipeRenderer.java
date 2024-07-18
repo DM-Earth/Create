@@ -1,6 +1,5 @@
 package com.simibubi.create.content.fluids.pipes;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.fluids.FluidTransportBehaviour;
 import com.simibubi.create.content.fluids.PipeConnection.Flow;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -9,18 +8,18 @@ import com.simibubi.create.foundation.fluid.FluidRenderer;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
 
 public class TransparentStraightPipeRenderer extends SafeBlockEntityRenderer<StraightPipeBlockEntity> {
 
-	public TransparentStraightPipeRenderer(BlockEntityRendererProvider.Context context) {
+	public TransparentStraightPipeRenderer(BlockEntityRendererFactory.Context context) {
 	}
 
 	@Override
-	protected void renderSafe(StraightPipeBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(StraightPipeBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 		FluidTransportBehaviour pipe = be.getBehaviour(FluidTransportBehaviour.TYPE);
 		if (pipe == null)
@@ -46,8 +45,8 @@ public class TransparentStraightPipeRenderer extends SafeBlockEntityRenderer<Str
 					if (opposite == null)
 						value -= 1e-6f;
 				} else {
-					FluidTransportBehaviour adjacent = BlockEntityBehaviour.get(be.getLevel(), be.getBlockPos()
-						.relative(side), FluidTransportBehaviour.TYPE);
+					FluidTransportBehaviour adjacent = BlockEntityBehaviour.get(be.getWorld(), be.getPos()
+						.offset(side), FluidTransportBehaviour.TYPE);
 					if (adjacent == null)
 						value -= 1e-6f;
 					else {

@@ -1,12 +1,11 @@
 package com.simibubi.create.foundation.networking;
 
 import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
 
 /**
  * A server to client version of {@link BlockEntityConfigurationPacket}
@@ -17,7 +16,7 @@ public abstract class BlockEntityDataPacket<BE extends SyncedBlockEntity> extend
 
 	protected BlockPos pos;
 
-	public BlockEntityDataPacket(FriendlyByteBuf buffer) {
+	public BlockEntityDataPacket(PacketByteBuf buffer) {
 		pos = buffer.readBlockPos();
 	}
 
@@ -26,7 +25,7 @@ public abstract class BlockEntityDataPacket<BE extends SyncedBlockEntity> extend
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBlockPos(pos);
 		writeData(buffer);
 	}
@@ -34,7 +33,7 @@ public abstract class BlockEntityDataPacket<BE extends SyncedBlockEntity> extend
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ClientLevel world = Minecraft.getInstance().level;
+			ClientWorld world = MinecraftClient.getInstance().world;
 
 			if (world == null)
 				return;
@@ -48,7 +47,7 @@ public abstract class BlockEntityDataPacket<BE extends SyncedBlockEntity> extend
 		return true;
 	}
 
-	protected abstract void writeData(FriendlyByteBuf buffer);
+	protected abstract void writeData(PacketByteBuf buffer);
 
 	protected abstract void handlePacket(BE blockEntity);
 }

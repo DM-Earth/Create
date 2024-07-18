@@ -2,7 +2,10 @@ package com.simibubi.create.content.kinetics.gearbox;
 
 import java.util.EnumMap;
 import java.util.Map;
-
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.LightType;
 import com.jozufozu.flywheel.api.InstanceData;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.Material;
@@ -11,11 +14,6 @@ import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 public class GearboxInstance extends KineticBlockEntityInstance<GearboxBlockEntity> {
 
@@ -27,10 +25,10 @@ public class GearboxInstance extends KineticBlockEntityInstance<GearboxBlockEnti
 
         keys = new EnumMap<>(Direction.class);
 
-        final Direction.Axis boxAxis = blockState.getValue(BlockStateProperties.AXIS);
+        final Direction.Axis boxAxis = blockState.get(Properties.AXIS);
 
-        int blockLight = world.getBrightness(LightLayer.BLOCK, pos);
-        int skyLight = world.getBrightness(LightLayer.SKY, pos);
+        int blockLight = world.getLightLevel(LightType.BLOCK, pos);
+        int skyLight = world.getLightLevel(LightType.SKY, pos);
         updateSourceFacing();
 
         Material<RotatingData> rotatingMaterial = getRotatingMaterial();
@@ -44,7 +42,7 @@ public class GearboxInstance extends KineticBlockEntityInstance<GearboxBlockEnti
 
 			RotatingData key = shaft.createInstance();
 
-			key.setRotationAxis(Direction.get(Direction.AxisDirection.POSITIVE, axis).step())
+			key.setRotationAxis(Direction.get(Direction.AxisDirection.POSITIVE, axis).getUnitVector())
 					.setRotationalSpeed(getSpeed(direction))
 					.setRotationOffset(getRotationOffset(axis)).setColor(blockEntity)
 					.setPosition(getInstancePosition())
@@ -61,7 +59,7 @@ public class GearboxInstance extends KineticBlockEntityInstance<GearboxBlockEnti
         if (speed != 0 && sourceFacing != null) {
             if (sourceFacing.getAxis() == direction.getAxis())
                 speed *= sourceFacing == direction ? 1 : -1;
-            else if (sourceFacing.getAxisDirection() == direction.getAxisDirection())
+            else if (sourceFacing.getDirection() == direction.getDirection())
                 speed *= -1;
         }
         return speed;
@@ -70,7 +68,7 @@ public class GearboxInstance extends KineticBlockEntityInstance<GearboxBlockEnti
     protected void updateSourceFacing() {
         if (blockEntity.hasSource()) {
             BlockPos source = blockEntity.source.subtract(pos);
-            sourceFacing = Direction.getNearest(source.getX(), source.getY(), source.getZ());
+            sourceFacing = Direction.getFacing(source.getX(), source.getY(), source.getZ());
         } else {
             sourceFacing = null;
         }

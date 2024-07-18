@@ -4,11 +4,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
-
+import net.minecraft.block.Block;
+import net.minecraft.util.DyeColor;
 import com.tterrag.registrate.util.entry.BlockEntry;
-
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.block.Block;
 
 public class DyedBlockList<T extends Block> implements Iterable<BlockEntry<T>> {
 

@@ -1,9 +1,14 @@
 package com.simibubi.create.content.kinetics.motor;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -12,13 +17,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollVa
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class CreativeMotorBlockEntity extends GeneratingKineticBlockEntity {
 
@@ -52,29 +50,29 @@ public class CreativeMotorBlockEntity extends GeneratingKineticBlockEntity {
 
 	@Override
 	public float getGeneratedSpeed() {
-		if (!AllBlocks.CREATIVE_MOTOR.has(getBlockState()))
+		if (!AllBlocks.CREATIVE_MOTOR.has(getCachedState()))
 			return 0;
-		return convertToDirection(generatedSpeed.getValue(), getBlockState().getValue(CreativeMotorBlock.FACING));
+		return convertToDirection(generatedSpeed.getValue(), getCachedState().get(CreativeMotorBlock.FACING));
 	}
 
 	class MotorValueBox extends ValueBoxTransform.Sided {
 
 		@Override
-		protected Vec3 getSouthLocation() {
+		protected Vec3d getSouthLocation() {
 			return VecHelper.voxelSpace(8, 8, 12.5);
 		}
 
 		@Override
-		public Vec3 getLocalOffset(BlockState state) {
-			Direction facing = state.getValue(CreativeMotorBlock.FACING);
-			return super.getLocalOffset(state).add(Vec3.atLowerCornerOf(facing.getNormal())
-				.scale(-1 / 16f));
+		public Vec3d getLocalOffset(BlockState state) {
+			Direction facing = state.get(CreativeMotorBlock.FACING);
+			return super.getLocalOffset(state).add(Vec3d.of(facing.getVector())
+				.multiply(-1 / 16f));
 		}
 
 		@Override
-		public void rotate(BlockState state, PoseStack ms) {
+		public void rotate(BlockState state, MatrixStack ms) {
 			super.rotate(state, ms);
-			Direction facing = state.getValue(CreativeMotorBlock.FACING);
+			Direction facing = state.get(CreativeMotorBlock.FACING);
 			if (facing.getAxis() == Axis.Y)
 				return;
 			if (getSide() != Direction.UP)
@@ -85,7 +83,7 @@ public class CreativeMotorBlockEntity extends GeneratingKineticBlockEntity {
 
 		@Override
 		protected boolean isSideActive(BlockState state, Direction direction) {
-			Direction facing = state.getValue(CreativeMotorBlock.FACING);
+			Direction facing = state.get(CreativeMotorBlock.FACING);
 			if (facing.getAxis() != Axis.Y && direction == Direction.DOWN)
 				return false;
 			return direction.getAxis() != facing.getAxis();

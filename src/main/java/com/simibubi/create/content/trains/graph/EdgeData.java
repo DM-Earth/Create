@@ -7,7 +7,10 @@ import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import com.google.common.base.Objects;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.signal.SignalBoundary;
@@ -15,11 +18,6 @@ import com.simibubi.create.content.trains.signal.SignalEdgeGroup;
 import com.simibubi.create.content.trains.signal.TrackEdgePoint;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
 
 public class EdgeData {
 
@@ -168,22 +166,22 @@ public class EdgeData {
 	@Nullable
 	public <T extends TrackEdgePoint> T get(EdgePointType<T> type, double exactPosition) {
 		T next = next(type, exactPosition - .5f);
-		if (next != null && Mth.equal(next.getLocationOn(edge), exactPosition))
+		if (next != null && MathHelper.approximatelyEquals(next.getLocationOn(edge), exactPosition))
 			return next;
 		return null;
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag nbt = new CompoundTag();
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound nbt = new NbtCompound();
 		if (singleSignalGroup == passiveGroup)
 			NBTHelper.putMarker(nbt, "PassiveGroup");
 		else if (singleSignalGroup != null)
-			nbt.putUUID("SignalGroup", singleSignalGroup);
+			nbt.putUuid("SignalGroup", singleSignalGroup);
 
 		if (hasPoints())
 			nbt.put("Points", NBTHelper.writeCompoundList(points, point -> {
-				CompoundTag tag = new CompoundTag();
-				tag.putUUID("Id", point.id);
+				NbtCompound tag = new NbtCompound();
+				tag.putUuid("Id", point.id);
 				tag.putString("Type", point.getType()
 					.getId()
 					.toString());
@@ -194,25 +192,25 @@ public class EdgeData {
 		return nbt;
 	}
 
-	public static EdgeData read(CompoundTag nbt, TrackEdge edge, TrackGraph graph, DimensionPalette dimensions) {
+	public static EdgeData read(NbtCompound nbt, TrackEdge edge, TrackGraph graph, DimensionPalette dimensions) {
 		EdgeData data = new EdgeData(edge);
 		if (nbt.contains("SignalGroup"))
-			data.singleSignalGroup = nbt.getUUID("SignalGroup");
+			data.singleSignalGroup = nbt.getUuid("SignalGroup");
 		else if (!nbt.contains("PassiveGroup"))
 			data.singleSignalGroup = null;
 
 		if (nbt.contains("Points"))
-			NBTHelper.iterateCompoundList(nbt.getList("Points", Tag.TAG_COMPOUND), tag -> {
-				ResourceLocation location = new ResourceLocation(tag.getString("Type"));
+			NBTHelper.iterateCompoundList(nbt.getList("Points", NbtElement.COMPOUND_TYPE), tag -> {
+				Identifier location = new Identifier(tag.getString("Type"));
 				EdgePointType<?> type = EdgePointType.TYPES.get(location);
 				if (type == null || !tag.contains("Id"))
 					return;
-				TrackEdgePoint point = graph.getPoint(type, tag.getUUID("Id"));
+				TrackEdgePoint point = graph.getPoint(type, tag.getUuid("Id"));
 				if (point != null)
 					data.points.add(point);
 			});
 		if (nbt.contains("Intersections"))
-			data.intersections = NBTHelper.readCompoundList(nbt.getList("Intersections", Tag.TAG_COMPOUND),
+			data.intersections = NBTHelper.readCompoundList(nbt.getList("Intersections", NbtElement.COMPOUND_TYPE),
 				c -> TrackEdgeIntersection.read(c, dimensions));
 		return data;
 	}

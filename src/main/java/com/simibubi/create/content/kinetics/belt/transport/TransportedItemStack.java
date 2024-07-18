@@ -1,14 +1,13 @@
 package com.simibubi.create.content.kinetics.belt.transport;
 
 import java.util.Random;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.Direction;
 import com.simibubi.create.content.kinetics.belt.BeltHelper;
 import com.simibubi.create.content.kinetics.fan.processing.FanProcessingType;
 
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
 
 public class TransportedItemStack implements Comparable<TransportedItemStack> {
 
@@ -76,8 +75,8 @@ public class TransportedItemStack implements Comparable<TransportedItemStack> {
 		return copy;
 	}
 
-	public CompoundTag serializeNBT() {
-		CompoundTag nbt = new CompoundTag();
+	public NbtCompound serializeNBT() {
+		NbtCompound nbt = new NbtCompound();
 		nbt.put("Item", NBTSerializer.serializeNBT(stack));
 		nbt.putFloat("Pos", beltPosition);
 		nbt.putFloat("PrevPos", prevBeltPosition);
@@ -85,7 +84,7 @@ public class TransportedItemStack implements Comparable<TransportedItemStack> {
 		nbt.putFloat("PrevOffset", prevSideOffset);
 		nbt.putInt("InSegment", insertedAt);
 		nbt.putInt("Angle", angle);
-		nbt.putInt("InDirection", insertedFrom.get3DDataValue());
+		nbt.putInt("InDirection", insertedFrom.getId());
 		if (locked)
 			nbt.putBoolean("Locked", locked);
 		if (lockedExternally)
@@ -93,15 +92,15 @@ public class TransportedItemStack implements Comparable<TransportedItemStack> {
 		return nbt;
 	}
 
-	public static TransportedItemStack read(CompoundTag nbt) {
-		TransportedItemStack stack = new TransportedItemStack(ItemStack.of(nbt.getCompound("Item")));
+	public static TransportedItemStack read(NbtCompound nbt) {
+		TransportedItemStack stack = new TransportedItemStack(ItemStack.fromNbt(nbt.getCompound("Item")));
 		stack.beltPosition = nbt.getFloat("Pos");
 		stack.prevBeltPosition = nbt.getFloat("PrevPos");
 		stack.sideOffset = nbt.getFloat("Offset");
 		stack.prevSideOffset = nbt.getFloat("PrevOffset");
 		stack.insertedAt = nbt.getInt("InSegment");
 		stack.angle = nbt.getInt("Angle");
-		stack.insertedFrom = Direction.from3DDataValue(nbt.getInt("InDirection"));
+		stack.insertedFrom = Direction.byId(nbt.getInt("InDirection"));
 		stack.locked = nbt.getBoolean("Locked");
 		stack.lockedExternally = nbt.getBoolean("LockedExternally");
 		return stack;
@@ -124,7 +123,7 @@ public class TransportedItemStack implements Comparable<TransportedItemStack> {
 		if (Float.compare(that.prevBeltPosition, prevBeltPosition) != 0) return false;
 		if (Float.compare(that.prevSideOffset, prevSideOffset) != 0) return false;
 		if (processingTime != that.processingTime) return false;
-		if (!ItemStack.matches(stack, that.stack)) return false;
+		if (!ItemStack.areEqual(stack, that.stack)) return false;
 		if (insertedFrom != that.insertedFrom) return false;
 		return processedBy == that.processedBy;
 	}

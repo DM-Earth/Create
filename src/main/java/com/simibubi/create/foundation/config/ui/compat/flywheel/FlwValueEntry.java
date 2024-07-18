@@ -5,7 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import org.jetbrains.annotations.NotNull;
 
 import com.google.common.base.Predicates;
@@ -20,9 +21,6 @@ import com.simibubi.create.foundation.gui.widget.BoxWidget;
 import com.simibubi.create.foundation.item.TooltipHelper;
 import com.simibubi.create.foundation.item.TooltipHelper.Palette;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
 
 public class FlwValueEntry<T> extends ValueEntry<T> {
 
@@ -44,7 +42,7 @@ public class FlwValueEntry<T> extends ValueEntry<T> {
 		listeners.add(resetButton);
 
 		String path = option.getKey();
-		labelTooltip.add(Component.literal(label).withStyle(ChatFormatting.WHITE));
+		labelTooltip.add(Text.literal(label).formatted(Formatting.WHITE));
 		String comment = null;//option.getComment();
 		if (comment == null || comment.isEmpty())
 			return;
@@ -62,18 +60,18 @@ public class FlwValueEntry<T> extends ValueEntry<T> {
 		// add comment to tooltip
 		labelTooltip.addAll(commentLines.stream()
 				.filter(Predicates.not(s -> s.startsWith("Range")))
-				.map(Component::literal)
+				.map(Text::literal)
 				.flatMap(stc -> TooltipHelper.cutTextComponent(stc, Palette.ALL_GRAY)
 						.stream())
 				.collect(Collectors.toList()));
 
 		if (annotations.containsKey(ConfigAnnotations.RequiresRelog.TRUE.getName()))
-			labelTooltip.addAll(TooltipHelper.cutTextComponent(Component.literal("Changing this value will require a _relog_ to take full effect"), Palette.GRAY_AND_GOLD));
+			labelTooltip.addAll(TooltipHelper.cutTextComponent(Text.literal("Changing this value will require a _relog_ to take full effect"), Palette.GRAY_AND_GOLD));
 
 		if (annotations.containsKey(ConfigAnnotations.RequiresRestart.CLIENT.getName()))
-			labelTooltip.addAll(TooltipHelper.cutTextComponent(Component.literal("Changing this value will require a _restart_ to take full effect"), Palette.GRAY_AND_RED));
+			labelTooltip.addAll(TooltipHelper.cutTextComponent(Text.literal("Changing this value will require a _restart_ to take full effect"), Palette.GRAY_AND_RED));
 
-		labelTooltip.add(Component.literal(ConfigScreen.modID + ":" + path).withStyle(ChatFormatting.DARK_GRAY));
+		labelTooltip.add(Text.literal(ConfigScreen.modID + ":" + path).formatted(Formatting.DARK_GRAY));
 	}
 
 	@Override

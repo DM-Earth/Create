@@ -3,39 +3,37 @@ package com.simibubi.create.infrastructure.gui;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.foundation.gui.ScreenOpener;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.PauseScreen;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.network.chat.contents.TranslatableContents;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.GameMenuScreen;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.TranslatableTextContent;
 
-public class OpenCreateMenuButton extends Button {
+public class OpenCreateMenuButton extends ButtonWidget {
 
 	public static final ItemStack ICON = AllItems.GOGGLES.asStack();
 
 	public OpenCreateMenuButton(int x, int y) {
-		super(x, y, 20, 20, Components.immutableEmpty(), OpenCreateMenuButton::click, DEFAULT_NARRATION);
+		super(x, y, 20, 20, Components.immutableEmpty(), OpenCreateMenuButton::click, DEFAULT_NARRATION_SUPPLIER);
 	}
 
 	@Override
-	public void renderString(GuiGraphics graphics, Font pFont, int pColor) {
-		graphics.renderItem(ICON, getX() + 2, getY() + 2);
+	public void drawMessage(DrawContext graphics, TextRenderer pFont, int pColor) {
+		graphics.drawItem(ICON, getX() + 2, getY() + 2);
 	}
 
-	public static void click(Button b) {
-		ScreenOpener.open(new CreateMainMenuScreen(Minecraft.getInstance().screen));
+	public static void click(ButtonWidget b) {
+		ScreenOpener.open(new CreateMainMenuScreen(MinecraftClient.getInstance().currentScreen));
 	}
 
 	public static class SingleMenuRow {
@@ -77,14 +75,14 @@ public class OpenCreateMenuButton extends Button {
 
 	public static class OpenConfigButtonHandler {
 
-		public static void onGuiInit(Minecraft client, Screen gui, int scaledWidth, int scaledHeight) {
+		public static void onGuiInit(MinecraftClient client, Screen gui, int scaledWidth, int scaledHeight) {
 			MenuRows menu = null;
 			int rowIdx = 0, offsetX = 0;
 			if (gui instanceof TitleScreen) {
 				menu = MenuRows.MAIN_MENU;
 				rowIdx = AllConfigs.client().mainMenuConfigButtonRow.get();
 				offsetX = AllConfigs.client().mainMenuConfigButtonOffsetX.get();
-			} else if (gui instanceof PauseScreen) {
+			} else if (gui instanceof GameMenuScreen) {
 				menu = MenuRows.INGAME_MENU;
 				rowIdx = AllConfigs.client().ingameMenuConfigButtonRow.get();
 				offsetX = AllConfigs.client().ingameMenuConfigButtonOffsetX.get();
@@ -96,11 +94,11 @@ public class OpenCreateMenuButton extends Button {
 
 				int offsetX_ = offsetX;
 				Screens.getButtons(gui).stream()
-						.filter(w -> w.getMessage().getContents() instanceof TranslatableContents translatable
+						.filter(w -> w.getMessage().getContent() instanceof TranslatableTextContent translatable
 								&& translatable.getKey().equals(target))
 						.findFirst()
 						.ifPresent(w -> {
-							gui.addRenderableWidget(
+							gui.addDrawableChild(
 									new OpenCreateMenuButton(w.getX() + offsetX_ + (onLeft ? -20 : w.getWidth()), w.getY())
 							);
 						});

@@ -8,7 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
-
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.redstone.link.IRedstoneLinkable;
 import com.simibubi.create.content.redstone.link.LinkBehaviour;
@@ -19,16 +20,13 @@ import com.simibubi.create.foundation.utility.IntAttached;
 import com.simibubi.create.foundation.utility.LongAttached;
 import com.simibubi.create.foundation.utility.WorldAttached;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.LevelAccessor;
-
 public class LinkedControllerServerHandler {
 
 	public static WorldAttached<Map<UUID, Collection<ManualFrequencyEntry>>> receivedInputs =
 		new WorldAttached<>($ -> new HashMap<>());
 	static final int TIMEOUT = 30;
 
-	public static void tick(LevelAccessor world) {
+	public static void tick(WorldAccess world) {
 		Map<UUID, Collection<ManualFrequencyEntry>> map = receivedInputs.get(world);
 		for (Iterator<Entry<UUID, Collection<ManualFrequencyEntry>>> iterator = map.entrySet()
 			.iterator(); iterator.hasNext();) {
@@ -50,7 +48,7 @@ public class LinkedControllerServerHandler {
 		}
 	}
 
-	public static void receivePressed(LevelAccessor world, BlockPos pos, UUID uniqueID, List<Couple<Frequency>> collect,
+	public static void receivePressed(WorldAccess world, BlockPos pos, UUID uniqueID, List<Couple<Frequency>> collect,
 		boolean pressed) {
 		Map<UUID, Collection<ManualFrequencyEntry>> map = receivedInputs.get(world);
 		Collection<ManualFrequencyEntry> list = map.computeIfAbsent(uniqueID, $ -> new ArrayList<>());
@@ -77,7 +75,7 @@ public class LinkedControllerServerHandler {
 
 			for (IRedstoneLinkable linkable : Create.REDSTONE_LINK_NETWORK_HANDLER.getNetworkOf(world, entry))
 				if (linkable instanceof LinkBehaviour lb && lb.isListening())
-					AllAdvancements.LINKED_CONTROLLER.awardTo(world.getPlayerByUUID(uniqueID));
+					AllAdvancements.LINKED_CONTROLLER.awardTo(world.getPlayerByUuid(uniqueID));
 		}
 	}
 

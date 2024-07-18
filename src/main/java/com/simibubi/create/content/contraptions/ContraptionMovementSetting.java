@@ -4,23 +4,20 @@ import java.util.Collection;
 import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.Registries;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.foundation.utility.AttachedRegistry;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 public enum ContraptionMovementSetting {
 	MOVABLE, NO_PICKUP, UNMOVABLE;
 
-	private static final AttachedRegistry<Block, Supplier<ContraptionMovementSetting>> SETTING_SUPPLIERS = new AttachedRegistry<>(BuiltInRegistries.BLOCK);
+	private static final AttachedRegistry<Block, Supplier<ContraptionMovementSetting>> SETTING_SUPPLIERS = new AttachedRegistry<>(Registries.BLOCK);
 
-	public static void register(ResourceLocation block, Supplier<ContraptionMovementSetting> settingSupplier) {
+	public static void register(Identifier block, Supplier<ContraptionMovementSetting> settingSupplier) {
 		SETTING_SUPPLIERS.register(block, settingSupplier);
 	}
 

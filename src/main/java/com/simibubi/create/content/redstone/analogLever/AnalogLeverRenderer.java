@@ -1,37 +1,36 @@
 package com.simibubi.create.content.redstone.analogLever;
 
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Color;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.enums.WallMountLocation;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
 
 public class AnalogLeverRenderer extends SafeBlockEntityRenderer<AnalogLeverBlockEntity> {
 
-	public AnalogLeverRenderer(BlockEntityRendererProvider.Context context) {
+	public AnalogLeverRenderer(BlockEntityRendererFactory.Context context) {
 	}
 
 	@Override
-	protected void renderSafe(AnalogLeverBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(AnalogLeverBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 
-		if (Backend.canUseInstancing(be.getLevel())) return;
+		if (Backend.canUseInstancing(be.getWorld())) return;
 
-		BlockState leverState = be.getBlockState();
+		BlockState leverState = be.getCachedState();
 		float state = be.clientState.getValue(partialTicks);
 
-		VertexConsumer vb = buffer.getBuffer(RenderType.solid());
+		VertexConsumer vb = buffer.getBuffer(RenderLayer.getSolid());
 
 		// Handle
 		SuperByteBuffer handle = CachedBufferer.partial(AllPartialModels.ANALOG_LEVER_HANDLE, leverState);
@@ -51,9 +50,9 @@ public class AnalogLeverRenderer extends SafeBlockEntityRenderer<AnalogLeverBloc
 	}
 
 	private SuperByteBuffer transform(SuperByteBuffer buffer, BlockState leverState) {
-		AttachFace face = leverState.getValue(AnalogLeverBlock.FACE);
-		float rX = face == AttachFace.FLOOR ? 0 : face == AttachFace.WALL ? 90 : 180;
-		float rY = AngleHelper.horizontalAngle(leverState.getValue(AnalogLeverBlock.FACING));
+		WallMountLocation face = leverState.get(AnalogLeverBlock.FACE);
+		float rX = face == WallMountLocation.FLOOR ? 0 : face == WallMountLocation.WALL ? 90 : 180;
+		float rY = AngleHelper.horizontalAngle(leverState.get(AnalogLeverBlock.FACING));
 		buffer.rotateCentered(Direction.UP, (float) (rY / 180 * Math.PI));
 		buffer.rotateCentered(Direction.EAST, (float) (rX / 180 * Math.PI));
 		return buffer;

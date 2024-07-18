@@ -13,8 +13,8 @@ import me.shedaniel.rei.api.common.category.CategoryIdentifier;
 import me.shedaniel.rei.api.common.display.Display;
 import me.shedaniel.rei.api.common.entry.EntryIngredient;
 import me.shedaniel.rei.api.common.util.EntryIngredients;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Recipe;
 
 public class CreateDisplay<R extends Recipe<?>> implements Display {
 	protected final R recipe;

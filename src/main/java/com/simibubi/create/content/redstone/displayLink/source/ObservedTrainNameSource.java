@@ -1,7 +1,7 @@
 package com.simibubi.create.content.redstone.displayLink.source;
 
 import java.util.UUID;
-
+import net.minecraft.text.MutableText;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
@@ -9,12 +9,10 @@ import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.content.trains.observer.TrackObserver;
 import com.simibubi.create.content.trains.observer.TrackObserverBlockEntity;
 
-import net.minecraft.network.chat.MutableComponent;
-
 public class ObservedTrainNameSource extends SingleLineDisplaySource {
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
 		if (!(context.getSourceBlockEntity() instanceof TrackObserverBlockEntity observerBE))
 			return EMPTY_LINE;
 		TrackObserver observer = observerBE.getObserver();

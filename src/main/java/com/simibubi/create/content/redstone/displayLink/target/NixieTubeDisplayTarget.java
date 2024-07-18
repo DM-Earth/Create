@@ -6,22 +6,21 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.nixieTube.NixieTubeBlock;
 import com.simibubi.create.content.redstone.nixieTube.NixieTubeBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.WorldAccess;
 
 public class NixieTubeDisplayTarget extends SingleLineDisplayTarget {
 
 	@Override
-	protected void acceptLine(MutableComponent text, DisplayLinkContext context) {
-		String tagElement = Component.Serializer.toJson(text);
+	protected void acceptLine(MutableText text, DisplayLinkContext context) {
+		String tagElement = Text.Serializer.toJson(text);
 		NixieTubeBlock.walkNixies(context.level(), context.getTargetPos(), (currentPos, rowPosition) -> {
 			BlockEntity blockEntity = context.level()
 				.getBlockEntity(currentPos);
@@ -39,7 +38,7 @@ public class NixieTubeDisplayTarget extends SingleLineDisplayTarget {
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public AABB getMultiblockBounds(LevelAccessor level, BlockPos pos) {
+	public Box getMultiblockBounds(WorldAccess level, BlockPos pos) {
 		MutableObject<BlockPos> start = new MutableObject<>(null);
 		MutableObject<BlockPos> end = new MutableObject<>(null);
 		NixieTubeBlock.walkNixies(level, pos, (currentPos, rowPosition) -> {
@@ -53,8 +52,8 @@ public class NixieTubeDisplayTarget extends SingleLineDisplayTarget {
 		BlockPos diff = end.getValue()
 			.subtract(start.getValue());
 
-		return super.getMultiblockBounds(level, pos).move(diffToCurrent)
-			.expandTowards(Vec3.atLowerCornerOf(diff));
+		return super.getMultiblockBounds(level, pos).offset(diffToCurrent)
+			.stretch(Vec3d.of(diff));
 	}
 
 }

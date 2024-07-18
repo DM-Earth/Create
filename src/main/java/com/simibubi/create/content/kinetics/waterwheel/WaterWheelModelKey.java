@@ -1,6 +1,6 @@
 package com.simibubi.create.content.kinetics.waterwheel;
 
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
 
 public record WaterWheelModelKey(boolean large, BlockState state, BlockState material) {
 }

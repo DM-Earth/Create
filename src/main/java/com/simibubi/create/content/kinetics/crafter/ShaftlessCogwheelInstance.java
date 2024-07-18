@@ -1,17 +1,15 @@
 package com.simibubi.create.content.kinetics.crafter;
 
 import java.util.function.Supplier;
-
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.SingleRotatingInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
-
-import net.minecraft.core.Direction;
 
 public class ShaftlessCogwheelInstance extends SingleRotatingInstance<KineticBlockEntity> {
 
@@ -21,14 +19,14 @@ public class ShaftlessCogwheelInstance extends SingleRotatingInstance<KineticBlo
 
     @Override
     protected Instancer<RotatingData> getModel() {
-        Direction facing = blockState.getValue(MechanicalCrafterBlock.HORIZONTAL_FACING);
+        Direction facing = blockState.get(MechanicalCrafterBlock.HORIZONTAL_FACING);
 
 		return getRotatingMaterial().getModel(AllPartialModels.SHAFTLESS_COGWHEEL, blockState, facing, rotateToFace(facing));
     }
 
-	private Supplier<PoseStack> rotateToFace(Direction facing) {
+	private Supplier<MatrixStack> rotateToFace(Direction facing) {
 		return () -> {
-			PoseStack stack = new PoseStack();
+			MatrixStack stack = new MatrixStack();
 			TransformStack stacker = TransformStack.cast(stack)
 					.centre();
 

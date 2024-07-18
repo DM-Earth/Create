@@ -4,7 +4,18 @@ import java.lang.ref.Reference;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityDimensions;
+import net.minecraft.entity.MovementType;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.logging.log4j.util.TriConsumer;
 import org.objectweb.asm.Opcodes;
@@ -22,46 +33,34 @@ import com.simibubi.create.content.contraptions.ContraptionCollider;
 import com.simibubi.create.content.contraptions.ContraptionHandler;
 
 import io.github.fabricators_of_create.porting_lib.block.CustomRunningEffectsBlock;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.phys.Vec3;
 
 @Mixin(Entity.class)
 public abstract class EntityContraptionInteractionMixin {
 	@Shadow
-	public Level level;
+	public World world;
 
 	@Shadow
-	private Vec3 position;
+	private Vec3d pos;
 
 	@Shadow
-	private float nextStep;
+	private float nextStepSoundDistance;
 
 	@Shadow
 	@Final
-	protected RandomSource random;
+	protected Random random;
 
 	@Shadow
 	private EntityDimensions dimensions;
 
 	@Shadow
-	protected abstract float nextStep();
+	protected abstract float calculateNextStepSoundDistance();
 
 	@Shadow
 	protected abstract void playStepSound(BlockPos pos, BlockState state);
 
 	@Unique
 	private Stream<AbstractContraptionEntity> create$getIntersectionContraptionsStream() {
-		return ContraptionHandler.loadedContraptions.get(level)
+		return ContraptionHandler.loadedContraptions.get(world)
 				.values()
 				.stream()
 				.map(Reference::get)
@@ -72,17 +71,17 @@ public abstract class EntityContraptionInteractionMixin {
 	private Set<AbstractContraptionEntity> create$getIntersectingContraptions() {
 		Set<AbstractContraptionEntity> contraptions = create$getIntersectionContraptionsStream().collect(Collectors.toSet());
 
-		contraptions.addAll(level.getEntitiesOfClass(AbstractContraptionEntity.class, ((Entity) (Object) this).getBoundingBox()
-			.inflate(1f)));
+		contraptions.addAll(world.getNonSpectatingEntities(AbstractContraptionEntity.class, ((Entity) (Object) this).getBoundingBox()
+			.expand(1f)));
 		return contraptions;
 	}
 
 	@Unique
-	private void forCollision(Vec3 worldPos, TriConsumer<Contraption, BlockState, BlockPos> action) {
+	private void forCollision(Vec3d worldPos, TriConsumer<Contraption, BlockState, BlockPos> action) {
 		create$getIntersectingContraptions().forEach(cEntity -> {
-			Vec3 localPos = ContraptionCollider.worldToLocalPos(worldPos, cEntity);
+			Vec3d localPos = ContraptionCollider.worldToLocalPos(worldPos, cEntity);
 
-			BlockPos blockPos = BlockPos.containing(localPos);
+			BlockPos blockPos = BlockPos.ofFloored(localPos);
 			Contraption contraption = cEntity.getContraption();
 			StructureTemplate.StructureBlockInfo info = contraption.getBlocks()
 				.get(blockPos);
@@ -97,8 +96,8 @@ public abstract class EntityContraptionInteractionMixin {
 	// involves block step sounds on contraptions
 	// IFNE line 661 injecting before `!blockstate.isAir(this.world, blockpos)`
 	@Inject(method = "move", at = @At(value = "JUMP", opcode = Opcodes.IFNE, ordinal = 7))
-	private void create$contraptionStepSounds(MoverType mover, Vec3 movement, CallbackInfo ci) {
-		Vec3 worldPos = position.add(0, -0.2, 0);
+	private void create$contraptionStepSounds(MovementType mover, Vec3d movement, CallbackInfo ci) {
+		Vec3d worldPos = pos.add(0, -0.2, 0);
 		MutableBoolean stepped = new MutableBoolean(false);
 
 		forCollision(worldPos, (contraption, state, pos) -> {
@@ -107,25 +106,25 @@ public abstract class EntityContraptionInteractionMixin {
 		});
 
 		if (stepped.booleanValue())
-			nextStep = nextStep();
+			nextStepSoundDistance = calculateNextStepSoundDistance();
 	}
 
 	// involves client-side view bobbing animation on contraptions
 	@Inject(method = "move", at = @At(value = "TAIL"))
-	private void create$onMove(MoverType mover, Vec3 movement, CallbackInfo ci) {
-		if (!level.isClientSide)
+	private void create$onMove(MovementType mover, Vec3d movement, CallbackInfo ci) {
+		if (!world.isClient)
 			return;
 		Entity self = (Entity) (Object) this;
-		if (self.onGround())
+		if (self.isOnGround())
 			return;
-		if (self.isPassenger())
+		if (self.hasVehicle())
 			return;
 
-		Vec3 worldPos = position.add(0, -0.2, 0);
+		Vec3d worldPos = pos.add(0, -0.2, 0);
 		boolean onAtLeastOneContraption = create$getIntersectionContraptionsStream().anyMatch(cEntity -> {
-			Vec3 localPos = ContraptionCollider.worldToLocalPos(worldPos, cEntity);
+			Vec3d localPos = ContraptionCollider.worldToLocalPos(worldPos, cEntity);
 
-			BlockPos blockPos = BlockPos.containing(localPos);
+			BlockPos blockPos = BlockPos.ofFloored(localPos);
 			Contraption contraption = cEntity.getContraption();
 			StructureTemplate.StructureBlockInfo info = contraption.getBlocks()
 				.get(blockPos);
@@ -145,22 +144,22 @@ public abstract class EntityContraptionInteractionMixin {
 			.putBoolean("ContraptionGrounded", true);
 	}
 
-	@Inject(method = "spawnSprintParticle", at = @At(value = "TAIL"))
+	@Inject(method = "spawnSprintingParticles", at = @At(value = "TAIL"))
 	private void create$onSpawnSprintParticle(CallbackInfo ci) {
 		Entity self = (Entity) (Object) this;
-		Vec3 worldPos = position.add(0, -0.2, 0);
-		BlockPos particlePos = BlockPos.containing(worldPos); // pos where particles are spawned
+		Vec3d worldPos = pos.add(0, -0.2, 0);
+		BlockPos particlePos = BlockPos.ofFloored(worldPos); // pos where particles are spawned
 
 		forCollision(worldPos, (contraption, state, pos) -> {
-			boolean particles = state.getRenderShape() != RenderShape.INVISIBLE;
+			boolean particles = state.getRenderType() != BlockRenderType.INVISIBLE;
 			if (state.getBlock() instanceof CustomRunningEffectsBlock custom &&
-					custom.addRunningEffects(state, self.level(), pos, self)) {
+					custom.addRunningEffects(state, self.getWorld(), pos, self)) {
 				particles = false;
 			}
 			if (particles) {
-				Vec3 speed = self.getDeltaMovement();
-				level.addParticle(
-					new BlockParticleOption(ParticleTypes.BLOCK, state).setSourcePos(particlePos),
+				Vec3d speed = self.getVelocity();
+				world.addParticle(
+					new BlockStateParticleEffect(ParticleTypes.BLOCK, state).setSourcePos(particlePos),
 					self.getX() + ((double) random.nextFloat() - 0.5D) * (double) dimensions.width,
 					self.getY() + 0.1D,
 					self.getZ() + ((double) random.nextFloat() - 0.5D) * (double) dimensions.height,

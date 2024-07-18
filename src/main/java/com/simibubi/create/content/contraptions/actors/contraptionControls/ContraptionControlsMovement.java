@@ -15,10 +15,10 @@ import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.MathHelper;
 
 public class ContraptionControlsMovement implements MovementBehaviour {
 
@@ -48,10 +48,10 @@ public class ContraptionControlsMovement implements MovementBehaviour {
 	}
 
 	public static ItemStack getFilter(MovementContext ctx) {
-		CompoundTag blockEntityData = ctx.blockEntityData;
+		NbtCompound blockEntityData = ctx.blockEntityData;
 		if (blockEntityData == null)
 			return null;
-		return ItemStack.of(blockEntityData.getCompound("Filter"));
+		return ItemStack.fromNbt(blockEntityData.getCompound("Filter"));
 	}
 
 	public static boolean isDisabledInitially(MovementContext ctx) {
@@ -60,7 +60,7 @@ public class ContraptionControlsMovement implements MovementBehaviour {
 
 	@Override
 	public void tick(MovementContext ctx) {
-		if (!ctx.world.isClientSide())
+		if (!ctx.world.isClient())
 			return;
 
 		Contraption contraption = ctx.contraption;
@@ -103,7 +103,7 @@ public class ContraptionControlsMovement implements MovementBehaviour {
 			return;
 		}
 
-		int currentStage = Mth.floor(((currentIndicator % 360) + 360) % 360);
+		int currentStage = MathHelper.floor(((currentIndicator % 360) + 360) % 360);
 		if (!atTargetY || currentStage / 45 != 0) {
 			float increment = currentStage / 45 == (below ? 4 : 3) ? 2.25f : 33.75f;
 			indicator.chase(currentIndicator + (below ? increment : -increment), 45f, Chaser.LINEAR);
@@ -124,7 +124,7 @@ public class ContraptionControlsMovement implements MovementBehaviour {
 			return;
 		}
 
-		efs.currentIndex = Mth.clamp(efs.currentIndex, 0, ec.namesList.size() - 1);
+		efs.currentIndex = MathHelper.clamp(efs.currentIndex, 0, ec.namesList.size() - 1);
 		IntAttached<Couple<String>> entry = ec.namesList.get(efs.currentIndex);
 		efs.currentTargetY = entry.getFirst();
 		efs.currentShortName = entry.getSecond()
@@ -146,7 +146,7 @@ public class ContraptionControlsMovement implements MovementBehaviour {
 	@Override
 	@Environment(EnvType.CLIENT)
 	public void renderInContraption(MovementContext ctx, VirtualRenderWorld renderWorld, ContraptionMatrices matrices,
-		MultiBufferSource buffer) {
+		VertexConsumerProvider buffer) {
 		ContraptionControlsRenderer.renderInContraption(ctx, renderWorld, matrices, buffer);
 	}
 

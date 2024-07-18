@@ -1,7 +1,10 @@
 package com.simibubi.create.compat.emi.recipes;
 
 import java.util.List;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.tooltip.TooltipComponent;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Formatting;
 import com.simibubi.create.compat.emi.CreateEmiPlugin;
 import com.simibubi.create.compat.emi.EmiSequencedAssemblySubCategory;
 import com.simibubi.create.content.processing.sequenced.SequencedAssemblyRecipe;
@@ -13,12 +16,6 @@ import com.simibubi.create.foundation.utility.Lang;
 
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.widget.WidgetHolder;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 
 public class SequencedAssemblyEmiRecipe extends CreateEmiRecipe<SequencedAssemblyRecipe> {
 	public static final String[] ROMAN = {
@@ -49,16 +46,16 @@ public class SequencedAssemblyEmiRecipe extends CreateEmiRecipe<SequencedAssembl
 		addTexture(widgets, AllGuiTextures.JEI_LONG_ARROW, mid - 38 + xOff, 94);
 
 		widgets.addDrawable(mid - 38 + xOff, 94, AllGuiTextures.JEI_LONG_ARROW.width, 20, (matrices, mx, my, delta) -> {})
-			.tooltip((mouseX, mouseY) -> List.of(ClientTooltipComponent.create(
-				Lang.translateDirect("recipe.assembly.repeat", recipe.getLoops()).getVisualOrderText())));
+			.tooltip((mouseX, mouseY) -> List.of(TooltipComponent.of(
+				Lang.translateDirect("recipe.assembly.repeat", recipe.getLoops()).asOrderedText())));
 
 		if (recipe.getOutputChance() != 1) {
 			float chance = recipe.getOutputChance();
 			addTexture(widgets, AllGuiTextures.JEI_CHANCE_SLOT, mid + 60 + xOff, 90)
 				.tooltip((mouseX, mouseY) -> List.of(
-					ClientTooltipComponent.create(Lang.translateDirect("recipe.assembly.junk").getVisualOrderText()),
-					ClientTooltipComponent.create(Components.translatable("tooltip.emi.chance.produce", chance > 0.99 ? "<1" : 100 - (int) (chance * 100))
-						.withStyle(ChatFormatting.GOLD).getVisualOrderText())
+					TooltipComponent.of(Lang.translateDirect("recipe.assembly.junk").asOrderedText()),
+					TooltipComponent.of(Components.translatable("tooltip.emi.chance.produce", chance > 0.99 ? "<1" : 100 - (int) (chance * 100))
+						.formatted(Formatting.GOLD).asOrderedText())
 				));
 		}
 
@@ -76,29 +73,29 @@ public class SequencedAssemblyEmiRecipe extends CreateEmiRecipe<SequencedAssembl
 		}
 
 		widgets.addDrawable(0, 0, 0, 0, (graphics, mouseX, mouseY, delta) -> {
-			PoseStack matrices = graphics.pose();
-			Minecraft client = Minecraft.getInstance();
-			matrices.pushPose();
+			MatrixStack matrices = graphics.getMatrices();
+			MinecraftClient client = MinecraftClient.getInstance();
+			matrices.push();
 			matrices.translate(0, 15, 0);
 			if (recipe.getOutputChance() != 1) {
-				graphics.drawString(client.font, "?", mid + 69 + xOff - client.font.width("?") / 2, 80, 0xefefef, true);
+				graphics.drawText(client.textRenderer, "?", mid + 69 + xOff - client.textRenderer.getWidth("?") / 2, 80, 0xefefef, true);
 			}
 
 			if (recipe.getLoops() > 1) {
-				matrices.pushPose();
+				matrices.push();
 				matrices.translate(15, 9, 0);
 				AllIcons.I_SEQ_REPEAT.render(graphics, mid - 40 + xOff, 75);
-				graphics.drawString(client.font, "x" + recipe.getLoops(), mid - 24 + xOff, 80, 0x888888, true);
-				matrices.popPose();
+				graphics.drawText(client.textRenderer, "x" + recipe.getLoops(), mid - 24 + xOff, 80, 0x888888, true);
+				matrices.pop();
 			}
-			matrices.popPose();
+			matrices.pop();
 
 			int cx = sx;
 			for (int i = 0; i < recipe.getSequence().size(); i++) {
 				String text = ROMAN[Math.min(i, ROMAN.length)];
 				int w = getSubCategory(recipe.getSequence().get(i)).getWidth();
-				int off = w / 2 - client.font.width(text) / 2;
-				graphics.drawString(client.font, text, cx + off, 2, 0x888888, true);
+				int off = w / 2 - client.textRenderer.getWidth(text) / 2;
+				graphics.drawText(client.textRenderer, text, cx + off, 2, 0x888888, true);
 				cx += w + margin;
 			}
 		});

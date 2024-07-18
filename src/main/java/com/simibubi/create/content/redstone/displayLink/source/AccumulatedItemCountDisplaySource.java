@@ -5,20 +5,19 @@ import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlockEntity;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.text.MutableText;
 
 public class AccumulatedItemCountDisplaySource extends NumericSingleLineDisplaySource {
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
 		return Components.literal(String.valueOf(context.sourceConfig()
 			.getInt("Collected")));
 	}
 
 	public void itemReceived(DisplayLinkBlockEntity be, int amount) {
-		if (be.getBlockState()
-			.getOptionalValue(DisplayLinkBlock.POWERED)
+		if (be.getCachedState()
+			.getOrEmpty(DisplayLinkBlock.POWERED)
 			.orElse(true))
 			return;
 		

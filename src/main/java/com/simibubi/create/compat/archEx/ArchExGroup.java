@@ -5,19 +5,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.MapColor;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.decoration.palettes.AllPaletteStoneTypes;
 import com.simibubi.create.content.decoration.palettes.PaletteBlockPattern;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.MapColor;
 
 public record ArchExGroup(String name, Block base, Textures textures, Recipes recipes, MapColor color, BlockType[] types) {
 
@@ -28,7 +26,7 @@ public record ArchExGroup(String name, Block base, Textures textures, Recipes re
 	public JsonObject toJson() {
 		JsonObject json = new JsonObject();
 		json.addProperty("name", name);
-		ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(base);
+		Identifier blockId = Registries.BLOCK.getId(base);
 		json.addProperty("base_block", blockId.toString());
 		json.addProperty("textures", textures.typeOrId());
 		json.addProperty("recipes", recipes.name);
@@ -53,12 +51,12 @@ public record ArchExGroup(String name, Block base, Textures textures, Recipes re
 		public Builder fromStoneTypeAndPattern(AllPaletteStoneTypes type, PaletteBlockPattern pattern) {
 			String variant = Lang.asId(type.name());
 			String baseBlockName = pattern.createName(variant);
-			Block baseBlock = BuiltInRegistries.BLOCK.get(Create.asResource(baseBlockName));
+			Block baseBlock = Registries.BLOCK.get(Create.asResource(baseBlockName));
 			if (baseBlock == Blocks.AIR)
 				throw new IllegalStateException("Unknown block: " + baseBlockName);
 
-			ResourceLocation texture = PaletteBlockPattern.toLocation(variant, pattern.getTexture(0));
-			MapColor color = baseBlock.defaultMapColor();
+			Identifier texture = PaletteBlockPattern.toLocation(variant, pattern.getTexture(0));
+			MapColor color = baseBlock.getDefaultMapColor();
 
 			return this.named(baseBlockName)
 					.basedOn(baseBlock)

@@ -6,16 +6,15 @@ import com.simibubi.create.content.trains.entity.Carriage.DimensionalCarriageEnt
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.MovingSoundInstance;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.entity.Entity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class CarriageSounds {
 
@@ -53,22 +52,22 @@ public class CarriageSounds {
 	}
 
 	public void tick(DimensionalCarriageEntity dce) {
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 		Entity camEntity = mc.cameraEntity;
 		if (camEntity == null)
 			return;
 
-		Vec3 leadingAnchor = dce.leadingAnchor();
-		Vec3 trailingAnchor = dce.trailingAnchor();
+		Vec3d leadingAnchor = dce.leadingAnchor();
+		Vec3d trailingAnchor = dce.trailingAnchor();
 		if (leadingAnchor == null || trailingAnchor == null)
 			return;
 
 		tick++;
 
-		Vec3 cam = camEntity.getEyePosition();
-		Vec3 contraptionMotion = entity.position()
+		Vec3d cam = camEntity.getEyePos();
+		Vec3d contraptionMotion = entity.getPos()
 			.subtract(entity.getPrevPositionVec());
-		Vec3 combinedMotion = contraptionMotion.subtract(camEntity.getDeltaMovement());
+		Vec3d combinedMotion = contraptionMotion.subtract(camEntity.getVelocity());
 
 		Train train = entity.getCarriage().train;
 
@@ -83,8 +82,8 @@ public class CarriageSounds {
 			train.accumulatedSteamRelease = (float) Math
 				.min(train.accumulatedSteamRelease + Math.min(0.5f, Math.abs(contraptionMotion.length() / 10f)), 10);
 
-		Vec3 toBogey1 = leadingAnchor.subtract(cam);
-		Vec3 toBogey2 = trailingAnchor.subtract(cam);
+		Vec3d toBogey1 = leadingAnchor.subtract(cam);
+		Vec3d toBogey2 = trailingAnchor.subtract(cam);
 		double distance1 = toBogey1.length();
 		double distance2 = toBogey2.length();
 
@@ -97,16 +96,16 @@ public class CarriageSounds {
 			closestBogeySound = relevantBogey.getStyle().getSoundType();
 		}
 
-		Vec3 toCarriage = distance1 > distance2 ? toBogey2 : toBogey1;
+		Vec3d toCarriage = distance1 > distance2 ? toBogey2 : toBogey1;
 		double distance = Math.min(distance1, distance2);
-		Vec3 soundLocation = cam.add(toCarriage);
+		Vec3d soundLocation = cam.add(toCarriage);
 
 		double dot = toCarriage.normalize()
-			.dot(combinedMotion.normalize());
+			.dotProduct(combinedMotion.normalize());
 
 		speedFactor.chase(contraptionMotion.length(), .25f, Chaser.exp(.05f));
-		distanceFactor.chase(Mth.clampedLerp(100, 0, (distance - 3) / 64d), .25f, Chaser.exp(50f));
-		approachFactor.chase(Mth.clampedLerp(50, 200, .5f * (dot + 1)), .25f, Chaser.exp(10f));
+		distanceFactor.chase(MathHelper.clampedLerp(100, 0, (distance - 3) / 64d), .25f, Chaser.exp(50f));
+		approachFactor.chase(MathHelper.clampedLerp(50, 200, .5f * (dot + 1)), .25f, Chaser.exp(10f));
 		seatCrossfade.chase(camEntity.getVehicle() instanceof CarriageContraptionEntity ? 1 : 0, .1f, Chaser.EXP);
 
 		speedFactor.tickChaser();
@@ -124,27 +123,27 @@ public class CarriageSounds {
 		if (entity.carriageIndex == 0) {
 			float v = volume * (1 - seatCrossfade.getValue() * .35f) * .75f;
 			if ((3 + tick) % 4 == 0)
-				AllSoundEvents.STEAM.playAt(entity.level(), soundLocation, v * ((tick + 7) % 8 == 0 ? 0.75f : .45f),
+				AllSoundEvents.STEAM.playAt(entity.getWorld(), soundLocation, v * ((tick + 7) % 8 == 0 ? 0.75f : .45f),
 					1.17f, false);
 			if (tick % 16 == 0)
-				AllSoundEvents.STEAM.playAt(entity.level(), soundLocation, v * 1.5f, .8f, false);
+				AllSoundEvents.STEAM.playAt(entity.getWorld(), soundLocation, v * 1.5f, .8f, false);
 		}
 
 		if (!arrived && speedFactor.getValue() < .002f && train.accumulatedSteamRelease > 1) {
 			arrived = true;
 			float releaseVolume = train.accumulatedSteamRelease / 10f;
-			entity.level().playLocalSound(soundLocation.x, soundLocation.y, soundLocation.z, SoundEvents.LAVA_EXTINGUISH,
-				SoundSource.NEUTRAL, .25f * releaseVolume, .78f, false);
-			entity.level().playLocalSound(soundLocation.x, soundLocation.y, soundLocation.z,
-				SoundEvents.WOODEN_TRAPDOOR_CLOSE, SoundSource.NEUTRAL, .2f * releaseVolume, 1.5f, false);
-			AllSoundEvents.STEAM.playAt(entity.level(), soundLocation, .75f * releaseVolume, .5f, false);
+			entity.getWorld().playSound(soundLocation.x, soundLocation.y, soundLocation.z, SoundEvents.BLOCK_LAVA_EXTINGUISH,
+				SoundCategory.NEUTRAL, .25f * releaseVolume, .78f, false);
+			entity.getWorld().playSound(soundLocation.x, soundLocation.y, soundLocation.z,
+				SoundEvents.BLOCK_WOODEN_TRAPDOOR_CLOSE, SoundCategory.NEUTRAL, .2f * releaseVolume, 1.5f, false);
+			AllSoundEvents.STEAM.playAt(entity.getWorld(), soundLocation, .75f * releaseVolume, .5f, false);
 		}
 
 		float pitchModifier = ((entity.getId() * 10) % 13) / 36f;
 
 		volume = Math.min(volume, distanceFactor.getValue() / 800);
 
-		float pitch = Mth.clamp(speedFactor.getValue() * 2 + .25f, .75f, 1.95f) - pitchModifier;
+		float pitch = MathHelper.clamp(speedFactor.getValue() * 2 + .25f, .75f, 1.95f) - pitchModifier;
 //		float pitch2 = Mth.clamp(speedFactor.getValue() * 2, 0.75f, 1.25f) - pitchModifier;
 
 		minecartEsqueSound.setPitch(pitch * 1.5f);
@@ -152,7 +151,7 @@ public class CarriageSounds {
 		volume = Math.min(volume, distanceFactor.getValue() / 1000);
 
 		for (Carriage carriage : train.carriages) {
-			DimensionalCarriageEntity mainDCE = carriage.getDimensionalIfPresent(entity.level().dimension());
+			DimensionalCarriageEntity mainDCE = carriage.getDimensionalIfPresent(entity.getWorld().getRegistryKey());
 			if (mainDCE == null)
 				continue;
 			CarriageContraptionEntity mainEntity = mainDCE.entity.get();
@@ -184,7 +183,7 @@ public class CarriageSounds {
 		}
 
 		train.honkTicks--;
-		train.determineHonk(entity.level());
+		train.determineHonk(entity.getWorld());
 
 		if (train.lowHonk == null)
 			return;
@@ -198,30 +197,30 @@ public class CarriageSounds {
 			!low ? AllSoundEvents.WHISTLE_TRAIN_MANUAL : AllSoundEvents.WHISTLE_TRAIN_MANUAL_LOW;
 
 		if (train.honkTicks == 5)
-			endSound.playAt(mc.level, soundLocation, 1, honkPitch, false);
+			endSound.playAt(mc.world, soundLocation, 1, honkPitch, false);
 		if (train.honkTicks == 19)
-			endSound.playAt(mc.level, soundLocation, .5f, honkPitch, false);
+			endSound.playAt(mc.world, soundLocation, .5f, honkPitch, false);
 
 		sharedHonkSound = playIfMissing(mc, sharedHonkSound, continuousSound.getMainEvent());
 		sharedHonkSound.setLocation(soundLocation);
-		float fadeout = Mth.clamp((3 - train.honkTicks) / 3f, 0, 1);
-		float fadein = Mth.clamp((train.honkTicks - 17) / 3f, 0, 1);
+		float fadeout = MathHelper.clamp((3 - train.honkTicks) / 3f, 0, 1);
+		float fadein = MathHelper.clamp((train.honkTicks - 17) / 3f, 0, 1);
 		sharedHonkSound.setVolume(1 - fadeout - fadein);
 		sharedHonkSound.setPitch(honkPitch);
 
 	}
 
-	private LoopingSound playIfMissing(Minecraft mc, LoopingSound loopingSound, SoundEvent sound) {
+	private LoopingSound playIfMissing(MinecraftClient mc, LoopingSound loopingSound, SoundEvent sound) {
 		if (loopingSound == null) {
-			loopingSound = new LoopingSound(sound, SoundSource.NEUTRAL);
+			loopingSound = new LoopingSound(sound, SoundCategory.NEUTRAL);
 			mc.getSoundManager()
 				.play(loopingSound);
 		}
 		return loopingSound;
 	}
 
-	public void submitSharedSoundVolume(Vec3 location, float volume) {
-		Minecraft mc = Minecraft.getInstance();
+	public void submitSharedSoundVolume(Vec3d location, float volume) {
+		MinecraftClient mc = MinecraftClient.getInstance();
 		minecartEsqueSound = playIfMissing(mc, minecartEsqueSound, AllSoundEvents.TRAIN.getMainEvent());
 		sharedWheelSound = playIfMissing(mc, sharedWheelSound, closestBogeySound);
 		sharedWheelSoundSeated = playIfMissing(mc, sharedWheelSoundSeated, AllSoundEvents.TRAIN3.getMainEvent());
@@ -234,9 +233,9 @@ public class CarriageSounds {
 		} else if (sharedWheelSound.getVolume() > volume)
 			return;
 
-		Vec3 currentLoc = new Vec3(minecartEsqueSound.getX(), minecartEsqueSound.getY(), minecartEsqueSound.getZ());
-		Vec3 newLoc = approach ? currentLoc.add(location.subtract(currentLoc)
-			.scale(.125f)) : location;
+		Vec3d currentLoc = new Vec3d(minecartEsqueSound.getX(), minecartEsqueSound.getY(), minecartEsqueSound.getZ());
+		Vec3d newLoc = approach ? currentLoc.add(location.subtract(currentLoc)
+			.multiply(.125f)) : location;
 
 		minecartEsqueSound.setLocation(newLoc);
 		sharedWheelSound.setLocation(newLoc);
@@ -263,13 +262,13 @@ public class CarriageSounds {
 			sharedHonkSound.stopSound();
 	}
 
-	class LoopingSound extends AbstractTickableSoundInstance {
+	class LoopingSound extends MovingSoundInstance {
 
-		protected LoopingSound(SoundEvent p_119606_, SoundSource p_119607_) {
-			super(p_119606_, p_119607_, SoundInstance.createUnseededRandom());
-			attenuation = Attenuation.LINEAR;
-			looping = true;
-			delay = 0;
+		protected LoopingSound(SoundEvent p_119606_, SoundCategory p_119607_) {
+			super(p_119606_, p_119607_, SoundInstance.createRandom());
+			attenuationType = AttenuationType.LINEAR;
+			repeat = true;
+			repeatDelay = 0;
 			volume = 0.0001f;
 		}
 
@@ -294,14 +293,14 @@ public class CarriageSounds {
 			return pitch;
 		}
 
-		public void setLocation(Vec3 location) {
+		public void setLocation(Vec3d location) {
 			x = location.x;
 			y = location.y;
 			z = location.z;
 		}
 
 		public void stopSound() {
-			Minecraft.getInstance()
+			MinecraftClient.getInstance()
 				.getSoundManager()
 				.stop(this);
 		}

@@ -5,62 +5,61 @@ import com.simibubi.create.content.fluids.pipes.FluidPipeBlock;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.WorldView;
 
 public class HosePulleyBlock extends HorizontalKineticBlock implements IBE<HosePulleyBlockEntity> {
 
-	public HosePulleyBlock(Properties properties) {
+	public HosePulleyBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(HORIZONTAL_FACING)
-			.getClockWise()
+		return state.get(HORIZONTAL_FACING)
+			.rotateYClockwise()
 			.getAxis();
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
+	public BlockState getPlacementState(ItemPlacementContext context) {
 		Direction preferredHorizontalFacing = getPreferredHorizontalFacing(context);
-		return this.defaultBlockState()
-			.setValue(HORIZONTAL_FACING,
-				preferredHorizontalFacing != null ? preferredHorizontalFacing.getCounterClockWise()
-					: context.getHorizontalDirection()
+		return this.getDefaultState()
+			.with(HORIZONTAL_FACING,
+				preferredHorizontalFacing != null ? preferredHorizontalFacing.rotateYCounterclockwise()
+					: context.getHorizontalPlayerFacing()
 						.getOpposite());
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return state.getValue(HORIZONTAL_FACING)
-			.getClockWise() == face;
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		return state.get(HORIZONTAL_FACING)
+			.rotateYClockwise() == face;
 	}
 
-	public static boolean hasPipeTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return state.getValue(HORIZONTAL_FACING)
-			.getCounterClockWise() == face;
+	public static boolean hasPipeTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		return state.get(HORIZONTAL_FACING)
+			.rotateYCounterclockwise() == face;
 	}
 
 	@Override
-	public Direction getPreferredHorizontalFacing(BlockPlaceContext context) {
+	public Direction getPreferredHorizontalFacing(ItemPlacementContext context) {
 		Direction fromParent = super.getPreferredHorizontalFacing(context);
 		if (fromParent != null)
 			return fromParent;
 
 		Direction prefferedSide = null;
 		for (Direction facing : Iterate.horizontalDirections) {
-			BlockPos pos = context.getClickedPos()
-				.relative(facing);
-			BlockState blockState = context.getLevel()
+			BlockPos pos = context.getBlockPos()
+				.offset(facing);
+			BlockState blockState = context.getWorld()
 				.getBlockState(pos);
-			if (FluidPipeBlock.canConnectTo(context.getLevel(), pos, blockState, facing))
+			if (FluidPipeBlock.canConnectTo(context.getWorld(), pos, blockState, facing))
 				if (prefferedSide != null && prefferedSide.getAxis() != facing.getAxis()) {
 					prefferedSide = null;
 					break;

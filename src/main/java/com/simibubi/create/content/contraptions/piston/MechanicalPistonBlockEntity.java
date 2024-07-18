@@ -11,17 +11,16 @@ import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.utility.ServerSpeedProvider;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class MechanicalPistonBlockEntity extends LinearActuatorBlockEntity {
 
@@ -33,36 +32,36 @@ public class MechanicalPistonBlockEntity extends LinearActuatorBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		extensionLength = compound.getInt("ExtensionLength");
 		super.read(compound, clientPacket);
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		tag.putInt("ExtensionLength", extensionLength);
 		super.write(tag, clientPacket);
 	}
 
 	@Override
 	public void assemble() throws AssemblyException {
-		if (!(level.getBlockState(worldPosition)
+		if (!(world.getBlockState(pos)
 			.getBlock() instanceof MechanicalPistonBlock))
 			return;
 
-		Direction direction = getBlockState().getValue(BlockStateProperties.FACING);
+		Direction direction = getCachedState().get(Properties.FACING);
 
 		// Collect Construct
 		PistonContraption contraption = new PistonContraption(direction, getMovementSpeed() < 0);
-		if (!contraption.assemble(level, worldPosition))
+		if (!contraption.assemble(world, pos))
 			return;
 
 		Direction positive = Direction.get(AxisDirection.POSITIVE, direction.getAxis());
 		Direction movementDirection =
 			getSpeed() > 0 ^ direction.getAxis() != Axis.Z ? positive : positive.getOpposite();
 
-		BlockPos anchor = contraption.anchor.relative(direction, contraption.initialExtensionProgress);
-		if (ContraptionCollider.isCollidingWithWorld(level, contraption, anchor.relative(movementDirection),
+		BlockPos anchor = contraption.anchor.offset(direction, contraption.initialExtensionProgress);
+		if (ContraptionCollider.isCollidingWithWorld(world, contraption, anchor.offset(movementDirection),
 			movementDirection))
 			return;
 
@@ -79,14 +78,14 @@ public class MechanicalPistonBlockEntity extends LinearActuatorBlockEntity {
 		sendData();
 		clientOffsetDiff = 0;
 
-		BlockPos startPos = BlockPos.ZERO.relative(direction, contraption.initialExtensionProgress);
-		contraption.removeBlocksFromWorld(level, startPos);
-		movedContraption = ControlledContraptionEntity.create(getLevel(), this, contraption);
+		BlockPos startPos = BlockPos.ORIGIN.offset(direction, contraption.initialExtensionProgress);
+		contraption.removeBlocksFromWorld(world, startPos);
+		movedContraption = ControlledContraptionEntity.create(getWorld(), this, contraption);
 		resetContraptionToOffset();
 		forceMove = true;
-		level.addFreshEntity(movedContraption);
+		world.spawnEntity(movedContraption);
 
-		AllSoundEvents.CONTRAPTION_ASSEMBLE.playOnServer(level, worldPosition);
+		AllSoundEvents.CONTRAPTION_ASSEMBLE.playOnServer(world, pos);
 		
 		if (contraption.containsBlockBreakers())
 			award(AllAdvancements.CONTRAPTION_ACTORS);
@@ -96,21 +95,21 @@ public class MechanicalPistonBlockEntity extends LinearActuatorBlockEntity {
 	public void disassemble() {
 		if (!running && movedContraption == null)
 			return;
-		if (!remove)
-			getLevel().setBlock(worldPosition, getBlockState().setValue(MechanicalPistonBlock.STATE, PistonState.EXTENDED),
+		if (!removed)
+			getWorld().setBlockState(pos, getCachedState().with(MechanicalPistonBlock.STATE, PistonState.EXTENDED),
 				3 | 16);
 		if (movedContraption != null) {
 			resetContraptionToOffset();
 			movedContraption.disassemble();
-			AllSoundEvents.CONTRAPTION_DISASSEMBLE.playOnServer(level, worldPosition);
+			AllSoundEvents.CONTRAPTION_DISASSEMBLE.playOnServer(world, pos);
 		}
 		running = false;
 		movedContraption = null;
 		sendData();
 
-		if (remove)
+		if (removed)
 			AllBlocks.MECHANICAL_PISTON.get()
-				.playerWillDestroy(level, worldPosition, getBlockState(), null);
+				.onBreak(world, pos, getCachedState(), null);
 	}
 
 	@Override
@@ -122,18 +121,18 @@ public class MechanicalPistonBlockEntity extends LinearActuatorBlockEntity {
 
 	@Override
 	public float getMovementSpeed() {
-		float movementSpeed = Mth.clamp(convertToLinear(getSpeed()), -.49f, .49f);
-		if (level.isClientSide)
+		float movementSpeed = MathHelper.clamp(convertToLinear(getSpeed()), -.49f, .49f);
+		if (world.isClient)
 			movementSpeed *= ServerSpeedProvider.get();
-		Direction pistonDirection = getBlockState().getValue(BlockStateProperties.FACING);
-		int movementModifier = pistonDirection.getAxisDirection()
-			.getStep() * (pistonDirection.getAxis() == Axis.Z ? -1 : 1);
+		Direction pistonDirection = getCachedState().get(Properties.FACING);
+		int movementModifier = pistonDirection.getDirection()
+			.offset() * (pistonDirection.getAxis() == Axis.Z ? -1 : 1);
 		movementSpeed = movementSpeed * -movementModifier + clientOffsetDiff / 2f;
 
 		int extensionRange = getExtensionRange();
-		movementSpeed = Mth.clamp(movementSpeed, 0 - offset, extensionRange - offset);
+		movementSpeed = MathHelper.clamp(movementSpeed, 0 - offset, extensionRange - offset);
 		if (sequencedOffsetLimit >= 0)
-			movementSpeed = (float) Mth.clamp(movementSpeed, -sequencedOffsetLimit, sequencedOffsetLimit);
+			movementSpeed = (float) MathHelper.clamp(movementSpeed, -sequencedOffsetLimit, sequencedOffsetLimit);
 		return movementSpeed;
 	}
 
@@ -146,25 +145,25 @@ public class MechanicalPistonBlockEntity extends LinearActuatorBlockEntity {
 	protected void visitNewPosition() {}
 
 	@Override
-	protected Vec3 toMotionVector(float speed) {
-		Direction pistonDirection = getBlockState().getValue(BlockStateProperties.FACING);
-		return Vec3.atLowerCornerOf(pistonDirection.getNormal())
-			.scale(speed);
+	protected Vec3d toMotionVector(float speed) {
+		Direction pistonDirection = getCachedState().get(Properties.FACING);
+		return Vec3d.of(pistonDirection.getVector())
+			.multiply(speed);
 	}
 
 	@Override
-	protected Vec3 toPosition(float offset) {
-		Vec3 position = Vec3.atLowerCornerOf(getBlockState().getValue(BlockStateProperties.FACING)
-			.getNormal())
-			.scale(offset);
-		return position.add(Vec3.atLowerCornerOf(movedContraption.getContraption().anchor));
+	protected Vec3d toPosition(float offset) {
+		Vec3d position = Vec3d.of(getCachedState().get(Properties.FACING)
+			.getVector())
+			.multiply(offset);
+		return position.add(Vec3d.of(movedContraption.getContraption().anchor));
 	}
 
 	@Override
 	protected ValueBoxTransform getMovementModeSlot() {
 		return new DirectionalExtenderScrollOptionSlot((state, d) -> {
 			Axis axis = d.getAxis();
-			Axis extensionAxis = state.getValue(MechanicalPistonBlock.FACING)
+			Axis extensionAxis = state.get(MechanicalPistonBlock.FACING)
 				.getAxis();
 			Axis shaftAxis = ((IRotate) state.getBlock()).getRotationAxis(state);
 			return extensionAxis != axis && shaftAxis != axis;

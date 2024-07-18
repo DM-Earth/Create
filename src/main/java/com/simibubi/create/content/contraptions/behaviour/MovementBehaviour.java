@@ -15,12 +15,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Block;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 public interface MovementBehaviour {
 
@@ -34,8 +34,8 @@ public interface MovementBehaviour {
 
 	default void visitNewPosition(MovementContext context, BlockPos pos) {}
 
-	default Vec3 getActiveAreaOffset(MovementContext context) {
-		return Vec3.ZERO;
+	default Vec3d getActiveAreaOffset(MovementContext context) {
+		return Vec3d.ZERO;
 	}
 
 	@Nullable
@@ -60,7 +60,7 @@ public interface MovementBehaviour {
 			try (Transaction t = TransferUtil.getTransaction()) {
 				long inserted = context.contraption.getSharedInventory().insert(ItemVariant.of(stack), stack.getCount(), t);
 				remainder = stack.copy();
-				remainder.shrink((int) inserted);
+				remainder.decrement((int) inserted);
 				t.commit();
 			}
 		}
@@ -70,17 +70,17 @@ public interface MovementBehaviour {
 			return;
 
 		// Actors might void items if their positions is undefined
-		Vec3 vec = context.position;
+		Vec3d vec = context.position;
 		if (vec == null)
 			return;
 		
 		ItemEntity itemEntity = new ItemEntity(context.world, vec.x, vec.y, vec.z, remainder);
-		itemEntity.setDeltaMovement(context.motion.add(0, 0.5f, 0)
-			.scale(context.world.random.nextFloat() * .3f));
-		context.world.addFreshEntity(itemEntity);
+		itemEntity.setVelocity(context.motion.add(0, 0.5f, 0)
+			.multiply(context.world.random.nextFloat() * .3f));
+		context.world.spawnEntity(itemEntity);
 	}
 
-	default void onSpeedChanged(MovementContext context, Vec3 oldMotion, Vec3 motion) {}
+	default void onSpeedChanged(MovementContext context, Vec3d oldMotion, Vec3d motion) {}
 
 	default void stopMoving(MovementContext context) {}
 
@@ -100,7 +100,7 @@ public interface MovementBehaviour {
 
 	@Environment(EnvType.CLIENT)
 	default void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {}
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {}
 
 	@Environment(EnvType.CLIENT)
 	@Nullable

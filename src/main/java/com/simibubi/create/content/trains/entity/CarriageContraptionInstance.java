@@ -7,15 +7,15 @@ import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.jozufozu.flywheel.backend.instancing.entity.EntityInstance;
 import com.jozufozu.flywheel.util.AnimationTickHolder;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.trains.bogey.BogeyInstance;
 import com.simibubi.create.content.trains.bogey.BogeyRenderer;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Iterate;
+import net.minecraft.client.util.math.MatrixStack;
 
 public class CarriageContraptionInstance extends EntityInstance<CarriageContraptionEntity> implements DynamicInstance {
 
-	private final PoseStack ms = new PoseStack();
+	private final MatrixStack ms = new MatrixStack();
 
 	private Carriage carriage;
 	private Couple<BogeyInstance> bogeys;
@@ -54,11 +54,11 @@ public class CarriageContraptionInstance extends EntityInstance<CarriageContrapt
 
 		float partialTicks = AnimationTickHolder.getPartialTicks();
 
-		float viewYRot = entity.getViewYRot(partialTicks);
-		float viewXRot = entity.getViewXRot(partialTicks);
+		float viewYRot = entity.getYaw(partialTicks);
+		float viewXRot = entity.getPitch(partialTicks);
 		int bogeySpacing = carriage.bogeySpacing;
 
-		ms.pushPose();
+		ms.push();
 
 		Vector3f instancePosition = getInstancePosition(partialTicks);
 		TransformStack.cast(ms)
@@ -73,17 +73,17 @@ public class CarriageContraptionInstance extends EntityInstance<CarriageContrapt
 				continue;
 			}
 
-			ms.pushPose();
+			ms.push();
 			CarriageBogey bogey = instance.bogey;
 
 			CarriageContraptionEntityRenderer.translateBogey(ms, bogey, bogeySpacing, viewYRot, viewXRot, partialTicks);
 			ms.translate(0, -1.5 - 1 / 128f, 0);
 
 			instance.beginFrame(bogey.wheelAngle.getValue(partialTicks), ms);
-			ms.popPose();
+			ms.pop();
 		}
 
-		ms.popPose();
+		ms.pop();
 	}
 
 	@Override

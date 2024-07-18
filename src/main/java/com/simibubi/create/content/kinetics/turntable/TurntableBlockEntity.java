@@ -1,10 +1,9 @@
 package com.simibubi.create.content.kinetics.turntable;
 
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
 
 public class TurntableBlockEntity extends KineticBlockEntity {
 

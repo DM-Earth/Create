@@ -3,7 +3,12 @@ package com.simibubi.create.foundation.blockEntity.behaviour;
 import com.simibubi.create.foundation.utility.AdventureUtil;
 
 import net.fabricmc.fabric.api.entity.FakePlayer;
-
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 
 import com.simibubi.create.AllBlocks;
@@ -15,32 +20,26 @@ import com.simibubi.create.foundation.utility.RaycastHelper;
 
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.BlockHitResult;
 
 public class ValueSettingsInputHandler {
 
-	public static InteractionResult onBlockActivated(Player player, Level world, InteractionHand hand, BlockHitResult hit) {
+	public static ActionResult onBlockActivated(PlayerEntity player, World world, Hand hand, BlockHitResult hit) {
 		BlockPos pos = hit.getBlockPos();
 
 		if (!canInteract(player))
-			return InteractionResult.PASS;
-		if (AllBlocks.CLIPBOARD.isIn(player.getMainHandItem()))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
+		if (AllBlocks.CLIPBOARD.isIn(player.getMainHandStack()))
+			return ActionResult.PASS;
 		if (!(world.getBlockEntity(pos)instanceof SmartBlockEntity sbe))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
 		MutableBoolean cancelled = new MutableBoolean(false);
-		if (world.isClientSide)
+		if (world.isClient)
 			EnvExecutor.runWhenOn(EnvType.CLIENT,
 				() -> () -> CreateClient.VALUE_SETTINGS_HANDLER.cancelIfWarmupAlreadyStarted(pos, cancelled));
 
 		if (cancelled.booleanValue())
-			return InteractionResult.FAIL;
+			return ActionResult.FAIL;
 
 		for (BlockEntityBehaviour behaviour : sbe.getAllBehaviours()) {
 			if (!(behaviour instanceof ValueSettingsBehaviour valueSettingsBehaviour))
@@ -48,9 +47,9 @@ public class ValueSettingsInputHandler {
 
 			BlockHitResult ray = RaycastHelper.rayTraceRange(world, player, 10);
 			if (ray == null)
-				return InteractionResult.PASS;
+				return ActionResult.PASS;
 			if (behaviour instanceof SidedFilteringBehaviour) {
-				behaviour = ((SidedFilteringBehaviour) behaviour).get(ray.getDirection());
+				behaviour = ((SidedFilteringBehaviour) behaviour).get(ray.getSide());
 				if (behaviour == null)
 					continue;
 			}
@@ -58,36 +57,36 @@ public class ValueSettingsInputHandler {
 			if (!valueSettingsBehaviour.isActive())
 				continue;
 			if (valueSettingsBehaviour.onlyVisibleWithWrench()
-				&& !AllItemTags.WRENCH.matches(player.getItemInHand(hand)))
+				&& !AllItemTags.WRENCH.matches(player.getStackInHand(hand)))
 				continue;
 			if (valueSettingsBehaviour.getSlotPositioning()instanceof ValueBoxTransform.Sided sidedSlot) {
-				if (!sidedSlot.isSideActive(sbe.getBlockState(), ray.getDirection()))
+				if (!sidedSlot.isSideActive(sbe.getCachedState(), ray.getSide()))
 					continue;
-				sidedSlot.fromSide(ray.getDirection());
+				sidedSlot.fromSide(ray.getSide());
 			}
 
 			boolean fakePlayer = player instanceof FakePlayer;
-			if (!valueSettingsBehaviour.testHit(ray.getLocation()) && !fakePlayer)
+			if (!valueSettingsBehaviour.testHit(ray.getPos()) && !fakePlayer)
 				continue;
 
 			if (!valueSettingsBehaviour.acceptsValueSettings() || fakePlayer) {
-				valueSettingsBehaviour.onShortInteract(player, hand, ray.getDirection());
-				return InteractionResult.SUCCESS;
+				valueSettingsBehaviour.onShortInteract(player, hand, ray.getSide());
+				return ActionResult.SUCCESS;
 			}
 
-			if (world.isClientSide) {
+			if (world.isClient) {
 				BehaviourType<?> type = behaviour.getType();
 				EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> CreateClient.VALUE_SETTINGS_HANDLER
-					.startInteractionWith(pos, type, hand, ray.getDirection()));
+					.startInteractionWith(pos, type, hand, ray.getSide()));
 			}
 
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
-	public static boolean canInteract(Player player) {
-		return player != null && !player.isSpectator() && !player.isShiftKeyDown() && !AdventureUtil.isAdventure(player);
+	public static boolean canInteract(PlayerEntity player) {
+		return player != null && !player.isSpectator() && !player.isSneaking() && !AdventureUtil.isAdventure(player);
 	}
 
 }

@@ -1,10 +1,10 @@
 package com.simibubi.create.content.decoration.palettes;
 
-import net.minecraft.world.level.block.IronBarsBlock;
+import net.minecraft.block.PaneBlock;
 
-public class GlassPaneBlock extends IronBarsBlock {
+public class GlassPaneBlock extends PaneBlock {
 
-	public GlassPaneBlock(Properties builder) {
+	public GlassPaneBlock(Settings builder) {
 		super(builder);
 	}
 

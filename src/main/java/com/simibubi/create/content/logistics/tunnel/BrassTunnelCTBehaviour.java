@@ -6,17 +6,16 @@ import com.simibubi.create.AllSpriteShifts;
 import com.simibubi.create.foundation.block.connected.CTSpriteShiftEntry;
 import com.simibubi.create.foundation.block.connected.CTType;
 import com.simibubi.create.foundation.block.connected.ConnectedTextureBehaviour;
-
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.BlockRenderView;
 
 public class BrassTunnelCTBehaviour extends ConnectedTextureBehaviour.Base {
 
 	@Override
-	public @Nullable CTType getDataType(BlockAndTintGetter world, BlockPos pos, BlockState state, Direction direction) {
+	public @Nullable CTType getDataType(BlockRenderView world, BlockPos pos, BlockState state, Direction direction) {
 		if (!(world.getBlockEntity(pos) instanceof BrassTunnelBlockEntity tunnelBE)
 			|| !tunnelBE.hasDistributionBehaviour())
 			return null;
@@ -24,7 +23,7 @@ public class BrassTunnelCTBehaviour extends ConnectedTextureBehaviour.Base {
 	}
 
 	@Override
-	public CTSpriteShiftEntry getShift(BlockState state, Direction direction, @Nullable TextureAtlasSprite sprite) {
+	public CTSpriteShiftEntry getShift(BlockState state, Direction direction, @Nullable Sprite sprite) {
 		return direction == Direction.UP ? AllSpriteShifts.BRASS_TUNNEL_TOP : null;
 	}
 
@@ -34,7 +33,7 @@ public class BrassTunnelCTBehaviour extends ConnectedTextureBehaviour.Base {
 	}
 
 	@Override
-	public boolean connectsTo(BlockState state, BlockState other, BlockAndTintGetter reader, BlockPos pos,
+	public boolean connectsTo(BlockState state, BlockState other, BlockRenderView reader, BlockPos pos,
 		BlockPos otherPos, Direction face) {
 		int yDiff = otherPos.getY() - pos.getY();
 		int zDiff = otherPos.getZ() - pos.getZ();

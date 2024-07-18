@@ -4,44 +4,43 @@ import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.contraptions.ContraptionWorld;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.HorizontalFacingBlock;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldAccess;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+public class ControlsBlock extends HorizontalFacingBlock implements IWrenchable, ProperWaterloggedBlock {
 
-public class ControlsBlock extends HorizontalDirectionalBlock implements IWrenchable, ProperWaterloggedBlock {
+	public static final BooleanProperty OPEN = BooleanProperty.of("open");
+	public static final BooleanProperty VIRTUAL = BooleanProperty.of("virtual");
 
-	public static final BooleanProperty OPEN = BooleanProperty.create("open");
-	public static final BooleanProperty VIRTUAL = BooleanProperty.create("virtual");
-
-	public ControlsBlock(Properties p_54120_) {
+	public ControlsBlock(Settings p_54120_) {
 		super(p_54120_);
-		registerDefaultState(defaultBlockState().setValue(OPEN, false)
-			.setValue(WATERLOGGED, false)
-			.setValue(VIRTUAL, false));
+		setDefaultState(getDefaultState().with(OPEN, false)
+			.with(WATERLOGGED, false)
+			.with(VIRTUAL, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
-		super.createBlockStateDefinition(pBuilder.add(FACING, OPEN, WATERLOGGED, VIRTUAL));
+	protected void appendProperties(Builder<Block, BlockState> pBuilder) {
+		super.appendProperties(pBuilder.add(FACING, OPEN, WATERLOGGED, VIRTUAL));
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pDirection, BlockState pNeighborState,
+		WorldAccess pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
 		updateWater(pLevel, pState, pCurrentPos);
-		return pState.setValue(OPEN, pLevel instanceof ContraptionWorld);
+		return pState.with(OPEN, pLevel instanceof ContraptionWorld);
 	}
 
 	@Override
@@ -50,21 +49,21 @@ public class ControlsBlock extends HorizontalDirectionalBlock implements IWrench
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext pContext) {
-		BlockState state = withWater(super.getStateForPlacement(pContext), pContext);
-		Direction horizontalDirection = pContext.getHorizontalDirection();
-		Player player = pContext.getPlayer();
+	public BlockState getPlacementState(ItemPlacementContext pContext) {
+		BlockState state = withWater(super.getPlacementState(pContext), pContext);
+		Direction horizontalDirection = pContext.getHorizontalPlayerFacing();
+		PlayerEntity player = pContext.getPlayer();
 
-		state = state.setValue(FACING, horizontalDirection.getOpposite());
-		if (player != null && player.isShiftKeyDown())
-			state = state.setValue(FACING, horizontalDirection);
+		state = state.with(FACING, horizontalDirection.getOpposite());
+		if (player != null && player.isSneaking())
+			state = state.with(FACING, horizontalDirection);
 
 		return state;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		return AllShapes.CONTROLS.get(pState.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
+		return AllShapes.CONTROLS.get(pState.get(FACING));
 	}
 
 }

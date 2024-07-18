@@ -33,32 +33,32 @@ import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.JukeboxBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkSource;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.JukeboxBlock;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.ChunkSectionPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraft.world.chunk.ChunkManager;
 
 public class ArmBlockEntity extends KineticBlockEntity implements ITransformableBlockEntity {
 
 	// Server
 	List<ArmInteractionPoint> inputs;
 	List<ArmInteractionPoint> outputs;
-	ListTag interactionPointTag;
+	NbtList interactionPointTag;
 
 	// Both
 	float chasedPointProgress;
@@ -140,7 +140,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 			}
 			return;
 		}
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
 		if (phase == Phase.MOVE_TO_INPUT)
@@ -158,7 +158,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 	public void lazyTick() {
 		super.lazyTick();
 
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		if (chasedPointProgress < .5f)
 			return;
@@ -172,22 +172,22 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 		boolean hasMusic = checkForMusicAmong(inputs) || checkForMusicAmong(outputs);
 		if (hasMusic != (phase == Phase.DANCING)) {
 			phase = hasMusic ? Phase.DANCING : Phase.SEARCH_INPUTS;
-			setChanged();
+			markDirty();
 			sendData();
 		}
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return super.createRenderBoundingBox().inflate(3);
+	protected Box createRenderBoundingBox() {
+		return super.createRenderBoundingBox().expand(3);
 	}
 
 	private boolean checkForMusicAmong(List<ArmInteractionPoint> list) {
 		for (ArmInteractionPoint armInteractionPoint : list) {
 			if (!(armInteractionPoint instanceof AllArmInteractionPointTypes.JukeboxPoint))
 				continue;
-			BlockState state = level.getBlockState(armInteractionPoint.getPos());
-			if (state.getOptionalValue(JukeboxBlock.HAS_RECORD)
+			BlockState state = world.getBlockState(armInteractionPoint.getPos());
+			if (state.getOrEmpty(JukeboxBlock.HAS_RECORD)
 					.orElse(false))
 				return true;
 		}
@@ -199,13 +199,13 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 		chasedPointProgress += Math.min(256, Math.abs(getSpeed())) / 1024f;
 		if (chasedPointProgress > 1)
 			chasedPointProgress = 1;
-		if (!level.isClientSide)
+		if (!world.isClient)
 			return !targetReachedPreviously && chasedPointProgress >= 1;
 
 		ArmInteractionPoint targetedInteractionPoint = getTargetedInteractionPoint();
 		ArmAngleTarget previousTarget = this.previousTarget;
 		ArmAngleTarget target = targetedInteractionPoint == null ? ArmAngleTarget.NO_TARGET
-				: targetedInteractionPoint.getTargetAngles(worldPosition, isOnCeiling());
+				: targetedInteractionPoint.getTargetAngles(pos, isOnCeiling());
 
 		baseAngle.setValue(AngleHelper.angleLerp(chasedPointProgress, previousBaseAngle,
 				target == ArmAngleTarget.NO_TARGET ? previousBaseAngle : target.baseAngle));
@@ -217,16 +217,16 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 			previousTarget = ArmAngleTarget.NO_TARGET;
 		float progress = chasedPointProgress == 1 ? 1 : (chasedPointProgress % .5f) * 2;
 
-		lowerArmAngle.setValue(Mth.lerp(progress, previousTarget.lowerArmAngle, target.lowerArmAngle));
-		upperArmAngle.setValue(Mth.lerp(progress, previousTarget.upperArmAngle, target.upperArmAngle));
+		lowerArmAngle.setValue(MathHelper.lerp(progress, previousTarget.lowerArmAngle, target.lowerArmAngle));
+		upperArmAngle.setValue(MathHelper.lerp(progress, previousTarget.upperArmAngle, target.upperArmAngle));
 		headAngle.setValue(AngleHelper.angleLerp(progress, previousTarget.headAngle % 360, target.headAngle % 360));
 
 		return false;
 	}
 
 	protected boolean isOnCeiling() {
-		BlockState state = getBlockState();
-		return hasLevel() && state.getOptionalValue(ArmBlock.CEILING)
+		BlockState state = getCachedState();
+		return hasWorld() && state.getOrEmpty(ArmBlock.CEILING)
 				.orElse(false);
 	}
 
@@ -234,7 +234,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 	public void destroy() {
 		super.destroy();
 		if (!heldItem.isEmpty())
-			Block.popResource(level, worldPosition, heldItem);
+			Block.dropStack(world, pos, heldItem);
 	}
 
 	@Nullable
@@ -308,7 +308,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 					continue;
 
 				ItemStack remainder = armInteractionPoint.insert(held, t);
-				if (ItemStack.matches(remainder, heldItem))
+				if (ItemStack.areEqual(remainder, heldItem))
 					continue;
 
 				selectIndex(false, i);
@@ -338,7 +338,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 		else
 			lastOutputIndex = index;
 		sendData();
-		setChanged();
+		markDirty();
 	}
 
 	protected int getDistributableAmount(ArmInteractionPoint armInteractionPoint) {
@@ -346,7 +346,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 			ItemStack stack = armInteractionPoint.extract(t);
 
 			ItemStack remainder = stack.isEmpty() ? stack : simulateInsertion(stack);
-			if (ItemStack.isSameItem(stack, remainder)) {
+			if (ItemStack.areItemsEqual(stack, remainder)) {
 				return stack.getCount() - remainder.getCount();
 			} else {
 				return stack.getCount();
@@ -384,9 +384,9 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 		chasedPointProgress = 0;
 		chasedPointIndex = -1;
 		sendData();
-		setChanged();
+		markDirty();
 
-		if (!level.isClientSide)
+		if (!world.isClient)
 			award(AllAdvancements.MECHANICAL_ARM);
 	}
 
@@ -403,10 +403,10 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 				chasedPointProgress = 0;
 				chasedPointIndex = -1;
 				sendData();
-				setChanged();
+				markDirty();
 
-				if (!ItemStack.isSameItem(heldItem, prevHeld))
-					level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, .125f,
+				if (!ItemStack.areItemsEqual(heldItem, prevHeld))
+					world.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, .125f,
 							.5f + Create.RANDOM.nextFloat() * .25f);
 				t.commit();
 				return;
@@ -417,13 +417,13 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 		chasedPointProgress = 0;
 		chasedPointIndex = -1;
 		sendData();
-		setChanged();
+		markDirty();
 	}
 
 	public void redstoneUpdate() {
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
-		boolean blockPowered = level.hasNeighborSignal(worldPosition);
+		boolean blockPowered = world.isReceivingRedstonePower(pos);
 		if (blockPowered == redstoneLocked)
 			return;
 		redstoneLocked = blockPowered;
@@ -437,8 +437,8 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 		if (interactionPointTag == null)
 			return;
 
-		for (Tag tag : interactionPointTag) {
-			ArmInteractionPoint.transformPos((CompoundTag) tag, transform);
+		for (NbtElement tag : interactionPointTag) {
+			ArmInteractionPoint.transformPos((NbtCompound) tag, transform);
 		}
 
 		notifyUpdate();
@@ -447,13 +447,13 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 	// ClientLevel#hasChunk (and consequently #isAreaLoaded) always returns true,
 	// so manually check the ChunkSource to avoid weird behavior on the client side
 	protected boolean isAreaActuallyLoaded(BlockPos center, int range) {
-		if (!level.hasChunksAt(center.offset(-range, -range, -range), center.offset(range, range, range))) {
+		if (!world.isRegionLoaded(center.add(-range, -range, -range), center.add(range, range, range))) {
 			return false;
 		}
-		if (level.isClientSide) {
+		if (world.isClient) {
 			int minY = center.getY() - range;
 			int maxY = center.getY() + range;
-			if (maxY < level.getMinBuildHeight() || minY >= level.getMaxBuildHeight()) {
+			if (maxY < world.getBottomY() || minY >= world.getTopY()) {
 				return false;
 			}
 
@@ -462,15 +462,15 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 			int maxX = center.getX() + range;
 			int maxZ = center.getZ() + range;
 
-			int minChunkX = SectionPos.blockToSectionCoord(minX);
-			int maxChunkX = SectionPos.blockToSectionCoord(maxX);
-			int minChunkZ = SectionPos.blockToSectionCoord(minZ);
-			int maxChunkZ = SectionPos.blockToSectionCoord(maxZ);
+			int minChunkX = ChunkSectionPos.getSectionCoord(minX);
+			int maxChunkX = ChunkSectionPos.getSectionCoord(maxX);
+			int minChunkZ = ChunkSectionPos.getSectionCoord(minZ);
+			int maxChunkZ = ChunkSectionPos.getSectionCoord(maxZ);
 
-			ChunkSource chunkSource = level.getChunkSource();
+			ChunkManager chunkSource = world.getChunkManager();
 			for (int chunkX = minChunkX; chunkX <= maxChunkX; ++chunkX) {
 				for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; ++chunkZ) {
-					if (!chunkSource.hasChunk(chunkX, chunkZ)) {
+					if (!chunkSource.isChunkLoaded(chunkX, chunkZ)) {
 						return false;
 					}
 				}
@@ -482,14 +482,14 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 	protected void initInteractionPoints() {
 		if (!updateInteractionPoints || interactionPointTag == null)
 			return;
-		if (!isAreaActuallyLoaded(worldPosition, getRange() + 1))
+		if (!isAreaActuallyLoaded(pos, getRange() + 1))
 			return;
 		inputs.clear();
 		outputs.clear();
 
 		boolean hasBlazeBurner = false;
-		for (Tag tag : interactionPointTag) {
-			ArmInteractionPoint point = ArmInteractionPoint.deserialize((CompoundTag) tag, level, worldPosition);
+		for (NbtElement tag : interactionPointTag) {
+			ArmInteractionPoint point = ArmInteractionPoint.deserialize((NbtCompound) tag, world, pos);
 			if (point == null)
 				continue;
 			if (point.getMode() == Mode.DEPOSIT)
@@ -499,7 +499,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 			hasBlazeBurner |= point instanceof AllArmInteractionPointTypes.BlazeBurnerPoint;
 		}
 
-		if (!level.isClientSide) {
+		if (!world.isClient) {
 			if (outputs.size() >= 10)
 				award(AllAdvancements.ARM_MANY_TARGETS);
 			if (hasBlazeBurner)
@@ -508,26 +508,26 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 
 		updateInteractionPoints = false;
 		sendData();
-		setChanged();
+		markDirty();
 	}
 
-	public void writeInteractionPoints(CompoundTag compound) {
+	public void writeInteractionPoints(NbtCompound compound) {
 		if (updateInteractionPoints && interactionPointTag != null) {
 			compound.put("InteractionPoints", interactionPointTag);
 		} else {
-			ListTag pointsNBT = new ListTag();
+			NbtList pointsNBT = new NbtList();
 			inputs.stream()
-					.map(aip -> aip.serialize(worldPosition))
+					.map(aip -> aip.serialize(pos))
 					.forEach(pointsNBT::add);
 			outputs.stream()
-					.map(aip -> aip.serialize(worldPosition))
+					.map(aip -> aip.serialize(pos))
 					.forEach(pointsNBT::add);
 			compound.put("InteractionPoints", pointsNBT);
 		}
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 
 		writeInteractionPoints(compound);
@@ -541,24 +541,24 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 	}
 
 	@Override
-	public void writeSafe(CompoundTag compound) {
+	public void writeSafe(NbtCompound compound) {
 		super.writeSafe(compound);
 
 		writeInteractionPoints(compound);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		int previousIndex = chasedPointIndex;
 		Phase previousPhase = phase;
-		ListTag interactionPointTagBefore = interactionPointTag;
+		NbtList interactionPointTagBefore = interactionPointTag;
 
 		super.read(compound, clientPacket);
-		heldItem = ItemStack.of(compound.getCompound("HeldItem"));
+		heldItem = ItemStack.fromNbt(compound.getCompound("HeldItem"));
 		phase = NBTHelper.readEnum(compound, "Phase", Phase.class);
 		chasedPointIndex = compound.getInt("TargetPointIndex");
 		chasedPointProgress = compound.getFloat("MovementProgress");
-		interactionPointTag = compound.getList("InteractionPoints", Tag.TAG_COMPOUND);
+		interactionPointTag = compound.getList("InteractionPoints", NbtElement.COMPOUND_TYPE);
 		redstoneLocked = compound.getBoolean("Powered");
 
 		boolean hadGoggles = goggles;
@@ -580,7 +580,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 			if (previousPhase == Phase.MOVE_TO_OUTPUT && previousIndex < outputs.size())
 				previousPoint = outputs.get(previousIndex);
 			previousTarget = previousPoint == null ? ArmAngleTarget.NO_TARGET
-					: previousPoint.getTargetAngles(worldPosition, ceiling);
+					: previousPoint.getTargetAngles(pos, ceiling);
 			if (previousPoint != null)
 				previousBaseAngle = previousTarget.baseAngle;
 
@@ -595,7 +595,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 	}
 
 	@Override
-	public boolean addToTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		if (super.addToTooltip(tooltip, isPlayerSneaking))
 			return true;
 		if (isPlayerSneaking)
@@ -611,8 +611,8 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 		return true;
 	}
 
-	public void setLevel(Level level) {
-		super.setLevel(level);
+	public void setWorld(World level) {
+		super.setWorld(level);
 		for (ArmInteractionPoint input : inputs) {
 			input.setLevel(level);
 		}
@@ -629,9 +629,9 @@ public class ArmBlockEntity extends KineticBlockEntity implements ITransformable
 		}
 
 		@Override
-		public Vec3 getLocalOffset(BlockState state) {
-			int yPos = state.getValue(ArmBlock.CEILING) ? 16 - 3 : 3;
-			Vec3 location = VecHelper.voxelSpace(8, yPos, 15.5);
+		public Vec3d getLocalOffset(BlockState state) {
+			int yPos = state.get(ArmBlock.CEILING) ? 16 - 3 : 3;
+			Vec3d location = VecHelper.voxelSpace(8, yPos, 15.5);
 			location = VecHelper.rotateCentered(location, AngleHelper.horizontalAngle(getSide()), Direction.Axis.Y);
 			return location;
 		}

@@ -9,14 +9,14 @@ import com.simibubi.create.foundation.utility.VecHelper;
 import net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
 import net.fabricmc.fabric.api.rendering.data.v1.RenderAttachedBlockView;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
 public class TrackModel extends ForwardingBakedModel {
 
@@ -30,7 +30,7 @@ public class TrackModel extends ForwardingBakedModel {
 	}
 
 	@Override
-	public void emitBlockQuads(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context) {
+	public void emitBlockQuads(BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context) {
 		if (!(blockView instanceof RenderAttachedBlockView attachmentView
 				&& attachmentView.getBlockEntityRenderAttachment(pos) instanceof Double data)) {
 			super.emitBlockQuads(blockView, state, pos, randomSupplier, context);
@@ -41,7 +41,7 @@ public class TrackModel extends ForwardingBakedModel {
 		double angle = Math.abs(angleIn);
 		boolean flip = angleIn < 0;
 
-		TrackShape trackShape = state.getValue(TrackBlock.SHAPE);
+		TrackShape trackShape = state.get(TrackBlock.SHAPE);
 		double hAngle = switch (trackShape) {
 		case XO -> 0;
 		case PD -> 45;
@@ -50,12 +50,12 @@ public class TrackModel extends ForwardingBakedModel {
 		default -> 0;
 		};
 
-		Vec3 verticalOffset = new Vec3(0, -0.25, 0);
-		Vec3 diagonalRotationPoint =
-			(trackShape == TrackShape.ND || trackShape == TrackShape.PD) ? new Vec3((Mth.SQRT_OF_TWO - 1) / 2, 0, 0)
-				: Vec3.ZERO;
+		Vec3d verticalOffset = new Vec3d(0, -0.25, 0);
+		Vec3d diagonalRotationPoint =
+			(trackShape == TrackShape.ND || trackShape == TrackShape.PD) ? new Vec3d((MathHelper.SQUARE_ROOT_OF_TWO - 1) / 2, 0, 0)
+				: Vec3d.ZERO;
 
-		UnaryOperator<Vec3> transform = v -> {
+		UnaryOperator<Vec3d> transform = v -> {
 			v = v.add(verticalOffset);
 			v = VecHelper.rotateCentered(v, hAngle, Axis.Y);
 			v = v.add(diagonalRotationPoint);

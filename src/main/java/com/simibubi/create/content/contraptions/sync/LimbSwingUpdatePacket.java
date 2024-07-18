@@ -1,34 +1,33 @@
 package com.simibubi.create.content.contraptions.sync;
 
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.Vec3d;
 
 public class LimbSwingUpdatePacket extends SimplePacketBase {
 
 	private int entityId;
-	private Vec3 position;
+	private Vec3d position;
 	private float limbSwing;
 
-	public LimbSwingUpdatePacket(int entityId, Vec3 position, float limbSwing) {
+	public LimbSwingUpdatePacket(int entityId, Vec3d position, float limbSwing) {
 		this.entityId = entityId;
 		this.position = position;
 		this.limbSwing = limbSwing;
 	}
 
-	public LimbSwingUpdatePacket(FriendlyByteBuf buffer) {
+	public LimbSwingUpdatePacket(PacketByteBuf buffer) {
 		entityId = buffer.readInt();
-		position = new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
+		position = new Vec3d(buffer.readDouble(), buffer.readDouble(), buffer.readDouble());
 		limbSwing = buffer.readFloat();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(entityId);
 		buffer.writeDouble(position.x);
 		buffer.writeDouble(position.y);
@@ -39,17 +38,17 @@ public class LimbSwingUpdatePacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ClientLevel world = Minecraft.getInstance().level;
+			ClientWorld world = MinecraftClient.getInstance().world;
 			if (world == null)
 				return;
-			Entity entity = world.getEntity(entityId);
+			Entity entity = world.getEntityById(entityId);
 			if (entity == null)
 				return;
-			CompoundTag data = entity.getCustomData();
+			NbtCompound data = entity.getCustomData();
 			data.putInt("LastOverrideLimbSwingUpdate", 0);
 			data.putFloat("OverrideLimbSwing", limbSwing);
-			entity.lerpTo(position.x, position.y, position.z, entity.getYRot(),
-				entity.getXRot(), 2, false);
+			entity.updateTrackedPositionAndAngles(position.x, position.y, position.z, entity.getYaw(),
+				entity.getPitch(), 2, false);
 		});
 		return true;
 	}

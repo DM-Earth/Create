@@ -1,10 +1,10 @@
 package com.simibubi.create.foundation.config.ui;
 
-import net.minecraft.client.gui.Font;
+import net.minecraft.client.font.TextRenderer;
 
 public class ConfigTextField extends HintableTextFieldWidget {
 
-	public ConfigTextField(Font font, int x, int y, int width, int height) {
+	public ConfigTextField(TextRenderer font, int x, int y, int width, int height) {
 		super(font, x, y, width, height);
 	}
 	

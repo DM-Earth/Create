@@ -9,14 +9,13 @@ import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
 import com.simibubi.create.foundation.block.connected.CTSpriteShiftEntry;
 import com.simibubi.create.foundation.utility.Couple;
-
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.world.BlockRenderView;
 
 public class EncasedCogCTBehaviour extends EncasedCTBehaviour {
 
@@ -34,16 +33,16 @@ public class EncasedCogCTBehaviour extends EncasedCTBehaviour {
 	}
 
 	@Override
-	public boolean connectsTo(BlockState state, BlockState other, BlockAndTintGetter reader, BlockPos pos,
+	public boolean connectsTo(BlockState state, BlockState other, BlockRenderView reader, BlockPos pos,
 		BlockPos otherPos, Direction face) {
-		Axis axis = state.getValue(AXIS);
+		Axis axis = state.get(AXIS);
 		if (large || axis == face.getAxis())
 			return super.connectsTo(state, other, reader, pos, otherPos, face);
 
-		if (other.getBlock() == state.getBlock() && other.getValue(AXIS) == state.getValue(AXIS))
+		if (other.getBlock() == state.getBlock() && other.get(AXIS) == state.get(AXIS))
 			return true;
 
-		BlockState blockState = reader.getBlockState(otherPos.relative(face));
+		BlockState blockState = reader.getBlockState(otherPos.offset(face));
 		if (!ICogWheel.isLargeCog(blockState))
 			return false;
 
@@ -52,16 +51,16 @@ public class EncasedCogCTBehaviour extends EncasedCTBehaviour {
 
 	@Override
 	protected boolean reverseUVs(BlockState state, Direction face) {
-		return state.getValue(AXIS)
+		return state.get(AXIS)
 			.isHorizontal()
 			&& face.getAxis()
 				.isHorizontal()
-			&& face.getAxisDirection() == AxisDirection.POSITIVE;
+			&& face.getDirection() == AxisDirection.POSITIVE;
 	}
 
 	@Override
 	protected boolean reverseUVsVertically(BlockState state, Direction face) {
-		if (!large && state.getValue(AXIS) == Axis.X && face.getAxis() == Axis.Z)
+		if (!large && state.get(AXIS) == Axis.X && face.getAxis() == Axis.Z)
 			return face != Direction.SOUTH;
 		return super.reverseUVsVertically(state, face);
 	}
@@ -71,24 +70,24 @@ public class EncasedCogCTBehaviour extends EncasedCTBehaviour {
 		if (large)
 			return super.reverseUVsHorizontally(state, face);
 
-		if (state.getValue(AXIS)
+		if (state.get(AXIS)
 			.isVertical()
 			&& face.getAxis()
 				.isHorizontal())
 			return true;
 
-		if (state.getValue(AXIS) == Axis.Z && face == Direction.DOWN)
+		if (state.get(AXIS) == Axis.Z && face == Direction.DOWN)
 			return true;
 
 		return super.reverseUVsHorizontally(state, face);
 	}
 
 	@Override
-	public CTSpriteShiftEntry getShift(BlockState state, Direction direction, @Nullable TextureAtlasSprite sprite) {
-		Axis axis = state.getValue(AXIS);
+	public CTSpriteShiftEntry getShift(BlockState state, Direction direction, @Nullable Sprite sprite) {
+		Axis axis = state.get(AXIS);
 		if (large || axis == direction.getAxis()) {
 			if (axis == direction.getAxis() && state
-				.getValue(direction.getAxisDirection() == AxisDirection.POSITIVE ? EncasedCogwheelBlock.TOP_SHAFT
+				.get(direction.getDirection() == AxisDirection.POSITIVE ? EncasedCogwheelBlock.TOP_SHAFT
 					: EncasedCogwheelBlock.BOTTOM_SHAFT))
 				return null;
 			return super.getShift(state, direction, sprite);

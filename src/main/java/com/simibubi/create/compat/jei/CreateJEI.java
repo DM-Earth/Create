@@ -88,26 +88,26 @@ import mezz.jei.api.registration.ISubtypeRegistration;
 import mezz.jei.api.runtime.IIngredientManager;
 import mezz.jei.fabric.ingredients.fluid.JeiFluidIngredient;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.AbstractCookingRecipe;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.ShapedRecipe;
-import net.minecraft.world.item.crafting.SmokingRecipe;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.AbstractCookingRecipe;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.recipe.SmokingRecipe;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.util.Identifier;
 
 @JeiPlugin
 @SuppressWarnings("unused")
 @ParametersAreNonnullByDefault
 public class CreateJEI implements IModPlugin {
 
-	private static final ResourceLocation ID = Create.asResource("jei_plugin");
+	private static final Identifier ID = Create.asResource("jei_plugin");
 
 	private final List<CreateRecipeCategory<?>> allCategories = new ArrayList<>();
 	private IIngredientManager ingredientManager;
@@ -325,7 +325,7 @@ public class CreateJEI implements IModPlugin {
 
 	@Override
 	@Nonnull
-	public ResourceLocation getPluginUid() {
+	public Identifier getPluginUid() {
 		return ID;
 	}
 
@@ -347,9 +347,9 @@ public class CreateJEI implements IModPlugin {
 		registration.getIngredientManager().removeIngredientsAtRuntime(
 				FabricTypes.FLUID_STACK,
 				List.of(
-						new JeiFluidIngredient(AllFluids.POTION.get().getSource(), 1),
+						new JeiFluidIngredient(AllFluids.POTION.get().getStill(), 1),
 						new JeiFluidIngredient(AllFluids.POTION.get().getFlowing(), 1),
-						new JeiFluidIngredient(AllFluids.TEA.get().getSource(), 1),
+						new JeiFluidIngredient(AllFluids.TEA.get().getStill(), 1),
 						new JeiFluidIngredient(AllFluids.TEA.get().getFlowing(), 1)
 				)
 		);
@@ -369,7 +369,7 @@ public class CreateJEI implements IModPlugin {
 	public <T> void registerFluidSubtypes(ISubtypeRegistration registration, IPlatformFluidHelper<T> platformFluidHelper) {
 		PotionFluidSubtypeInterpreter interpreter = new PotionFluidSubtypeInterpreter();
 		PotionFluid potionFluid = AllFluids.POTION.get();
-		registration.registerSubtypeInterpreter(FabricTypes.FLUID_STACK, potionFluid.getSource(), interpreter);
+		registration.registerSubtypeInterpreter(FabricTypes.FLUID_STACK, potionFluid.getStill(), interpreter);
 		registration.registerSubtypeInterpreter(FabricTypes.FLUID_STACK, potionFluid.getFlowing(), interpreter);
 	}
 
@@ -485,7 +485,7 @@ public class CreateJEI implements IModPlugin {
 			return this;
 		}
 
-		public CategoryBuilder<T> catalyst(Supplier<ItemLike> supplier) {
+		public CategoryBuilder<T> catalyst(Supplier<ItemConvertible> supplier) {
 			return catalystStack(() -> new ItemStack(supplier.get()
 				.asItem()));
 		}
@@ -495,12 +495,12 @@ public class CreateJEI implements IModPlugin {
 			return this;
 		}
 
-		public CategoryBuilder<T> itemIcon(ItemLike item) {
+		public CategoryBuilder<T> itemIcon(ItemConvertible item) {
 			icon(new ItemIcon(() -> new ItemStack(item)));
 			return this;
 		}
 
-		public CategoryBuilder<T> doubleItemIcon(ItemLike item1, ItemLike item2) {
+		public CategoryBuilder<T> doubleItemIcon(ItemConvertible item1, ItemConvertible item2) {
 			icon(new DoubleItemIcon(() -> new ItemStack(item1), () -> new ItemStack(item2)));
 			return this;
 		}
@@ -538,16 +538,16 @@ public class CreateJEI implements IModPlugin {
 	}
 
 	public static void consumeAllRecipes(Consumer<Recipe<?>> consumer) {
-		Minecraft.getInstance()
-			.getConnection()
+		MinecraftClient.getInstance()
+			.getNetworkHandler()
 			.getRecipeManager()
-			.getRecipes()
+			.values()
 			.forEach(consumer);
 	}
 
 	public static <T extends Recipe<?>> void consumeTypedRecipes(Consumer<T> consumer, RecipeType<?> type) {
-		Map<ResourceLocation, Recipe<?>> map = ((RecipeManagerAccessor) Minecraft.getInstance()
-			.getConnection()
+		Map<Identifier, Recipe<?>> map = ((RecipeManagerAccessor) MinecraftClient.getInstance()
+			.getNetworkHandler()
 			.getRecipeManager()).port_lib$getRecipes().get(type);
 		if (map != null) {
 			map.values().forEach(recipe -> consumer.accept((T) recipe));
@@ -575,7 +575,7 @@ public class CreateJEI implements IModPlugin {
 		}
 		ItemStack[] matchingStacks = recipe1.getIngredients()
 			.get(0)
-			.getItems();
+			.getMatchingStacks();
 		if (matchingStacks.length == 0) {
 			return false;
 		}
@@ -585,8 +585,8 @@ public class CreateJEI implements IModPlugin {
 	}
 
 	public static boolean doOutputsMatch(Recipe<?> recipe1, Recipe<?> recipe2) {
-		RegistryAccess registryAccess = Minecraft.getInstance().level.registryAccess();
-		return ItemHelper.sameItem(recipe1.getResultItem(registryAccess), recipe2.getResultItem(registryAccess));
+		DynamicRegistryManager registryAccess = MinecraftClient.getInstance().world.getRegistryManager();
+		return ItemHelper.sameItem(recipe1.getOutput(registryAccess), recipe2.getOutput(registryAccess));
 	}
 
 }

@@ -1,19 +1,17 @@
 package com.simibubi.create.foundation.render;
 
 import java.util.SortedMap;
-
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.TexturedRenderLayers;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.chunk.BlockBufferBuilderStorage;
+import net.minecraft.client.render.model.ModelLoader;
+import net.minecraft.util.Util;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
-import net.minecraft.Util;
-import net.minecraft.client.renderer.ChunkBufferBuilderPack;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.Sheets;
-import net.minecraft.client.resources.model.ModelBakery;
 
-public class SuperRenderTypeBuffer implements MultiBufferSource {
+public class SuperRenderTypeBuffer implements VertexConsumerProvider {
 
 	private static final SuperRenderTypeBuffer INSTANCE = new SuperRenderTypeBuffer();
 
@@ -31,63 +29,63 @@ public class SuperRenderTypeBuffer implements MultiBufferSource {
 		lateBuffer = new SuperRenderTypeBufferPhase();
 	}
 
-	public VertexConsumer getEarlyBuffer(RenderType type) {
+	public VertexConsumer getEarlyBuffer(RenderLayer type) {
 		return earlyBuffer.bufferSource.getBuffer(type);
 	}
 
 	@Override
-	public VertexConsumer getBuffer(RenderType type) {
+	public VertexConsumer getBuffer(RenderLayer type) {
 		return defaultBuffer.bufferSource.getBuffer(type);
 	}
 
-	public VertexConsumer getLateBuffer(RenderType type) {
+	public VertexConsumer getLateBuffer(RenderLayer type) {
 		return lateBuffer.bufferSource.getBuffer(type);
 	}
 
 	public void draw() {
-		earlyBuffer.bufferSource.endBatch();
-		defaultBuffer.bufferSource.endBatch();
-		lateBuffer.bufferSource.endBatch();
+		earlyBuffer.bufferSource.draw();
+		defaultBuffer.bufferSource.draw();
+		lateBuffer.bufferSource.draw();
 	}
 
-	public void draw(RenderType type) {
-		earlyBuffer.bufferSource.endBatch(type);
-		defaultBuffer.bufferSource.endBatch(type);
-		lateBuffer.bufferSource.endBatch(type);
+	public void draw(RenderLayer type) {
+		earlyBuffer.bufferSource.draw(type);
+		defaultBuffer.bufferSource.draw(type);
+		lateBuffer.bufferSource.draw(type);
 	}
 
 	private static class SuperRenderTypeBufferPhase {
 
 		// Visible clones from RenderBuffers
-		private final ChunkBufferBuilderPack fixedBufferPack = new ChunkBufferBuilderPack();
-		private final SortedMap<RenderType, BufferBuilder> fixedBuffers = Util.make(new Object2ObjectLinkedOpenHashMap<>(), map -> {
-				map.put(Sheets.solidBlockSheet(), fixedBufferPack.builder(RenderType.solid()));
-				map.put(Sheets.cutoutBlockSheet(), fixedBufferPack.builder(RenderType.cutout()));
-				map.put(Sheets.bannerSheet(), fixedBufferPack.builder(RenderType.cutoutMipped()));
-				map.put(Sheets.translucentCullBlockSheet(), fixedBufferPack.builder(RenderType.translucent()));
-				put(map, Sheets.shieldSheet());
-				put(map, Sheets.bedSheet());
-				put(map, Sheets.shulkerBoxSheet());
-				put(map, Sheets.signSheet());
-				put(map, Sheets.chestSheet());
-				put(map, RenderType.translucentNoCrumbling());
-				put(map, RenderType.armorGlint());
-				put(map, RenderType.armorEntityGlint());
-				put(map, RenderType.glint());
-				put(map, RenderType.glintDirect());
-				put(map, RenderType.glintTranslucent());
-				put(map, RenderType.entityGlint());
-				put(map, RenderType.entityGlintDirect());
-				put(map, RenderType.waterMask());
+		private final BlockBufferBuilderStorage fixedBufferPack = new BlockBufferBuilderStorage();
+		private final SortedMap<RenderLayer, BufferBuilder> fixedBuffers = Util.make(new Object2ObjectLinkedOpenHashMap<>(), map -> {
+				map.put(TexturedRenderLayers.getEntitySolid(), fixedBufferPack.get(RenderLayer.getSolid()));
+				map.put(TexturedRenderLayers.getEntityCutout(), fixedBufferPack.get(RenderLayer.getCutout()));
+				map.put(TexturedRenderLayers.getBannerPatterns(), fixedBufferPack.get(RenderLayer.getCutoutMipped()));
+				map.put(TexturedRenderLayers.getEntityTranslucentCull(), fixedBufferPack.get(RenderLayer.getTranslucent()));
+				put(map, TexturedRenderLayers.getShieldPatterns());
+				put(map, TexturedRenderLayers.getBeds());
+				put(map, TexturedRenderLayers.getShulkerBoxes());
+				put(map, TexturedRenderLayers.getSign());
+				put(map, TexturedRenderLayers.getChest());
+				put(map, RenderLayer.getTranslucentNoCrumbling());
+				put(map, RenderLayer.getArmorGlint());
+				put(map, RenderLayer.getArmorEntityGlint());
+				put(map, RenderLayer.getGlint());
+				put(map, RenderLayer.getDirectGlint());
+				put(map, RenderLayer.getGlintTranslucent());
+				put(map, RenderLayer.getEntityGlint());
+				put(map, RenderLayer.getDirectEntityGlint());
+				put(map, RenderLayer.getWaterMask());
 				put(map, RenderTypes.getOutlineSolid());
-				ModelBakery.DESTROY_TYPES.forEach((p_173062_) -> {
+				ModelLoader.BLOCK_DESTRUCTION_RENDER_LAYERS.forEach((p_173062_) -> {
 					put(map, p_173062_);
 				});
 			});
-		private final MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediateWithBuffers(fixedBuffers, new BufferBuilder(256));
+		private final VertexConsumerProvider.Immediate bufferSource = VertexConsumerProvider.immediate(fixedBuffers, new BufferBuilder(256));
 
-		private static void put(Object2ObjectLinkedOpenHashMap<RenderType, BufferBuilder> map, RenderType type) {
-			map.put(type, new BufferBuilder(type.bufferSize()));
+		private static void put(Object2ObjectLinkedOpenHashMap<RenderLayer, BufferBuilder> map, RenderLayer type) {
+			map.put(type, new BufferBuilder(type.getExpectedBufferSize()));
 		}
 
 	}

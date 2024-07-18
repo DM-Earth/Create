@@ -8,20 +8,19 @@ import com.simibubi.create.AllBogeyStyles;
 import com.simibubi.create.foundation.blockEntity.CachedRenderBBBlockEntity;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.world.World;
 
 public abstract class AbstractBogeyBlockEntity extends CachedRenderBBBlockEntity {
 	public static final String BOGEY_STYLE_KEY = "BogeyStyle";
 	public static final String BOGEY_DATA_KEY = "BogeyData";
 
-	private CompoundTag bogeyData;
+	private NbtCompound bogeyData;
 
 	public AbstractBogeyBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
@@ -29,31 +28,31 @@ public abstract class AbstractBogeyBlockEntity extends CachedRenderBBBlockEntity
 
 	public abstract BogeyStyle getDefaultStyle();
 
-	public CompoundTag getBogeyData() {
+	public NbtCompound getBogeyData() {
 		if (this.bogeyData == null || !this.bogeyData.contains(BOGEY_STYLE_KEY))
 			this.bogeyData = this.createBogeyData();
 		return this.bogeyData;
 	}
 
-	public void setBogeyData(@NotNull CompoundTag newData) {
+	public void setBogeyData(@NotNull NbtCompound newData) {
 		if (!newData.contains(BOGEY_STYLE_KEY)) {
-			ResourceLocation style = getDefaultStyle().name;
+			Identifier style = getDefaultStyle().name;
 			NBTHelper.writeResourceLocation(newData, BOGEY_STYLE_KEY, style);
 		}
 		this.bogeyData = newData;
 	}
 
 	public void setBogeyStyle(@NotNull BogeyStyle style) {
-		ResourceLocation location = style.name;
-		CompoundTag data = this.getBogeyData();
+		Identifier location = style.name;
+		NbtCompound data = this.getBogeyData();
 		NBTHelper.writeResourceLocation(data, BOGEY_STYLE_KEY, location);
 		markUpdated();
 	}
 
 	@NotNull
 	public BogeyStyle getStyle() {
-		CompoundTag data = this.getBogeyData();
-		ResourceLocation currentStyle = NBTHelper.readResourceLocation(data, BOGEY_STYLE_KEY);
+		NbtCompound data = this.getBogeyData();
+		Identifier currentStyle = NBTHelper.readResourceLocation(data, BOGEY_STYLE_KEY);
 		BogeyStyle style = AllBogeyStyles.BOGEY_STYLES.get(currentStyle);
 		if (style == null) {
 			setBogeyStyle(getDefaultStyle());
@@ -63,34 +62,34 @@ public abstract class AbstractBogeyBlockEntity extends CachedRenderBBBlockEntity
 	}
 
 	@Override
-	protected void saveAdditional(@NotNull CompoundTag pTag) {
-		CompoundTag data = this.getBogeyData();
+	protected void writeNbt(@NotNull NbtCompound pTag) {
+		NbtCompound data = this.getBogeyData();
 		if (data != null) pTag.put(BOGEY_DATA_KEY, data); // Now contains style
-		super.saveAdditional(pTag);
+		super.writeNbt(pTag);
 	}
 
 	@Override
-	public void load(CompoundTag pTag) {
+	public void readNbt(NbtCompound pTag) {
 		if (pTag.contains(BOGEY_DATA_KEY))
 			this.bogeyData = pTag.getCompound(BOGEY_DATA_KEY);
 		else
 			this.bogeyData = this.createBogeyData();
-		super.load(pTag);
+		super.readNbt(pTag);
 	}
 
-	private CompoundTag createBogeyData() {
-		CompoundTag nbt = new CompoundTag();
+	private NbtCompound createBogeyData() {
+		NbtCompound nbt = new NbtCompound();
 		NBTHelper.writeResourceLocation(nbt, BOGEY_STYLE_KEY, getDefaultStyle().name);
 		boolean upsideDown = false;
-		if (getBlockState().getBlock() instanceof AbstractBogeyBlock<?> bogeyBlock)
-			upsideDown = bogeyBlock.isUpsideDown(getBlockState());
+		if (getCachedState().getBlock() instanceof AbstractBogeyBlock<?> bogeyBlock)
+			upsideDown = bogeyBlock.isUpsideDown(getCachedState());
 		nbt.putBoolean(UPSIDE_DOWN_KEY, upsideDown);
 		return nbt;
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return super.createRenderBoundingBox().inflate(2);
+	protected Box createRenderBoundingBox() {
+		return super.createRenderBoundingBox().expand(2);
 	}
 
 	// Ponder
@@ -101,7 +100,7 @@ public abstract class AbstractBogeyBlockEntity extends CachedRenderBBBlockEntity
 	}
 
 	public void animate(float distanceMoved) {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!(blockState.getBlock() instanceof AbstractBogeyBlock<?> type))
 			return;
 		double angleDiff = 360 * distanceMoved / (Math.PI * 2 * type.getWheelRadius());
@@ -110,9 +109,9 @@ public abstract class AbstractBogeyBlockEntity extends CachedRenderBBBlockEntity
 	}
 
 	private void markUpdated() {
-		setChanged();
-		Level level = getLevel();
+		markDirty();
+		World level = getWorld();
 		if (level != null)
-			getLevel().sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+			getWorld().updateListeners(getPos(), getCachedState(), getCachedState(), 3);
 	}
 }

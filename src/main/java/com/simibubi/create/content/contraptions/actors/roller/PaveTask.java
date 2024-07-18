@@ -3,10 +3,8 @@ package com.simibubi.create.content.contraptions.actors.roller;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
+import net.minecraft.util.math.BlockPos;
 import com.simibubi.create.foundation.utility.Couple;
-
-import net.minecraft.core.BlockPos;
 
 public class PaveTask {
 	

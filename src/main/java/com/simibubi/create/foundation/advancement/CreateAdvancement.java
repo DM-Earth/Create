@@ -3,32 +3,30 @@ package com.simibubi.create.foundation.advancement;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
-
+import net.minecraft.advancement.Advancement;
+import net.minecraft.advancement.AdvancementFrame;
+import net.minecraft.advancement.criterion.CriterionConditions;
+import net.minecraft.advancement.criterion.InventoryChangedCriterion;
+import net.minecraft.advancement.criterion.ItemCriterion;
+import net.minecraft.block.Block;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.ItemStack;
+import net.minecraft.predicate.NbtPredicate;
+import net.minecraft.predicate.NumberRange;
+import net.minecraft.predicate.item.EnchantmentPredicate;
+import net.minecraft.predicate.item.ItemPredicate;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.utility.Components;
 import com.tterrag.registrate.util.entry.ItemProviderEntry;
 
-import net.minecraft.advancements.Advancement;
-import net.minecraft.advancements.CriterionTriggerInstance;
-import net.minecraft.advancements.FrameType;
-import net.minecraft.advancements.critereon.EnchantmentPredicate;
-import net.minecraft.advancements.critereon.InventoryChangeTrigger;
-import net.minecraft.advancements.critereon.ItemPredicate;
-import net.minecraft.advancements.critereon.ItemUsedOnLocationTrigger;
-import net.minecraft.advancements.critereon.MinMaxBounds;
-import net.minecraft.advancements.critereon.NbtPredicate;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Block;
-
 public class CreateAdvancement {
 
-	static final ResourceLocation BACKGROUND = Create.asResource("textures/gui/advancements.png");
+	static final Identifier BACKGROUND = Create.asResource("textures/gui/advancements.png");
 	static final String LANG = "advancement." + Create.ID + ".";
 	static final String SECRET_SUFFIX = "\n\u00A77(Hidden Advancement)";
 
@@ -43,7 +41,7 @@ public class CreateAdvancement {
 	private String description;
 
 	public CreateAdvancement(String id, UnaryOperator<Builder> b) {
-		this.builder = Advancement.Builder.advancement();
+		this.builder = Advancement.Builder.create();
 		this.id = id;
 
 		Builder t = new Builder();
@@ -51,11 +49,11 @@ public class CreateAdvancement {
 
 		if (!t.externalTrigger) {
 			builtinTrigger = AllTriggers.addSimple(id + "_builtin");
-			builder.addCriterion("0", builtinTrigger.instance());
+			builder.criterion("0", builtinTrigger.instance());
 		}
 
 		builder.display(t.icon, Components.translatable(titleKey()),
-			Components.translatable(descriptionKey()).withStyle(s -> s.withColor(0xDBA213)),
+			Components.translatable(descriptionKey()).styled(s -> s.withColor(0xDBA213)),
 			id.equals("root") ? BACKGROUND : null, t.type.frame, t.type.toast, t.type.announce, t.type.hide);
 
 		if (t.type == TaskType.SECRET)
@@ -72,21 +70,21 @@ public class CreateAdvancement {
 		return titleKey() + ".desc";
 	}
 
-	public boolean isAlreadyAwardedTo(Player player) {
-		if (!(player instanceof ServerPlayer sp))
+	public boolean isAlreadyAwardedTo(PlayerEntity player) {
+		if (!(player instanceof ServerPlayerEntity sp))
 			return true;
 		Advancement advancement = sp.getServer()
-			.getAdvancements()
-			.getAdvancement(Create.asResource(id));
+			.getAdvancementLoader()
+			.get(Create.asResource(id));
 		if (advancement == null)
 			return true;
-		return sp.getAdvancements()
-			.getOrStartProgress(advancement)
+		return sp.getAdvancementTracker()
+			.getProgress(advancement)
 			.isDone();
 	}
 
-	public void awardTo(Player player) {
-		if (!(player instanceof ServerPlayer sp))
+	public void awardTo(PlayerEntity player) {
+		if (!(player instanceof ServerPlayerEntity sp))
 			return;
 		if (builtinTrigger == null)
 			throw new UnsupportedOperationException(
@@ -97,7 +95,7 @@ public class CreateAdvancement {
 	void save(Consumer<Advancement> t) {
 		if (parent != null)
 			builder.parent(parent.datagenResult);
-		datagenResult = builder.save(t, Create.asResource(id)
+		datagenResult = builder.build(t, Create.asResource(id)
 			.toString());
 	}
 
@@ -108,20 +106,20 @@ public class CreateAdvancement {
 
 	static enum TaskType {
 
-		SILENT(FrameType.TASK, false, false, false),
-		NORMAL(FrameType.TASK, true, false, false),
-		NOISY(FrameType.TASK, true, true, false),
-		EXPERT(FrameType.GOAL, true, true, false),
-		SECRET(FrameType.GOAL, true, true, true),
+		SILENT(AdvancementFrame.TASK, false, false, false),
+		NORMAL(AdvancementFrame.TASK, true, false, false),
+		NOISY(AdvancementFrame.TASK, true, true, false),
+		EXPERT(AdvancementFrame.GOAL, true, true, false),
+		SECRET(AdvancementFrame.GOAL, true, true, true),
 
 		;
 
-		private FrameType frame;
+		private AdvancementFrame frame;
 		private boolean toast;
 		private boolean announce;
 		private boolean hide;
 
-		private TaskType(FrameType frame, boolean toast, boolean announce, boolean hide) {
+		private TaskType(AdvancementFrame frame, boolean toast, boolean announce, boolean hide) {
 			this.frame = frame;
 			this.toast = toast;
 			this.announce = announce;
@@ -150,7 +148,7 @@ public class CreateAdvancement {
 			return icon(item.asStack());
 		}
 
-		Builder icon(ItemLike item) {
+		Builder icon(ItemConvertible item) {
 			return icon(new ItemStack(item));
 		}
 
@@ -170,11 +168,11 @@ public class CreateAdvancement {
 		}
 
 		Builder whenBlockPlaced(Block block) {
-			return externalTrigger(ItemUsedOnLocationTrigger.TriggerInstance.placedBlock(block));
+			return externalTrigger(ItemCriterion.Conditions.createPlacedBlock(block));
 		}
 
 		Builder whenIconCollected() {
-			return externalTrigger(InventoryChangeTrigger.TriggerInstance.hasItems(icon.getItem()));
+			return externalTrigger(InventoryChangedCriterion.Conditions.items(icon.getItem()));
 		}
 
 		Builder whenItemCollected(ItemProviderEntry<?> item) {
@@ -182,22 +180,22 @@ public class CreateAdvancement {
 				.getItem());
 		}
 
-		Builder whenItemCollected(ItemLike itemProvider) {
-			return externalTrigger(InventoryChangeTrigger.TriggerInstance.hasItems(itemProvider));
+		Builder whenItemCollected(ItemConvertible itemProvider) {
+			return externalTrigger(InventoryChangedCriterion.Conditions.items(itemProvider));
 		}
 
 		Builder whenItemCollected(TagKey<Item> tag) {
-			return externalTrigger(InventoryChangeTrigger.TriggerInstance
-				.hasItems(new ItemPredicate(tag, null, MinMaxBounds.Ints.ANY, MinMaxBounds.Ints.ANY,
-					EnchantmentPredicate.NONE, EnchantmentPredicate.NONE, null, NbtPredicate.ANY)));
+			return externalTrigger(InventoryChangedCriterion.Conditions
+				.items(new ItemPredicate(tag, null, NumberRange.IntRange.ANY, NumberRange.IntRange.ANY,
+					EnchantmentPredicate.ARRAY_OF_ANY, EnchantmentPredicate.ARRAY_OF_ANY, null, NbtPredicate.ANY)));
 		}
 
 		Builder awardedForFree() {
-			return externalTrigger(InventoryChangeTrigger.TriggerInstance.hasItems(new ItemLike[] {}));
+			return externalTrigger(InventoryChangedCriterion.Conditions.items(new ItemConvertible[] {}));
 		}
 
-		Builder externalTrigger(CriterionTriggerInstance trigger) {
-			builder.addCriterion(String.valueOf(keyIndex), trigger);
+		Builder externalTrigger(CriterionConditions trigger) {
+			builder.criterion(String.valueOf(keyIndex), trigger);
 			externalTrigger = true;
 			keyIndex++;
 			return this;

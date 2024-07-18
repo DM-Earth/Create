@@ -6,12 +6,11 @@ import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
 import io.github.fabricators_of_create.porting_lib.models.generators.block.BlockModelProvider;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.DirectionalBlock;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.FacingBlock;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
 
 public class SpecialCopycatPanelBlockState extends SpecialBlockStateGen {
 
@@ -32,7 +31,7 @@ public class SpecialCopycatPanelBlockState extends SpecialBlockStateGen {
 	}
 
 	private Direction facing(BlockState state) {
-		return state.getValue(DirectionalBlock.FACING);
+		return state.get(FacingBlock.FACING);
 	}
 
 	@Override

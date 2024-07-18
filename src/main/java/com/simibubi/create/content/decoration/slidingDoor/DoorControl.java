@@ -9,12 +9,11 @@ import com.simibubi.create.foundation.gui.widget.SelectionScrollInput;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.Entity;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.Direction;
 
 public enum DoorControl {
 
@@ -44,9 +43,9 @@ public enum DoorControl {
 		DoorControl initial) {
 
 		DoorControl playerFacing = NONE;
-		Entity cameraEntity = Minecraft.getInstance().cameraEntity;
+		Entity cameraEntity = MinecraftClient.getInstance().cameraEntity;
 		if (cameraEntity != null) {
-			Direction direction = cameraEntity.getDirection();
+			Direction direction = cameraEntity.getHorizontalFacing();
 			if (direction == Direction.EAST)
 				playerFacing = EAST;
 			if (direction == Direction.WEST)

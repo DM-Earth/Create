@@ -14,15 +14,14 @@ import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.Pointing;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class EjectorScenes {
 
@@ -47,7 +46,7 @@ public class EjectorScenes {
 			.withItem(asStack), 50);
 		scene.idle(7);
 		Object slot = new Object();
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, slot, new AABB(targetPos), 160);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, slot, new Box(targetPos), 160);
 
 		scene.overlay.showText(70)
 			.attachKeyFrame()
@@ -75,10 +74,10 @@ public class EjectorScenes {
 		scene.idle(70);
 
 		slot = new Object();
-		AABB bb = new AABB(ejectorPos.west());
+		Box bb = new Box(ejectorPos.west());
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, slot, bb, 20);
 		scene.idle(10);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, slot, bb.expandTowards(-15, 15, 0), 100);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, slot, bb.stretch(-15, 15, 0), 100);
 		scene.idle(10);
 
 		scene.overlay.showText(60)
@@ -88,7 +87,7 @@ public class EjectorScenes {
 			.pointAt(util.vector.blockSurface(targetPos, Direction.WEST))
 			.placeNearTarget();
 		scene.idle(70);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, new Object(), bb.move(-2, 0, -1), 60);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.RED, new Object(), bb.offset(-2, 0, -1), 60);
 		scene.idle(10);
 		scene.overlay.showText(50)
 			.colored(PonderPalette.RED)
@@ -151,9 +150,9 @@ public class EjectorScenes {
 		scene.world.setBlock(targetPos, AllBlocks.ANDESITE_CASING.getDefaultState(), false);
 		scene.world.showSection(targetS, Direction.NORTH);
 
-		Vec3 input = util.vector.blockSurface(ejectorPos, Direction.WEST)
+		Vec3d input = util.vector.blockSurface(ejectorPos, Direction.WEST)
 			.add(0, -2 / 16f, 0);
-		Vec3 topOfSlot = input.add(0, 2 / 16f, 0);
+		Vec3d topOfSlot = input.add(0, 2 / 16f, 0);
 		scene.overlay.showControls(new InputWindowElement(topOfSlot, Pointing.DOWN).rightClick(), 60);
 		scene.overlay.showFilterSlotInput(input, Direction.WEST, 80);
 		scene.idle(10);
@@ -252,9 +251,9 @@ public class EjectorScenes {
 			.placeNearTarget();
 		scene.idle(110);
 
-		Vec3 input = util.vector.blockSurface(ejectorPos, Direction.NORTH)
+		Vec3d input = util.vector.blockSurface(ejectorPos, Direction.NORTH)
 			.subtract(0, 2 / 16f, 0);
-		Vec3 topOfSlot = input.add(0, 2 / 16f, 0);
+		Vec3d topOfSlot = input.add(0, 2 / 16f, 0);
 		scene.overlay.showFilterSlotInput(input, Direction.NORTH, 80);
 		scene.idle(10);
 		scene.overlay.showText(80)
@@ -304,7 +303,7 @@ public class EjectorScenes {
 		scene.world.showSection(redstone, Direction.EAST);
 
 		BlockPos ejectorPos = util.grid.at(4, 1, 2);
-		Vec3 topOf = util.vector.topOf(ejectorPos.above(2));
+		Vec3d topOf = util.vector.topOf(ejectorPos.up(2));
 		ItemStack copper = new ItemStack(Items.COPPER_INGOT);
 
 		for (int i = 0; i < 3; i++) {

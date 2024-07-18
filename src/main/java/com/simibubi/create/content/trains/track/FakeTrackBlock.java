@@ -6,61 +6,61 @@ import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 import io.github.fabricators_of_create.porting_lib.block.CustomLandingEffectsBlock;
 import io.github.fabricators_of_create.porting_lib.block.CustomRunningEffectsBlock;
 import net.fabricmc.fabric.api.registry.LandPathNodeTypesRegistry;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.pathfinder.BlockPathTypes;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockEntityProvider;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.PathNodeType;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
-public class FakeTrackBlock extends Block implements EntityBlock, ProperWaterloggedBlock, CustomLandingEffectsBlock, CustomRunningEffectsBlock {
+public class FakeTrackBlock extends Block implements BlockEntityProvider, ProperWaterloggedBlock, CustomLandingEffectsBlock, CustomRunningEffectsBlock {
 
-	public FakeTrackBlock(Properties p_49795_) {
-		super(p_49795_.randomTicks()
-			.noCollission()
-			.noOcclusion());
-		registerDefaultState(defaultBlockState().setValue(WATERLOGGED, false));
-		LandPathNodeTypesRegistry.register(this, BlockPathTypes.DAMAGE_OTHER, null);
+	public FakeTrackBlock(Settings p_49795_) {
+		super(p_49795_.ticksRandomly()
+			.noCollision()
+			.nonOpaque());
+		setDefaultState(getDefaultState().with(WATERLOGGED, false));
+		LandPathNodeTypesRegistry.register(this, PathNodeType.DAMAGE_OTHER, null);
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		return Shapes.empty();
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
+		return VoxelShapes.empty();
 	}
 
 	@Override
-	public RenderShape getRenderShape(BlockState pState) {
-		return RenderShape.ENTITYBLOCK_ANIMATED;
+	public BlockRenderType getRenderType(BlockState pState) {
+		return BlockRenderType.ENTITYBLOCK_ANIMATED;
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
-		super.createBlockStateDefinition(pBuilder.add(WATERLOGGED));
+	protected void appendProperties(Builder<Block, BlockState> pBuilder) {
+		super.appendProperties(pBuilder.add(WATERLOGGED));
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext pContext) {
-		return withWater(super.getStateForPlacement(pContext), pContext);
+	public BlockState getPlacementState(ItemPlacementContext pContext) {
+		return withWater(super.getPlacementState(pContext), pContext);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pDirection, BlockState pNeighborState,
+		WorldAccess pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
 		updateWater(pLevel, pState, pCurrentPos);
 		return pState;
 	}
@@ -71,29 +71,29 @@ public class FakeTrackBlock extends Block implements EntityBlock, ProperWaterlog
 	}
 
 	@Override
-	public void randomTick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
+	public void randomTick(BlockState pState, ServerWorld pLevel, BlockPos pPos, Random pRandom) {
 		if (pLevel.getBlockEntity(pPos) instanceof FakeTrackBlockEntity be)
 			be.randomTick();
 	}
 
-	public static void keepAlive(LevelAccessor level, BlockPos pos) {
+	public static void keepAlive(WorldAccess level, BlockPos pos) {
 		if (level.getBlockEntity(pos) instanceof FakeTrackBlockEntity be)
 			be.keepAlive();
 	}
 
 	@Override
-	public BlockEntity newBlockEntity(BlockPos pPos, BlockState pState) {
+	public BlockEntity createBlockEntity(BlockPos pPos, BlockState pState) {
 		return AllBlockEntityTypes.FAKE_TRACK.create(pPos, pState);
 	}
 
 	@Override
-	public boolean addLandingEffects(BlockState state1, ServerLevel level, BlockPos pos, BlockState state2,
+	public boolean addLandingEffects(BlockState state1, ServerWorld level, BlockPos pos, BlockState state2,
 		LivingEntity entity, int numberOfParticles) {
 		return true;
 	}
 
 	@Override
-	public boolean addRunningEffects(BlockState state, Level level, BlockPos pos, Entity entity) {
+	public boolean addRunningEffects(BlockState state, World level, BlockPos pos, Entity entity) {
 		return true;
 	}
 

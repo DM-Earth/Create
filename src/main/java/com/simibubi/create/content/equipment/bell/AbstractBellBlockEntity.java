@@ -6,15 +6,14 @@ import com.jozufozu.flywheel.core.PartialModel;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public abstract class AbstractBellBlockEntity extends SmartBlockEntity {
 
@@ -31,7 +30,7 @@ public abstract class AbstractBellBlockEntity extends SmartBlockEntity {
 	@Override
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) { }
 
-	public boolean ring(Level world, BlockPos pos, Direction direction) {
+	public boolean ring(World world, BlockPos pos, Direction direction) {
 		isRinging = true;
 		ringingTicks = 0;
 		ringDirection = direction;
@@ -54,7 +53,7 @@ public abstract class AbstractBellBlockEntity extends SmartBlockEntity {
 	}
 	
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 		if (!clientPacket || ringingTicks != 0 || !isRinging)
 			return;
@@ -62,7 +61,7 @@ public abstract class AbstractBellBlockEntity extends SmartBlockEntity {
 	}
 	
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		super.read(tag, clientPacket);
 		if (!clientPacket || !tag.contains("Ringing"))
 			return;

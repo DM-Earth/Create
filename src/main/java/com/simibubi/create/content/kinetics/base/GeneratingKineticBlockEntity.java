@@ -1,19 +1,17 @@
 package com.simibubi.create.content.kinetics.base;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import com.simibubi.create.content.kinetics.KineticNetwork;
 import com.simibubi.create.content.kinetics.base.IRotate.SpeedLevel;
 import com.simibubi.create.content.kinetics.base.IRotate.StressImpact;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public abstract class GeneratingKineticBlockEntity extends KineticBlockEntity {
 
@@ -37,7 +35,7 @@ public abstract class GeneratingKineticBlockEntity extends KineticBlockEntity {
 	@Override
 	public void setSource(BlockPos source) {
 		super.setSource(source);
-		BlockEntity blockEntity = level.getBlockEntity(source);
+		BlockEntity blockEntity = world.getBlockEntity(source);
 		if (!(blockEntity instanceof KineticBlockEntity))
 			return;
 		KineticBlockEntity sourceBE = (KineticBlockEntity) blockEntity;
@@ -55,19 +53,19 @@ public abstract class GeneratingKineticBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		boolean added = super.addToGoggleTooltip(tooltip, isPlayerSneaking);
 		if (!StressImpact.isEnabled())
 			return added;
 
 		float stressBase = calculateAddedStressCapacity();
-		if (Mth.equal(stressBase, 0))
+		if (MathHelper.approximatelyEquals(stressBase, 0))
 			return added;
 
 		Lang.translate("gui.goggles.generator_stats")
 			.forGoggles(tooltip);
 		Lang.translate("tooltip.capacityProvided")
-			.style(ChatFormatting.GRAY)
+			.style(Formatting.GRAY)
 			.forGoggles(tooltip);
 
 		float speed = getTheoreticalSpeed();
@@ -79,10 +77,10 @@ public abstract class GeneratingKineticBlockEntity extends KineticBlockEntity {
 
 		Lang.number(stressTotal)
 			.translate("generic.unit.stress")
-			.style(ChatFormatting.AQUA)
+			.style(Formatting.AQUA)
 			.space()
 			.add(Lang.translate("gui.goggles.at_current_speed")
-				.style(ChatFormatting.DARK_GRAY))
+				.style(Formatting.DARK_GRAY))
 			.forGoggles(tooltip, 1);
 
 		return true;
@@ -92,7 +90,7 @@ public abstract class GeneratingKineticBlockEntity extends KineticBlockEntity {
 		float speed = getGeneratedSpeed();
 		float prevSpeed = this.speed;
 
-		if (level == null || level.isClientSide)
+		if (world == null || world.isClient)
 			return;
 
 		if (prevSpeed != speed) {
@@ -146,7 +144,7 @@ public abstract class GeneratingKineticBlockEntity extends KineticBlockEntity {
 			// Staying below Overpowered speed
 			if (Math.abs(prevSpeed) >= Math.abs(speed)) {
 				if (Math.signum(prevSpeed) != Math.signum(speed))
-					level.destroyBlock(worldPosition, true);
+					world.breakBlock(pos, true);
 				return;
 			}
 
@@ -166,6 +164,6 @@ public abstract class GeneratingKineticBlockEntity extends KineticBlockEntity {
 	}
 
 	public Long createNetworkId() {
-		return worldPosition.asLong();
+		return pos.asLong();
 	}
 }

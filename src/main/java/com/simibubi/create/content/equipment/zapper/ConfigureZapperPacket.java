@@ -1,41 +1,40 @@
 package com.simibubi.create.content.equipment.zapper;
 
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Hand;
 
 public abstract class ConfigureZapperPacket extends SimplePacketBase {
 
-	protected InteractionHand hand;
+	protected Hand hand;
 	protected PlacementPatterns pattern;
 
-	public ConfigureZapperPacket(InteractionHand hand, PlacementPatterns pattern) {
+	public ConfigureZapperPacket(Hand hand, PlacementPatterns pattern) {
 		this.hand = hand;
 		this.pattern = pattern;
 	}
 
-	public ConfigureZapperPacket(FriendlyByteBuf buffer) {
-		hand = buffer.readEnum(InteractionHand.class);
-		pattern = buffer.readEnum(PlacementPatterns.class);
+	public ConfigureZapperPacket(PacketByteBuf buffer) {
+		hand = buffer.readEnumConstant(Hand.class);
+		pattern = buffer.readEnumConstant(PlacementPatterns.class);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
-		buffer.writeEnum(hand);
-		buffer.writeEnum(pattern);
+	public void write(PacketByteBuf buffer) {
+		buffer.writeEnumConstant(hand);
+		buffer.writeEnumConstant(pattern);
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null) {
 				return;
 			}
-			ItemStack stack = player.getItemInHand(hand);
+			ItemStack stack = player.getStackInHand(hand);
 			if (stack.getItem() instanceof ZapperItem) {
 				configureZapper(stack);
 			}

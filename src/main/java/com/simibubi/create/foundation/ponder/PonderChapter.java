@@ -1,24 +1,22 @@
 package com.simibubi.create.foundation.ponder;
 
 import javax.annotation.Nonnull;
-
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.foundation.gui.element.ScreenElement;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
 
 public class PonderChapter implements ScreenElement {
 
-	private final ResourceLocation id;
-	private final ResourceLocation icon;
+	private final Identifier id;
+	private final Identifier icon;
 
-	private PonderChapter(ResourceLocation id) {
+	private PonderChapter(Identifier id) {
 		this.id = id;
-		icon = new ResourceLocation(id.getNamespace(), "textures/ponder/chapter/" + id.getPath() + ".png");
+		icon = new Identifier(id.getNamespace(), "textures/ponder/chapter/" + id.getPath() + ".png");
 	}
 
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return id;
 	}
 
@@ -33,17 +31,17 @@ public class PonderChapter implements ScreenElement {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int x, int y) {
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+	public void render(DrawContext graphics, int x, int y) {
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.scale(0.25f, 0.25f, 1);
 		//x and y offset, blit z offset, tex x and y, tex width and height, entire tex sheet width and height
-		graphics.blit(icon, x, y, 0, 0, 0, 64, 64, 64, 64);
-		ms.popPose();
+		graphics.drawTexture(icon, x, y, 0, 0, 0, 64, 64, 64, 64);
+		ms.pop();
 	}
 
 	@Nonnull
-	public static PonderChapter of(ResourceLocation id) {
+	public static PonderChapter of(Identifier id) {
 		PonderChapter chapter = PonderRegistry.CHAPTERS.getChapter(id);
 		if (chapter == null) {
 			 chapter = PonderRegistry.CHAPTERS.addChapter(new PonderChapter(id));

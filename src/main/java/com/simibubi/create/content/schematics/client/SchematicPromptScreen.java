@@ -11,20 +11,19 @@ import com.simibubi.create.foundation.gui.element.GuiGameElement;
 import com.simibubi.create.foundation.gui.widget.IconButton;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.text.Text;
 
 public class SchematicPromptScreen extends AbstractSimiScreen {
 
 	private AllGuiTextures background;
 
-	private final Component convertLabel = Lang.translateDirect("schematicAndQuill.convert");
-	private final Component abortLabel = Lang.translateDirect("action.discard");
-	private final Component confirmLabel = Lang.translateDirect("action.saveToFile");
+	private final Text convertLabel = Lang.translateDirect("schematicAndQuill.convert");
+	private final Text abortLabel = Lang.translateDirect("action.discard");
+	private final Text confirmLabel = Lang.translateDirect("action.saveToFile");
 
-	private EditBox nameField;
+	private TextFieldWidget nameField;
 	private IconButton confirm;
 	private IconButton abort;
 	private IconButton convert;
@@ -42,45 +41,45 @@ public class SchematicPromptScreen extends AbstractSimiScreen {
 		int x = guiLeft;
 		int y = guiTop;
 
-		nameField = new EditBox(font, x + 49, y + 26, 131, 10, Components.immutableEmpty());
-		nameField.setTextColor(-1);
-		nameField.setTextColorUneditable(-1);
-		nameField.setBordered(false);
+		nameField = new TextFieldWidget(textRenderer, x + 49, y + 26, 131, 10, Components.immutableEmpty());
+		nameField.setEditableColor(-1);
+		nameField.setUneditableColor(-1);
+		nameField.setDrawsBackground(false);
 		nameField.setMaxLength(35);
 		nameField.setFocused(true);
 		setFocused(nameField);
-		addRenderableWidget(nameField);
+		addDrawableChild(nameField);
 
 		abort = new IconButton(x + 7, y + 53, AllIcons.I_TRASH);
 		abort.withCallback(() -> {
 			CreateClient.SCHEMATIC_AND_QUILL_HANDLER.discard();
-			onClose();
+			close();
 		});
 		abort.setToolTip(abortLabel);
-		addRenderableWidget(abort);
+		addDrawableChild(abort);
 
 		confirm = new IconButton(x + 158, y + 53, AllIcons.I_CONFIRM);
 		confirm.withCallback(() -> {
 			confirm(false);
 		});
 		confirm.setToolTip(confirmLabel);
-		addRenderableWidget(confirm);
+		addDrawableChild(confirm);
 
 		convert = new IconButton(x + 180, y + 53, AllIcons.I_SCHEMATIC);
 		convert.withCallback(() -> {
 			confirm(true);
 		});
 		convert.setToolTip(convertLabel);
-		addRenderableWidget(convert);
+		addDrawableChild(convert);
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		int x = guiLeft;
 		int y = guiTop;
 
 		background.render(graphics, x, y);
-		graphics.drawCenteredString(font, title, x + (background.width - 8) / 2, y + 3, 0xFFFFFF);
+		graphics.drawCenteredTextWithShadow(textRenderer, title, x + (background.width - 8) / 2, y + 3, 0xFFFFFF);
 
 		GuiGameElement.of(AllItems.SCHEMATIC.asStack())
 				.at(x + 22, y + 23, 0)
@@ -99,14 +98,14 @@ public class SchematicPromptScreen extends AbstractSimiScreen {
 			return true;
 		}
 		if (keyCode == 256 && this.shouldCloseOnEsc()) {
-			this.onClose();
+			this.close();
 			return true;
 		}
 		return nameField.keyPressed(keyCode, p_keyPressed_2_, p_keyPressed_3_);
 	}
 
 	private void confirm(boolean convertImmediately) {
-		CreateClient.SCHEMATIC_AND_QUILL_HANDLER.saveSchematic(nameField.getValue(), convertImmediately);
-		onClose();
+		CreateClient.SCHEMATIC_AND_QUILL_HANDLER.saveSchematic(nameField.getText(), convertImmediately);
+		close();
 	}
 }

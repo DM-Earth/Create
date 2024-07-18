@@ -11,7 +11,21 @@ import net.fabricmc.fabric.api.transfer.v1.item.InventoryStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.enums.RailShape;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.state.property.Properties;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.simibubi.create.AllBlocks;
@@ -25,26 +39,10 @@ import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.VecHelper;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.RailShape;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
-import net.minecraft.world.phys.AABB;
-
 public class MountedContraption extends Contraption {
 
 	public CartMovementMode rotationMode;
-	public AbstractMinecart connectedCart;
+	public AbstractMinecartEntity connectedCart;
 
 	public MountedContraption() {
 		this(CartMovementMode.ROTATE);
@@ -60,16 +58,16 @@ public class MountedContraption extends Contraption {
 	}
 
 	@Override
-	public boolean assemble(Level world, BlockPos pos) throws AssemblyException {
+	public boolean assemble(World world, BlockPos pos) throws AssemblyException {
 		BlockState state = world.getBlockState(pos);
-		if (!state.hasProperty(RAIL_SHAPE))
+		if (!state.contains(RAIL_SHAPE))
 			return false;
 		if (!searchMovedStructure(world, pos, null))
 			return false;
 
-		Axis axis = state.getValue(RAIL_SHAPE) == RailShape.EAST_WEST ? Axis.X : Axis.Z;
+		Axis axis = state.get(RAIL_SHAPE) == RailShape.EAST_WEST ? Axis.X : Axis.Z;
 		addBlock(pos, Pair.of(new StructureBlockInfo(pos, AllBlocks.MINECART_ANCHOR.getDefaultState()
-			.setValue(BlockStateProperties.HORIZONTAL_AXIS, axis), null), null));
+			.with(Properties.HORIZONTAL_AXIS, axis), null), null));
 
 		if (blocks.size() == 1)
 			return false;
@@ -78,14 +76,14 @@ public class MountedContraption extends Contraption {
 	}
 
 	@Override
-	protected boolean addToInitialFrontier(Level world, BlockPos pos, Direction direction, Queue<BlockPos> frontier) {
+	protected boolean addToInitialFrontier(World world, BlockPos pos, Direction direction, Queue<BlockPos> frontier) {
 		frontier.clear();
-		frontier.add(pos.above());
+		frontier.add(pos.up());
 		return true;
 	}
 
 	@Override
-	protected Pair<StructureBlockInfo, BlockEntity> capture(Level world, BlockPos pos) {
+	protected Pair<StructureBlockInfo, BlockEntity> capture(World world, BlockPos pos) {
 		Pair<StructureBlockInfo, BlockEntity> pair = super.capture(world, pos);
 		StructureBlockInfo capture = pair.getKey();
 		if (!AllBlocks.CART_ASSEMBLER.has(capture.state()))
@@ -99,12 +97,12 @@ public class MountedContraption extends Contraption {
 		for (Axis axis : Iterate.axes) {
 			if (axis.isVertical() || !VecHelper.onSameAxis(anchor, pos, axis))
 				continue;
-			for (AbstractMinecart abstractMinecartEntity : world.getEntitiesOfClass(AbstractMinecart.class,
-				new AABB(pos))) {
+			for (AbstractMinecartEntity abstractMinecartEntity : world.getNonSpectatingEntities(AbstractMinecartEntity.class,
+				new Box(pos))) {
 				if (!CartAssemblerBlock.canAssembleTo(abstractMinecartEntity))
 					break;
 				connectedCart = abstractMinecartEntity;
-				connectedCart.setPos(pos.getX() + .5, pos.getY(), pos.getZ() + .5f);
+				connectedCart.setPosition(pos.getX() + .5, pos.getY(), pos.getZ() + .5f);
 			}
 		}
 
@@ -112,18 +110,18 @@ public class MountedContraption extends Contraption {
 	}
 
 	@Override
-	protected boolean movementAllowed(BlockState state, Level world, BlockPos pos) {
+	protected boolean movementAllowed(BlockState state, World world, BlockPos pos) {
 		if (!pos.equals(anchor) && AllBlocks.CART_ASSEMBLER.has(state))
 			return testSecondaryCartAssembler(world, state, pos);
 		return super.movementAllowed(state, world, pos);
 	}
 
-	protected boolean testSecondaryCartAssembler(Level world, BlockState state, BlockPos pos) {
+	protected boolean testSecondaryCartAssembler(World world, BlockState state, BlockPos pos) {
 		for (Axis axis : Iterate.axes) {
 			if (axis.isVertical() || !VecHelper.onSameAxis(anchor, pos, axis))
 				continue;
-			for (AbstractMinecart abstractMinecartEntity : world.getEntitiesOfClass(AbstractMinecart.class,
-				new AABB(pos))) {
+			for (AbstractMinecartEntity abstractMinecartEntity : world.getNonSpectatingEntities(AbstractMinecartEntity.class,
+				new Box(pos))) {
 				if (!CartAssemblerBlock.canAssembleTo(abstractMinecartEntity))
 					break;
 				return true;
@@ -133,25 +131,25 @@ public class MountedContraption extends Contraption {
 	}
 
 	@Override
-	public CompoundTag writeNBT(boolean spawnPacket) {
-		CompoundTag tag = super.writeNBT(spawnPacket);
+	public NbtCompound writeNBT(boolean spawnPacket) {
+		NbtCompound tag = super.writeNBT(spawnPacket);
 		NBTHelper.writeEnum(tag, "RotationMode", rotationMode);
 		return tag;
 	}
 
 	@Override
-	public void readNBT(Level world, CompoundTag nbt, boolean spawnData) {
+	public void readNBT(World world, NbtCompound nbt, boolean spawnData) {
 		rotationMode = NBTHelper.readEnum(nbt, "RotationMode", CartMovementMode.class);
 		super.readNBT(world, nbt, spawnData);
 	}
 
 	@Override
-	protected boolean customBlockPlacement(LevelAccessor world, BlockPos pos, BlockState state) {
+	protected boolean customBlockPlacement(WorldAccess world, BlockPos pos, BlockState state) {
 		return AllBlocks.MINECART_ANCHOR.has(state);
 	}
 
 	@Override
-	protected boolean customBlockRemoval(LevelAccessor world, BlockPos pos, BlockState state) {
+	protected boolean customBlockRemoval(WorldAccess world, BlockPos pos, BlockState state) {
 		return AllBlocks.MINECART_ANCHOR.has(state);
 	}
 
@@ -161,7 +159,7 @@ public class MountedContraption extends Contraption {
 	}
 
 	public void addExtraInventories(Entity cart) {
-		if (cart instanceof Container container)
+		if (cart instanceof Inventory container)
 			storage.attachExternal(new ContraptionInvWrapper(true, InventoryStorage.of(container, null)));
 	}
 

@@ -1,7 +1,20 @@
 package com.simibubi.create.content.equipment.armor;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.text.Text;
+import net.minecraft.util.Nameable;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllSoundEvents;
@@ -12,43 +25,28 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.particle.AirParticleData;
 import com.simibubi.create.foundation.utility.VecHelper;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.Nameable;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.phys.Vec3;
-
 public class BacktankBlockEntity extends KineticBlockEntity implements Nameable {
 
 	public int airLevel;
 	public int airLevelTimer;
-	private Component defaultName;
-	private Component customName;
+	private Text defaultName;
+	private Text customName;
 
 	private int capacityEnchantLevel;
-	private ListTag enchantmentTag;
+	private NbtList enchantmentTag;
 
 	public BacktankBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
 		defaultName = getDefaultName(state);
-		enchantmentTag = new ListTag();
+		enchantmentTag = new NbtList();
 	}
 
-	public static Component getDefaultName(BlockState state) {
+	public static Text getDefaultName(BlockState state) {
 		if (AllBlocks.NETHERITE_BACKTANK.has(state)) {
-			AllItems.NETHERITE_BACKTANK.get().getDescription();
+			AllItems.NETHERITE_BACKTANK.get().getName();
 		}
 
-		return AllItems.COPPER_BACKTANK.get().getDescription();
+		return AllItems.COPPER_BACKTANK.get().getName();
 	}
 
 	@Override
@@ -70,9 +68,9 @@ public class BacktankBlockEntity extends KineticBlockEntity implements Nameable 
 		if (getSpeed() == 0)
 			return;
 
-		BlockState state = getBlockState();
-		BooleanProperty waterProperty = BlockStateProperties.WATERLOGGED;
-		if (state.hasProperty(waterProperty) && state.getValue(waterProperty))
+		BlockState state = getCachedState();
+		BooleanProperty waterProperty = Properties.WATERLOGGED;
+		if (state.contains(waterProperty) && state.get(waterProperty))
 			return;
 
 		if (airLevelTimer > 0) {
@@ -81,12 +79,12 @@ public class BacktankBlockEntity extends KineticBlockEntity implements Nameable 
 		}
 
 		int max = BacktankUtil.maxAir(capacityEnchantLevel);
-		if (level.isClientSide) {
-			Vec3 centerOf = VecHelper.getCenterOf(worldPosition);
-			Vec3 v = VecHelper.offsetRandomly(centerOf, level.random, .65f);
-			Vec3 m = centerOf.subtract(v);
+		if (world.isClient) {
+			Vec3d centerOf = VecHelper.getCenterOf(pos);
+			Vec3d v = VecHelper.offsetRandomly(centerOf, world.random, .65f);
+			Vec3d m = centerOf.subtract(v);
 			if (airLevel != max)
-				level.addParticle(new AirParticleData(1, .05f), v.x, v.y, v.z, m.x, m.y, m.z);
+				world.addParticle(new AirParticleData(1, .05f), v.x, v.y, v.z, m.x, m.y, m.z);
 			return;
 		}
 
@@ -95,13 +93,13 @@ public class BacktankBlockEntity extends KineticBlockEntity implements Nameable 
 
 		int prevComparatorLevel = getComparatorOutput();
 		float abs = Math.abs(getSpeed());
-		int increment = Mth.clamp(((int) abs - 100) / 20, 1, 5);
+		int increment = MathHelper.clamp(((int) abs - 100) / 20, 1, 5);
 		airLevel = Math.min(max, airLevel + increment);
-		if (getComparatorOutput() != prevComparatorLevel && !level.isClientSide)
-			level.updateNeighbourForOutputSignal(worldPosition, state.getBlock());
+		if (getComparatorOutput() != prevComparatorLevel && !world.isClient)
+			world.updateComparators(pos, state.getBlock());
 		if (airLevel == max)
 			sendData();
-		airLevelTimer = Mth.clamp((int) (128f - abs / 5f) - 108, 0, 20);
+		airLevelTimer = MathHelper.clamp((int) (128f - abs / 5f) - 108, 0, 20);
 	}
 
 	public int getComparatorOutput() {
@@ -110,45 +108,45 @@ public class BacktankBlockEntity extends KineticBlockEntity implements Nameable 
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		compound.putInt("Air", airLevel);
 		compound.putInt("Timer", airLevelTimer);
 		compound.putInt("CapacityEnchantment", capacityEnchantLevel);
 		if (this.customName != null)
-			compound.putString("CustomName", Component.Serializer.toJson(this.customName));
+			compound.putString("CustomName", Text.Serializer.toJson(this.customName));
 		compound.put("Enchantments", enchantmentTag);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		int prev = airLevel;
 		capacityEnchantLevel = compound.getInt("CapacityEnchantment");
 		airLevel = compound.getInt("Air");
 		airLevelTimer = compound.getInt("Timer");
-		enchantmentTag = compound.getList("Enchantments", Tag.TAG_COMPOUND);
+		enchantmentTag = compound.getList("Enchantments", NbtElement.COMPOUND_TYPE);
 		if (compound.contains("CustomName", 8))
-			this.customName = Component.Serializer.fromJson(compound.getString("CustomName"));
+			this.customName = Text.Serializer.fromJson(compound.getString("CustomName"));
 		if (prev != 0 && prev != airLevel && airLevel == BacktankUtil.maxAir(capacityEnchantLevel) && clientPacket)
 			playFilledEffect();
 	}
 
 	protected void playFilledEffect() {
-		AllSoundEvents.CONFIRM.playAt(level, worldPosition, 0.4f, 1, true);
-		Vec3 baseMotion = new Vec3(.25, 0.1, 0);
-		Vec3 baseVec = VecHelper.getCenterOf(worldPosition);
+		AllSoundEvents.CONFIRM.playAt(world, pos, 0.4f, 1, true);
+		Vec3d baseMotion = new Vec3d(.25, 0.1, 0);
+		Vec3d baseVec = VecHelper.getCenterOf(pos);
 		for (int i = 0; i < 360; i += 10) {
-			Vec3 m = VecHelper.rotate(baseMotion, i, Axis.Y);
-			Vec3 v = baseVec.add(m.normalize()
-				.scale(.25f));
+			Vec3d m = VecHelper.rotate(baseMotion, i, Axis.Y);
+			Vec3d v = baseVec.add(m.normalize()
+				.multiply(.25f));
 
-			level.addParticle(ParticleTypes.SPIT, v.x, v.y, v.z, m.x, m.y, m.z);
+			world.addParticle(ParticleTypes.SPIT, v.x, v.y, v.z, m.x, m.y, m.z);
 		}
 	}
 
 	@Override
-	public Component getName() {
+	public Text getName() {
 		return this.customName != null ? this.customName
 			: defaultName;
 	}
@@ -162,19 +160,19 @@ public class BacktankBlockEntity extends KineticBlockEntity implements Nameable 
 		sendData();
 	}
 
-	public void setCustomName(Component customName) {
+	public void setCustomName(Text customName) {
 		this.customName = customName;
 	}
 
-	public Component getCustomName() {
+	public Text getCustomName() {
 		return customName;
 	}
 
-	public ListTag getEnchantmentTag() {
+	public NbtList getEnchantmentTag() {
 		return enchantmentTag;
 	}
 
-	public void setEnchantmentTag(ListTag enchantmentTag) {
+	public void setEnchantmentTag(NbtList enchantmentTag) {
 		this.enchantmentTag = enchantmentTag;
 	}
 

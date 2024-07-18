@@ -1,7 +1,10 @@
 package com.simibubi.create.content.kinetics.transmission.sequencer;
 
 import java.util.Vector;
-
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.text.Text;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.compat.computercraft.ComputerScreen;
@@ -15,11 +18,6 @@ import com.simibubi.create.foundation.gui.widget.SelectionScrollInput;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-
 public class SequencedGearshiftScreen extends AbstractSimiScreen {
 
 	private final ItemStack renderedItem = AllBlocks.SEQUENCED_GEARSHIFT.asStack();
@@ -27,7 +25,7 @@ public class SequencedGearshiftScreen extends AbstractSimiScreen {
 	private IconButton confirmButton;
 	private SequencedGearshiftBlockEntity be;
 
-	private ListTag compareTag;
+	private NbtList compareTag;
 	private Vector<Instruction> instructions;
 
 	private Vector<Vector<ScrollInput>> inputs;
@@ -42,7 +40,7 @@ public class SequencedGearshiftScreen extends AbstractSimiScreen {
 	@Override
 	protected void init() {
 		if (be.computerBehaviour.hasAttachedComputer())
-			minecraft.setScreen(
+			client.setScreen(
 				new ComputerScreen(title, this::renderAdditional, this, be.computerBehaviour::hasAttachedComputer));
 
 		setWindowSize(background.width, background.height);
@@ -61,9 +59,9 @@ public class SequencedGearshiftScreen extends AbstractSimiScreen {
 
 		confirmButton = new IconButton(x + background.width - 33, y + background.height - 24, AllIcons.I_CONFIRM);
 		confirmButton.withCallback(() -> {
-			onClose();
+			close();
 		});
-		addRenderableWidget(confirmButton);
+		addDrawableChild(confirmButton);
 	}
 
 	public void initInputsOfRow(int row, int backgroundX, int backgroundY) {
@@ -135,12 +133,12 @@ public class SequencedGearshiftScreen extends AbstractSimiScreen {
 		super.tick();
 
 		if (be.computerBehaviour.hasAttachedComputer())
-			minecraft.setScreen(
+			client.setScreen(
 				new ComputerScreen(title, this::renderAdditional, this, be.computerBehaviour::hasAttachedComputer));
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		int x = guiLeft;
 		int y = guiTop;
 
@@ -168,18 +166,18 @@ public class SequencedGearshiftScreen extends AbstractSimiScreen {
 			label(graphics, 36, yOffset - 1, Lang.translateDirect(def.translationKey));
 			if (def.hasValueParameter) {
 				String text = def.formatValue(instruction.value);
-				int stringWidth = font.width(text);
+				int stringWidth = textRenderer.getWidth(text);
 				label(graphics, 90 + (12 - stringWidth / 2), yOffset - 1, Components.literal(text));
 			}
 			if (def.hasSpeedParameter)
 				label(graphics, 127, yOffset - 1, instruction.speedModifier.label);
 		}
 
-		graphics.drawString(font, title, x + (background.width - 8) / 2 - font.width(title) / 2, y + 4, 0x592424, false);
+		graphics.drawText(textRenderer, title, x + (background.width - 8) / 2 - textRenderer.getWidth(title) / 2, y + 4, 0x592424, false);
 		renderAdditional(graphics, mouseX, mouseY, partialTicks, x, y, background);
 	}
 
-	private void renderAdditional(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, int guiLeft, int guiTop,
+	private void renderAdditional(DrawContext graphics, int mouseX, int mouseY, float partialTicks, int guiLeft, int guiTop,
 		AllGuiTextures background) {
 		GuiGameElement.of(renderedItem).<GuiGameElement
 			.GuiRenderBuilder>at(guiLeft + background.width + 6, guiTop + background.height - 56, 100)
@@ -187,16 +185,16 @@ public class SequencedGearshiftScreen extends AbstractSimiScreen {
 			.render(graphics);
 	}
 
-	private void label(GuiGraphics graphics, int x, int y, Component text) {
-		graphics.drawString(font, text, guiLeft + x, guiTop + 26 + y, 0xFFFFEE);
+	private void label(DrawContext graphics, int x, int y, Text text) {
+		graphics.drawTextWithShadow(textRenderer, text, guiLeft + x, guiTop + 26 + y, 0xFFFFEE);
 	}
 
 	public void sendPacket() {
-		ListTag serialized = Instruction.serializeAll(instructions);
+		NbtList serialized = Instruction.serializeAll(instructions);
 		if (serialized.equals(compareTag))
 			return;
 		AllPackets.getChannel()
-			.sendToServer(new ConfigureSequencedGearshiftPacket(be.getBlockPos(), serialized));
+			.sendToServer(new ConfigureSequencedGearshiftPacket(be.getPos(), serialized));
 	}
 
 	@Override

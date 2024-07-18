@@ -3,18 +3,17 @@ package com.simibubi.create.foundation.ponder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 public class PonderStoryBoardEntry {
 
 	private final PonderStoryBoard board;
 	private final String namespace;
-	private final ResourceLocation schematicLocation;
-	private final ResourceLocation component;
+	private final Identifier schematicLocation;
+	private final Identifier component;
 	private final List<PonderTag> tags;
 
-	public PonderStoryBoardEntry(PonderStoryBoard board, String namespace, ResourceLocation schematicLocation, ResourceLocation component) {
+	public PonderStoryBoardEntry(PonderStoryBoard board, String namespace, Identifier schematicLocation, Identifier component) {
 		this.board = board;
 		this.namespace = namespace;
 		this.schematicLocation = schematicLocation;
@@ -22,8 +21,8 @@ public class PonderStoryBoardEntry {
 		this.tags = new ArrayList<>();
 	}
 
-	public PonderStoryBoardEntry(PonderStoryBoard board, String namespace, String schematicPath, ResourceLocation component) {
-		this(board, namespace, new ResourceLocation(namespace, schematicPath), component);
+	public PonderStoryBoardEntry(PonderStoryBoard board, String namespace, String schematicPath, Identifier component) {
+		this(board, namespace, new Identifier(namespace, schematicPath), component);
 	}
 
 	public PonderStoryBoard getBoard() {
@@ -34,11 +33,11 @@ public class PonderStoryBoardEntry {
 		return namespace;
 	}
 
-	public ResourceLocation getSchematicLocation() {
+	public Identifier getSchematicLocation() {
 		return schematicLocation;
 	}
 
-	public ResourceLocation getComponent() {
+	public Identifier getComponent() {
 		return component;
 	}
 

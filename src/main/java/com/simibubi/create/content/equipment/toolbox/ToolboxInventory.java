@@ -16,9 +16,9 @@ import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandle
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandlerSlot;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 
 public class ToolboxInventory extends ItemStackHandler {
 
@@ -55,7 +55,7 @@ public class ToolboxInventory extends ItemStackHandler {
 			ItemStack stackInSlot = getStackInSlot(compartment * STACKS_PER_COMPARTMENT + i);
 			totalCount += stackInSlot.getCount();
 			if (!shouldBeEmpty)
-				shouldBeEmpty = stackInSlot.isEmpty() || stackInSlot.getCount() != stackInSlot.getMaxStackSize();
+				shouldBeEmpty = stackInSlot.isEmpty() || stackInSlot.getCount() != stackInSlot.getMaxCount();
 			else if (!stackInSlot.isEmpty()) {
 				valid = false;
 				sample = stackInSlot;
@@ -82,7 +82,7 @@ public class ToolboxInventory extends ItemStackHandler {
 		} else {
 			for (int i = 0; i < STACKS_PER_COMPARTMENT; i++) {
 				ItemStack copy = totalCount <= 0 ? ItemStack.EMPTY
-					: ItemHandlerHelper.copyStackWithSize(sample, Math.min(totalCount, sample.getMaxStackSize()));
+					: ItemHandlerHelper.copyStackWithSize(sample, Math.min(totalCount, sample.getMaxCount()));
 				setStackInSlot(compartment * STACKS_PER_COMPARTMENT + i, copy);
 				totalCount -= copy.getCount();
 			}
@@ -94,7 +94,7 @@ public class ToolboxInventory extends ItemStackHandler {
 	@Override
 	public boolean isItemValid(int slot, ItemVariant var, int count) {
 		ItemStack stack = var.toStack();
-		if (!stack.getItem().canFitInsideContainerItems())
+		if (!stack.getItem().canBeNested())
 			return false;
 
 		if (slot < 0 || slot >= getSlotCount())
@@ -125,24 +125,24 @@ public class ToolboxInventory extends ItemStackHandler {
 	}
 
 	@Override
-	public CompoundTag serializeNBT() {
-		CompoundTag compound = super.serializeNBT();
+	public NbtCompound serializeNBT() {
+		NbtCompound compound = super.serializeNBT();
 		compound.put("Compartments", NBTHelper.writeItemList(filters));
 		return compound;
 	}
 
 	@Override
 	protected void onContentsChanged(int slot) {
-		if (!settling && !blockEntity.getLevel().isClientSide)
+		if (!settling && !blockEntity.getWorld().isClient)
 			settle(slot / STACKS_PER_COMPARTMENT);
 		blockEntity.sendData();
-		blockEntity.setChanged();
+		blockEntity.markDirty();
 		super.onContentsChanged(slot);
 	}
 
 	@Override
-	public void deserializeNBT(CompoundTag nbt) {
-		filters = NBTHelper.readItemList(nbt.getList("Compartments", Tag.TAG_COMPOUND));
+	public void deserializeNBT(NbtCompound nbt) {
+		filters = NBTHelper.readItemList(nbt.getList("Compartments", NbtElement.COMPOUND_TYPE));
 		if (filters.size() != 8) {
 			filters.clear();
 			for (int i = 0; i < 8; i++)
@@ -194,12 +194,12 @@ public class ToolboxInventory extends ItemStackHandler {
 
 	public static ItemStack cleanItemNBT(ItemStack stack) {
 		if (AllItems.BELT_CONNECTOR.isIn(stack))
-			stack.removeTagKey("FirstPulley");
+			stack.removeSubNbt("FirstPulley");
 		return stack;
 	}
 
 	public static boolean canItemsShareCompartment(ItemStack stack1, ItemStack stack2) {
-		if (!stack1.isStackable() && !stack2.isStackable() && stack1.isDamageableItem() && stack2.isDamageableItem())
+		if (!stack1.isStackable() && !stack2.isStackable() && stack1.isDamageable() && stack2.isDamageable())
 			return stack1.getItem() == stack2.getItem();
 		if (AllItems.BELT_CONNECTOR.isIn(stack1) && AllItems.BELT_CONNECTOR.isIn(stack2))
 			return true;

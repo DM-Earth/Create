@@ -19,7 +19,7 @@ public class DispenseItemLocation {
 	public DispenseItemLocation(ResourceAmount<ItemVariant> content) {
 		this.internal = false;
 		this.variant = content.resource();
-		this.count = (int) Math.min(content.amount(), variant.getItem().getMaxStackSize());
+		this.count = (int) Math.min(content.amount(), variant.getItem().getMaxCount());
 	}
 
 	public boolean isInternal() {

@@ -6,17 +6,16 @@ import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.core.Materials;
 import com.jozufozu.flywheel.core.materials.oriented.OrientedData;
 import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.simibubi.create.content.contraptions.render.ActorInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.foundation.render.AllMaterialSpecs;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.RotationAxis;
 
 public class StabilizedBearingInstance extends ActorInstance {
 
@@ -24,7 +23,7 @@ public class StabilizedBearingInstance extends ActorInstance {
 	final RotatingData shaft;
 
 	final Direction facing;
-	final Axis rotationAxis;
+	final RotationAxis rotationAxis;
 	final Quaternionf blockOrientation;
 
 	public StabilizedBearingInstance(MaterialManager materialManager, VirtualRenderWorld simulationWorld, MovementContext context) {
@@ -32,8 +31,8 @@ public class StabilizedBearingInstance extends ActorInstance {
 
 		BlockState blockState = context.state;
 
-		facing = blockState.getValue(BlockStateProperties.FACING);
-		rotationAxis = Axis.of(Direction.get(Direction.AxisDirection.POSITIVE, facing.getAxis()).step());
+		facing = blockState.get(Properties.FACING);
+		rotationAxis = RotationAxis.of(Direction.get(Direction.AxisDirection.POSITIVE, facing.getAxis()).getUnitVector());
 
 		blockOrientation = BearingInstance.getBlockStateOrientation(facing);
 
@@ -49,7 +48,7 @@ public class StabilizedBearingInstance extends ActorInstance {
 
 		shaft = materialManager.defaultSolid()
 				.material(AllMaterialSpecs.ROTATING)
-				.getModel(AllPartialModels.SHAFT_HALF, blockState, blockState.getValue(BlockStateProperties.FACING).getOpposite())
+				.getModel(AllPartialModels.SHAFT_HALF, blockState, blockState.get(Properties.FACING).getOpposite())
 				.createInstance();
 
 		// not rotating so no need to set speed, axis, etc.

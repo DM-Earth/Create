@@ -1,14 +1,12 @@
 package com.simibubi.create.foundation.ponder.ui;
 
 import java.util.function.BiConsumer;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import com.simibubi.create.foundation.gui.Theme;
 import com.simibubi.create.foundation.gui.UIRenderHelper;
 import com.simibubi.create.foundation.gui.widget.AbstractSimiWidget;
 import com.simibubi.create.foundation.ponder.PonderChapter;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 
 public class ChapterLabel extends AbstractSimiWidget {
 
@@ -26,9 +24,9 @@ public class ChapterLabel extends AbstractSimiWidget {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	public void render(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		UIRenderHelper.streak(graphics, 0, getX(), getY() + height / 2, height - 2, width);
-		graphics.drawString(Minecraft.getInstance().font, chapter.getTitle(), getX() + 50,
+		graphics.drawText(MinecraftClient.getInstance().textRenderer, chapter.getTitle(), getX() + 50,
 			getY() + 20, Theme.i(Theme.Key.TEXT_ACCENT_SLIGHT), false);
 
 		button.doRender(graphics, mouseX, mouseY, partialTicks);

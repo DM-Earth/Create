@@ -2,14 +2,12 @@ package com.simibubi.create.foundation.outliner;
 
 import org.joml.Vector3d;
 import org.joml.Vector4f;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.foundation.render.RenderTypes;
 import com.simibubi.create.foundation.render.SuperRenderTypeBuffer;
-
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class LineOutline extends Outline {
 
@@ -22,14 +20,14 @@ public class LineOutline extends Outline {
 		return this;
 	}
 
-	public LineOutline set(Vec3 start, Vec3 end) {
+	public LineOutline set(Vec3d start, Vec3d end) {
 		this.start.set(start.x, start.y, start.z);
 		this.end.set(end.x, end.y, end.z);
 		return this;
 	}
 
 	@Override
-	public void render(PoseStack ms, SuperRenderTypeBuffer buffer, Vec3 camera, float pt) {
+	public void render(MatrixStack ms, SuperRenderTypeBuffer buffer, Vec3d camera, float pt) {
 		float width = params.getLineWidth();
 		if (width == 0)
 			return;
@@ -42,7 +40,7 @@ public class LineOutline extends Outline {
 		renderInner(ms, consumer, camera, pt, width, color, lightmap, disableLineNormals);
 	}
 
-	protected void renderInner(PoseStack ms, VertexConsumer consumer, Vec3 camera, float pt, float width,
+	protected void renderInner(MatrixStack ms, VertexConsumer consumer, Vec3d camera, float pt, float width,
 		Vector4f color, int lightmap, boolean disableNormals) {
 		bufferCuboidLine(ms, consumer, camera, start, end, width, color, lightmap, disableNormals);
 	}
@@ -65,9 +63,9 @@ public class LineOutline extends Outline {
 		}
 
 		@Override
-		protected void renderInner(PoseStack ms, VertexConsumer consumer, Vec3 camera, float pt, float width,
+		protected void renderInner(MatrixStack ms, VertexConsumer consumer, Vec3d camera, float pt, float width,
 			Vector4f color, int lightmap, boolean disableNormals) {
-			float distanceToTarget = Mth.lerp(pt, prevProgress, progress);
+			float distanceToTarget = MathHelper.lerp(pt, prevProgress, progress);
 
 			Vector3d end;
 			if (lockStart) {

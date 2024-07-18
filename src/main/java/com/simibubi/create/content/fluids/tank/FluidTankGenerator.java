@@ -7,9 +7,8 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 
 public class FluidTankGenerator extends SpecialBlockStateGen {
 
@@ -36,9 +35,9 @@ public class FluidTankGenerator extends SpecialBlockStateGen {
 	@Override
 	public <T extends Block> ModelFile getModel(DataGenContext<Block, T> ctx, RegistrateBlockstateProvider prov,
 												BlockState state) {
-		Boolean top = state.getValue(FluidTankBlock.TOP);
-		Boolean bottom = state.getValue(FluidTankBlock.BOTTOM);
-		Shape shape = state.getValue(FluidTankBlock.SHAPE);
+		Boolean top = state.get(FluidTankBlock.TOP);
+		Boolean bottom = state.get(FluidTankBlock.BOTTOM);
+		Shape shape = state.get(FluidTankBlock.SHAPE);
 
 		String shapeName = "middle";
 		if (top && bottom)
@@ -48,7 +47,7 @@ public class FluidTankGenerator extends SpecialBlockStateGen {
 		else if (bottom)
 			shapeName = "bottom";
 
-		String modelName = shapeName + (shape == Shape.PLAIN ? "" : "_" + shape.getSerializedName());
+		String modelName = shapeName + (shape == Shape.PLAIN ? "" : "_" + shape.asString());
 
 		if (!prefix.isEmpty())
 			return prov.models()

@@ -1,9 +1,8 @@
 package com.simibubi.create.content.logistics.depot;
 
 import com.simibubi.create.foundation.networking.BlockEntityConfigurationPacket;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
 
 public class EjectorTriggerPacket extends BlockEntityConfigurationPacket<EjectorBlockEntity> {
 
@@ -11,15 +10,15 @@ public class EjectorTriggerPacket extends BlockEntityConfigurationPacket<Ejector
 		super(pos);
 	}
 	
-	public EjectorTriggerPacket(FriendlyByteBuf buffer) {
+	public EjectorTriggerPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
 	@Override
-	protected void writeSettings(FriendlyByteBuf buffer) {}
+	protected void writeSettings(PacketByteBuf buffer) {}
 
 	@Override
-	protected void readSettings(FriendlyByteBuf buffer) {}
+	protected void readSettings(PacketByteBuf buffer) {}
 
 	@Override
 	protected void applySettings(EjectorBlockEntity be) {

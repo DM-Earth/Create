@@ -3,21 +3,20 @@ package com.simibubi.create.api.behaviour;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
-
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import com.simibubi.create.Create;
 import com.simibubi.create.compat.botania.ApothecaryFilling;
 import com.simibubi.create.compat.tconstruct.SpoutCasting;
 import com.simibubi.create.content.fluids.spout.SpoutBlockEntity;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
 
 public abstract class BlockSpoutingBehaviour {
 
-	private static final Map<ResourceLocation, BlockSpoutingBehaviour> BLOCK_SPOUTING_BEHAVIOURS = new HashMap<>();
+	private static final Map<Identifier, BlockSpoutingBehaviour> BLOCK_SPOUTING_BEHAVIOURS = new HashMap<>();
 
-	public static void addCustomSpoutInteraction(ResourceLocation resourceLocation,
+	public static void addCustomSpoutInteraction(Identifier resourceLocation,
 		BlockSpoutingBehaviour movementBehaviour) {
 		BLOCK_SPOUTING_BEHAVIOURS.put(resourceLocation, movementBehaviour);
 	}
@@ -43,7 +42,7 @@ public abstract class BlockSpoutingBehaviour {
 	 * @param simulate       whether the spout is testing or actually performing this behaviour
 	 * @return amount filled into the block, 0 to idle/cancel
 	 */
-	public abstract long fillBlock(Level world, BlockPos pos, SpoutBlockEntity spout, FluidStack availableFluid,
+	public abstract long fillBlock(World world, BlockPos pos, SpoutBlockEntity spout, FluidStack availableFluid,
 		boolean simulate);
 
 	public static void registerDefaults() {

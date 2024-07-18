@@ -3,24 +3,22 @@ package com.simibubi.create.content.schematics;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.World;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.simibubi.create.content.contraptions.StructureTransform;
 import com.simibubi.create.foundation.utility.WorldAttached;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 public class SchematicInstances {
 
@@ -29,7 +27,7 @@ public class SchematicInstances {
 			.build());
 
 	@Nullable
-	public static SchematicWorld get(Level world, ItemStack schematic) {
+	public static SchematicWorld get(World world, ItemStack schematic) {
 		Cache<Integer, SchematicWorld> map = LOADED_SCHEMATICS.get(world);
 		int hash = getHash(schematic);
 		SchematicWorld ifPresent = map.getIfPresent(hash);
@@ -42,27 +40,27 @@ public class SchematicInstances {
 		return loadWorld;
 	}
 
-	private static SchematicWorld loadWorld(Level wrapped, ItemStack schematic) {
-		if (schematic == null || !schematic.hasTag())
+	private static SchematicWorld loadWorld(World wrapped, ItemStack schematic) {
+		if (schematic == null || !schematic.hasNbt())
 			return null;
-		if (!schematic.getTag()
+		if (!schematic.getNbt()
 			.getBoolean("Deployed"))
 			return null;
 
 		StructureTemplate activeTemplate =
-			SchematicItem.loadSchematic(wrapped.holderLookup(Registries.BLOCK), schematic);
+			SchematicItem.loadSchematic(wrapped.createCommandRegistryWrapper(RegistryKeys.BLOCK), schematic);
 
 		if (activeTemplate.getSize()
 			.equals(Vec3i.ZERO))
 			return null;
 
-		BlockPos anchor = NbtUtils.readBlockPos(schematic.getTag()
+		BlockPos anchor = NbtHelper.toBlockPos(schematic.getNbt()
 			.getCompound("Anchor"));
 		SchematicWorld world = new SchematicWorld(anchor, wrapped);
-		StructurePlaceSettings settings = SchematicItem.getSettings(schematic);
-		activeTemplate.placeInWorld(world, anchor, anchor, settings, wrapped.getRandom(), Block.UPDATE_CLIENTS);
+		StructurePlacementData settings = SchematicItem.getSettings(schematic);
+		activeTemplate.place(world, anchor, anchor, settings, wrapped.getRandom(), Block.NOTIFY_LISTENERS);
 
-		StructureTransform transform = new StructureTransform(settings.getRotationPivot(), Direction.Axis.Y,
+		StructureTransform transform = new StructureTransform(settings.getPosition(), Direction.Axis.Y,
 			settings.getRotation(), settings.getMirror());
 		for (BlockEntity be : world.getBlockEntities())
 			transform.apply(be);
@@ -71,16 +69,16 @@ public class SchematicInstances {
 	}
 
 	public static void clearHash(ItemStack schematic) {
-		if (schematic == null || !schematic.hasTag())
+		if (schematic == null || !schematic.hasNbt())
 			return;
-		schematic.getTag()
+		schematic.getNbt()
 			.remove("SchematicHash");
 	}
 
 	public static int getHash(ItemStack schematic) {
-		if (schematic == null || !schematic.hasTag())
+		if (schematic == null || !schematic.hasNbt())
 			return -1;
-		CompoundTag tag = schematic.getTag();
+		NbtCompound tag = schematic.getNbt();
 		if (!tag.contains("SchematicHash"))
 			tag.putInt("SchematicHash", tag.toString()
 				.hashCode());

@@ -12,16 +12,15 @@ import com.simibubi.create.foundation.ponder.element.EntityElement;
 import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
 
 public class MechanicalSawScenes {
 
@@ -32,7 +31,7 @@ public class MechanicalSawScenes {
 
 		BlockPos shaftPos = util.grid.at(2, 1, 3);
 		scene.world.setBlock(shaftPos, AllBlocks.SHAFT.getDefaultState()
-			.setValue(ShaftBlock.AXIS, Axis.Z), false);
+			.with(ShaftBlock.AXIS, Axis.Z), false);
 
 		BlockPos sawPos = util.grid.at(2, 1, 2);
 		Selection sawSelect = util.select.position(sawPos);
@@ -55,7 +54,7 @@ public class MechanicalSawScenes {
 		ItemStack strippedLog = new ItemStack(Items.STRIPPED_OAK_LOG);
 		ItemStack planks = new ItemStack(Items.OAK_PLANKS);
 
-		Vec3 itemSpawn = util.vector.centerOf(sawPos.above()
+		Vec3d itemSpawn = util.vector.centerOf(sawPos.up()
 			.west());
 		ElementLink<EntityElement> logItem = scene.world.createItemEntity(itemSpawn, util.vector.of(0, 0, 0), log);
 		scene.idle(12);
@@ -63,7 +62,7 @@ public class MechanicalSawScenes {
 		scene.overlay.showControls(new InputWindowElement(itemSpawn, Pointing.DOWN).withItem(log), 20);
 		scene.idle(10);
 
-		scene.world.modifyEntity(logItem, e -> e.setDeltaMovement(util.vector.of(0.05, 0.2, 0)));
+		scene.world.modifyEntity(logItem, e -> e.setVelocity(util.vector.of(0.05, 0.2, 0)));
 		scene.idle(12);
 
 		scene.world.modifyEntity(logItem, Entity::discard);
@@ -86,7 +85,7 @@ public class MechanicalSawScenes {
 
 		scene.world.modifyKineticSpeed(util.select.everywhere(), f -> -2 * f);
 		scene.effects.rotationDirectionIndicator(shaftPos);
-		scene.world.modifyEntity(logItem, e -> e.setDeltaMovement(util.vector.of(-0.05, 0.2, 0)));
+		scene.world.modifyEntity(logItem, e -> e.setVelocity(util.vector.of(-0.05, 0.2, 0)));
 		scene.idle(12);
 
 		scene.world.modifyEntity(logItem, Entity::discard);
@@ -105,7 +104,7 @@ public class MechanicalSawScenes {
 		scene.world.modifyKineticSpeed(util.select.everywhere(), f -> -f);
 		scene.world.modifyEntity(logItem, Entity::discard);
 		scene.world.setBlock(shaftPos, AllBlocks.COGWHEEL.getDefaultState()
-			.setValue(ShaftBlock.AXIS, Axis.Z), true);
+			.with(ShaftBlock.AXIS, Axis.Z), true);
 		scene.idle(3);
 		scene.addKeyframe();
 
@@ -142,7 +141,7 @@ public class MechanicalSawScenes {
 		scene.world.createItemOnBelt(firstBelt, Direction.WEST, stone);
 
 		scene.idle(40);
-		Vec3 filter = util.vector.of(2.5, 1 + 13 / 16f, 2 + 5 / 16f);
+		Vec3d filter = util.vector.of(2.5, 1 + 13 / 16f, 2 + 5 / 16f);
 		scene.overlay.showFilterSlotInput(filter, Direction.UP, 80);
 		scene.overlay.showText(80)
 			.attachKeyFrame()
@@ -174,7 +173,7 @@ public class MechanicalSawScenes {
 		scene.title("mechanical_saw_breaker", "Cutting Trees with the Mechanical Saw");
 		scene.configureBasePlate(0, 0, 5);
 		scene.scaleSceneView(.9f);
-		scene.world.setBlock(util.grid.at(2, 0, 2), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+		scene.world.setBlock(util.grid.at(2, 0, 2), Blocks.GRASS_BLOCK.getDefaultState(), false);
 		scene.world.showSection(util.select.layer(0)
 			.add(util.select.position(3, 1, 1))
 			.add(util.select.position(1, 1, 2)), Direction.UP);
@@ -205,7 +204,7 @@ public class MechanicalSawScenes {
 			}
 		}
 
-		scene.world.replaceBlocks(util.select.fromTo(2, 2, 2, 2, 6, 2), Blocks.AIR.defaultBlockState(), true);
+		scene.world.replaceBlocks(util.select.fromTo(2, 2, 2, 2, 6, 2), Blocks.AIR.getDefaultState(), true);
 
 		scene.world.destroyBlock(util.grid.at(3, 5, 0));
 		scene.world.destroyBlock(util.grid.at(0, 4, 1));
@@ -215,10 +214,10 @@ public class MechanicalSawScenes {
 		scene.world.destroyBlock(util.grid.at(1, 5, 3));
 		scene.world.destroyBlock(util.grid.at(0, 4, 3));
 
-		scene.world.replaceBlocks(util.select.layersFrom(4), Blocks.AIR.defaultBlockState(), false);
+		scene.world.replaceBlocks(util.select.layersFrom(4), Blocks.AIR.getDefaultState(), false);
 
 		for (int i = 0; i < 5; i++) {
-			Vec3 dropPos = util.vector.centerOf(breakingPos.above(i));
+			Vec3d dropPos = util.vector.centerOf(breakingPos.up(i));
 			float distance = (float) dropPos.distanceTo(util.vector.centerOf(breakingPos));
 			scene.world.createItemEntity(dropPos, util.vector.of(-distance / 20, 0, 0), new ItemStack(Items.OAK_LOG));
 		}
@@ -229,7 +228,7 @@ public class MechanicalSawScenes {
 			.add(util.select.fromTo(2, 1, 2, 1, 1, 3)), Direction.UP);
 		scene.world.modifyEntities(ItemEntity.class, Entity::discard);
 		scene.idle(15);
-		scene.world.setBlocks(util.select.fromTo(2, 1, 2, 1, 20, 3), Blocks.JUNGLE_LOG.defaultBlockState(), false);
+		scene.world.setBlocks(util.select.fromTo(2, 1, 2, 1, 20, 3), Blocks.JUNGLE_LOG.getDefaultState(), false);
 		scene.world.showSection(util.select.layersFrom(2)
 			.add(util.select.fromTo(2, 1, 2, 1, 1, 3)), Direction.UP);
 		scene.idle(15);
@@ -250,11 +249,11 @@ public class MechanicalSawScenes {
 		}
 
 		for (int i = 0; i < 30; i++) {
-			scene.world.replaceBlocks(util.select.fromTo(2, i + 1, 2, 1, i + 1, 3), Blocks.AIR.defaultBlockState(),
+			scene.world.replaceBlocks(util.select.fromTo(2, i + 1, 2, 1, i + 1, 3), Blocks.AIR.getDefaultState(),
 				true);
 			for (int x = 1; x <= 2; x++) {
 				for (int z = 2; z <= 3; z++) {
-					Vec3 dropPos = util.vector.centerOf(x, i + 1, z);
+					Vec3d dropPos = util.vector.centerOf(x, i + 1, z);
 					float distance = (float) dropPos.distanceTo(util.vector.centerOf(breakingPos));
 					scene.world.createItemEntity(dropPos, util.vector.of(-distance / 20, 0, 0),
 						new ItemStack(Items.JUNGLE_LOG));
@@ -268,7 +267,7 @@ public class MechanicalSawScenes {
 		scene.title("mechanical_saw_contraption", "Using Mechanical Saws on Contraptions");
 		scene.configureBasePlate(1, 0, 6);
 		scene.scaleSceneView(.9f);
-		scene.world.setBlock(util.grid.at(2, 0, 3), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+		scene.world.setBlock(util.grid.at(2, 0, 3), Blocks.GRASS_BLOCK.getDefaultState(), false);
 		scene.world.showSection(util.select.layer(0)
 			.add(util.select.position(3, 1, 1))
 			.add(util.select.position(1, 1, 2))
@@ -322,7 +321,7 @@ public class MechanicalSawScenes {
 			}
 		}
 
-		scene.world.replaceBlocks(util.select.fromTo(2, 2, 3, 2, 6, 3), Blocks.AIR.defaultBlockState(), true);
+		scene.world.replaceBlocks(util.select.fromTo(2, 2, 3, 2, 6, 3), Blocks.AIR.getDefaultState(), true);
 		scene.world.destroyBlock(util.grid.at(4, 5, 1));
 		scene.world.destroyBlock(util.grid.at(1, 4, 2));
 		scene.world.destroyBlock(util.grid.at(3, 6, 2));
@@ -330,10 +329,10 @@ public class MechanicalSawScenes {
 		scene.world.destroyBlock(util.grid.at(2, 6, 3));
 		scene.world.destroyBlock(util.grid.at(2, 5, 2));
 		scene.world.destroyBlock(util.grid.at(1, 4, 2));
-		scene.world.replaceBlocks(util.select.layersFrom(4), Blocks.AIR.defaultBlockState(), false);
+		scene.world.replaceBlocks(util.select.layersFrom(4), Blocks.AIR.getDefaultState(), false);
 
 		for (int i = 0; i < 5; i++) {
-			Vec3 dropPos = util.vector.centerOf(breakingPos.above(i));
+			Vec3d dropPos = util.vector.centerOf(breakingPos.up(i));
 			float distance = (float) dropPos.distanceTo(util.vector.centerOf(breakingPos));
 			scene.world.createItemEntity(dropPos, util.vector.of(-distance / 20, 0, 0), new ItemStack(Items.OAK_LOG));
 		}
@@ -373,7 +372,7 @@ public class MechanicalSawScenes {
 			scene.world.incrementBlockBreakingProgress(breakingPos);
 		}
 
-		scene.world.replaceBlocks(util.select.fromTo(2, 2, 3, 2, 6, 3), Blocks.AIR.defaultBlockState(), true);
+		scene.world.replaceBlocks(util.select.fromTo(2, 2, 3, 2, 6, 3), Blocks.AIR.getDefaultState(), true);
 		scene.world.destroyBlock(util.grid.at(4, 5, 1));
 		scene.world.destroyBlock(util.grid.at(1, 4, 2));
 		scene.world.destroyBlock(util.grid.at(3, 6, 2));
@@ -381,7 +380,7 @@ public class MechanicalSawScenes {
 		scene.world.destroyBlock(util.grid.at(2, 6, 3));
 		scene.world.destroyBlock(util.grid.at(2, 5, 2));
 		scene.world.destroyBlock(util.grid.at(1, 4, 2));
-		scene.world.replaceBlocks(util.select.layersFrom(4), Blocks.AIR.defaultBlockState(), false);
+		scene.world.replaceBlocks(util.select.layersFrom(4), Blocks.AIR.getDefaultState(), false);
 
 		scene.world.moveSection(pistonHead, util.vector.of(-1, 0, 0), 20);
 		scene.world.moveSection(contraption, util.vector.of(-1, 0, 0), 20);

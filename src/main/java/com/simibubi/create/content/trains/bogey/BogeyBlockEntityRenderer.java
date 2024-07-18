@@ -1,21 +1,20 @@
 package com.simibubi.create.content.trains.bogey;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
 
 public class BogeyBlockEntityRenderer<T extends BlockEntity> extends SafeBlockEntityRenderer<T> {
 
-	public BogeyBlockEntityRenderer(BlockEntityRendererProvider.Context context) {}
+	public BogeyBlockEntityRenderer(BlockEntityRendererFactory.Context context) {}
 
 	@Override
-	protected void renderSafe(T be, float partialTicks, PoseStack ms, MultiBufferSource buffer, int light,
+	protected void renderSafe(T be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer, int light,
 		int overlay) {
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		if (be instanceof AbstractBogeyBlockEntity sbbe) {
 			float angle = sbbe.getVirtualAngle(partialTicks);
 			if (blockState.getBlock() instanceof AbstractBogeyBlock<?> bogey)

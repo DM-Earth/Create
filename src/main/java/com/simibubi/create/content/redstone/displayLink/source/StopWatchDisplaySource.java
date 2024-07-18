@@ -5,13 +5,12 @@ import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 import com.simibubi.create.content.trains.display.FlapDisplaySection;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.text.MutableText;
 
 public class StopWatchDisplaySource extends SingleLineDisplaySource {
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
 		if (!(context.getSourceBlockEntity() instanceof CuckooClockBlockEntity ccbe))
 			return TimeOfDayDisplaySource.EMPTY_TIME;
 		if (ccbe.getSpeed() == 0)
@@ -24,15 +23,15 @@ public class StopWatchDisplaySource extends SingleLineDisplaySource {
 		long started = context.sourceConfig()
 			.getLong("StartTime");
 		long current = context.blockEntity()
-			.getLevel()
-			.getGameTime();
+			.getWorld()
+			.getTime();
 
 		int diff = (int) (current - started);
 		int hours = (diff / 60 / 60 / 20);
 		int minutes = (diff / 60 / 20) % 60;
 		int seconds = (diff / 20) % 60;
 
-		MutableComponent component = Components.literal((hours == 0 ? "" : (hours < 10 ? " " : "") + hours + ":")
+		MutableText component = Components.literal((hours == 0 ? "" : (hours < 10 ? " " : "") + hours + ":")
 			+ (minutes < 10 ? hours == 0 ? " " : "0" : "") + minutes + ":" + (seconds < 10 ? "0" : "") + seconds);
 
 		return component;
@@ -42,8 +41,8 @@ public class StopWatchDisplaySource extends SingleLineDisplaySource {
 	public void onSignalReset(DisplayLinkContext context) {
 		context.sourceConfig()
 			.putLong("StartTime", context.blockEntity()
-				.getLevel()
-				.getGameTime());
+				.getWorld()
+				.getTime());
 	}
 
 	@Override

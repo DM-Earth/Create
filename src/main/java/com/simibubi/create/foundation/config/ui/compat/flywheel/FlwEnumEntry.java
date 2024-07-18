@@ -2,7 +2,6 @@ package com.simibubi.create.foundation.config.ui.compat.flywheel;
 
 import com.jozufozu.flywheel.backend.Backend;
 import com.jozufozu.flywheel.config.Option;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.config.ui.ConfigScreen;
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.gui.Theme;
@@ -11,11 +10,9 @@ import com.simibubi.create.foundation.gui.element.BoxElement;
 import com.simibubi.create.foundation.gui.element.DelegatedStencilElement;
 import com.simibubi.create.foundation.gui.element.TextStencilElement;
 import com.simibubi.create.foundation.gui.widget.BoxWidget;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-
 import java.util.Locale;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 
 public class FlwEnumEntry extends FlwValueEntry<Enum<?>> {
 
@@ -28,7 +25,7 @@ public class FlwEnumEntry extends FlwValueEntry<Enum<?>> {
 	public FlwEnumEntry(String label, Option<Enum<?>> option) {
 		super(label, option);
 
-		valueText = new TextStencilElement(Minecraft.getInstance().font, "YEP").centered(true, true);
+		valueText = new TextStencilElement(MinecraftClient.getInstance().textRenderer, "YEP").centered(true, true);
 		valueText.withElementRenderer((ms, width, height, alpha) -> UIRenderHelper.angledGradient(ms, 0, 0, height / 2,
 				height, width, Theme.p(Theme.Key.TEXT)));
 
@@ -79,7 +76,7 @@ public class FlwEnumEntry extends FlwValueEntry<Enum<?>> {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY,
+	public void render(DrawContext graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY,
 					   boolean p_230432_9_, float partialTicks) {
 		super.render(graphics, index, y, x, width, height, mouseX, mouseY, p_230432_9_, partialTicks);
 

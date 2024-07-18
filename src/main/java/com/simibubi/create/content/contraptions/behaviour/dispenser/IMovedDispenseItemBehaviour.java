@@ -1,67 +1,66 @@
 package com.simibubi.create.content.contraptions.behaviour.dispenser;
 
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-
-import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.entity.item.PrimedTnt;
-import net.minecraft.world.entity.projectile.FireworkRocketEntity;
-import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.entity.projectile.SmallFireball;
-import net.minecraft.world.entity.projectile.ThrownPotion;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SpawnEggItem;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.BeehiveBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.BucketPickup;
-import net.minecraft.world.level.block.entity.BeehiveBlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BeehiveBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.FluidDrainable;
+import net.minecraft.block.entity.BeehiveBlockEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.TntEntity;
+import net.minecraft.entity.projectile.FireworkRocketEntity;
+import net.minecraft.entity.projectile.ProjectileEntity;
+import net.minecraft.entity.projectile.SmallFireballEntity;
+import net.minecraft.entity.projectile.thrown.PotionEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.item.SpawnEggItem;
+import net.minecraft.potion.PotionUtil;
+import net.minecraft.potion.Potions;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.registry.tag.FluidTags;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 public interface IMovedDispenseItemBehaviour {
 
 	static void initSpawnEggs() {
 		final IMovedDispenseItemBehaviour spawnEggDispenseBehaviour = new MovedDefaultDispenseItemBehaviour() {
 			@Override
-			protected ItemStack dispenseStack(ItemStack itemStack, MovementContext context, BlockPos pos, Vec3 facing) {
+			protected ItemStack dispenseStack(ItemStack itemStack, MovementContext context, BlockPos pos, Vec3d facing) {
 				if (!(itemStack.getItem() instanceof SpawnEggItem))
 					return super.dispenseStack(itemStack, context, pos, facing);
-				if (context.world instanceof ServerLevel) {
-					EntityType<?> entityType = ((SpawnEggItem) itemStack.getItem()).getType(itemStack.getTag());
-					Entity spawnedEntity = entityType.spawn((ServerLevel) context.world, itemStack, null,
-						pos.offset(BlockPos.containing(facing.x + .7, facing.y + .7, facing.z + .7)), MobSpawnType.DISPENSER, facing.y < .5,
+				if (context.world instanceof ServerWorld) {
+					EntityType<?> entityType = ((SpawnEggItem) itemStack.getItem()).getEntityType(itemStack.getNbt());
+					Entity spawnedEntity = entityType.spawnFromItemStack((ServerWorld) context.world, itemStack, null,
+						pos.add(BlockPos.ofFloored(facing.x + .7, facing.y + .7, facing.z + .7)), SpawnReason.DISPENSER, facing.y < .5,
 						false);
 					if (spawnedEntity != null)
-						spawnedEntity.setDeltaMovement(context.motion.scale(2));
+						spawnedEntity.setVelocity(context.motion.multiply(2));
 				}
-				itemStack.shrink(1);
+				itemStack.decrement(1);
 				return itemStack;
 			}
 		};
 
-		for (SpawnEggItem spawneggitem : SpawnEggItem.eggs())
+		for (SpawnEggItem spawneggitem : SpawnEggItem.getAll())
 			DispenserMovementBehaviour.registerMovedDispenseItemBehaviour(spawneggitem, spawnEggDispenseBehaviour);
 	}
 
 	static void init() {
 		MovedProjectileDispenserBehaviour movedPotionDispenseItemBehaviour = new MovedProjectileDispenserBehaviour() {
 			@Override
-			protected Projectile getProjectileEntity(Level world, double x, double y, double z, ItemStack itemStack) {
-				return Util.make(new ThrownPotion(world, x, y, z), (p_218411_1_) -> p_218411_1_.setItem(itemStack));
+			protected ProjectileEntity getProjectileEntity(World world, double x, double y, double z, ItemStack itemStack) {
+				return Util.make(new PotionEntity(world, x, y, z), (p_218411_1_) -> p_218411_1_.setItem(itemStack));
 			}
 
 			protected float getProjectileInaccuracy() {
@@ -82,16 +81,16 @@ public interface IMovedDispenseItemBehaviour {
 			new MovedDefaultDispenseItemBehaviour() {
 				@Override
 				protected ItemStack dispenseStack(ItemStack itemStack, MovementContext context, BlockPos pos,
-					Vec3 facing) {
+					Vec3d facing) {
 					double x = pos.getX() + facing.x * .7 + .5;
 					double y = pos.getY() + facing.y * .7 + .5;
 					double z = pos.getZ() + facing.z * .7 + .5;
-					PrimedTnt tntentity = new PrimedTnt(context.world, x, y, z, null);
-					tntentity.push(context.motion.x, context.motion.y, context.motion.z);
-					context.world.addFreshEntity(tntentity);
+					TntEntity tntentity = new TntEntity(context.world, x, y, z, null);
+					tntentity.addVelocity(context.motion.x, context.motion.y, context.motion.z);
+					context.world.spawnEntity(tntentity);
 					context.world.playSound(null, tntentity.getX(), tntentity.getY(), tntentity.getZ(),
-						SoundEvents.TNT_PRIMED, SoundSource.BLOCKS, 1.0F, 1.0F);
-					itemStack.shrink(1);
+						SoundEvents.ENTITY_TNT_PRIMED, SoundCategory.BLOCKS, 1.0F, 1.0F);
+					itemStack.decrement(1);
 					return itemStack;
 				}
 			});
@@ -100,45 +99,45 @@ public interface IMovedDispenseItemBehaviour {
 			new MovedDefaultDispenseItemBehaviour() {
 				@Override
 				protected ItemStack dispenseStack(ItemStack itemStack, MovementContext context, BlockPos pos,
-					Vec3 facing) {
+					Vec3d facing) {
 					double x = pos.getX() + facing.x * .7 + .5;
 					double y = pos.getY() + facing.y * .7 + .5;
 					double z = pos.getZ() + facing.z * .7 + .5;
 					FireworkRocketEntity fireworkrocketentity =
 						new FireworkRocketEntity(context.world, itemStack, x, y, z, true);
-					fireworkrocketentity.shoot(facing.x, facing.y, facing.z, 0.5F, 1.0F);
-					context.world.addFreshEntity(fireworkrocketentity);
-					itemStack.shrink(1);
+					fireworkrocketentity.setVelocity(facing.x, facing.y, facing.z, 0.5F, 1.0F);
+					context.world.spawnEntity(fireworkrocketentity);
+					itemStack.decrement(1);
 					return itemStack;
 				}
 
 				@Override
-				protected void playDispenseSound(LevelAccessor world, BlockPos pos) {
-					world.levelEvent(1004, pos, 0);
+				protected void playDispenseSound(WorldAccess world, BlockPos pos) {
+					world.syncWorldEvent(1004, pos, 0);
 				}
 			});
 
 		DispenserMovementBehaviour.registerMovedDispenseItemBehaviour(Items.FIRE_CHARGE,
 			new MovedDefaultDispenseItemBehaviour() {
 				@Override
-				protected void playDispenseSound(LevelAccessor world, BlockPos pos) {
-					world.levelEvent(1018, pos, 0);
+				protected void playDispenseSound(WorldAccess world, BlockPos pos) {
+					world.syncWorldEvent(1018, pos, 0);
 				}
 
 				@Override
 				protected ItemStack dispenseStack(ItemStack itemStack, MovementContext context, BlockPos pos,
-					Vec3 facing) {
-					RandomSource random = context.world.random;
+					Vec3d facing) {
+					Random random = context.world.random;
 					double x = pos.getX() + facing.x * .7 + .5;
 					double y = pos.getY() + facing.y * .7 + .5;
 					double z = pos.getZ() + facing.z * .7 + .5;
-					context.world.addFreshEntity(Util.make(
-						new SmallFireball(context.world, x, y, z,
+					context.world.spawnEntity(Util.make(
+						new SmallFireballEntity(context.world, x, y, z,
 							random.nextGaussian() * 0.05D + facing.x + context.motion.x,
 							random.nextGaussian() * 0.05D + facing.y + context.motion.y,
 							random.nextGaussian() * 0.05D + facing.z + context.motion.z),
 						(p_229425_1_) -> p_229425_1_.setItem(itemStack)));
-					itemStack.shrink(1);
+					itemStack.decrement(1);
 					return itemStack;
 				}
 			});
@@ -147,22 +146,22 @@ public interface IMovedDispenseItemBehaviour {
 			new MovedOptionalDispenseBehaviour() {
 				@Override
 				protected ItemStack dispenseStack(ItemStack itemStack, MovementContext context, BlockPos pos,
-					Vec3 facing) {
+					Vec3d facing) {
 					this.successful = false;
-					BlockPos interactAt = pos.relative(getClosestFacingDirection(facing));
+					BlockPos interactAt = pos.offset(getClosestFacingDirection(facing));
 					BlockState state = context.world.getBlockState(interactAt);
 					Block block = state.getBlock();
 
-					if (state.is(BlockTags.BEEHIVES) && state.getValue(BeehiveBlock.HONEY_LEVEL) >= 5) {
-						((BeehiveBlock) block).releaseBeesAndResetHoneyLevel(context.world, state, interactAt, null,
-							BeehiveBlockEntity.BeeReleaseStatus.BEE_RELEASED);
+					if (state.isIn(BlockTags.BEEHIVES) && state.get(BeehiveBlock.HONEY_LEVEL) >= 5) {
+						((BeehiveBlock) block).takeHoney(context.world, state, interactAt, null,
+							BeehiveBlockEntity.BeeState.BEE_RELEASED);
 						this.successful = true;
 						return placeItemInInventory(itemStack, new ItemStack(Items.HONEY_BOTTLE), context, pos, facing);
 					} else if (context.world.getFluidState(interactAt)
-						.is(FluidTags.WATER)) {
+						.isIn(FluidTags.WATER)) {
 						this.successful = true;
 						return placeItemInInventory(itemStack,
-							PotionUtils.setPotion(new ItemStack(Items.POTION), Potions.WATER), context, pos, facing);
+							PotionUtil.setPotion(new ItemStack(Items.POTION), Potions.WATER), context, pos, facing);
 					} else {
 						return super.dispenseStack(itemStack, context, pos, facing);
 					}
@@ -173,12 +172,12 @@ public interface IMovedDispenseItemBehaviour {
 			new MovedDefaultDispenseItemBehaviour() {
 				@Override
 				protected ItemStack dispenseStack(ItemStack itemStack, MovementContext context, BlockPos pos,
-					Vec3 facing) {
-					BlockPos interactAt = pos.relative(getClosestFacingDirection(facing));
+					Vec3d facing) {
+					BlockPos interactAt = pos.offset(getClosestFacingDirection(facing));
 					BlockState state = context.world.getBlockState(interactAt);
 					Block block = state.getBlock();
-					if (block instanceof BucketPickup) {
-						ItemStack bucket = ((BucketPickup) block).pickupBlock(context.world, interactAt, state);
+					if (block instanceof FluidDrainable) {
+						ItemStack bucket = ((FluidDrainable) block).tryDrainFluid(context.world, interactAt, state);
 						return placeItemInInventory(itemStack, bucket, context, pos, facing);
 					}
 					return super.dispenseStack(itemStack, context, pos, facing);

@@ -3,24 +3,22 @@ package com.simibubi.create.content.equipment.zapper.terrainzapper;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.function.Supplier;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult.Type;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
+import net.minecraft.world.RaycastContext.FluidHandling;
+import net.minecraft.world.RaycastContext.ShapeType;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllSpecialTextures;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.ClipContext.Block;
-import net.minecraft.world.level.ClipContext.Fluid;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult.Type;
-import net.minecraft.world.phys.Vec3;
 
 public class WorldshaperRenderHandler {
 
@@ -39,14 +37,14 @@ public class WorldshaperRenderHandler {
 	}
 
 	protected static void gatherSelectedBlocks() {
-		LocalPlayer player = Minecraft.getInstance().player;
-		ItemStack heldMain = player.getMainHandItem();
-		ItemStack heldOff = player.getOffhandItem();
+		ClientPlayerEntity player = MinecraftClient.getInstance().player;
+		ItemStack heldMain = player.getMainHandStack();
+		ItemStack heldOff = player.getOffHandStack();
 		boolean zapperInMain = AllItems.WORLDSHAPER.isIn(heldMain);
 		boolean zapperInOff = AllItems.WORLDSHAPER.isIn(heldOff);
 
 		if (zapperInMain) {
-			CompoundTag tag = heldMain.getOrCreateTag();
+			NbtCompound tag = heldMain.getOrCreateNbt();
 			if (!tag.contains("_Swap") || !zapperInOff) {
 				createBrushOutline(tag, player, heldMain);
 				return;
@@ -54,7 +52,7 @@ public class WorldshaperRenderHandler {
 		}
 
 		if (zapperInOff) {
-			CompoundTag tag = heldOff.getOrCreateTag();
+			NbtCompound tag = heldOff.getOrCreateNbt();
 			createBrushOutline(tag, player, heldOff);
 			return;
 		}
@@ -62,7 +60,7 @@ public class WorldshaperRenderHandler {
 		renderedPositions = null;
 	}
 
-	public static void createBrushOutline(CompoundTag tag, LocalPlayer player, ItemStack zapper) {
+	public static void createBrushOutline(NbtCompound tag, ClientPlayerEntity player, ItemStack zapper) {
 		if (!tag.contains("BrushParams")) {
 			renderedPositions = null;
 			return;
@@ -72,24 +70,24 @@ public class WorldshaperRenderHandler {
 			.get();
 		PlacementOptions placement = NBTHelper.readEnum(tag, "Placement", PlacementOptions.class);
 		TerrainTools tool = NBTHelper.readEnum(tag, "Tool", TerrainTools.class);
-		BlockPos params = NbtUtils.readBlockPos(tag.getCompound("BrushParams"));
+		BlockPos params = NbtHelper.toBlockPos(tag.getCompound("BrushParams"));
 		brush.set(params.getX(), params.getY(), params.getZ());
 
-		Vec3 start = player.position()
-			.add(0, player.getEyeHeight(), 0);
-		Vec3 range = player.getLookAngle()
-			.scale(128);
-		BlockHitResult raytrace = player.level()
-			.clip(new ClipContext(start, start.add(range), Block.OUTLINE, Fluid.NONE, player));
+		Vec3d start = player.getPos()
+			.add(0, player.getStandingEyeHeight(), 0);
+		Vec3d range = player.getRotationVector()
+			.multiply(128);
+		BlockHitResult raytrace = player.getWorld()
+			.raycast(new RaycastContext(start, start.add(range), ShapeType.OUTLINE, FluidHandling.NONE, player));
 		if (raytrace == null || raytrace.getType() == Type.MISS) {
 			renderedPositions = null;
 			return;
 		}
 
 		BlockPos pos = raytrace.getBlockPos()
-			.offset(brush.getOffset(player.getLookAngle(), raytrace.getDirection(), placement));
+			.add(brush.getOffset(player.getRotationVector(), raytrace.getSide(), placement));
 		renderedPositions =
-			() -> brush.addToGlobalPositions(player.level(), pos, raytrace.getDirection(), new ArrayList<>(), tool);
+			() -> brush.addToGlobalPositions(player.getWorld(), pos, raytrace.getSide(), new ArrayList<>(), tool);
 	}
 
 }

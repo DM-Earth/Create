@@ -1,26 +1,24 @@
 package com.simibubi.create.content.decoration.copycat;
 
 import java.util.function.Predicate;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.BlockRenderView;
+import net.minecraft.world.biome.ColorResolver;
+import net.minecraft.world.chunk.light.LightingProvider;
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.ColorResolver;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.lighting.LevelLightEngine;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
+public class FilteredBlockAndTintGetter implements BlockRenderView {
 
-public class FilteredBlockAndTintGetter implements BlockAndTintGetter {
-
-	private BlockAndTintGetter wrapped;
+	private BlockRenderView wrapped;
 	private Predicate<BlockPos> filter;
 
-	public FilteredBlockAndTintGetter(BlockAndTintGetter wrapped, Predicate<BlockPos> filter) {
+	public FilteredBlockAndTintGetter(BlockRenderView wrapped, Predicate<BlockPos> filter) {
 		this.wrapped = wrapped;
 		this.filter = filter;
 	}
@@ -32,12 +30,12 @@ public class FilteredBlockAndTintGetter implements BlockAndTintGetter {
 
 	@Override
 	public BlockState getBlockState(BlockPos pPos) {
-		return filter.test(pPos) ? wrapped.getBlockState(pPos) : Blocks.AIR.defaultBlockState();
+		return filter.test(pPos) ? wrapped.getBlockState(pPos) : Blocks.AIR.getDefaultState();
 	}
 
 	@Override
 	public FluidState getFluidState(BlockPos pPos) {
-		return filter.test(pPos) ? wrapped.getFluidState(pPos) : Fluids.EMPTY.defaultFluidState();
+		return filter.test(pPos) ? wrapped.getFluidState(pPos) : Fluids.EMPTY.getDefaultState();
 	}
 
 	@Override
@@ -46,23 +44,23 @@ public class FilteredBlockAndTintGetter implements BlockAndTintGetter {
 	}
 
 	@Override
-	public int getMinBuildHeight() {
-		return wrapped.getMinBuildHeight();
+	public int getBottomY() {
+		return wrapped.getBottomY();
 	}
 
 	@Override
-	public float getShade(Direction pDirection, boolean pShade) {
-		return wrapped.getShade(pDirection, pShade);
+	public float getBrightness(Direction pDirection, boolean pShade) {
+		return wrapped.getBrightness(pDirection, pShade);
 	}
 
 	@Override
-	public LevelLightEngine getLightEngine() {
-		return wrapped.getLightEngine();
+	public LightingProvider getLightingProvider() {
+		return wrapped.getLightingProvider();
 	}
 
 	@Override
-	public int getBlockTint(BlockPos pBlockPos, ColorResolver pColorResolver) {
-		return wrapped.getBlockTint(pBlockPos, pColorResolver);
+	public int getColor(BlockPos pBlockPos, ColorResolver pColorResolver) {
+		return wrapped.getColor(pBlockPos, pColorResolver);
 	}
 
 }

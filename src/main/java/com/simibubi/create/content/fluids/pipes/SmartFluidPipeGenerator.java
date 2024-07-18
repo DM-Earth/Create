@@ -6,24 +6,23 @@ import com.tterrag.registrate.providers.DataGenContext;
 import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
-
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.enums.WallMountLocation;
 
 public class SmartFluidPipeGenerator extends SpecialBlockStateGen {
 
 	@Override
 	protected int getXRotation(BlockState state) {
-		AttachFace attachFace = state.getValue(SmartFluidPipeBlock.FACE);
-		return attachFace == AttachFace.CEILING ? 180 : attachFace == AttachFace.FLOOR ? 0 : 270;
+		WallMountLocation attachFace = state.get(SmartFluidPipeBlock.FACE);
+		return attachFace == WallMountLocation.CEILING ? 180 : attachFace == WallMountLocation.FLOOR ? 0 : 270;
 	}
 
 	@Override
 	protected int getYRotation(BlockState state) {
-		AttachFace attachFace = state.getValue(SmartFluidPipeBlock.FACE);
-		int angle = horizontalAngle(state.getValue(SmartFluidPipeBlock.FACING));
-		return angle + (attachFace == AttachFace.CEILING ? 180 : 0);
+		WallMountLocation attachFace = state.get(SmartFluidPipeBlock.FACE);
+		int angle = horizontalAngle(state.get(SmartFluidPipeBlock.FACING));
+		return angle + (attachFace == WallMountLocation.CEILING ? 180 : 0);
 	}
 
 	@Override

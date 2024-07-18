@@ -4,20 +4,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnRestriction;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.LightType;
+import net.minecraft.world.SpawnHelper;
+import net.minecraft.world.World;
 import com.google.common.collect.Streams;
 import com.simibubi.create.content.equipment.bell.SoulParticle.ExpandingPerimeterData;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.SpawnPlacements;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.NaturalSpawner;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class SoulPulseEffect {
 
@@ -46,7 +44,7 @@ public class SoulPulseEffect {
 		return added == null;
 	}
 
-	public List<BlockPos> tick(Level world) {
+	public List<BlockPos> tick(World world) {
 		if (finished())
 			return null;
 
@@ -66,45 +64,45 @@ public class SoulPulseEffect {
 		return distance - ticks / TICKS_PER_LAYER - 1;
 	}
 
-	public List<BlockPos> getPotentialSoulSpawns(Level world) {
+	public List<BlockPos> getPotentialSoulSpawns(World world) {
 		if (world == null)
 			return new ArrayList<>();
 
-		return getLayer(currentLayerIdx()).map(p -> p.offset(pos))
+		return getLayer(currentLayerIdx()).map(p -> p.add(pos))
 			.filter(p -> canSpawnSoulAt(world, p, true))
 			.collect(Collectors.toList());
 	}
 
-	public static boolean isDark(Level world, BlockPos at) {
-		return world.getBrightness(LightLayer.BLOCK, at) < 1;
+	public static boolean isDark(World world, BlockPos at) {
+		return world.getLightLevel(LightType.BLOCK, at) < 1;
 	}
 
-	public static boolean canSpawnSoulAt(Level world, BlockPos at, boolean ignoreLight) {
+	public static boolean canSpawnSoulAt(World world, BlockPos at, boolean ignoreLight) {
 		EntityType<?> dummy = EntityType.ZOMBIE;
 		double dummyWidth = 0.2, dummyHeight = 0.75;
 		double w2 = dummyWidth / 2;
 
-		return world != null && NaturalSpawner.isSpawnPositionOk(SpawnPlacements.Type.ON_GROUND, world, at, dummy)
+		return world != null && SpawnHelper.canSpawn(SpawnRestriction.Location.ON_GROUND, world, at, dummy)
 			&& (ignoreLight || isDark(world, at))
 			&& Streams
 				.stream(world.getBlockCollisions(null,
-					new AABB(at.getX() + 0.5 - w2, at.getY(), at.getZ() + 0.5 - w2, at.getX() + 0.5 + w2,
+					new Box(at.getX() + 0.5 - w2, at.getY(), at.getZ() + 0.5 - w2, at.getX() + 0.5 + w2,
 						at.getY() + dummyHeight, at.getZ() + 0.5 + w2)))
 				.allMatch(VoxelShape::isEmpty);
 	}
 
-	public void spawnParticles(Level world, BlockPos at) {
-		if (world == null || !world.isClientSide)
+	public void spawnParticles(World world, BlockPos at) {
+		if (world == null || !world.isClient)
 			return;
 
-		Vec3 p = Vec3.atLowerCornerOf(at);
+		Vec3d p = Vec3d.of(at);
 		if (canOverlap())
-			world.addAlwaysVisibleParticle(((int) Math.round(VecHelper.getCenterOf(pos)
+			world.addImportantParticle(((int) Math.round(VecHelper.getCenterOf(pos)
 				.distanceTo(VecHelper.getCenterOf(at)))) >= distance ? new SoulParticle.PerimeterData()
 					: new ExpandingPerimeterData(),
 				p.x + 0.5, p.y + 0.5, p.z + 0.5, 0, 0, 0);
 		if (SoulPulseEffect.isDark(world, at)) {
-			world.addAlwaysVisibleParticle(new SoulParticle.Data(), p.x + 0.5, p.y + 0.5, p.z + 0.5, 0, 0, 0);
+			world.addImportantParticle(new SoulParticle.Data(), p.x + 0.5, p.y + 0.5, p.z + 0.5, 0, 0, 0);
 			world.addParticle(new SoulBaseParticle.Data(), p.x + 0.5, p.y + 0.01, p.z + 0.5, 0, 0, 0);
 		}
 	}
@@ -119,7 +117,7 @@ public class SoulPulseEffect {
 				for (int z = 0; z < MAX_DISTANCE; z++) {
 					BlockPos candidate = new BlockPos(x, y, z);
 
-					int dist = (int) Math.round(Math.sqrt(candidate.distSqr(BlockPos.ZERO)));
+					int dist = (int) Math.round(Math.sqrt(candidate.getSquaredDistance(BlockPos.ORIGIN)));
 					if (dist > MAX_DISTANCE)
 						continue;
 					if (dist <= 0)

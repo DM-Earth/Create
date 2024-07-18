@@ -2,36 +2,34 @@ package com.simibubi.create.content.trains.entity;
 
 import java.util.Collection;
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.LightType;
+import net.minecraft.world.World;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
-
 public class CarriageCouplingRenderer {
 
-	public static void renderAll(PoseStack ms, MultiBufferSource buffer, Vec3 camera) {
+	public static void renderAll(MatrixStack ms, VertexConsumerProvider buffer, Vec3d camera) {
 		Collection<Train> trains = CreateClient.RAILWAYS.trains.values();
-		VertexConsumer vb = buffer.getBuffer(RenderType.solid());
-		BlockState air = Blocks.AIR.defaultBlockState();
+		VertexConsumer vb = buffer.getBuffer(RenderLayer.getSolid());
+		BlockState air = Blocks.AIR.getDefaultState();
 		float partialTicks = AnimationTickHolder.getPartialTicks();
-		Level level = Minecraft.getInstance().level;
+		World level = MinecraftClient.getInstance().world;
 
 		for (Train train : trains) {
 			List<Carriage> carriages = train.carriages;
@@ -46,12 +44,12 @@ public class CarriageCouplingRenderer {
 
 				CarriageBogey bogey1 = carriage.trailingBogey();
 				CarriageBogey bogey2 = carriage2.leadingBogey();
-				Vec3 anchor = bogey1.couplingAnchors.getSecond();
-				Vec3 anchor2 = bogey2.couplingAnchors.getFirst();
+				Vec3d anchor = bogey1.couplingAnchors.getSecond();
+				Vec3d anchor2 = bogey2.couplingAnchors.getFirst();
 
 				if (anchor == null || anchor2 == null)
 					continue;
-				if (!anchor.closerThan(camera, 64))
+				if (!anchor.isInRange(camera, 64))
 					continue;
 
 				int lightCoords = getPackedLightCoords(entity, partialTicks);
@@ -60,16 +58,16 @@ public class CarriageCouplingRenderer {
 				double diffX = anchor2.x - anchor.x;
 				double diffY = anchor2.y - anchor.y;
 				double diffZ = anchor2.z - anchor.z;
-				float yRot = AngleHelper.deg(Mth.atan2(diffZ, diffX)) + 90;
+				float yRot = AngleHelper.deg(MathHelper.atan2(diffZ, diffX)) + 90;
 				float xRot = AngleHelper.deg(Math.atan2(diffY, Math.sqrt(diffX * diffX + diffZ * diffZ)));
 
-				Vec3 position = entity.getPosition(partialTicks);
-				Vec3 position2 = entity2.getPosition(partialTicks);
+				Vec3d position = entity.getLerpedPos(partialTicks);
+				Vec3d position2 = entity2.getLerpedPos(partialTicks);
 
-				ms.pushPose();
+				ms.push();
 
 				{
-					ms.pushPose();
+					ms.push();
 					ms.translate(anchor.x - camera.x, anchor.y - camera.y, anchor.z - camera.z);
 					CachedBufferer.partial(AllPartialModels.TRAIN_COUPLING_HEAD, air)
 						.rotateY(-yRot)
@@ -92,12 +90,12 @@ public class CarriageCouplingRenderer {
 							.light(lightCoords)
 							.renderInto(ms, vb);
 					}
-					ms.popPose();
+					ms.pop();
 				}
 
 				{
-					ms.pushPose();
-					Vec3 translation = position2.subtract(position)
+					ms.push();
+					Vec3d translation = position2.subtract(position)
 						.add(anchor2)
 						.subtract(camera);
 					ms.translate(translation.x, translation.y, translation.z);
@@ -106,26 +104,26 @@ public class CarriageCouplingRenderer {
 						.rotateX(-xRot)
 						.light(lightCoords2)
 						.renderInto(ms, vb);
-					ms.popPose();
+					ms.pop();
 				}
 
-				ms.popPose();
+				ms.pop();
 			}
 		}
 
 	}
 
 	public static int getPackedLightCoords(Entity pEntity, float pPartialTicks) {
-		BlockPos blockpos = BlockPos.containing(pEntity.getLightProbePosition(pPartialTicks));
-		return LightTexture.pack(getBlockLightLevel(pEntity, blockpos), getSkyLightLevel(pEntity, blockpos));
+		BlockPos blockpos = BlockPos.ofFloored(pEntity.getClientCameraPosVec(pPartialTicks));
+		return LightmapTextureManager.pack(getBlockLightLevel(pEntity, blockpos), getSkyLightLevel(pEntity, blockpos));
 	}
 
 	protected static int getSkyLightLevel(Entity pEntity, BlockPos pPos) {
-		return pEntity.level().getBrightness(LightLayer.SKY, pPos);
+		return pEntity.getWorld().getLightLevel(LightType.SKY, pPos);
 	}
 
 	protected static int getBlockLightLevel(Entity pEntity, BlockPos pPos) {
-		return pEntity.isOnFire() ? 15 : pEntity.level().getBrightness(LightLayer.BLOCK, pPos);
+		return pEntity.isOnFire() ? 15 : pEntity.getWorld().getLightLevel(LightType.BLOCK, pPos);
 	}
 
 }

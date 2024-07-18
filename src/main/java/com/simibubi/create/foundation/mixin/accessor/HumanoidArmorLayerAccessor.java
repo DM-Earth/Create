@@ -1,30 +1,28 @@
 package com.simibubi.create.foundation.mixin.accessor;
 
 import java.util.Map;
-
+import net.minecraft.client.render.entity.feature.ArmorFeatureRenderer;
+import net.minecraft.client.render.entity.model.BipedEntityModel;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
-import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EquipmentSlot;
-
-@Mixin(HumanoidArmorLayer.class)
+@Mixin(ArmorFeatureRenderer.class)
 public interface HumanoidArmorLayerAccessor {
-	@Accessor("ARMOR_LOCATION_CACHE")
-	static Map<String, ResourceLocation> create$getArmorLocationCache() {
+	@Accessor("ARMOR_TEXTURE_CACHE")
+	static Map<String, Identifier> create$getArmorTextureCache() {
 		throw new RuntimeException();
 	}
 
 	@Accessor("innerModel")
-	HumanoidModel<?> create$getInnerModel();
+	BipedEntityModel<?> create$getInnerModel();
 
 	@Accessor("outerModel")
-	HumanoidModel<?> create$getOuterModel();
+	BipedEntityModel<?> create$getOuterModel();
 
-	@Invoker("setPartVisibility")
-	void create$callSetPartVisibility(HumanoidModel<?> model, EquipmentSlot slot);
+	@Invoker("setVisible")
+	void create$callSetVisible(BipedEntityModel<?> model, EquipmentSlot slot);
 
 }

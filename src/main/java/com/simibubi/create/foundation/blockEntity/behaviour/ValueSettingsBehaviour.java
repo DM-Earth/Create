@@ -2,29 +2,28 @@ package com.simibubi.create.foundation.blockEntity.behaviour;
 
 import com.simibubi.create.content.equipment.clipboard.ClipboardCloneable;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public interface ValueSettingsBehaviour extends ClipboardCloneable {
 
 	public static record ValueSettings(int row, int value) {
 
-		public MutableComponent format() {
+		public MutableText format() {
 			return Lang.number(value)
 				.component();
 		}
 
 	};
 
-	public boolean testHit(Vec3 hit);
+	public boolean testHit(Vec3d hit);
 
 	public boolean isActive();
 
@@ -36,9 +35,9 @@ public interface ValueSettingsBehaviour extends ClipboardCloneable {
 
 	public ValueBoxTransform getSlotPositioning();
 
-	public ValueSettingsBoard createBoard(Player player, BlockHitResult hitResult);
+	public ValueSettingsBoard createBoard(PlayerEntity player, BlockHitResult hitResult);
 
-	public void setValueSettings(Player player, ValueSettings valueSetting, boolean ctrlDown);
+	public void setValueSettings(PlayerEntity player, ValueSettings valueSetting, boolean ctrlDown);
 
 	public ValueSettings getValueSettings();
 
@@ -52,7 +51,7 @@ public interface ValueSettingsBehaviour extends ClipboardCloneable {
 	}
 
 	@Override
-	default boolean writeToClipboard(CompoundTag tag, Direction side) {
+	default boolean writeToClipboard(NbtCompound tag, Direction side) {
 		if (!acceptsValueSettings())
 			return false;
 		ValueSettings valueSettings = getValueSettings();
@@ -62,7 +61,7 @@ public interface ValueSettingsBehaviour extends ClipboardCloneable {
 	}
 
 	@Override
-	default boolean readFromClipboard(CompoundTag tag, Player player, Direction side, boolean simulate) {
+	default boolean readFromClipboard(NbtCompound tag, PlayerEntity player, Direction side, boolean simulate) {
 		if (!acceptsValueSettings())
 			return false;
 		if (!tag.contains("Value") || !tag.contains("Row"))
@@ -75,12 +74,12 @@ public interface ValueSettingsBehaviour extends ClipboardCloneable {
 
 	default void playFeedbackSound(BlockEntityBehaviour origin) {
 		origin.getWorld()
-			.playSound(null, origin.getPos(), SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 0.25f, 2f);
+			.playSound(null, origin.getPos(), SoundEvents.ENTITY_ITEM_FRAME_ADD_ITEM, SoundCategory.BLOCKS, 0.25f, 2f);
 		origin.getWorld()
-			.playSound(null, origin.getPos(), SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value(), SoundSource.BLOCKS, 0.03f,
+			.playSound(null, origin.getPos(), SoundEvents.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE.value(), SoundCategory.BLOCKS, 0.03f,
 				1.125f);
 	}
 
-	default void onShortInteract(Player player, InteractionHand hand, Direction side) {}
+	default void onShortInteract(PlayerEntity player, Hand hand, Direction side) {}
 
 }

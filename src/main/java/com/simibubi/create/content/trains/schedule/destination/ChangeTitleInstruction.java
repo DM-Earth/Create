@@ -1,28 +1,26 @@
 package com.simibubi.create.content.trains.schedule.destination;
 
 import java.util.List;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.Pair;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-
 public class ChangeTitleInstruction extends TextScheduleInstruction {
 
 	@Override
-	public Pair<ItemStack, Component> getSummary() {
+	public Pair<ItemStack, Text> getSummary() {
 		return Pair.of(icon(), Components.literal(getLabelText()));
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return Create.asResource("rename");
 	}
 
@@ -45,12 +43,12 @@ public class ChangeTitleInstruction extends TextScheduleInstruction {
 	}
 
 	@Override
-	public List<Component> getSecondLineTooltip(int slot) {
+	public List<Text> getSecondLineTooltip(int slot) {
 		return ImmutableList.of(Lang.translateDirect("schedule.instruction.name_edit_box"),
 			Lang.translateDirect("schedule.instruction.name_edit_box_1")
-				.withStyle(ChatFormatting.GRAY),
+				.formatted(Formatting.GRAY),
 			Lang.translateDirect("schedule.instruction.name_edit_box_2")
-				.withStyle(ChatFormatting.DARK_GRAY));
+				.formatted(Formatting.DARK_GRAY));
 	}
 
 }

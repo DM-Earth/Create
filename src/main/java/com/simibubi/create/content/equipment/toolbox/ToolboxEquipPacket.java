@@ -6,14 +6,14 @@ import io.github.fabricators_of_create.porting_lib.transfer.TransferUtil;
 
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class ToolboxEquipPacket extends SimplePacketBase {
 
@@ -27,7 +27,7 @@ public class ToolboxEquipPacket extends SimplePacketBase {
 		this.hotbarSlot = hotbarSlot;
 	}
 
-	public ToolboxEquipPacket(FriendlyByteBuf buffer) {
+	public ToolboxEquipPacket(PacketByteBuf buffer) {
 		if (buffer.readBoolean())
 			toolboxPos = buffer.readBlockPos();
 		slot = buffer.readVarInt();
@@ -35,7 +35,7 @@ public class ToolboxEquipPacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBoolean(toolboxPos != null);
 		if (toolboxPos != null)
 			buffer.writeBlockPos(toolboxPos);
@@ -46,8 +46,8 @@ public class ToolboxEquipPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
-			Level world = player.level();
+			ServerPlayerEntity player = context.getSender();
+			World world = player.getWorld();
 
 			if (toolboxPos == null) {
 				ToolboxHandler.unequip(player, hotbarSlot, false);
@@ -58,7 +58,7 @@ public class ToolboxEquipPacket extends SimplePacketBase {
 			BlockEntity blockEntity = world.getBlockEntity(toolboxPos);
 
 			double maxRange = ToolboxHandler.getMaxRange(player);
-			if (player.distanceToSqr(toolboxPos.getX() + 0.5, toolboxPos.getY(), toolboxPos.getZ() + 0.5) > maxRange
+			if (player.squaredDistanceTo(toolboxPos.getX() + 0.5, toolboxPos.getY(), toolboxPos.getZ() + 0.5) > maxRange
 				* maxRange)
 				return;
 			if (!(blockEntity instanceof ToolboxBlockEntity))
@@ -73,7 +73,7 @@ public class ToolboxEquipPacket extends SimplePacketBase {
 
 			ToolboxBlockEntity toolboxBlockEntity = (ToolboxBlockEntity) blockEntity;
 
-			ItemStack playerStack = player.getInventory().getItem(hotbarSlot);
+			ItemStack playerStack = player.getInventory().getStack(hotbarSlot);
 			if (!playerStack.isEmpty() && !ToolboxInventory.canItemsShareCompartment(playerStack,
 				toolboxBlockEntity.inventory.filters.get(slot))) {
 				toolboxBlockEntity.inventory.inLimitedMode(inventory -> {
@@ -86,21 +86,21 @@ public class ToolboxEquipPacket extends SimplePacketBase {
 						long remainder = count - inserted;
 						if (remainder != count) {
 							t.commit();
-							ItemStack newStack = player.getSlot(hotbarSlot).get().copy();
+							ItemStack newStack = player.getStackReference(hotbarSlot).get().copy();
 							newStack.setCount((int) remainder);
-							player.getInventory().setItem(hotbarSlot, newStack);
+							player.getInventory().setStack(hotbarSlot, newStack);
 						}
 					}
 				});
 			}
 
-			CompoundTag compound = player.getCustomData()
+			NbtCompound compound = player.getCustomData()
 				.getCompound("CreateToolboxData");
 			String key = String.valueOf(hotbarSlot);
 
-			CompoundTag data = new CompoundTag();
+			NbtCompound data = new NbtCompound();
 			data.putInt("Slot", slot);
-			data.put("Pos", NbtUtils.writeBlockPos(toolboxPos));
+			data.put("Pos", NbtHelper.fromBlockPos(toolboxPos));
 			compound.put(key, data);
 
 			player.getCustomData()

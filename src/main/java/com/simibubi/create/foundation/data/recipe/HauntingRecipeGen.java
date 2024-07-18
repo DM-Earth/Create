@@ -9,18 +9,17 @@ import com.simibubi.create.foundation.utility.RegisteredObjects;
 
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
-
-import net.minecraft.tags.ItemTags;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.tag.ItemTags;
 
 public class HauntingRecipeGen extends ProcessingRecipeGen {
 
 	GeneratedRecipe
 
-	BRASS_BELL = convert(() -> Ingredient.of(AllBlocks.PECULIAR_BELL.get()), AllBlocks.HAUNTED_BELL::get),
+	BRASS_BELL = convert(() -> Ingredient.ofItems(AllBlocks.PECULIAR_BELL.get()), AllBlocks.HAUNTED_BELL::get),
 
 		HAUNT_STONE = convert(Items.STONE, Items.INFESTED_STONE),
 		HAUNT_DEEPSLATE = convert(Items.DEEPSLATE, Items.INFESTED_DEEPSLATE),
@@ -42,17 +41,17 @@ public class HauntingRecipeGen extends ProcessingRecipeGen {
 			.output(.75f, Items.PRISMARINE_SHARD)
 			.output(.125f, Items.PRISMARINE_CRYSTALS)),
 
-		SOUL_SAND = convert(() -> Ingredient.of(ItemTags.SAND), () -> Blocks.SOUL_SAND),
-		SOUL_DIRT = convert(() -> Ingredient.of(ItemTags.DIRT), () -> Blocks.SOUL_SOIL),
-		BLACK_STONE = convert(() -> Ingredient.of(Tags.Items.COBBLESTONE), () -> Blocks.BLACKSTONE),
+		SOUL_SAND = convert(() -> Ingredient.fromTag(ItemTags.SAND), () -> Blocks.SOUL_SAND),
+		SOUL_DIRT = convert(() -> Ingredient.fromTag(ItemTags.DIRT), () -> Blocks.SOUL_SOIL),
+		BLACK_STONE = convert(() -> Ingredient.fromTag(Tags.Items.COBBLESTONE), () -> Blocks.BLACKSTONE),
 		CRIMSON_FUNGUS = convert(Items.RED_MUSHROOM, Items.CRIMSON_FUNGUS),
 		WARPED_FUNGUS = convert(Items.BROWN_MUSHROOM, Items.WARPED_FUNGUS);
 
-	public GeneratedRecipe convert(ItemLike input, ItemLike result) {
-		return convert(() -> Ingredient.of(input), () -> result);
+	public GeneratedRecipe convert(ItemConvertible input, ItemConvertible result) {
+		return convert(() -> Ingredient.ofItems(input), () -> result);
 	}
 
-	public GeneratedRecipe convert(Supplier<Ingredient> input, Supplier<ItemLike> result) {
+	public GeneratedRecipe convert(Supplier<Ingredient> input, Supplier<ItemConvertible> result) {
 		return create(Create.asResource(RegisteredObjects.getKeyOrThrow(result.get()
 			.asItem())
 			.getPath()),

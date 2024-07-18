@@ -3,9 +3,8 @@ package com.simibubi.create.foundation.ponder.instruction;
 import com.simibubi.create.foundation.ponder.ElementLink;
 import com.simibubi.create.foundation.ponder.PonderScene;
 import com.simibubi.create.foundation.ponder.element.AnimatedSceneElement;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class FadeOutOfSceneInstruction<T extends AnimatedSceneElement> extends TickingInstruction {
 
@@ -27,9 +26,9 @@ public class FadeOutOfSceneInstruction<T extends AnimatedSceneElement> extends T
 			return;
 		element.setVisible(true);
 		element.setFade(1);
-		element.setFadeVec(fadeOutTo == null ? Vec3.ZERO
-			: Vec3.atLowerCornerOf(fadeOutTo.getNormal())
-				.scale(.5f));
+		element.setFadeVec(fadeOutTo == null ? Vec3d.ZERO
+			: Vec3d.of(fadeOutTo.getVector())
+				.multiply(.5f));
 	}
 
 	@Override

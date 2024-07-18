@@ -8,71 +8,71 @@ import com.simibubi.create.foundation.block.IBE;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.WallMountedBlock;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.particle.DustParticleEffect;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
-public class AnalogLeverBlock extends FaceAttachedHorizontalDirectionalBlock implements IBE<AnalogLeverBlockEntity> {
+public class AnalogLeverBlock extends WallMountedBlock implements IBE<AnalogLeverBlockEntity> {
 
-	public AnalogLeverBlock(Properties p_i48402_1_) {
+	public AnalogLeverBlock(Settings p_i48402_1_) {
 		super(p_i48402_1_);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
-		if (worldIn.isClientSide) {
+		if (worldIn.isClient) {
 			addParticles(state, worldIn, pos, 1.0F);
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
 
 		return onBlockEntityUse(worldIn, pos, be -> {
-			boolean sneak = player.isShiftKeyDown();
+			boolean sneak = player.isSneaking();
 			be.changeState(sneak);
 			float f = .25f + ((be.state + 5) / 15f) * .5f;
-			worldIn.playSound(null, pos, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.2F, f);
-			return InteractionResult.SUCCESS;
+			worldIn.playSound(null, pos, SoundEvents.BLOCK_LEVER_CLICK, SoundCategory.BLOCKS, 0.2F, f);
+			return ActionResult.SUCCESS;
 		});
 	}
 
 	@Override
-	public int getSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
+	public int getWeakRedstonePower(BlockState blockState, BlockView blockAccess, BlockPos pos, Direction side) {
 		return getBlockEntityOptional(blockAccess, pos).map(al -> al.state)
 			.orElse(0);
 	}
 
 	@Override
-	public boolean isSignalSource(BlockState state) {
+	public boolean emitsRedstonePower(BlockState state) {
 		return true;
 	}
 
 	@Override
-	public int getDirectSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		return getConnectedDirection(blockState) == side ? getSignal(blockState, blockAccess, pos, side) : 0;
+	public int getStrongRedstonePower(BlockState blockState, BlockView blockAccess, BlockPos pos, Direction side) {
+		return getDirection(blockState) == side ? getWeakRedstonePower(blockState, blockAccess, pos, side) : 0;
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public void animateTick(BlockState stateIn, Level worldIn, BlockPos pos, RandomSource rand) {
+	public void randomDisplayTick(BlockState stateIn, World worldIn, BlockPos pos, Random rand) {
 		withBlockEntityDo(worldIn, pos, be -> {
 			if (be.state != 0 && rand.nextFloat() < 0.25F)
 				addParticles(stateIn, worldIn, pos, 0.5F);
@@ -80,7 +80,7 @@ public class AnalogLeverBlock extends FaceAttachedHorizontalDirectionalBlock imp
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		if (isMoving || state.getBlock() == newState.getBlock())
 			return;
 		withBlockEntityDo(worldIn, pos, be -> {
@@ -90,34 +90,34 @@ public class AnalogLeverBlock extends FaceAttachedHorizontalDirectionalBlock imp
 		});
 	}
 
-	private static void addParticles(BlockState state, LevelAccessor worldIn, BlockPos pos, float alpha) {
-		Direction direction = state.getValue(FACING)
+	private static void addParticles(BlockState state, WorldAccess worldIn, BlockPos pos, float alpha) {
+		Direction direction = state.get(FACING)
 			.getOpposite();
-		Direction direction1 = getConnectedDirection(state).getOpposite();
+		Direction direction1 = getDirection(state).getOpposite();
 		double d0 =
-			(double) pos.getX() + 0.5D + 0.1D * (double) direction.getStepX() + 0.2D * (double) direction1.getStepX();
+			(double) pos.getX() + 0.5D + 0.1D * (double) direction.getOffsetX() + 0.2D * (double) direction1.getOffsetX();
 		double d1 =
-			(double) pos.getY() + 0.5D + 0.1D * (double) direction.getStepY() + 0.2D * (double) direction1.getStepY();
+			(double) pos.getY() + 0.5D + 0.1D * (double) direction.getOffsetY() + 0.2D * (double) direction1.getOffsetY();
 		double d2 =
-			(double) pos.getZ() + 0.5D + 0.1D * (double) direction.getStepZ() + 0.2D * (double) direction1.getStepZ();
-		worldIn.addParticle(new DustParticleOptions(new Vector3f(1.0F, 0.0F, 0.0F), alpha), d0, d1, d2, 0.0D, 0.0D,
+			(double) pos.getZ() + 0.5D + 0.1D * (double) direction.getOffsetZ() + 0.2D * (double) direction1.getOffsetZ();
+		worldIn.addParticle(new DustParticleEffect(new Vector3f(1.0F, 0.0F, 0.0F), alpha), d0, d1, d2, 0.0D, 0.0D,
 			0.0D);
 	}
 
-	static void updateNeighbors(BlockState state, Level world, BlockPos pos) {
-		world.updateNeighborsAt(pos, state.getBlock());
-		world.updateNeighborsAt(pos.relative(getConnectedDirection(state).getOpposite()), state.getBlock());
+	static void updateNeighbors(BlockState state, World world, BlockPos pos) {
+		world.updateNeighborsAlways(pos, state.getBlock());
+		world.updateNeighborsAlways(pos.offset(getDirection(state).getOpposite()), state.getBlock());
 	}
 
 	@SuppressWarnings("deprecation")
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return Blocks.LEVER.getShape(state, worldIn, pos, context);
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return Blocks.LEVER.getOutlineShape(state, worldIn, pos, context);
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(FACING, FACE));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(FACING, FACE));
 	}
 
 	@Override
@@ -131,7 +131,7 @@ public class AnalogLeverBlock extends FaceAttachedHorizontalDirectionalBlock imp
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

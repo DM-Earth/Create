@@ -4,9 +4,8 @@ import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
 import com.simibubi.create.content.kinetics.fan.processing.HauntingRecipe;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.gui.element.GuiGameElement;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.gui.DrawContext;
 
 public class FanHauntingCategory extends ProcessingViaFanCategory.MultiOutput<HauntingRecipe> {
 
@@ -20,8 +19,8 @@ public class FanHauntingCategory extends ProcessingViaFanCategory.MultiOutput<Ha
 	}
 
 	@Override
-	protected void renderAttachedBlock(GuiGraphics graphics) {
-		GuiGameElement.of(Blocks.SOUL_FIRE.defaultBlockState())
+	protected void renderAttachedBlock(DrawContext graphics) {
+		GuiGameElement.of(Blocks.SOUL_FIRE.getDefaultState())
 			.scale(SCALE)
 			.atLocal(0, 0, 2)
 			.lighting(AnimatedKinetics.DEFAULT_LIGHTING)

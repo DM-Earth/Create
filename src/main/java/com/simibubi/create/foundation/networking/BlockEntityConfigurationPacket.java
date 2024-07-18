@@ -1,18 +1,17 @@
 package com.simibubi.create.foundation.networking;
 
 import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public abstract class BlockEntityConfigurationPacket<BE extends SyncedBlockEntity> extends SimplePacketBase {
 
 	protected BlockPos pos;
 
-	public BlockEntityConfigurationPacket(FriendlyByteBuf buffer) {
+	public BlockEntityConfigurationPacket(PacketByteBuf buffer) {
 		pos = buffer.readBlockPos();
 		readSettings(buffer);
 	}
@@ -22,7 +21,7 @@ public abstract class BlockEntityConfigurationPacket<BE extends SyncedBlockEntit
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBlockPos(pos);
 		writeSettings(buffer);
 	}
@@ -31,13 +30,13 @@ public abstract class BlockEntityConfigurationPacket<BE extends SyncedBlockEntit
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
-			Level world = player.level();
-			if (world == null || !world.isLoaded(pos))
+			World world = player.getWorld();
+			if (world == null || !world.canSetBlock(pos))
 				return;
-			if (!pos.closerThan(player.blockPosition(), maxRange()))
+			if (!pos.isWithinDistance(player.getBlockPos(), maxRange()))
 				return;
 			BlockEntity blockEntity = world.getBlockEntity(pos);
 			if (blockEntity instanceof SyncedBlockEntity) {
@@ -45,7 +44,7 @@ public abstract class BlockEntityConfigurationPacket<BE extends SyncedBlockEntit
 				if (!causeUpdate())
 					return;
 				((SyncedBlockEntity) blockEntity).sendData();
-				blockEntity.setChanged();
+				blockEntity.markDirty();
 			}
 		});
 		return true;
@@ -55,11 +54,11 @@ public abstract class BlockEntityConfigurationPacket<BE extends SyncedBlockEntit
 		return 20;
 	}
 
-	protected abstract void writeSettings(FriendlyByteBuf buffer);
+	protected abstract void writeSettings(PacketByteBuf buffer);
 
-	protected abstract void readSettings(FriendlyByteBuf buffer);
+	protected abstract void readSettings(PacketByteBuf buffer);
 
-	protected void applySettings(ServerPlayer player, BE be) {
+	protected void applySettings(ServerPlayerEntity player, BE be) {
 		applySettings(be);
 	}
 

@@ -13,13 +13,12 @@ import com.simibubi.create.foundation.ponder.element.ParrotElement;
 import com.simibubi.create.foundation.ponder.element.ParrotElement.FacePointOfInterestPose;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class TrainScenes {
 
@@ -50,7 +49,7 @@ public class TrainScenes {
 
 		BlockPos initialControlsPos = util.grid.at(3, 3, 4);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.WHITE, train,
-			new AABB(initialControlsPos).contract(-6 / 16f, 2 / 16f, 0), 85);
+			new Box(initialControlsPos).shrink(-6 / 16f, 2 / 16f, 0), 85);
 		scene.idle(15);
 
 		scene.overlay.showText(70)
@@ -196,7 +195,7 @@ public class TrainScenes {
 			.text("Schedules allow Trains to be controlled by other Drivers");
 		scene.idle(80);
 
-		Vec3 target = util.vector.topOf(util.grid.at(4, 0, 2));
+		Vec3d target = util.vector.topOf(util.grid.at(4, 0, 2));
 		scene.overlay.showControls(new InputWindowElement(target, Pointing.RIGHT).rightClick()
 			.withItem(AllItems.SCHEDULE.asStack()), 80);
 		scene.overlay.showText(80)
@@ -229,7 +228,7 @@ public class TrainScenes {
 		ElementLink<WorldSectionElement> trainElement2 = scene.world.showIndependentSection(train2, Direction.DOWN);
 		scene.world.moveSection(trainElement2, util.vector.of(0, 0, -3), 0);
 		scene.idle(10);
-		Vec3 birbVec = util.vector.topOf(util.grid.at(3, 0, 7));
+		Vec3d birbVec = util.vector.topOf(util.grid.at(3, 0, 7));
 		ElementLink<ParrotElement> birb = scene.special.createBirb(birbVec, FacePointOfInterestPose::new);
 		scene.world.animateTrainStation(stationPos, true);
 

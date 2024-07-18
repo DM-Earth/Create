@@ -2,15 +2,13 @@ package com.simibubi.create.content.logistics.filter.attribute.astralsorcery;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.content.logistics.filter.ItemAttribute;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 
 public class AstralSorceryPerkGemAttribute implements ItemAttribute {
     String traitName;
@@ -21,8 +19,8 @@ public class AstralSorceryPerkGemAttribute implements ItemAttribute {
 
     @Override
     public boolean appliesTo(ItemStack itemStack) {
-        for (Tag trait : extractTraitList(itemStack)) {
-            if(((CompoundTag) trait).getString("type").equals(this.traitName))
+        for (NbtElement trait : extractTraitList(itemStack)) {
+            if(((NbtCompound) trait).getString("type").equals(this.traitName))
                 return true;
         }
         return false;
@@ -30,7 +28,7 @@ public class AstralSorceryPerkGemAttribute implements ItemAttribute {
 
     @Override
     public List<ItemAttribute> listAttributesOf(ItemStack itemStack) {
-        ListTag traits = extractTraitList(itemStack);
+        NbtList traits = extractTraitList(itemStack);
         List<ItemAttribute> atts = new ArrayList<>();
         for (int i = 0; i < traits.size(); i++) {
             atts.add(new AstralSorceryPerkGemAttribute(traits.getCompound(i).getString("type")));
@@ -45,22 +43,22 @@ public class AstralSorceryPerkGemAttribute implements ItemAttribute {
 
     @Override
     public Object[] getTranslationParameters() {
-        ResourceLocation traitResource = new ResourceLocation(traitName);
+        Identifier traitResource = new Identifier(traitName);
         String something = Components.translatable(String.format("perk.attribute.%s.%s.name", traitResource.getNamespace(), traitResource.getPath())).getString();
         return new Object[] { something };
     }
 
     @Override
-    public void writeNBT(CompoundTag nbt) {
+    public void writeNBT(NbtCompound nbt) {
         nbt.putString("type", this.traitName);
     }
 
     @Override
-    public ItemAttribute readNBT(CompoundTag nbt) {
+    public ItemAttribute readNBT(NbtCompound nbt) {
         return new AstralSorceryPerkGemAttribute(nbt.getString("type"));
     }
 
-    private ListTag extractTraitList(ItemStack stack) {
-        return stack.getTag() != null ? stack.getTag().getCompound("astralsorcery").getList("attribute_modifiers", 10) : new ListTag();
+    private NbtList extractTraitList(ItemStack stack) {
+        return stack.getNbt() != null ? stack.getNbt().getCompound("astralsorcery").getList("attribute_modifiers", 10) : new NbtList();
     }
 }

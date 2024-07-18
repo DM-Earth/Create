@@ -12,33 +12,31 @@ import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Vec3i;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
-import net.minecraft.util.Mth;
-import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class BeltHelper {
 
 	public static Map<Item, Boolean> uprightCache = new Object2BooleanOpenHashMap<>();
 	public static final IdentifiableResourceReloadListener LISTENER = new SimpleSynchronousResourceReloadListener() {
 		@Override
-		public ResourceLocation getFabricId() {
+		public Identifier getFabricId() {
 			return Create.asResource("belt_helper");
 		}
 
 		@Override
-		public void onResourceManagerReload(ResourceManager resourceManager) {
+		public void reload(ResourceManager resourceManager) {
 			uprightCache.clear();
 		}
 	};
@@ -49,8 +47,8 @@ public class BeltHelper {
 				|| AllItemTags.UPRIGHT_ON_BELT.matches(stack));
 	}
 
-	public static BeltBlockEntity getSegmentBE(LevelAccessor world, BlockPos pos) {
-		if (world instanceof Level l && !l.isLoaded(pos))
+	public static BeltBlockEntity getSegmentBE(WorldAccess world, BlockPos pos) {
+		if (world instanceof World l && !l.canSetBlock(pos))
 			return null;
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		if (!(blockEntity instanceof BeltBlockEntity))
@@ -58,7 +56,7 @@ public class BeltHelper {
 		return (BeltBlockEntity) blockEntity;
 	}
 
-	public static BeltBlockEntity getControllerBE(LevelAccessor world, BlockPos pos) {
+	public static BeltBlockEntity getControllerBE(WorldAccess world, BlockPos pos) {
 		BeltBlockEntity segment = getSegmentBE(world, pos);
 		if (segment == null)
 			return null;
@@ -74,7 +72,7 @@ public class BeltHelper {
 
 	public static BeltBlockEntity getBeltAtSegment(BeltBlockEntity controller, int segment) {
 		BlockPos pos = getPositionForOffset(controller, segment);
-		BlockEntity be = controller.getLevel()
+		BlockEntity be = controller.getWorld()
 				.getBlockEntity(pos);
 		if (be == null || !(be instanceof BeltBlockEntity))
 			return null;
@@ -82,48 +80,48 @@ public class BeltHelper {
 	}
 
 	public static BlockPos getPositionForOffset(BeltBlockEntity controller, int offset) {
-		BlockPos pos = controller.getBlockPos();
+		BlockPos pos = controller.getPos();
 		Vec3i vec = controller.getBeltFacing()
-				.getNormal();
-		BeltSlope slope = controller.getBlockState()
-				.getValue(BeltBlock.SLOPE);
+				.getVector();
+		BeltSlope slope = controller.getCachedState()
+				.get(BeltBlock.SLOPE);
 		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
 
-		return pos.offset(offset * vec.getX(), Mth.clamp(offset, 0, controller.beltLength - 1) * verticality,
+		return pos.add(offset * vec.getX(), MathHelper.clamp(offset, 0, controller.beltLength - 1) * verticality,
 				offset * vec.getZ());
 	}
 
-	public static Vec3 getVectorForOffset(BeltBlockEntity controller, float offset) {
-		BeltSlope slope = controller.getBlockState()
-				.getValue(BeltBlock.SLOPE);
+	public static Vec3d getVectorForOffset(BeltBlockEntity controller, float offset) {
+		BeltSlope slope = controller.getCachedState()
+				.get(BeltBlock.SLOPE);
 		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
 		float verticalMovement = verticality;
 		if (offset < .5)
 			verticalMovement = 0;
 		verticalMovement = verticalMovement * (Math.min(offset, controller.beltLength - .5f) - .5f);
-		Vec3 vec = VecHelper.getCenterOf(controller.getBlockPos());
-		Vec3 horizontalMovement = Vec3.atLowerCornerOf(controller.getBeltFacing()
-						.getNormal())
-				.scale(offset - .5f);
+		Vec3d vec = VecHelper.getCenterOf(controller.getPos());
+		Vec3d horizontalMovement = Vec3d.of(controller.getBeltFacing()
+						.getVector())
+				.multiply(offset - .5f);
 
 		if (slope == BeltSlope.VERTICAL)
-			horizontalMovement = Vec3.ZERO;
+			horizontalMovement = Vec3d.ZERO;
 
 		vec = vec.add(horizontalMovement)
 				.add(0, verticalMovement, 0);
 		return vec;
 	}
 
-	public static Vec3 getBeltVector(BlockState state) {
-		BeltSlope slope = state.getValue(BeltBlock.SLOPE);
+	public static Vec3d getBeltVector(BlockState state) {
+		BeltSlope slope = state.get(BeltBlock.SLOPE);
 		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
-		Vec3 horizontalMovement = Vec3.atLowerCornerOf(state.getValue(BeltBlock.HORIZONTAL_FACING)
-				.getNormal());
+		Vec3d horizontalMovement = Vec3d.of(state.get(BeltBlock.HORIZONTAL_FACING)
+				.getVector());
 		if (slope == BeltSlope.VERTICAL)
-			return new Vec3(0, state.getValue(BeltBlock.HORIZONTAL_FACING)
-					.getAxisDirection()
-					.getStep(), 0);
-		return new Vec3(0, verticality, 0).add(horizontalMovement);
+			return new Vec3d(0, state.get(BeltBlock.HORIZONTAL_FACING)
+					.getDirection()
+					.offset(), 0);
+		return new Vec3d(0, verticality, 0).add(horizontalMovement);
 	}
 
 }

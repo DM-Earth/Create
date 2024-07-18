@@ -19,13 +19,13 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
 
 public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedStorageBlockEntity {
 
@@ -48,7 +48,7 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 											// fabric does have this issue, so we can *not* allow it.
 		internalTank = new SmartFluidTank(FluidConstants.BUCKET * 3, this::onTankContentsChanged);
 		handler = new HosePulleyFluidHandler(internalTank, filler, drainer,
-			() -> worldPosition.below((int) Math.ceil(offset.getValue())), () -> !this.isMoving);
+			() -> pos.down((int) Math.ceil(offset.getValue())), () -> !this.isMoving);
 	}
 
 	@Override
@@ -58,7 +58,7 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		boolean addToGoggleTooltip = super.addToGoggleTooltip(tooltip, isPlayerSneaking);
 		if (infinite)
 			TooltipHelper.addHint(tooltip, "hint.hose_pulley");
@@ -90,8 +90,8 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 			float newOffset = offset.getValue() + getMovementSpeed();
 			if (newOffset < 0)
 				isMoving = false;
-			if (!level.getBlockState(worldPosition.below((int) Math.ceil(newOffset)))
-				.canBeReplaced()) {
+			if (!world.getBlockState(pos.down((int) Math.ceil(newOffset)))
+				.isReplaceable()) {
 				isMoving = false;
 			}
 			if (isMoving) {
@@ -104,8 +104,8 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return super.createRenderBoundingBox().expandTowards(0, -offset.getValue(), 0);
+	protected Box createRenderBoundingBox() {
+		return super.createRenderBoundingBox().stretch(0, -offset.getValue(), 0);
 	}
 
 	@Override
@@ -116,8 +116,8 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 			newOffset = 0;
 			isMoving = false;
 		}
-		if (!level.getBlockState(worldPosition.below((int) Math.ceil(newOffset)))
-			.canBeReplaced()) {
+		if (!world.getBlockState(pos.down((int) Math.ceil(newOffset)))
+			.isReplaceable()) {
 			newOffset = (int) newOffset;
 			isMoving = false;
 		}
@@ -131,14 +131,14 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 	@Override
 	public void lazyTick() {
 		super.lazyTick();
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 		if (isMoving)
 			return;
 
 		int ceil = (int) Math.ceil(offset.getValue() + getMovementSpeed());
-		if (getMovementSpeed() > 0 && level.getBlockState(worldPosition.below(ceil))
-			.canBeReplaced()) {
+		if (getMovementSpeed() > 0 && world.getBlockState(pos.down(ceil))
+			.isReplaceable()) {
 			isMoving = true;
 			drainer.reset(null);
 			filler.reset(null);
@@ -149,18 +149,18 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		if (clientPacket)
 			offset.forceNextSync();
 		compound.put("Offset", offset.writeNBT());
-		compound.put("Tank", internalTank.writeToNBT(new CompoundTag()));
+		compound.put("Tank", internalTank.writeToNBT(new NbtCompound()));
 		super.write(compound, clientPacket);
 		if (clientPacket)
 			compound.putBoolean("Infinite", infinite);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		offset.readNBT(compound.getCompound("Offset"), clientPacket);
 		internalTank.readFromNBT(compound.getCompound("Tank"));
 		super.read(compound, clientPacket);
@@ -175,7 +175,7 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 
 	public float getMovementSpeed() {
 		float movementSpeed = convertToLinear(getSpeed());
-		if (level.isClientSide)
+		if (world.isClient)
 			movementSpeed *= ServerSpeedProvider.get();
 		return movementSpeed;
 	}
@@ -187,7 +187,7 @@ public class HosePulleyBlockEntity extends KineticBlockEntity implements SidedSt
 	@Nullable
 	@Override
 	public Storage<FluidVariant> getFluidStorage(@Nullable Direction face) {
-		if (face == null || HosePulleyBlock.hasPipeTowards(level, worldPosition, getBlockState(), face)) {
+		if (face == null || HosePulleyBlock.hasPipeTowards(world, pos, getCachedState(), face)) {
 			return handler;
 		}
 		return null;

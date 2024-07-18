@@ -15,19 +15,18 @@ import com.simibubi.create.foundation.ponder.element.MinecartElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.ponder.instruction.EmitParticlesInstruction.Emitter;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.vehicle.Minecart;
-import net.minecraft.world.entity.vehicle.MinecartChest;
-import net.minecraft.world.entity.vehicle.MinecartFurnace;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.properties.RailShape;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.enums.RailShape;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.vehicle.ChestMinecartEntity;
+import net.minecraft.entity.vehicle.FurnaceMinecartEntity;
+import net.minecraft.entity.vehicle.MinecartEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class CartAssemblerScenes {
 
@@ -39,7 +38,7 @@ public class CartAssemblerScenes {
 		scene.idle(5);
 
 		BlockPos assemblerPos = util.grid.at(2, 1, 2);
-		scene.world.setBlock(assemblerPos, Blocks.RAIL.defaultBlockState(), false);
+		scene.world.setBlock(assemblerPos, Blocks.RAIL.getDefaultState(), false);
 		for (int z = 0; z < 5; z++) {
 			scene.world.showSection(util.select.position(2, 1, z), Direction.DOWN);
 			scene.idle(2);
@@ -55,8 +54,8 @@ public class CartAssemblerScenes {
 				.withItem(AllBlocks.CART_ASSEMBLER.asStack()), 30);
 		scene.idle(7);
 		scene.world.setBlock(assemblerPos, AllBlocks.CART_ASSEMBLER.getDefaultState()
-			.setValue(CartAssemblerBlock.RAIL_SHAPE, RailShape.NORTH_SOUTH)
-			.setValue(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.REGULAR), true);
+			.with(CartAssemblerBlock.RAIL_SHAPE, RailShape.NORTH_SOUTH)
+			.with(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.REGULAR), true);
 		scene.idle(20);
 		scene.world.showSection(util.select.fromTo(0, 1, 2, 1, 1, 2), Direction.EAST);
 		scene.idle(20);
@@ -71,13 +70,13 @@ public class CartAssemblerScenes {
 			.placeNearTarget();
 		scene.idle(80);
 
-		ElementLink<MinecartElement> cart = scene.special.createCart(util.vector.topOf(2, 0, 4), 90, Minecart::new);
-		scene.world.showSection(util.select.position(assemblerPos.above()), Direction.DOWN);
+		ElementLink<MinecartElement> cart = scene.special.createCart(util.vector.topOf(2, 0, 4), 90, MinecartEntity::new);
+		scene.world.showSection(util.select.position(assemblerPos.up()), Direction.DOWN);
 		scene.idle(10);
 		scene.special.moveCart(cart, util.vector.of(0, 0, -2), 20);
 		scene.idle(20);
 		ElementLink<WorldSectionElement> plank =
-			scene.world.makeSectionIndependent(util.select.position(assemblerPos.above()));
+			scene.world.makeSectionIndependent(util.select.position(assemblerPos.up()));
 		ElementLink<WorldSectionElement> anchor =
 			scene.world.showIndependentSectionImmediately(util.select.position(assemblerPos.east()));
 		scene.world.moveSection(anchor, util.vector.of(-1, 0, 0), 0);
@@ -111,9 +110,9 @@ public class CartAssemblerScenes {
 		scene.special.moveCart(cart, util.vector.of(0, 0, 2), 20);
 		scene.idle(30);
 
-		scene.world.destroyBlock(assemblerPos.above());
+		scene.world.destroyBlock(assemblerPos.up());
 		scene.idle(5);
-		scene.world.replaceBlocks(util.select.fromTo(3, 3, 2, 1, 4, 2), Blocks.OAK_PLANKS.defaultBlockState(), false);
+		scene.world.replaceBlocks(util.select.fromTo(3, 3, 2, 1, 4, 2), Blocks.OAK_PLANKS.getDefaultState(), false);
 		ElementLink<WorldSectionElement> contraption =
 			scene.world.showIndependentSection(util.select.fromTo(1, 4, 2, 3, 3, 2), Direction.DOWN);
 		scene.world.moveSection(contraption, util.vector.of(0, -1, 0), 0);
@@ -146,7 +145,7 @@ public class CartAssemblerScenes {
 		scene.special.moveCart(cart, util.vector.of(0, 0, -2), 20);
 		scene.idle(25);
 
-		Vec3 cartCenter = util.vector.centerOf(assemblerPos.north(2));
+		Vec3d cartCenter = util.vector.centerOf(assemblerPos.north(2));
 		scene.overlay.showControls(new InputWindowElement(cartCenter, Pointing.LEFT).rightClick()
 			.withWrench(), 40);
 		scene.idle(7);
@@ -195,8 +194,8 @@ public class CartAssemblerScenes {
 		BlockPos assemblerPos = util.grid.at(3, 1, 3);
 		scene.idle(5);
 		scene.world.setBlock(assemblerPos, AllBlocks.CART_ASSEMBLER.getDefaultState()
-			.setValue(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
-			.setValue(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.REGULAR), true);
+			.with(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
+			.with(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.REGULAR), true);
 		scene.idle(5);
 		scene.world.showSection(util.select.fromTo(3, 1, 1, 3, 1, 2), Direction.SOUTH);
 		ElementLink<WorldSectionElement> contraption =
@@ -208,7 +207,7 @@ public class CartAssemblerScenes {
 		scene.idle(10);
 
 		ElementLink<MinecartElement> cart =
-			scene.special.createCart(util.vector.topOf(util.grid.at(4, 0, 3)), 0, Minecart::new);
+			scene.special.createCart(util.vector.topOf(util.grid.at(4, 0, 3)), 0, MinecartEntity::new);
 		scene.idle(20);
 		scene.special.moveCart(cart, util.vector.of(-1, 0, 0), 10);
 		scene.idle(10);
@@ -255,7 +254,7 @@ public class CartAssemblerScenes {
 		scene.special.hideElement(cart, Direction.UP);
 		scene.idle(25);
 
-		Vec3 blockSurface = util.vector.blockSurface(assemblerPos, Direction.NORTH)
+		Vec3d blockSurface = util.vector.blockSurface(assemblerPos, Direction.NORTH)
 			.add(0, -1 / 16f, -2 / 16f);
 		scene.overlay.showFilterSlotInput(blockSurface, Direction.NORTH, 60);
 		scene.overlay.showControls(new InputWindowElement(blockSurface, Pointing.DOWN).rightClick(), 60);
@@ -267,7 +266,7 @@ public class CartAssemblerScenes {
 		scene.idle(70);
 
 		contraption = scene.world.showIndependentSection(util.select.fromTo(3, 2, 3, 2, 2, 3), Direction.DOWN);
-		cart = scene.special.createCart(util.vector.topOf(util.grid.at(4, 0, 3)), 0, Minecart::new);
+		cart = scene.special.createCart(util.vector.topOf(util.grid.at(4, 0, 3)), 0, MinecartEntity::new);
 		scene.idle(10);
 		scene.special.moveCart(cart, util.vector.of(-1, 0, 0), 10);
 		scene.idle(10);
@@ -324,17 +323,17 @@ public class CartAssemblerScenes {
 		scene.world.showSection(util.select.fromTo(2, 1, 3, 2, 1, 2), Direction.SOUTH);
 		scene.idle(5);
 		ElementLink<MinecartElement> cart =
-			scene.special.createCart(util.vector.topOf(assembler1.below()), 0, Minecart::new);
+			scene.special.createCart(util.vector.topOf(assembler1.down()), 0, MinecartEntity::new);
 		ElementLink<MinecartElement> cart2 =
-			scene.special.createCart(util.vector.topOf(assembler2.below()), 0, MinecartChest::new);
+			scene.special.createCart(util.vector.topOf(assembler2.down()), 0, ChestMinecartEntity::new);
 		scene.idle(15);
 		scene.world.setBlock(assembler1, AllBlocks.CART_ASSEMBLER.getDefaultState()
-			.setValue(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
-			.setValue(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.CONTROLLER_RAIL), true);
+			.with(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
+			.with(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.CONTROLLER_RAIL), true);
 		scene.idle(5);
 		scene.world.setBlock(assembler2, AllBlocks.CART_ASSEMBLER.getDefaultState()
-			.setValue(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
-			.setValue(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.REGULAR), true);
+			.with(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
+			.with(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.REGULAR), true);
 		scene.idle(5);
 
 		ElementLink<WorldSectionElement> contraption = scene.world.showIndependentSection(chassis, Direction.DOWN);
@@ -363,7 +362,7 @@ public class CartAssemblerScenes {
 		scene.world.configureCenterOfRotation(contraption, util.vector.centerOf(util.grid.at(2, 2, 4)));
 		scene.idle(5);
 
-		Vec3 m = util.vector.of(-0.5, 0, 0);
+		Vec3d m = util.vector.of(-0.5, 0, 0);
 		scene.special.moveCart(cart, m, 5);
 		scene.special.moveCart(cart2, m, 5);
 		scene.world.moveSection(contraption, m, 5);
@@ -436,17 +435,17 @@ public class CartAssemblerScenes {
 			.text("Cart Assemblers on Regular Tracks will not affect the passing carts' motion");
 		scene.idle(10);
 		scene.world.setBlock(assembler, AllBlocks.CART_ASSEMBLER.getDefaultState()
-			.setValue(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
-			.setValue(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.REGULAR), true);
+			.with(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
+			.with(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.REGULAR), true);
 		scene.idle(70);
 
 		ElementLink<MinecartElement> cart = scene.special.createCart(util.vector.topOf(assembler.east(2)
-			.below()), 0, Minecart::new);
+			.down()), 0, MinecartEntity::new);
 		ElementLink<WorldSectionElement> anchor =
 			scene.world.showIndependentSection(util.select.position(assembler.south()), Direction.DOWN);
 		ElementLink<WorldSectionElement> contraption =
 			scene.world.showIndependentSection(util.select.position(assembler.south()
-				.above()), Direction.DOWN);
+				.up()), Direction.DOWN);
 		scene.world.moveSection(contraption, util.vector.of(2, 0, -1), 0);
 		scene.world.moveSection(anchor, util.vector.of(2, 0, -1), 0);
 		scene.idle(10);
@@ -463,8 +462,8 @@ public class CartAssemblerScenes {
 			.withItem(new ItemStack(Items.POWERED_RAIL)), 50);
 		scene.idle(7);
 		scene.world.setBlock(assembler, AllBlocks.CART_ASSEMBLER.getDefaultState()
-			.setValue(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
-			.setValue(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.POWERED_RAIL), true);
+			.with(CartAssemblerBlock.RAIL_SHAPE, RailShape.EAST_WEST)
+			.with(CartAssemblerBlock.RAIL_TYPE, CartAssembleRailType.POWERED_RAIL), true);
 		scene.overlay.showText(100)
 			.attachKeyFrame()
 			.pointAt(util.vector.topOf(assembler))
@@ -474,10 +473,10 @@ public class CartAssemblerScenes {
 
 		scene.world.hideIndependentSection(anchor, Direction.DOWN);
 		cart = scene.special.createCart(util.vector.topOf(assembler.east(2)
-			.below()), 0, Minecart::new);
+			.down()), 0, MinecartEntity::new);
 		anchor = scene.world.showIndependentSection(util.select.position(assembler.south()), Direction.DOWN);
 		contraption = scene.world.showIndependentSection(util.select.position(assembler.south()
-			.above()), Direction.DOWN);
+			.up()), Direction.DOWN);
 		scene.world.moveSection(contraption, util.vector.of(2, 0, -1), 0);
 		scene.world.moveSection(anchor, util.vector.of(2, 0, -1), 0);
 		scene.idle(10);
@@ -502,7 +501,7 @@ public class CartAssemblerScenes {
 		scene.idle(20);
 
 		cart = scene.special.createCart(util.vector.topOf(assembler.east(2)
-			.below()), 0, MinecartFurnace::new);
+			.down()), 0, FurnaceMinecartEntity::new);
 		scene.idle(10);
 		scene.overlay.showText(50)
 			.attachKeyFrame()
@@ -512,14 +511,14 @@ public class CartAssemblerScenes {
 		scene.idle(50);
 		contraption = scene.world.showIndependentSection(chassis, Direction.DOWN);
 		scene.idle(5);
-		scene.world.glueBlockOnto(assembler.above(2), Direction.DOWN, contraption);
+		scene.world.glueBlockOnto(assembler.up(2), Direction.DOWN, contraption);
 		scene.idle(15);
 
-		scene.overlay.showControls(new InputWindowElement(util.vector.topOf(assembler.above()), Pointing.UP)
+		scene.overlay.showControls(new InputWindowElement(util.vector.topOf(assembler.up()), Pointing.UP)
 			.withItem(new ItemStack(Items.CHARCOAL)), 40);
 		scene.idle(7);
 		scene.overlay.showText(80)
-			.pointAt(util.vector.blockSurface(assembler.above(2), Direction.WEST))
+			.pointAt(util.vector.blockSurface(assembler.up(2), Direction.WEST))
 			.placeNearTarget()
 			.text("Furnace Carts will keep themselves powered, pulling fuel from any attached inventories");
 		scene.idle(85);
@@ -535,7 +534,7 @@ public class CartAssemblerScenes {
 		scene.world.moveSection(contraption, util.vector.of(-3, 0, 0), 30);
 		scene.world.moveSection(anchor, util.vector.of(-3, 0, 0), 30);
 
-		Vec3 vec = util.vector.centerOf(assembler)
+		Vec3d vec = util.vector.centerOf(assembler)
 			.add(.25, .25, -0.5);
 		for (int i = 0; i < 7; i++) {
 			scene.effects.emitParticles(vec = vec.add(-.5, 0, 0), smoke, 2, 1);

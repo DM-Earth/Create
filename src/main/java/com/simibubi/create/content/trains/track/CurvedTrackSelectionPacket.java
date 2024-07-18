@@ -8,14 +8,13 @@ import com.simibubi.create.content.trains.graph.EdgePointType;
 import com.simibubi.create.content.trains.track.TrackTargetingBlockItem.OverlapResult;
 import com.simibubi.create.foundation.networking.BlockEntityConfigurationPacket;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
 
 public class CurvedTrackSelectionPacket extends BlockEntityConfigurationPacket<TrackBlockEntity> {
 
@@ -32,12 +31,12 @@ public class CurvedTrackSelectionPacket extends BlockEntityConfigurationPacket<T
 		this.slot = slot;
 	}
 
-	public CurvedTrackSelectionPacket(FriendlyByteBuf buffer) {
+	public CurvedTrackSelectionPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
 	@Override
-	protected void writeSettings(FriendlyByteBuf buffer) {
+	protected void writeSettings(PacketByteBuf buffer) {
 		buffer.writeBlockPos(targetPos);
 		buffer.writeVarInt(segment);
 		buffer.writeBoolean(front);
@@ -45,7 +44,7 @@ public class CurvedTrackSelectionPacket extends BlockEntityConfigurationPacket<T
 	}
 
 	@Override
-	protected void readSettings(FriendlyByteBuf buffer) {
+	protected void readSettings(PacketByteBuf buffer) {
 		targetPos = buffer.readBlockPos();
 		segment = buffer.readVarInt();
 		front = buffer.readBoolean();
@@ -53,45 +52,45 @@ public class CurvedTrackSelectionPacket extends BlockEntityConfigurationPacket<T
 	}
 
 	@Override
-	protected void applySettings(ServerPlayer player, TrackBlockEntity be) {
-		if (player.getInventory().selected != slot)
+	protected void applySettings(ServerPlayerEntity player, TrackBlockEntity be) {
+		if (player.getInventory().selectedSlot != slot)
 			return;
 		ItemStack stack = player.getInventory()
-			.getItem(slot);
+			.getStack(slot);
 		if (!(stack.getItem() instanceof TrackTargetingBlockItem))
 			return;
-		if (player.isShiftKeyDown() && stack.hasTag()) {
-			player.displayClientMessage(Lang.translateDirect("track_target.clear"), true);
-			stack.setTag(null);
-			AllSoundEvents.CONTROLLER_CLICK.play(player.level(), null, pos, 1, .5f);
+		if (player.isSneaking() && stack.hasNbt()) {
+			player.sendMessage(Lang.translateDirect("track_target.clear"), true);
+			stack.setNbt(null);
+			AllSoundEvents.CONTROLLER_CLICK.play(player.getWorld(), null, pos, 1, .5f);
 			return;
 		}
 
 		EdgePointType<?> type = AllBlocks.TRACK_SIGNAL.isIn(stack) ? EdgePointType.SIGNAL : EdgePointType.STATION;
 		MutableObject<OverlapResult> result = new MutableObject<>(null);
-		TrackTargetingBlockItem.withGraphLocation(player.level(), pos, front,
+		TrackTargetingBlockItem.withGraphLocation(player.getWorld(), pos, front,
 			new BezierTrackPointLocation(targetPos, segment), type, (overlap, location) -> result.setValue(overlap));
 
 		if (result.getValue().feedback != null) {
-			player.displayClientMessage(Lang.translateDirect(result.getValue().feedback)
-				.withStyle(ChatFormatting.RED), true);
-			AllSoundEvents.DENY.play(player.level(), null, pos, .5f, 1);
+			player.sendMessage(Lang.translateDirect(result.getValue().feedback)
+				.formatted(Formatting.RED), true);
+			AllSoundEvents.DENY.play(player.getWorld(), null, pos, .5f, 1);
 			return;
 		}
 
-		CompoundTag stackTag = stack.getOrCreateTag();
-		stackTag.put("SelectedPos", NbtUtils.writeBlockPos(pos));
+		NbtCompound stackTag = stack.getOrCreateNbt();
+		stackTag.put("SelectedPos", NbtHelper.fromBlockPos(pos));
 		stackTag.putBoolean("SelectedDirection", front);
 
-		CompoundTag bezierNbt = new CompoundTag();
+		NbtCompound bezierNbt = new NbtCompound();
 		bezierNbt.putInt("Segment", segment);
-		bezierNbt.put("Key", NbtUtils.writeBlockPos(targetPos));
+		bezierNbt.put("Key", NbtHelper.fromBlockPos(targetPos));
 		bezierNbt.putBoolean("FromStack", true);
 		stackTag.put("Bezier", bezierNbt);
 
-		player.displayClientMessage(Lang.translateDirect("track_target.set"), true);
-		stack.setTag(stackTag);
-		AllSoundEvents.CONTROLLER_CLICK.play(player.level(), null, pos, 1, 1);
+		player.sendMessage(Lang.translateDirect("track_target.set"), true);
+		stack.setNbt(stackTag);
+		AllSoundEvents.CONTROLLER_CLICK.play(player.getWorld(), null, pos, 1, 1);
 	}
 
 	@Override

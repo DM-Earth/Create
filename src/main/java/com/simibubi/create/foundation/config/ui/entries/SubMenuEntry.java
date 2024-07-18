@@ -9,8 +9,8 @@ import com.simibubi.create.foundation.gui.element.DelegatedStencilElement;
 import com.simibubi.create.foundation.gui.widget.BoxWidget;
 
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec;
-import net.minecraft.client.gui.GuiGraphics;
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.AbstractWidgetAccessor;
+import net.minecraft.client.gui.DrawContext;
 
 public class SubMenuEntry extends ConfigScreenList.LabeledEntry {
 
@@ -45,7 +45,7 @@ public class SubMenuEntry extends ConfigScreenList.LabeledEntry {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
+	public void render(DrawContext graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
 		super.render(graphics, index, y, x, width, height, mouseX, mouseY, p_230432_9_, partialTicks);
 
 		button.setX(x + width - 108);

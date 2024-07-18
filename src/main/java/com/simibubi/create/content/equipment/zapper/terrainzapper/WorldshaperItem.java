@@ -11,26 +11,26 @@ import com.simibubi.create.foundation.utility.NBTHelper;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class WorldshaperItem extends ZapperItem {
 
-	public WorldshaperItem(Properties properties) {
+	public WorldshaperItem(Settings properties) {
 		super(properties);
 	}
 
 	@Override
 	@Environment(value = EnvType.CLIENT)
-	protected void openHandgunGUI(ItemStack item, InteractionHand hand) {
+	protected void openHandgunGUI(ItemStack item, Hand hand) {
 		ScreenOpener.open(new WorldshaperScreen(item, hand));
 	}
 
@@ -45,8 +45,8 @@ public class WorldshaperItem extends ZapperItem {
 	}
 
 	@Override
-	public Component validateUsage(ItemStack item) {
-		if (!item.getOrCreateTag()
+	public Text validateUsage(ItemStack item) {
+		if (!item.getOrCreateNbt()
 			.contains("BrushParams"))
 			return Lang.translateDirect("terrainzapper.shiftRightClickToSet");
 		return super.validateUsage(item);
@@ -54,31 +54,31 @@ public class WorldshaperItem extends ZapperItem {
 
 	@Override
 	protected boolean canActivateWithoutSelectedBlock(ItemStack stack) {
-		CompoundTag tag = stack.getOrCreateTag();
+		NbtCompound tag = stack.getOrCreateNbt();
 		TerrainTools tool = NBTHelper.readEnum(tag, "Tool", TerrainTools.class);
 		return !tool.requiresSelectedBlock();
 	}
 
 	@Override
-	protected boolean activate(Level world, Player player, ItemStack stack, BlockState stateToUse,
-		BlockHitResult raytrace, CompoundTag data) {
+	protected boolean activate(World world, PlayerEntity player, ItemStack stack, BlockState stateToUse,
+		BlockHitResult raytrace, NbtCompound data) {
 
 		BlockPos targetPos = raytrace.getBlockPos();
 		List<BlockPos> affectedPositions = new ArrayList<>();
 
-		CompoundTag tag = stack.getOrCreateTag();
+		NbtCompound tag = stack.getOrCreateNbt();
 		Brush brush = NBTHelper.readEnum(tag, "Brush", TerrainBrushes.class)
 			.get();
-		BlockPos params = NbtUtils.readBlockPos(tag.getCompound("BrushParams"));
+		BlockPos params = NbtHelper.toBlockPos(tag.getCompound("BrushParams"));
 		PlacementOptions option = NBTHelper.readEnum(tag, "Placement", PlacementOptions.class);
 		TerrainTools tool = NBTHelper.readEnum(tag, "Tool", TerrainTools.class);
 
 		brush.set(params.getX(), params.getY(), params.getZ());
-		targetPos = targetPos.offset(brush.getOffset(player.getLookAngle(), raytrace.getDirection(), option));
-		brush.addToGlobalPositions(world, targetPos, raytrace.getDirection(), affectedPositions, tool);
+		targetPos = targetPos.add(brush.getOffset(player.getRotationVector(), raytrace.getSide(), option));
+		brush.addToGlobalPositions(world, targetPos, raytrace.getSide(), affectedPositions, tool);
 		PlacementPatterns.applyPattern(affectedPositions, stack);
 		brush.redirectTool(tool)
-			.run(world, affectedPositions, raytrace.getDirection(), stateToUse, data, player);
+			.run(world, affectedPositions, raytrace.getSide(), stateToUse, data, player);
 
 		return true;
 	}
@@ -86,9 +86,9 @@ public class WorldshaperItem extends ZapperItem {
 	public static void configureSettings(ItemStack stack, PlacementPatterns pattern, TerrainBrushes brush,
 		int brushParamX, int brushParamY, int brushParamZ, TerrainTools tool, PlacementOptions placement) {
 		ZapperItem.configureSettings(stack, pattern);
-		CompoundTag nbt = stack.getOrCreateTag();
+		NbtCompound nbt = stack.getOrCreateNbt();
 		NBTHelper.writeEnum(nbt, "Brush", brush);
-		nbt.put("BrushParams", NbtUtils.writeBlockPos(new BlockPos(brushParamX, brushParamY, brushParamZ)));
+		nbt.put("BrushParams", NbtHelper.fromBlockPos(new BlockPos(brushParamX, brushParamY, brushParamZ)));
 		NBTHelper.writeEnum(nbt, "Tool", tool);
 		NBTHelper.writeEnum(nbt, "Placement", placement);
 	}

@@ -15,25 +15,25 @@ import com.simibubi.create.foundation.utility.Lang;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.Level;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.text.Text;
+import net.minecraft.world.World;
 
 @ParametersAreNonnullByDefault
-public class PressingRecipe extends ProcessingRecipe<Container> implements IAssemblyRecipe {
+public class PressingRecipe extends ProcessingRecipe<Inventory> implements IAssemblyRecipe {
 
 	public PressingRecipe(ProcessingRecipeParams params) {
 		super(AllRecipeTypes.PRESSING, params);
 	}
 
 	@Override
-	public boolean matches(Container inv, Level worldIn) {
+	public boolean matches(Inventory inv, World worldIn) {
 		if (inv.isEmpty())
 			return false;
 		return ingredients.get(0)
-			.test(inv.getItem(0));
+			.test(inv.getStack(0));
 	}
 
 	@Override
@@ -51,12 +51,12 @@ public class PressingRecipe extends ProcessingRecipe<Container> implements IAsse
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public Component getDescriptionForAssembly() {
+	public Text getDescriptionForAssembly() {
 		return Lang.translateDirect("recipe.assembly.pressing");
 	}
 
 	@Override
-	public void addRequiredMachines(Set<ItemLike> list) {
+	public void addRequiredMachines(Set<ItemConvertible> list) {
 		list.add(AllBlocks.MECHANICAL_PRESS.get());
 	}
 

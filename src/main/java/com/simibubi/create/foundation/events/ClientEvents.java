@@ -3,9 +3,7 @@ package com.simibubi.create.foundation.events;
 import java.util.List;
 
 import com.jozufozu.flywheel.fabric.event.FlywheelEvents;
-import com.mojang.blaze3d.shaders.FogShape;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllFluids;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllKeys;
@@ -105,35 +103,36 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.FogRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.FogType;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.render.BackgroundRenderer;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.CameraSubmersionType;
+import net.minecraft.client.render.FogShape;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.LivingEntityRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.resource.ResourceType;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class ClientEvents {
 
-	public static void onTickStart(Minecraft client) {
+	public static void onTickStart(MinecraftClient client) {
 		LinkedControllerClientHandler.tick();
 		ControlsHandler.tick();
 		AirCurrent.tickClientPlayerSounds();
@@ -143,11 +142,11 @@ public class ClientEvents {
 		ArmInteractionPointHandler.tick();
 	}
 
-	public static void onTick(Minecraft client) {
+	public static void onTick(MinecraftClient client) {
 		if (!isGameActive())
 			return;
 
-		Level world = Minecraft.getInstance().level;
+		World world = MinecraftClient.getInstance().world;
 
 		SoundScapes.tick();
 		AnimationTickHolder.tick();
@@ -207,24 +206,24 @@ public class ClientEvents {
 		AllKeys.fixBinds();
 	}
 
-	public static void onJoin(ClientPacketListener handler, PacketSender sender, Minecraft client) {
+	public static void onJoin(ClientPlayNetworkHandler handler, PacketSender sender, MinecraftClient client) {
 		CreateClient.checkGraphicsFanciness();
 	}
 
-	public static void onLeave(ClientPacketListener handler, Minecraft client) {
+	public static void onLeave(ClientPlayNetworkHandler handler, MinecraftClient client) {
 		CreateClient.RAILWAYS.cleanUp();
 	}
 
-	public static void onLoadWorld(Minecraft client, ClientLevel world) {
-		if (world.isClientSide() && world instanceof ClientLevel && !(world instanceof WrappedClientWorld)) {
+	public static void onLoadWorld(MinecraftClient client, ClientWorld world) {
+		if (world.isClient() && world instanceof ClientWorld && !(world instanceof WrappedClientWorld)) {
 			CreateClient.invalidateRenderers();
 			AnimationTickHolder.reset();
 		}
 	}
 
-	public static void onUnloadWorld(Minecraft client, ClientLevel world) {
+	public static void onUnloadWorld(MinecraftClient client, ClientWorld world) {
 		if (world
-			.isClientSide()) {
+			.isClient()) {
 			CreateClient.invalidateRenderers();
 			CreateClient.SOUL_PULSE_EFFECT_HANDLER.refresh();
 			AnimationTickHolder.reset();
@@ -233,12 +232,12 @@ public class ClientEvents {
 	}
 
 	public static void onRenderWorld(WorldRenderContext event) {
-		PoseStack ms = event.matrixStack();
-		ms.pushPose();
+		MatrixStack ms = event.matrixStack();
+		ms.push();
 		SuperRenderTypeBuffer buffer = SuperRenderTypeBuffer.getInstance();
 		float partialTicks = AnimationTickHolder.getPartialTicks();
-		Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera()
-			.getPosition();
+		Vec3d camera = MinecraftClient.getInstance().gameRenderer.getCamera()
+			.getPos();
 
 		TrackBlockOutline.drawCurveSelection(ms, buffer, camera);
 		TrackTargetingClient.render(ms, buffer, camera);
@@ -250,7 +249,7 @@ public class ClientEvents {
 
 		buffer.draw();
 		RenderSystem.enableCull();
-		ms.popPose();
+		ms.pop();
 	}
 
 	public static boolean onCameraSetup(CameraInfo info) {
@@ -268,10 +267,10 @@ public class ClientEvents {
 		return PonderTooltipHandler.handleTooltipColor(stack, originalBorderColorStart, originalBorderColorEnd);
 	}
 
-	public static void addToItemTooltip(ItemStack stack, TooltipFlag iTooltipFlag, List<Component> itemTooltip) {
+	public static void addToItemTooltip(ItemStack stack, TooltipContext iTooltipFlag, List<Text> itemTooltip) {
 		if (!AllConfigs.client().tooltips.get())
 			return;
-		Player player = Minecraft.getInstance().player;
+		PlayerEntity player = MinecraftClient.getInstance().player;
 		if (player == null)
 			return;
 
@@ -292,7 +291,7 @@ public class ClientEvents {
 	}
 
 	public static boolean onMount(Entity vehicle, Entity passenger) {
-		if (passenger == Minecraft.getInstance().player && vehicle instanceof CarriageContraptionEntity)
+		if (passenger == MinecraftClient.getInstance().player && vehicle instanceof CarriageContraptionEntity)
 			CameraDistanceModifier.zoomOut();
 		return true;
 	}
@@ -303,26 +302,26 @@ public class ClientEvents {
 	}
 
 	protected static boolean isGameActive() {
-		return !(Minecraft.getInstance().level == null || Minecraft.getInstance().player == null);
+		return !(MinecraftClient.getInstance().world == null || MinecraftClient.getInstance().player == null);
 	}
 
-	public static boolean getFogDensity(FogRenderer.FogMode mode, FogType type, Camera camera, float partialTick, float renderDistance, float nearDistance, float farDistance, FogShape shape, FogEvents.FogData fogData) {
-		Level level = Minecraft.getInstance().level;
-		BlockPos blockPos = camera.getBlockPosition();
+	public static boolean getFogDensity(BackgroundRenderer.FogType mode, CameraSubmersionType type, Camera camera, float partialTick, float renderDistance, float nearDistance, float farDistance, FogShape shape, FogEvents.FogData fogData) {
+		World level = MinecraftClient.getInstance().world;
+		BlockPos blockPos = camera.getBlockPos();
 		FluidState fluidState = level.getFluidState(blockPos);
-		if (camera.getPosition().y >= blockPos.getY() + fluidState.getHeight(level, blockPos))
+		if (camera.getPos().y >= blockPos.getY() + fluidState.getHeight(level, blockPos))
 			return false;
-		Fluid fluid = fluidState.getType();
-		Entity entity = camera.getEntity();
+		Fluid fluid = fluidState.getFluid();
+		Entity entity = camera.getFocusedEntity();
 
 		if (AllFluids.CHOCOLATE.get()
-			.isSame(fluid)) {
+			.matchesType(fluid)) {
 			fogData.scaleFarPlaneDistance(1f / 32f * AllConfigs.client().chocolateTransparencyMultiplier.getF());
 			return true;
 		}
 
 		if (AllFluids.HONEY.get()
-			.isSame(fluid)) {
+			.matchesType(fluid)) {
 			fogData.scaleFarPlaneDistance(1f / 8f * AllConfigs.client().honeyTransparencyMultiplier.getF());
 			return true;
 		}
@@ -346,16 +345,16 @@ public class ClientEvents {
 
 	public static void getFogColor(ColorData event, float partialTicks) {
 		Camera info = event.getCamera();
-		Level level = Minecraft.getInstance().level;
-		BlockPos blockPos = info.getBlockPosition();
+		World level = MinecraftClient.getInstance().world;
+		BlockPos blockPos = info.getBlockPos();
 		FluidState fluidState = level.getFluidState(blockPos);
-		if (info.getPosition().y > blockPos.getY() + fluidState.getHeight(level, blockPos))
+		if (info.getPos().y > blockPos.getY() + fluidState.getHeight(level, blockPos))
 			return;
 
-		Fluid fluid = fluidState.getType();
+		Fluid fluid = fluidState.getFluid();
 
 		if (AllFluids.CHOCOLATE.get()
-			.isSame(fluid)) {
+			.matchesType(fluid)) {
 			event.setRed(98 / 255f);
 			event.setGreen(32 / 255f);
 			event.setBlue(32 / 255f);
@@ -363,7 +362,7 @@ public class ClientEvents {
 		}
 
 		if (AllFluids.HONEY.get()
-			.isSame(fluid)) {
+			.matchesType(fluid)) {
 			event.setRed(234 / 255f);
 			event.setGreen(174 / 255f);
 			event.setBlue(47 / 255f);
@@ -371,8 +370,8 @@ public class ClientEvents {
 		}
 	}
 
-	public static void leftClickEmpty(LocalPlayer player) {
-		ItemStack stack = player.getMainHandItem();
+	public static void leftClickEmpty(ClientPlayerEntity player) {
+		ItemStack stack = player.getMainHandStack();
 		if (stack.getItem() instanceof ZapperItem) {
 			AllPackets.getChannel().sendToServer(new LeftClickPacket());
 		}
@@ -381,12 +380,12 @@ public class ClientEvents {
 	public static class ModBusEvents {
 
 		public static void registerClientReloadListeners() {
-			ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(CreateClient.RESOURCE_RELOAD_LISTENER);
+			ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(CreateClient.RESOURCE_RELOAD_LISTENER);
 		}
 	}
 
 	public static void addEntityRendererLayers(EntityType<? extends LivingEntity> entityType, LivingEntityRenderer<?, ?> entityRenderer,
-											   RegistrationHelper registrationHelper, EntityRendererProvider.Context context) {
+											   RegistrationHelper registrationHelper, EntityRendererFactory.Context context) {
 		BacktankArmorLayer.registerOn(entityRenderer, registrationHelper);
 		TrainHatArmorLayer.registerOn(entityRenderer, registrationHelper);
 	}
@@ -433,7 +432,7 @@ public class ClientEvents {
 		ClientPlayConnectionEvents.DISCONNECT.register(ClientEvents::onLeave);
 		DrawSelectionEvents.BLOCK.register(TrackBlockOutline::drawCustomBlockSelection);
 		// we need to add our config button after mod menu, so we register our event with a phase that comes later
-		ResourceLocation latePhase = Create.asResource("late");
+		Identifier latePhase = Create.asResource("late");
 		ScreenEvents.AFTER_INIT.addPhaseOrdering(Event.DEFAULT_PHASE, latePhase);
 		ScreenEvents.AFTER_INIT.register(latePhase, OpenCreateMenuButton.OpenConfigButtonHandler::onGuiInit);
 

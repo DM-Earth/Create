@@ -4,12 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
+import net.minecraft.network.PacketByteBuf;
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.network.FriendlyByteBuf;
 
 public class SignalEdgeGroupPacket extends SimplePacketBase {
 
@@ -27,23 +25,23 @@ public class SignalEdgeGroupPacket extends SimplePacketBase {
 		this.add = add;
 	}
 
-	public SignalEdgeGroupPacket(FriendlyByteBuf buffer) {
+	public SignalEdgeGroupPacket(PacketByteBuf buffer) {
 		ids = new ArrayList<>();
 		colors = new ArrayList<>();
 		add = buffer.readBoolean();
 		int size = buffer.readVarInt();
 		for (int i = 0; i < size; i++)
-			ids.add(buffer.readUUID());
+			ids.add(buffer.readUuid());
 		size = buffer.readVarInt();
 		for (int i = 0; i < size; i++)
 			colors.add(EdgeGroupColor.values()[buffer.readVarInt()]);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBoolean(add);
 		buffer.writeVarInt(ids.size());
-		ids.forEach(buffer::writeUUID);
+		ids.forEach(buffer::writeUuid);
 		buffer.writeVarInt(colors.size());
 		colors.forEach(c -> buffer.writeVarInt(c.ordinal()));
 	}

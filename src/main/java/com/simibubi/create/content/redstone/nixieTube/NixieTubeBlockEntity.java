@@ -3,7 +3,13 @@ package com.simibubi.create.content.redstone.nixieTube;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Optional;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlock;
 import com.simibubi.create.content.trains.signal.SignalBlockEntity;
 import com.simibubi.create.content.trains.signal.SignalBlockEntity.SignalState;
@@ -12,14 +18,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.DynamicComponent;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class NixieTubeBlockEntity extends SmartBlockEntity {
 
@@ -43,15 +41,15 @@ public class NixieTubeBlockEntity extends SmartBlockEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (!level.isClientSide)
+		if (!world.isClient)
 			return;
 
 		signalState = null;
 		SignalBlockEntity signalBlockEntity = cachedSignalTE.get();
 
 		if (signalBlockEntity == null || signalBlockEntity.isRemoved()) {
-			Direction facing = NixieTubeBlock.getFacing(getBlockState());
-			BlockEntity blockEntity = level.getBlockEntity(worldPosition.relative(facing.getOpposite()));
+			Direction facing = NixieTubeBlock.getFacing(getCachedState());
+			BlockEntity blockEntity = world.getBlockEntity(pos.offset(facing.getOpposite()));
 			if (blockEntity instanceof SignalBlockEntity signal) {
 				signalState = signal.getState();
 				cachedSignalTE = new WeakReference<>(signal);
@@ -64,7 +62,7 @@ public class NixieTubeBlockEntity extends SmartBlockEntity {
 
 	@Override
 	public void initialize() {
-		if (level.isClientSide)
+		if (world.isClient)
 			updateDisplayedStrings();
 	}
 
@@ -80,7 +78,7 @@ public class NixieTubeBlockEntity extends SmartBlockEntity {
 		return displayedStrings;
 	}
 
-	public MutableComponent getFullText() {
+	public MutableText getFullText() {
 		return customText.map(DynamicComponent::get)
 			.orElse(Components.literal("" + redstoneStrength));
 	}
@@ -88,7 +86,7 @@ public class NixieTubeBlockEntity extends SmartBlockEntity {
 	public void updateRedstoneStrength(int signalStrength) {
 		clearCustomText();
 		redstoneStrength = signalStrength;
-		DisplayLinkBlock.notifyGatherers(level, worldPosition);
+		DisplayLinkBlock.notifyGatherers(world, pos);
 		notifyUpdate();
 	}
 
@@ -100,10 +98,10 @@ public class NixieTubeBlockEntity extends SmartBlockEntity {
 			return;
 
 		DynamicComponent component = customText.orElseGet(DynamicComponent::new);
-		component.displayCustomText(level, worldPosition, tagElement);
+		component.displayCustomText(world, pos, tagElement);
 		customText = Optional.of(component);
 		nixieIndex = nixiePositionInRow;
-		DisplayLinkBlock.notifyGatherers(level, worldPosition);
+		DisplayLinkBlock.notifyGatherers(world, pos);
 		notifyUpdate();
 	}
 
@@ -130,12 +128,12 @@ public class NixieTubeBlockEntity extends SmartBlockEntity {
 	//
 
 	@Override
-	protected void read(CompoundTag nbt, boolean clientPacket) {
+	protected void read(NbtCompound nbt, boolean clientPacket) {
 		super.read(nbt, clientPacket);
 
 		if (nbt.contains("CustomText")) {
 			DynamicComponent component = customText.orElseGet(DynamicComponent::new);
-			component.read(level, worldPosition, nbt);
+			component.read(world, pos, nbt);
 
 			if (component.isValid()) {
 				customText = Optional.of(component);
@@ -153,7 +151,7 @@ public class NixieTubeBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	protected void write(CompoundTag nbt, boolean clientPacket) {
+	protected void write(NbtCompound nbt, boolean clientPacket) {
 		super.write(nbt, clientPacket);
 
 		if (customText.isPresent()) {

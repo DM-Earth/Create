@@ -1,9 +1,6 @@
 package com.simibubi.create.content.redstone.nixieTube;
 
-import net.minecraft.util.RandomSource;
-
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.redstone.nixieTube.DoubleFaceAttachedBlock.DoubleAttachFace;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
@@ -18,34 +15,35 @@ import com.simibubi.create.foundation.utility.DyeHelper;
 import com.simibubi.create.foundation.utility.Iterate;
 
 import io.github.fabricators_of_create.porting_lib.util.FontRenderUtil;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.font.glyphs.BakedGlyph;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Style;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.GlyphRenderer;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.VertexConsumerProvider.Immediate;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Style;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
 
 public class NixieTubeRenderer extends SafeBlockEntityRenderer<NixieTubeBlockEntity> {
 
-	private static RandomSource r = RandomSource.create();
+	private static Random r = Random.create();
 
-	public NixieTubeRenderer(BlockEntityRendererProvider.Context context) {}
+	public NixieTubeRenderer(BlockEntityRendererFactory.Context context) {}
 
 	@Override
-	protected void renderSafe(NixieTubeBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(NixieTubeBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
-		ms.pushPose();
-		BlockState blockState = be.getBlockState();
-		DoubleAttachFace face = blockState.getValue(NixieTubeBlock.FACE);
-		float yRot = AngleHelper.horizontalAngle(blockState.getValue(NixieTubeBlock.FACING)) - 90
+		ms.push();
+		BlockState blockState = be.getCachedState();
+		DoubleAttachFace face = blockState.get(NixieTubeBlock.FACE);
+		float yRot = AngleHelper.horizontalAngle(blockState.get(NixieTubeBlock.FACING)) - 90
 			+ (face == DoubleAttachFace.WALL_REVERSED ? 180 : 0);
 		float xRot = face == DoubleAttachFace.WALL ? -90 : face == DoubleAttachFace.WALL_REVERSED ? 90 : 0;
 
@@ -57,7 +55,7 @@ public class NixieTubeRenderer extends SafeBlockEntityRenderer<NixieTubeBlockEnt
 
 		if (be.signalState != null) {
 			renderAsSignal(be, partialTicks, ms, buffer, light, overlay);
-			ms.popPose();
+			ms.pop();
 			return;
 		}
 
@@ -67,26 +65,26 @@ public class NixieTubeRenderer extends SafeBlockEntityRenderer<NixieTubeBlockEnt
 		float scale = 1 / 20f;
 
 		Couple<String> s = be.getDisplayedStrings();
-		DyeColor color = NixieTubeBlock.colorOf(be.getBlockState());
+		DyeColor color = NixieTubeBlock.colorOf(be.getCachedState());
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(-4 / 16f, 0, 0);
 		ms.scale(scale, -scale, scale);
 		drawTube(ms, buffer, s.getFirst(), height, color);
-		ms.popPose();
+		ms.pop();
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(4 / 16f, 0, 0);
 		ms.scale(scale, -scale, scale);
 		drawTube(ms, buffer, s.getSecond(), height, color);
-		ms.popPose();
+		ms.pop();
 
-		ms.popPose();
+		ms.pop();
 	}
 
-	public static void drawTube(PoseStack ms, MultiBufferSource buffer, String c, float height, DyeColor color) {
-		Font fontRenderer = Minecraft.getInstance().font;
-		float charWidth = fontRenderer.width(c);
+	public static void drawTube(MatrixStack ms, VertexConsumerProvider buffer, String c, float height, DyeColor color) {
+		TextRenderer fontRenderer = MinecraftClient.getInstance().textRenderer;
+		float charWidth = fontRenderer.getWidth(c);
 		float shadowOffset = .5f;
 		float flicker = r.nextFloat();
 		Couple<Integer> couple = DyeHelper.DYE_TABLE.get(color);
@@ -94,42 +92,42 @@ public class NixieTubeRenderer extends SafeBlockEntityRenderer<NixieTubeBlockEnt
 		int darkColor = couple.getSecond();
 		int flickeringBrightColor = Color.mixColors(brightColor, darkColor, flicker / 4);
 
-		ms.pushPose();
+		ms.push();
 		ms.translate((charWidth - shadowOffset) / -2f, -height, 0);
 		drawInWorldString(ms, buffer, c, flickeringBrightColor);
-		ms.pushPose();
+		ms.push();
 		ms.translate(shadowOffset, shadowOffset, -1 / 16f);
 		drawInWorldString(ms, buffer, c, darkColor);
-		ms.popPose();
-		ms.popPose();
+		ms.pop();
+		ms.pop();
 
-		ms.pushPose();
+		ms.push();
 		ms.scale(-1, 1, 1);
 		ms.translate((charWidth - shadowOffset) / -2f, -height, 0);
 		drawInWorldString(ms, buffer, c, darkColor);
-		ms.pushPose();
+		ms.push();
 		ms.translate(-shadowOffset, shadowOffset, -1 / 16f);
 		drawInWorldString(ms, buffer, c, Color.mixColors(darkColor, 0, .35f));
-		ms.popPose();
-		ms.popPose();
+		ms.pop();
+		ms.pop();
 	}
 
-	public static void drawInWorldString(PoseStack ms, MultiBufferSource buffer, String c, int color) {
-		Font fontRenderer = Minecraft.getInstance().font;
-		fontRenderer.drawInBatch(c, 0, 0, color, false, ms.last()
-			.pose(), buffer, Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
-		if (buffer instanceof BufferSource) {
-			BakedGlyph texturedglyph = FontRenderUtil.getFontStorage(fontRenderer, Style.DEFAULT_FONT)
-				.whiteGlyph();
-			((BufferSource) buffer).endBatch(texturedglyph.renderType(Font.DisplayMode.NORMAL));
+	public static void drawInWorldString(MatrixStack ms, VertexConsumerProvider buffer, String c, int color) {
+		TextRenderer fontRenderer = MinecraftClient.getInstance().textRenderer;
+		fontRenderer.draw(c, 0, 0, color, false, ms.peek()
+			.getPositionMatrix(), buffer, TextRenderer.TextLayerType.NORMAL, 0, LightmapTextureManager.MAX_LIGHT_COORDINATE);
+		if (buffer instanceof Immediate) {
+			GlyphRenderer texturedglyph = FontRenderUtil.getFontStorage(fontRenderer, Style.DEFAULT_FONT_ID)
+				.getRectangleRenderer();
+			((Immediate) buffer).draw(texturedglyph.getLayer(TextRenderer.TextLayerType.NORMAL));
 		}
 	}
 
-	private void renderAsSignal(NixieTubeBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	private void renderAsSignal(NixieTubeBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		Direction facing = NixieTubeBlock.getFacing(blockState);
-		Vec3 observerVec = Minecraft.getInstance().cameraEntity.getEyePosition(partialTicks);
+		Vec3d observerVec = MinecraftClient.getInstance().cameraEntity.getCameraPosVec(partialTicks);
 		TransformStack msr = TransformStack.cast(ms);
 
 		if (facing == Direction.DOWN)
@@ -138,19 +136,19 @@ public class NixieTubeRenderer extends SafeBlockEntityRenderer<NixieTubeBlockEnt
 				.unCentre();
 
 		boolean invertTubes =
-			facing == Direction.DOWN || blockState.getValue(NixieTubeBlock.FACE) == DoubleAttachFace.WALL_REVERSED;
+			facing == Direction.DOWN || blockState.get(NixieTubeBlock.FACE) == DoubleAttachFace.WALL_REVERSED;
 
 		CachedBufferer.partial(AllPartialModels.SIGNAL_PANEL, blockState)
 			.light(light)
-			.renderInto(ms, buffer.getBuffer(RenderType.solid()));
+			.renderInto(ms, buffer.getBuffer(RenderLayer.getSolid()));
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(1 / 2f, 7.5f / 16f, 1 / 2f);
-		float renderTime = AnimationTickHolder.getRenderTime(be.getLevel());
+		float renderTime = AnimationTickHolder.getRenderTime(be.getWorld());
 
 		for (boolean first : Iterate.trueAndFalse) {
-			Vec3 lampVec = Vec3.atCenterOf(be.getBlockPos());
-			Vec3 diff = lampVec.subtract(observerVec);
+			Vec3d lampVec = Vec3d.ofCenter(be.getPos());
+			Vec3d diff = lampVec.subtract(observerVec);
 
 			if (first && !be.signalState.isRedLight(renderTime))
 				continue;
@@ -160,10 +158,10 @@ public class NixieTubeRenderer extends SafeBlockEntityRenderer<NixieTubeBlockEnt
 			boolean flip = first == invertTubes;
 			boolean yellow = be.signalState.isYellowLight(renderTime);
 
-			ms.pushPose();
+			ms.push();
 			ms.translate(flip ? 4 / 16f : -4 / 16f, 0, 0);
 
-			if (diff.lengthSqr() < 96 * 96) {
+			if (diff.lengthSquared() < 96 * 96) {
 				boolean vert = first ^ facing.getAxis()
 					.isHorizontal();
 				float longSide = yellow ? 1 : 4;
@@ -173,7 +171,7 @@ public class NixieTubeRenderer extends SafeBlockEntityRenderer<NixieTubeBlockEnt
 					.light(0xf000f0)
 					.disableDiffuse()
 					.scale(vert ? longSide : 1, vert ? 1 : longSide, 1)
-					.renderInto(ms, buffer.getBuffer(RenderType.translucent()));
+					.renderInto(ms, buffer.getBuffer(RenderLayer.getTranslucent()));
 
 				CachedBufferer
 					.partial(
@@ -194,14 +192,14 @@ public class NixieTubeRenderer extends SafeBlockEntityRenderer<NixieTubeBlockEnt
 				.scale(1 + 1 / 16f)
 				.renderInto(ms, buffer.getBuffer(RenderTypes.getAdditive()));
 
-			ms.popPose();
+			ms.pop();
 		}
-		ms.popPose();
+		ms.pop();
 
 	}
 
 	@Override
-	public int getViewDistance() {
+	public int getRenderDistance() {
 		return 128;
 	}
 

@@ -3,10 +3,9 @@ package com.simibubi.create.content.schematics.packet;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.schematics.table.SchematicTableMenu;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
 
 public class SchematicUploadPacket extends SimplePacketBase {
 
@@ -40,9 +39,9 @@ public class SchematicUploadPacket extends SimplePacketBase {
 		return new SchematicUploadPacket(FINISH, schematic);
 	}
 
-	public SchematicUploadPacket(FriendlyByteBuf buffer) {
+	public SchematicUploadPacket(PacketByteBuf buffer) {
 		code = buffer.readInt();
-		schematic = buffer.readUtf(256);
+		schematic = buffer.readString(256);
 
 		if (code == BEGIN)
 			size = buffer.readLong();
@@ -51,9 +50,9 @@ public class SchematicUploadPacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(code);
-		buffer.writeUtf(schematic);
+		buffer.writeString(schematic);
 
 		if (code == BEGIN)
 			buffer.writeLong(size);
@@ -64,12 +63,12 @@ public class SchematicUploadPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
 			if (code == BEGIN) {
-				BlockPos pos = ((SchematicTableMenu) player.containerMenu).contentHolder
-						.getBlockPos();
+				BlockPos pos = ((SchematicTableMenu) player.currentScreenHandler).contentHolder
+						.getPos();
 				Create.SCHEMATIC_RECEIVER.handleNewUpload(player, schematic, size, pos);
 			}
 			if (code == WRITE)

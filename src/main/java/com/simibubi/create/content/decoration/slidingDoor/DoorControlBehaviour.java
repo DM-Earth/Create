@@ -4,8 +4,7 @@ import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 
 public class DoorControlBehaviour extends BlockEntityBehaviour {
 	
@@ -26,13 +25,13 @@ public class DoorControlBehaviour extends BlockEntityBehaviour {
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		NBTHelper.writeEnum(nbt, "DoorControl", mode);
 		super.write(nbt, clientPacket);
 	}
 	
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 		mode = NBTHelper.readEnum(nbt, "DoorControl", DoorControl.class);
 		super.read(nbt, clientPacket);
 	}

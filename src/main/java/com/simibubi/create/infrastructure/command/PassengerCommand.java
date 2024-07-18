@@ -5,34 +5,33 @@ import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.ControlledContraptionEntity;
 import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
-
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.entity.Entity;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
 
 public class PassengerCommand {
 
-	static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("passenger")
-			.requires(cs -> cs.hasPermission(2))
-			.then(Commands.argument("rider", EntityArgument.entity())
-				.then(Commands.argument("vehicle", EntityArgument.entity())
+	static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("passenger")
+			.requires(cs -> cs.hasPermissionLevel(2))
+			.then(CommandManager.argument("rider", EntityArgumentType.entity())
+				.then(CommandManager.argument("vehicle", EntityArgumentType.entity())
 					.executes(ctx -> {
-						run(ctx.getSource(), EntityArgument.getEntity(ctx, "vehicle"),
-							EntityArgument.getEntity(ctx, "rider"), 0);
+						run(ctx.getSource(), EntityArgumentType.getEntity(ctx, "vehicle"),
+							EntityArgumentType.getEntity(ctx, "rider"), 0);
 						return 1;
 					})
-					.then(Commands.argument("seatIndex", IntegerArgumentType.integer(0))
+					.then(CommandManager.argument("seatIndex", IntegerArgumentType.integer(0))
 						.executes(ctx -> {
-							run(ctx.getSource(), EntityArgument.getEntity(ctx, "vehicle"),
-								EntityArgument.getEntity(ctx, "rider"),
+							run(ctx.getSource(), EntityArgumentType.getEntity(ctx, "vehicle"),
+								EntityArgumentType.getEntity(ctx, "rider"),
 								IntegerArgumentType.getInteger(ctx, "seatIndex"));
 							return 1;
 						}))));
 	}
 
-	private static void run(CommandSourceStack source, Entity vehicle, Entity rider, int index) {
+	private static void run(ServerCommandSource source, Entity vehicle, Entity rider, int index) {
 		if (vehicle == rider)
 			return;
 		if (rider instanceof CarriageContraptionEntity)

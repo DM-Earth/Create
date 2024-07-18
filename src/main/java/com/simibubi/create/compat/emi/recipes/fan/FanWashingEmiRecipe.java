@@ -4,9 +4,8 @@ import com.simibubi.create.compat.emi.CreateEmiAnimations;
 import com.simibubi.create.compat.emi.CreateEmiPlugin;
 import com.simibubi.create.content.kinetics.fan.processing.SplashingRecipe;
 import com.simibubi.create.foundation.gui.element.GuiGameElement;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.fluid.Fluids;
 
 public class FanWashingEmiRecipe extends FanEmiRecipe.MultiOutput<SplashingRecipe> {
 
@@ -15,7 +14,7 @@ public class FanWashingEmiRecipe extends FanEmiRecipe.MultiOutput<SplashingRecip
 	}
 
 	@Override
-	protected void renderAttachedBlock(GuiGraphics graphics) {
+	protected void renderAttachedBlock(DrawContext graphics) {
 		GuiGameElement.of(Fluids.WATER)
 			.scale(SCALE)
 			.atLocal(0, 0, 2)

@@ -3,36 +3,34 @@ package com.simibubi.create.foundation.ponder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
-
+import net.minecraft.client.resource.language.I18n;
+import net.minecraft.util.Identifier;
 import com.google.gson.JsonObject;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.infrastructure.ponder.PonderIndex;
 import com.tterrag.registrate.AbstractRegistrate;
 
-import net.minecraft.client.resources.language.I18n;
-import net.minecraft.resources.ResourceLocation;
-
 public class PonderLocalization {
-	static final Map<ResourceLocation, String> SHARED = new HashMap<>();
-	static final Map<ResourceLocation, Couple<String>> TAG = new HashMap<>();
-	static final Map<ResourceLocation, String> CHAPTER = new HashMap<>();
-	static final Map<ResourceLocation, Map<String, String>> SPECIFIC = new HashMap<>();
+	static final Map<Identifier, String> SHARED = new HashMap<>();
+	static final Map<Identifier, Couple<String>> TAG = new HashMap<>();
+	static final Map<Identifier, String> CHAPTER = new HashMap<>();
+	static final Map<Identifier, Map<String, String>> SPECIFIC = new HashMap<>();
 
 	//
 
-	public static void registerShared(ResourceLocation key, String enUS) {
+	public static void registerShared(Identifier key, String enUS) {
 		SHARED.put(key, enUS);
 	}
 
-	public static void registerTag(ResourceLocation key, String enUS, String description) {
+	public static void registerTag(Identifier key, String enUS, String description) {
 		TAG.put(key, Couple.create(enUS, description));
 	}
 
-	public static void registerChapter(ResourceLocation key, String enUS) {
+	public static void registerChapter(Identifier key, String enUS) {
 		CHAPTER.put(key, enUS);
 	}
 
-	public static void registerSpecific(ResourceLocation sceneId, String key, String enUS) {
+	public static void registerSpecific(Identifier sceneId, String key, String enUS) {
 		SPECIFIC.computeIfAbsent(sceneId, $ -> new HashMap<>())
 			.put(key, enUS);
 	}
@@ -41,59 +39,59 @@ public class PonderLocalization {
 
 	public static final String LANG_PREFIX = "ponder.";
 
-	protected static String langKeyForShared(ResourceLocation k) {
+	protected static String langKeyForShared(Identifier k) {
 		return k.getNamespace() + "." + LANG_PREFIX + "shared." + k.getPath();
 	}
 
-	protected static String langKeyForTag(ResourceLocation k) {
+	protected static String langKeyForTag(Identifier k) {
 		return k.getNamespace() + "." + LANG_PREFIX + "tag." + k.getPath();
 	}
 
-	protected static String langKeyForTagDescription(ResourceLocation k) {
+	protected static String langKeyForTagDescription(Identifier k) {
 		return k.getNamespace() + "." + LANG_PREFIX + "tag." + k.getPath() + ".description";
 	}
 
-	protected static String langKeyForChapter(ResourceLocation k) {
+	protected static String langKeyForChapter(Identifier k) {
 		return k.getNamespace() + "." + LANG_PREFIX + "chapter." + k.getPath();
 	}
 
-	protected static String langKeyForSpecific(ResourceLocation sceneId, String k) {
+	protected static String langKeyForSpecific(Identifier sceneId, String k) {
 		return sceneId.getNamespace() + "." + LANG_PREFIX + sceneId.getPath() + "." + k;
 	}
 
 	//
 
-	public static String getShared(ResourceLocation key) {
+	public static String getShared(Identifier key) {
 		if (PonderIndex.editingModeActive())
 			return SHARED.containsKey(key) ? SHARED.get(key) : ("unregistered shared entry: " + key);
-		return I18n.get(langKeyForShared(key));
+		return I18n.translate(langKeyForShared(key));
 	}
 
-	public static String getTag(ResourceLocation key) {
+	public static String getTag(Identifier key) {
 		if (PonderIndex.editingModeActive())
 			return TAG.containsKey(key) ? TAG.get(key)
 				.getFirst() : ("unregistered tag entry: " + key);
-		return I18n.get(langKeyForTag(key));
+		return I18n.translate(langKeyForTag(key));
 	}
 
-	public static String getTagDescription(ResourceLocation key) {
+	public static String getTagDescription(Identifier key) {
 		if (PonderIndex.editingModeActive())
 			return TAG.containsKey(key) ? TAG.get(key)
 				.getSecond() : ("unregistered tag entry: " + key);
-		return I18n.get(langKeyForTagDescription(key));
+		return I18n.translate(langKeyForTagDescription(key));
 	}
 
-	public static String getChapter(ResourceLocation key) {
+	public static String getChapter(Identifier key) {
 		if (PonderIndex.editingModeActive())
 			return CHAPTER.containsKey(key) ? CHAPTER.get(key) : ("unregistered chapter entry: " + key);
-		return I18n.get(langKeyForChapter(key));
+		return I18n.translate(langKeyForChapter(key));
 	}
 
-	public static String getSpecific(ResourceLocation sceneId, String k) {
+	public static String getSpecific(Identifier sceneId, String k) {
 		if (PonderIndex.editingModeActive())
 			return SPECIFIC.get(sceneId)
 				.get(k);
-		return I18n.get(langKeyForSpecific(sceneId, k));
+		return I18n.translate(langKeyForSpecific(sceneId, k));
 	}
 
 	//

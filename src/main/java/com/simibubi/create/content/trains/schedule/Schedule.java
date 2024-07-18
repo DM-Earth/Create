@@ -3,7 +3,11 @@ package com.simibubi.create.content.trains.schedule;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.schedule.condition.FluidThresholdCondition;
 import com.simibubi.create.content.trains.schedule.condition.IdleCargoCondition;
@@ -23,17 +27,11 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.Pair;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-
 public class Schedule {
 
-	public static List<Pair<ResourceLocation, Supplier<? extends ScheduleInstruction>>> INSTRUCTION_TYPES =
+	public static List<Pair<Identifier, Supplier<? extends ScheduleInstruction>>> INSTRUCTION_TYPES =
 		new ArrayList<>();
-	public static List<Pair<ResourceLocation, Supplier<? extends ScheduleWaitCondition>>> CONDITION_TYPES =
+	public static List<Pair<Identifier, Supplier<? extends ScheduleWaitCondition>>> CONDITION_TYPES =
 		new ArrayList<>();
 
 	static {
@@ -59,7 +57,7 @@ public class Schedule {
 		CONDITION_TYPES.add(Pair.of(Create.asResource(name), factory));
 	}
 
-	public static <T> List<? extends Component> getTypeOptions(List<Pair<ResourceLocation, T>> list) {
+	public static <T> List<? extends Text> getTypeOptions(List<Pair<Identifier, T>> list) {
 		String langSection = list.equals(INSTRUCTION_TYPES) ? "instruction." : "condition.";
 		return list.stream()
 			.map(Pair::getFirst)
@@ -78,9 +76,9 @@ public class Schedule {
 		savedProgress = 0;
 	}
 
-	public CompoundTag write() {
-		CompoundTag tag = new CompoundTag();
-		ListTag list = NBTHelper.writeCompoundList(entries, ScheduleEntry::write);
+	public NbtCompound write() {
+		NbtCompound tag = new NbtCompound();
+		NbtList list = NBTHelper.writeCompoundList(entries, ScheduleEntry::write);
 		tag.put("Entries", list);
 		tag.putBoolean("Cyclic", cyclic);
 		if (savedProgress > 0)
@@ -88,9 +86,9 @@ public class Schedule {
 		return tag;
 	}
 
-	public static Schedule fromTag(CompoundTag tag) {
+	public static Schedule fromTag(NbtCompound tag) {
 		Schedule schedule = new Schedule();
-		schedule.entries = NBTHelper.readCompoundList(tag.getList("Entries", Tag.TAG_COMPOUND), ScheduleEntry::fromTag);
+		schedule.entries = NBTHelper.readCompoundList(tag.getList("Entries", NbtElement.COMPOUND_TYPE), ScheduleEntry::fromTag);
 		schedule.cyclic = tag.getBoolean("Cyclic");
 		if (tag.contains("Progress"))
 			schedule.savedProgress = tag.getInt("Progress");

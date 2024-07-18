@@ -6,7 +6,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.Create;
 import com.simibubi.create.api.event.TrackGraphMergeEvent;
 import com.simibubi.create.content.trains.GlobalRailwayManager;
@@ -15,12 +19,6 @@ import com.simibubi.create.content.trains.graph.TrackGraphSync;
 import com.simibubi.create.content.trains.graph.TrackNode;
 import com.simibubi.create.content.trains.graph.TrackNodeLocation.DiscoveredLocation;
 import com.simibubi.create.content.trains.signal.SignalPropagator;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 
 public class TrackPropagator {
 
@@ -36,7 +34,7 @@ public class TrackPropagator {
 		}
 	}
 
-	public static void onRailRemoved(LevelAccessor reader, BlockPos pos, BlockState state) {
+	public static void onRailRemoved(WorldAccess reader, BlockPos pos, BlockState state) {
 		if (!(state.getBlock() instanceof ITrackBlock track))
 			return;
 
@@ -83,7 +81,7 @@ public class TrackPropagator {
 		manager.markTracksDirty();
 	}
 
-	public static TrackGraph onRailAdded(LevelAccessor reader, BlockPos pos, BlockState state) {
+	public static TrackGraph onRailAdded(WorldAccess reader, BlockPos pos, BlockState state) {
 		if (!(state.getBlock()instanceof ITrackBlock track))
 			return null;
 
@@ -213,7 +211,7 @@ public class TrackPropagator {
 		return graph;
 	}
 
-	private static void addInitialEndsOf(LevelAccessor reader, BlockPos pos, BlockState state, ITrackBlock track,
+	private static void addInitialEndsOf(WorldAccess reader, BlockPos pos, BlockState state, ITrackBlock track,
 		List<FrontierEntry> frontier, boolean ignoreTurns) {
 		for (DiscoveredLocation initial : track.getConnected(reader, pos, state, ignoreTurns, null)) {
 			frontier.add(new FrontierEntry(null, null, initial));
@@ -246,14 +244,14 @@ public class TrackPropagator {
 			.anyMatch(DiscoveredLocation::shouldForceNode))
 			return true;
 
-		Vec3 direction = location.getDirection();
+		Vec3d direction = location.getDirection();
 		if (direction != null && next.stream()
 			.anyMatch(dl -> dl.notInLineWith(direction)))
 			return true;
 
-		Vec3 vec = location.getLocation();
-		boolean centeredX = !Mth.equal(vec.x, Math.round(vec.x));
-		boolean centeredZ = !Mth.equal(vec.z, Math.round(vec.z));
+		Vec3d vec = location.getLocation();
+		boolean centeredX = !MathHelper.approximatelyEquals(vec.x, Math.round(vec.x));
+		boolean centeredZ = !MathHelper.approximatelyEquals(vec.z, Math.round(vec.z));
 		if (centeredX && !centeredZ)
 			return ((int) Math.round(vec.z)) % 16 == 0;
 		return ((int) Math.round(vec.x)) % 16 == 0;

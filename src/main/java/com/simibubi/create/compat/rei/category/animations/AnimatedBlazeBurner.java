@@ -1,9 +1,6 @@
 package com.simibubi.create.compat.rei.category.animations;
 
 import com.jozufozu.flywheel.core.PartialModel;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.AllSpriteShifts;
@@ -11,13 +8,16 @@ import com.simibubi.create.content.processing.burner.BlazeBurnerBlock.HeatLevel;
 import com.simibubi.create.foundation.block.render.SpriteShiftEntry;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 
 public class AnimatedBlazeBurner extends AnimatedKinetics {
 
@@ -28,15 +28,15 @@ public class AnimatedBlazeBurner extends AnimatedKinetics {
 		return this;
 	}
 
-	public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
-		PoseStack matrixStack = graphics.pose();
-		matrixStack.pushPose();
+	public void draw(DrawContext graphics, int xOffset, int yOffset) {
+		MatrixStack matrixStack = graphics.getMatrices();
+		matrixStack.push();
 		matrixStack.translate(xOffset, yOffset, 200);
-		matrixStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
-		matrixStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-15.5f));
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(22.5f));
 		int scale = 23;
 
-		float offset = (Mth.sin(AnimationTickHolder.getRenderTime() / 16f) + 0.5f) / 16f;
+		float offset = (MathHelper.sin(AnimationTickHolder.getRenderTime() / 16f) + 0.5f) / 16f;
 
 		blockElement(AllBlocks.BLAZE_BURNER.getDefaultState()).atLocal(0, 1.65, 0)
 			.scale(scale)
@@ -63,16 +63,16 @@ public class AnimatedBlazeBurner extends AnimatedKinetics {
 			heatLevel == HeatLevel.SEETHING ? AllSpriteShifts.SUPER_BURNER_FLAME : AllSpriteShifts.BURNER_FLAME;
 
 		float spriteWidth = spriteShift.getTarget()
-			.getU1()
+			.getMaxU()
 			- spriteShift.getTarget()
-				.getU0();
+				.getMinU();
 
 		float spriteHeight = spriteShift.getTarget()
-			.getV1()
+			.getMaxV()
 			- spriteShift.getTarget()
-				.getV0();
+				.getMinV();
 
-		float time = AnimationTickHolder.getRenderTime(Minecraft.getInstance().level);
+		float time = AnimationTickHolder.getRenderTime(MinecraftClient.getInstance().world);
 		float speed = 1 / 32f + 1 / 64f * heatLevel.ordinal();
 
 		double vScroll = speed * time;
@@ -83,15 +83,15 @@ public class AnimatedBlazeBurner extends AnimatedKinetics {
 		uScroll = uScroll - Math.floor(uScroll);
 		uScroll = uScroll * spriteWidth / 2;
 
-		Minecraft mc = Minecraft.getInstance();
-		MultiBufferSource.BufferSource buffer = mc.renderBuffers()
-			.bufferSource();
-		VertexConsumer vb = buffer.getBuffer(RenderType.cutoutMipped());
-		CachedBufferer.partial(AllPartialModels.BLAZE_BURNER_FLAME, Blocks.AIR.defaultBlockState())
+		MinecraftClient mc = MinecraftClient.getInstance();
+		VertexConsumerProvider.Immediate buffer = mc.getBufferBuilders()
+			.getEntityVertexConsumers();
+		VertexConsumer vb = buffer.getBuffer(RenderLayer.getCutoutMipped());
+		CachedBufferer.partial(AllPartialModels.BLAZE_BURNER_FLAME, Blocks.AIR.getDefaultState())
 			.shiftUVScrolling(spriteShift, (float) uScroll, (float) vScroll)
-			.light(LightTexture.FULL_BRIGHT)
+			.light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
 			.renderInto(matrixStack, vb);
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 }

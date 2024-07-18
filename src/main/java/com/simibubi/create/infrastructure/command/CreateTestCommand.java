@@ -1,7 +1,7 @@
 package com.simibubi.create.infrastructure.command;
 
-import static net.minecraft.commands.Commands.argument;
-import static net.minecraft.commands.Commands.literal;
+import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.server.command.CommandManager.literal;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,9 +22,9 @@ import com.simibubi.create.content.schematics.client.SchematicAndQuillHandler;
 import com.simibubi.create.foundation.utility.Components;
 
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.ChatFormatting;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Formatting;
 
 /**
  * This command allows for quick exporting of GameTests.
@@ -36,24 +36,24 @@ public class CreateTestCommand {
 			.resolve("src/main/resources/data/create/structures/gametest")
 			.toAbsolutePath();
 
-	public static ArgumentBuilder<CommandSourceStack, ?> register() {
+	public static ArgumentBuilder<ServerCommandSource, ?> register() {
 		return literal("test")
 				.then(literal("export")
 						.then(argument("path", StringArgumentType.greedyString())
 								.suggests(CreateTestCommand::getSuggestions)
 								.executes(ctx -> handleExport(
 										ctx.getSource(),
-										ctx.getSource().getLevel(),
+										ctx.getSource().getWorld(),
 										StringArgumentType.getString(ctx, "path")
 								))
 						)
 				);
 	}
 
-	private static int handleExport(CommandSourceStack source, ServerLevel level, String path) {
+	private static int handleExport(ServerCommandSource source, ServerWorld level, String path) {
 		SchematicAndQuillHandler handler = CreateClient.SCHEMATIC_AND_QUILL_HANDLER;
 		if (handler.firstPos == null || handler.secondPos == null) {
-			source.sendFailure(Components.literal("You must select an area with the Schematic and Quill first."));
+			source.sendError(Components.literal("You must select an area with the Schematic and Quill first."));
 			return 0;
 		}
 		SchematicExportResult result = SchematicExport.saveSchematic(
@@ -61,21 +61,21 @@ public class CreateTestCommand {
 				level, handler.firstPos, handler.secondPos
 		);
 		if (result == null)
-			source.sendFailure(Components.literal("Failed to export, check logs").withStyle(ChatFormatting.RED));
+			source.sendError(Components.literal("Failed to export, check logs").formatted(Formatting.RED));
 		else {
-			sendSuccess(source, "Successfully exported test!", ChatFormatting.GREEN);
-			sendSuccess(source, "Overwritten: " + result.overwritten(), ChatFormatting.AQUA);
-			sendSuccess(source, "File: " + result.file(), ChatFormatting.GRAY);
+			sendSuccess(source, "Successfully exported test!", Formatting.GREEN);
+			sendSuccess(source, "Overwritten: " + result.overwritten(), Formatting.AQUA);
+			sendSuccess(source, "File: " + result.file(), Formatting.GRAY);
 		}
 		return 0;
 	}
 
-	private static void sendSuccess(CommandSourceStack source, String text, ChatFormatting color) {
-		source.sendSuccess(() -> Components.literal(text).withStyle(color), true);
+	private static void sendSuccess(ServerCommandSource source, String text, Formatting color) {
+		source.sendFeedback(() -> Components.literal(text).formatted(color), true);
 	}
 
 	// find existing tests and folders for autofill
-	private static CompletableFuture<Suggestions> getSuggestions(CommandContext<CommandSourceStack> context,
+	private static CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context,
 																 SuggestionsBuilder builder) throws CommandSyntaxException {
 		String path = builder.getRemaining();
 		if (!path.contains("/") || path.contains(".."))

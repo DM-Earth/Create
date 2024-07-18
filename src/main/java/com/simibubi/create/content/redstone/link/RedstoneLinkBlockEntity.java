@@ -1,19 +1,17 @@
 package com.simibubi.create.content.redstone.link;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class RedstoneLinkBlockEntity extends SmartBlockEntity {
 
@@ -60,7 +58,7 @@ public class RedstoneLinkBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putBoolean("Transmitter", transmitter);
 		compound.putInt("Receive", getReceivedSignal());
 		compound.putBoolean("ReceivedChanged", receivedSignalChanged);
@@ -69,13 +67,13 @@ public class RedstoneLinkBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		transmitter = compound.getBoolean("Transmitter");
 		super.read(compound, clientPacket);
 
 		receivedSignal = compound.getInt("Receive");
 		receivedSignalChanged = compound.getBoolean("ReceivedChanged");
-		if (level == null || level.isClientSide || !link.newPosition)
+		if (world == null || world.isClient || !link.newPosition)
 			transmittedSignal = compound.getInt("Transmit");
 	}
 
@@ -94,32 +92,32 @@ public class RedstoneLinkBlockEntity extends SmartBlockEntity {
 
 		if (transmitter)
 			return;
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!AllBlocks.REDSTONE_LINK.has(blockState))
 			return;
 
-		if ((getReceivedSignal() > 0) != blockState.getValue(RedstoneLinkBlock.POWERED)) {
+		if ((getReceivedSignal() > 0) != blockState.get(RedstoneLinkBlock.POWERED)) {
 			receivedSignalChanged = true;
-			level.setBlockAndUpdate(worldPosition, blockState.cycle(RedstoneLinkBlock.POWERED));
+			world.setBlockState(pos, blockState.cycle(RedstoneLinkBlock.POWERED));
 		}
 
 		if (receivedSignalChanged) {
-			Direction attachedFace = blockState.getValue(RedstoneLinkBlock.FACING)
+			Direction attachedFace = blockState.get(RedstoneLinkBlock.FACING)
 				.getOpposite();
-			BlockPos attachedPos = worldPosition.relative(attachedFace);
-			level.blockUpdated(worldPosition, level.getBlockState(worldPosition)
+			BlockPos attachedPos = pos.offset(attachedFace);
+			world.updateNeighbors(pos, world.getBlockState(pos)
 				.getBlock());
-			level.blockUpdated(attachedPos, level.getBlockState(attachedPos)
+			world.updateNeighbors(attachedPos, world.getBlockState(attachedPos)
 				.getBlock());
 			receivedSignalChanged = false;
 		}
 	}
 
 	protected Boolean isTransmitterBlock() {
-		return !getBlockState().getValue(RedstoneLinkBlock.RECEIVER);
+		return !getCachedState().get(RedstoneLinkBlock.RECEIVER);
 	}
 
 	public int getReceivedSignal() {

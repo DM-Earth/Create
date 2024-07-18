@@ -1,12 +1,11 @@
 package com.simibubi.create.foundation.mixin.accessor;
 
+import net.minecraft.nbt.NbtTagSizeTracker;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-import net.minecraft.nbt.NbtAccounter;
-
-@Mixin(NbtAccounter.class)
+@Mixin(NbtTagSizeTracker.class)
 public interface NbtAccounterAccessor {
-	@Accessor("usage")
-	long create$getUsage();
+	@Accessor("allocatedBytes")
+	long create$getAllocatedBytes();
 }

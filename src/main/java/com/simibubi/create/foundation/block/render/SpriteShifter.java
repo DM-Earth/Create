@@ -5,13 +5,13 @@ import java.util.Map;
 
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 public class SpriteShifter {
 
 	private static final Map<String, SpriteShiftEntry> ENTRY_CACHE = new HashMap<>();
 
-	public static SpriteShiftEntry get(ResourceLocation originalLocation, ResourceLocation targetLocation) {
+	public static SpriteShiftEntry get(Identifier originalLocation, Identifier targetLocation) {
 		String key = originalLocation + "->" + targetLocation;
 		if (ENTRY_CACHE.containsKey(key))
 			return ENTRY_CACHE.get(key);

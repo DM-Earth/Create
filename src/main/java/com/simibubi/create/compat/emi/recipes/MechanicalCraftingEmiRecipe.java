@@ -1,8 +1,13 @@
 package com.simibubi.create.compat.emi.recipes;
 
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.MathHelper;
 import com.simibubi.create.compat.emi.CreateEmiAnimations;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 
@@ -12,12 +17,6 @@ import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.Bounds;
 import dev.emi.emi.api.widget.SlotWidget;
 import dev.emi.emi.api.widget.WidgetHolder;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.ShapedRecipe;
 
 public class MechanicalCraftingEmiRecipe extends CreateEmiRecipe<CraftingRecipe> {
 	private static final int MAX_SIZE = 100;
@@ -83,7 +82,7 @@ public class MechanicalCraftingEmiRecipe extends CreateEmiRecipe<CraftingRecipe>
 
 		CreateEmiAnimations.addCrafter(widgets, 132, 38);
 
-		widgets.addText(Component.literal("" + recipeAmount).getVisualOrderText(), 142, 39, -1, true);
+		widgets.addText(Text.literal("" + recipeAmount).asOrderedText(), 142, 39, -1, true);
 	}
 
 	public class CrafterSlotWidget extends SlotWidget {
@@ -91,7 +90,7 @@ public class MechanicalCraftingEmiRecipe extends CreateEmiRecipe<CraftingRecipe>
 
 		public CrafterSlotWidget(EmiIngredient stack, int x, int y) {
 			super(stack, x, y);
-			int w = Mth.ceil(18 * getScale());
+			int w = MathHelper.ceil(18 * getScale());
 			this.bounds = new Bounds(x, y, w, w);
 		}
 
@@ -106,9 +105,9 @@ public class MechanicalCraftingEmiRecipe extends CreateEmiRecipe<CraftingRecipe>
 		}
 
 		@Override
-		public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-			PoseStack matrices = graphics.pose();
-			matrices.pushPose();
+		public void render(DrawContext graphics, int mouseX, int mouseY, float delta) {
+			MatrixStack matrices = graphics.getMatrices();
+			matrices.push();
 			hideStack = true;
 			super.render(graphics, mouseX, mouseY, delta);
 			hideStack = false;
@@ -119,7 +118,7 @@ public class MechanicalCraftingEmiRecipe extends CreateEmiRecipe<CraftingRecipe>
 			matrices.translate(-x, -y, 0);
 
 			getStack().render(graphics, bounds.x() + 1, bounds.y() + 1, delta);
-			matrices.popPose();
+			matrices.pop();
 		}
 	}
 }

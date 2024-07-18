@@ -3,8 +3,7 @@ package com.simibubi.create.content.kinetics.base.flwdata;
 import org.joml.Quaternionf;
 
 import com.simibubi.create.foundation.block.render.SpriteShiftEntry;
-
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.texture.Sprite;
 
 public class BeltData extends KineticData {
     float qX;
@@ -29,15 +28,15 @@ public class BeltData extends KineticData {
     }
 
     public BeltData setScrollTexture(SpriteShiftEntry spriteShift) {
-        TextureAtlasSprite source = spriteShift.getOriginal();
-        TextureAtlasSprite target = spriteShift.getTarget();
+        Sprite source = spriteShift.getOriginal();
+        Sprite target = spriteShift.getTarget();
 
-        this.sourceU = source.getU0();
-        this.sourceV = source.getV0();
-        this.minU = target.getU0();
-        this.minV = target.getV0();
-        this.maxU = target.getU1();
-        this.maxV = target.getV1();
+        this.sourceU = source.getMinU();
+        this.sourceV = source.getMinV();
+        this.minU = target.getMinU();
+        this.minV = target.getMinV();
+        this.maxU = target.getMaxU();
+        this.maxV = target.getMaxV();
         markDirty();
 
 		return this;

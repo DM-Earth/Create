@@ -1,10 +1,8 @@
 package com.simibubi.create.compat.rei;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import me.shedaniel.math.Rectangle;
 import me.shedaniel.rei.api.client.gui.Renderer;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
 
 public class EmptyBackground implements Renderer {
 
@@ -26,6 +24,6 @@ public class EmptyBackground implements Renderer {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, Rectangle bounds, int mouseX, int mouseY, float delta) {
+	public void render(DrawContext graphics, Rectangle bounds, int mouseX, int mouseY, float delta) {
 	}
 }

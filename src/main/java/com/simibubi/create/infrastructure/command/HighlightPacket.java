@@ -7,10 +7,10 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.shape.VoxelShapes;
 
 public class HighlightPacket extends SimplePacketBase {
 
@@ -20,12 +20,12 @@ public class HighlightPacket extends SimplePacketBase {
 		this.pos = pos;
 	}
 
-	public HighlightPacket(FriendlyByteBuf buffer) {
+	public HighlightPacket(PacketByteBuf buffer) {
 		this.pos = buffer.readBlockPos();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBlockPos(pos);
 	}
 
@@ -39,12 +39,12 @@ public class HighlightPacket extends SimplePacketBase {
 
 	@Environment(EnvType.CLIENT)
 	public static void performHighlight(BlockPos pos) {
-		if (Minecraft.getInstance().level == null || !Minecraft.getInstance().level.isLoaded(pos))
+		if (MinecraftClient.getInstance().world == null || !MinecraftClient.getInstance().world.canSetBlock(pos))
 			return;
 
-		CreateClient.OUTLINER.showAABB("highlightCommand", Shapes.block()
-				.bounds()
-				.move(pos), 200)
+		CreateClient.OUTLINER.showAABB("highlightCommand", VoxelShapes.fullCube()
+				.getBoundingBox()
+				.offset(pos), 200)
 				.lineWidth(1 / 32f)
 				.colored(0xEeEeEe)
 				// .colored(0x243B50)

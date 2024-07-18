@@ -2,7 +2,9 @@ package com.simibubi.create.compat.emi;
 
 import java.util.List;
 import java.util.function.BiFunction;
-
+import net.minecraft.client.gui.tooltip.TooltipComponent;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Formatting;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,11 +17,6 @@ import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.WidgetHolder;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 
 public abstract class EmiSequencedAssemblySubCategory {
 	private final int width;
@@ -41,13 +38,13 @@ public abstract class EmiSequencedAssemblySubCategory {
 
 	// TODO tooltips reference first item in an ingredient, EMI has canonical names for tags, use that instead?
 	// I tried to implement this and Ingredients not exposing tags is painful
-	public static BiFunction<Integer, Integer, List<ClientTooltipComponent>> getTooltip(SequencedRecipe<?> recipe, int index) {
+	public static BiFunction<Integer, Integer, List<TooltipComponent>> getTooltip(SequencedRecipe<?> recipe, int index) {
 		return (mouseX, mouseY) -> List.of(
-			ClientTooltipComponent.create(Lang.translateDirect("recipe.assembly.step", index + 1).getVisualOrderText()),
-			ClientTooltipComponent.create(recipe.getAsAssemblyRecipe()
+			TooltipComponent.of(Lang.translateDirect("recipe.assembly.step", index + 1).asOrderedText()),
+			TooltipComponent.of(recipe.getAsAssemblyRecipe()
 				.getDescriptionForAssembly()
-				.plainCopy()
-				.withStyle(ChatFormatting.DARK_GREEN).getVisualOrderText())
+				.copyContentOnly()
+				.formatted(Formatting.DARK_GREEN).asOrderedText())
 		);
 	}
 
@@ -60,7 +57,7 @@ public abstract class EmiSequencedAssemblySubCategory {
 		@Override
 		public void addWidgets(WidgetHolder widgets, int x, int y, SequencedRecipe<?> recipe, int index) {
 			widgets.addDrawable(x, y, getWidth(), 96, (graphics, mouseX, mouseY, delta) -> {
-				PoseStack matrices = graphics.pose();
+				MatrixStack matrices = graphics.getMatrices();
 				float scale = 0.6f;
 				matrices.translate(3, 54, 0);
 				matrices.scale(scale, scale, scale);
@@ -86,7 +83,7 @@ public abstract class EmiSequencedAssemblySubCategory {
 		public void addWidgets(WidgetHolder widgets, int x, int y, SequencedRecipe<?> recipe, int index) {
 			CreateEmiRecipe.addSlot(widgets, getAppliedIngredient(recipe), x + 3, y + 13);
 			widgets.addDrawable(x, y, getWidth(), 96, (graphics, mouseX, mouseY, delta) -> {
-				PoseStack matrices = graphics.pose();
+				MatrixStack matrices = graphics.getMatrices();
 				float scale = 0.75f;
 				matrices.translate(3, 54, 0);
 				matrices.scale(scale, scale, scale);
@@ -118,7 +115,7 @@ public abstract class EmiSequencedAssemblySubCategory {
 			}
 			CreateEmiRecipe.addSlot(widgets, ingredient, x + 3, y + 13);
 			widgets.addDrawable(x, y, getWidth(), 96, (graphics, mouseX, mouseY, delta) -> {
-				PoseStack matrices = graphics.pose();
+				MatrixStack matrices = graphics.getMatrices();
 				float scale = 0.75f;
 				matrices.translate(3, 54, 0);
 				matrices.scale(scale, scale, scale);
@@ -136,7 +133,7 @@ public abstract class EmiSequencedAssemblySubCategory {
 		@Override
 		public void addWidgets(WidgetHolder widgets, int x, int y, SequencedRecipe<?> recipe, int index) {
 			widgets.addDrawable(x, y, getWidth(), 96, (graphics, mouseX, mouseY, delta) -> {
-				PoseStack matrices = graphics.pose();
+				MatrixStack matrices = graphics.getMatrices();
 				matrices.translate(0, 54.5f, 0);
 				float scale = 0.6f;
 				matrices.scale(scale, scale, scale);

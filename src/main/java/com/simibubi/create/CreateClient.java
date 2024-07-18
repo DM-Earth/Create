@@ -47,16 +47,14 @@ import com.simibubi.create.infrastructure.ponder.PonderIndex;
 import io.github.fabricators_of_create.porting_lib.util.ArmorTextureRegistry;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-
-import com.mojang.blaze3d.platform.Window;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.GraphicsStatus;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.ComponentUtils;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.GraphicsMode;
+import net.minecraft.client.util.Window;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Texts;
+import net.minecraft.util.Formatting;
 
 public class CreateClient implements ClientModInitializer {
 
@@ -128,17 +126,17 @@ public class CreateClient implements ClientModInitializer {
 
 	private static void registerOverlays() {
 		HudRenderCallback.EVENT.register((graphics, partialTicks) -> {
-			Window window = Minecraft.getInstance().getWindow();
+			Window window = MinecraftClient.getInstance().getWindow();
 
-			RemainingAirOverlay.render(graphics, window.getGuiScaledWidth(), window.getGuiScaledHeight()); // Create's Remaining Air
+			RemainingAirOverlay.render(graphics, window.getScaledWidth(), window.getScaledHeight()); // Create's Remaining Air
 			TrainHUD.renderOverlay(graphics, partialTicks, window); // Create's Train Driver HUD
 			GoggleOverlayRenderer.renderOverlay(graphics, partialTicks, window); // Create's Goggle Information
 			BlueprintOverlayRenderer.renderOverlay(graphics, partialTicks, window); // Create's Blueprints
 			LinkedControllerClientHandler.renderOverlay(graphics, partialTicks, window); // Create's Linked Controller
 			SCHEMATIC_HANDLER.renderOverlay(graphics, partialTicks, window); // Create's Schematics
 			ToolboxHandlerClient.renderOverlay(graphics, partialTicks, window); // Create's Toolboxes
-			VALUE_SETTINGS_HANDLER.render(graphics, window.getGuiScaledWidth(), window.getGuiScaledHeight()); // Create's Value Settings
-			TrackPlacementOverlay.renderOverlay(Minecraft.getInstance().gui, graphics); // Create's Track Placement
+			VALUE_SETTINGS_HANDLER.render(graphics, window.getScaledWidth(), window.getScaledHeight()); // Create's Value Settings
+			TrackPlacementOverlay.renderOverlay(MinecraftClient.getInstance().inGameHud, graphics); // Create's Track Placement
 
 			// fabric: normally a separate event listener
 			PlacementHelpers.afterRenderOverlayLayer(graphics, partialTicks, window);
@@ -153,26 +151,26 @@ public class CreateClient implements ClientModInitializer {
 	}
 
 	public static void checkGraphicsFanciness() {
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 		if (mc.player == null)
 			return;
 
-		if (mc.options.graphicsMode().get() != GraphicsStatus.FABULOUS)
+		if (mc.options.getGraphicsMode().getValue() != GraphicsMode.FABULOUS)
 			return;
 
 		if (AllConfigs.client().ignoreFabulousWarning.get())
 			return;
 
-		MutableComponent text = ComponentUtils.wrapInSquareBrackets(Components.literal("WARN"))
-			.withStyle(ChatFormatting.GOLD)
+		MutableText text = Texts.bracketed(Components.literal("WARN"))
+			.formatted(Formatting.GOLD)
 			.append(Components.literal(
 				" Some of Create's visual features will not be available while Fabulous graphics are enabled!"))
-			.withStyle(style -> style
+			.styled(style -> style
 				.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/create dismissFabulousWarning"))
 				.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
 					Components.literal("Click here to disable this warning"))));
 
-		mc.player.displayClientMessage(text, false);
+		mc.player.sendMessage(text, false);
 	}
 
 }

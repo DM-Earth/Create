@@ -25,11 +25,11 @@ import com.simibubi.create.foundation.utility.Lang;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.resource.conditions.v1.DefaultResourceConditions;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.Items;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.util.math.MathHelper;
 
 public class CrushingRecipeGen extends ProcessingRecipeGen {
 
@@ -189,23 +189,23 @@ public class CrushingRecipeGen extends ProcessingRecipeGen {
 
 	;
 
-	protected GeneratedRecipe stoneOre(Supplier<ItemLike> ore, Supplier<ItemLike> raw, float expectedAmount,
+	protected GeneratedRecipe stoneOre(Supplier<ItemConvertible> ore, Supplier<ItemConvertible> raw, float expectedAmount,
 		int duration) {
 		return ore(Blocks.COBBLESTONE, ore, raw, expectedAmount, duration);
 	}
 
-	protected GeneratedRecipe deepslateOre(Supplier<ItemLike> ore, Supplier<ItemLike> raw, float expectedAmount,
+	protected GeneratedRecipe deepslateOre(Supplier<ItemConvertible> ore, Supplier<ItemConvertible> raw, float expectedAmount,
 		int duration) {
 		return ore(Blocks.COBBLED_DEEPSLATE, ore, raw, expectedAmount, duration);
 	}
 
-	protected GeneratedRecipe netherOre(Supplier<ItemLike> ore, Supplier<ItemLike> raw, float expectedAmount,
+	protected GeneratedRecipe netherOre(Supplier<ItemConvertible> ore, Supplier<ItemConvertible> raw, float expectedAmount,
 		int duration) {
 		return ore(Blocks.NETHERRACK, ore, raw, expectedAmount, duration);
 	}
 
-	protected GeneratedRecipe mineralRecycling(AllPaletteStoneTypes type, Supplier<ItemLike> crushed,
-		Supplier<ItemLike> nugget, float chance) {
+	protected GeneratedRecipe mineralRecycling(AllPaletteStoneTypes type, Supplier<ItemConvertible> crushed,
+		Supplier<ItemConvertible> nugget, float chance) {
 		return mineralRecycling(type, b -> b.duration(250)
 			.output(chance, crushed.get(), 1)
 			.output(chance, nugget.get(), 1));
@@ -217,12 +217,12 @@ public class CrushingRecipeGen extends ProcessingRecipeGen {
 		return create(type.getBaseBlock()::get, transform);
 	}
 
-	protected GeneratedRecipe ore(ItemLike stoneType, Supplier<ItemLike> ore, Supplier<ItemLike> raw,
+	protected GeneratedRecipe ore(ItemConvertible stoneType, Supplier<ItemConvertible> ore, Supplier<ItemConvertible> raw,
 		float expectedAmount, int duration) {
 		return create(ore, b -> {
 			ProcessingRecipeBuilder<ProcessingRecipe<?>> builder = b.duration(duration)
-				.output(raw.get(), Mth.floor(expectedAmount));
-			float extra = expectedAmount - Mth.floor(expectedAmount);
+				.output(raw.get(), MathHelper.floor(expectedAmount));
+			float extra = expectedAmount - MathHelper.floor(expectedAmount);
 			if (extra > 0)
 				builder.output(extra, raw.get(), 1);
 			builder.output(.75f, AllItems.EXP_NUGGET.get(), raw.get() == AllItems.CRUSHED_GOLD.get() ? 2 : 1);
@@ -230,13 +230,13 @@ public class CrushingRecipeGen extends ProcessingRecipeGen {
 		});
 	}
 
-	protected GeneratedRecipe rawOre(Supplier<ItemLike> input, Supplier<ItemLike> result, int amount) {
+	protected GeneratedRecipe rawOre(Supplier<ItemConvertible> input, Supplier<ItemConvertible> result, int amount) {
 		return create(input, b -> b.duration(400)
 			.output(result.get(), amount)
 			.output(.75f, AllItems.EXP_NUGGET.get(), (result.get() == AllItems.CRUSHED_GOLD.get() ? 2 : 1) * amount));
 	}
 
-	protected GeneratedRecipe moddedRawOre(CompatMetals metal, Supplier<ItemLike> result, int amount) {
+	protected GeneratedRecipe moddedRawOre(CompatMetals metal, Supplier<ItemConvertible> result, int amount) {
 		String name = metal.getName();
 		return create("raw_" + name + (amount == 1 ? "_ore" : "_block"), b -> {
 			String suffix = amount == 1 ? "_ores" : "_blocks";
@@ -248,7 +248,7 @@ public class CrushingRecipeGen extends ProcessingRecipeGen {
 		});
 	}
 
-	protected GeneratedRecipe moddedOre(CompatMetals metal, Supplier<ItemLike> result) {
+	protected GeneratedRecipe moddedOre(CompatMetals metal, Supplier<ItemConvertible> result) {
 		String name = metal.getName();
 		return create(name + "_ore", b -> {
 			String suffix = "_ores";

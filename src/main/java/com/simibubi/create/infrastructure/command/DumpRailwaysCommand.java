@@ -4,7 +4,17 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.Text;
+import net.minecraft.text.Texts;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.GlobalRailwayManager;
@@ -16,36 +26,24 @@ import com.simibubi.create.content.trains.signal.SignalBoundary;
 import com.simibubi.create.content.trains.station.GlobalStation;
 import com.simibubi.create.foundation.utility.Components;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ComponentUtils;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.phys.Vec3;
-
 public class DumpRailwaysCommand {
 
-	static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("trains")
-			.requires(cs -> cs.hasPermission(2))
+	static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("trains")
+			.requires(cs -> cs.hasPermissionLevel(2))
 			.executes(ctx -> {
-				CommandSourceStack source = ctx.getSource();
-				fillReport(source.getLevel(), source.getPosition(),
-					(s, f) -> source.sendSuccess(() -> Components.literal(s).withStyle(st -> st.withColor(f)), false),
-					(c) -> source.sendSuccess(() -> c, false));
+				ServerCommandSource source = ctx.getSource();
+				fillReport(source.getWorld(), source.getPosition(),
+					(s, f) -> source.sendFeedback(() -> Components.literal(s).styled(st -> st.withColor(f)), false),
+					(c) -> source.sendFeedback(() -> c, false));
 				return 1;
 			});
 	}
 
-	static void fillReport(ServerLevel level, Vec3 location, BiConsumer<String, Integer> chat,
-		Consumer<Component> chatRaw) {
+	static void fillReport(ServerWorld level, Vec3d location, BiConsumer<String, Integer> chat,
+		Consumer<Text> chatRaw) {
 		GlobalRailwayManager railways = Create.RAILWAYS;
-		int white = ChatFormatting.WHITE.getColor();
+		int white = Formatting.WHITE.getColorValue();
 		int blue = 0xD3DEDC;
 		int darkBlue = 0x92A9BD;
 		int bright = 0xFFEFEF;
@@ -118,7 +116,7 @@ public class DumpRailwaysCommand {
 					chat.accept(" -> Waiting at: " + currentStation.name, blue);
 				} else if (train.navigation.destination != null)
 					chat.accept(" -> Travelling to " + train.navigation.destination.name + " ("
-						+ Mth.floor(train.navigation.distanceToDestination) + "m away)", darkBlue);
+						+ MathHelper.floor(train.navigation.distanceToDestination) + "m away)", darkBlue);
 				ScheduleRuntime runtime = train.runtime;
 				if (runtime.getSchedule() != null) {
 					chat.accept(" -> Schedule, Entry " + runtime.currentEntry + ", "
@@ -140,8 +138,8 @@ public class DumpRailwaysCommand {
 		chat.accept("-+--------------------------------+-", white);
 	}
 
-	private static Component createDeleteButton(Train train) {
-		return ComponentUtils.wrapInSquareBrackets((Components.literal("Remove")).withStyle((p_180514_) -> {
+	private static Text createDeleteButton(Train train) {
+		return Texts.bracketed((Components.literal("Remove")).styled((p_180514_) -> {
 			return p_180514_.withColor(0xFFAD60)
 				.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/c killTrain " + train.id.toString()))
 				.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,

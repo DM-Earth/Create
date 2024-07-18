@@ -17,16 +17,15 @@ import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
 import dan200.computercraft.api.peripheral.IPeripheral;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.level.Level;
-
+import net.minecraft.registry.Registries;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 public class ComputerBehaviour extends AbstractComputerBehaviour {
 
 	@Nullable
-	public static IPeripheral peripheralProvider(Level level, BlockPos blockPos) {
+	public static IPeripheral peripheralProvider(World level, BlockPos blockPos) {
 		AbstractComputerBehaviour behavior = BlockEntityBehaviour.get(level, blockPos, AbstractComputerBehaviour.TYPE);
 		if (behavior instanceof ComputerBehaviour real)
 			return real.getPeripheral();
@@ -55,7 +54,7 @@ public class ComputerBehaviour extends AbstractComputerBehaviour {
 			return new StationPeripheral(sbe);
 
 		throw new IllegalArgumentException(
-			"No peripheral available for " + BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(be.getType()));
+			"No peripheral available for " + Registries.BLOCK_ENTITY_TYPE.getId(be.getType()));
 	}
 
 	@Override

@@ -1,45 +1,43 @@
 package com.simibubi.create.content.kinetics.gearbox;
 
 import java.util.Map;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.foundation.utility.Iterate;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-
 public class VerticalGearboxItem extends BlockItem {
 
-	public VerticalGearboxItem(Properties builder) {
+	public VerticalGearboxItem(Settings builder) {
 		super(AllBlocks.GEARBOX.get(), builder);
 	}
 	
 	@Override
-	public String getDescriptionId() {
+	public String getTranslationKey() {
 		return "item.create.vertical_gearbox";
 	}
 
 	@Override
-	public void registerBlocks(Map<Block, Item> p_195946_1_, Item p_195946_2_) {
+	public void appendBlocks(Map<Block, Item> p_195946_1_, Item p_195946_2_) {
 	}
 
 	@Override
-	protected boolean updateCustomBlockEntityTag(BlockPos pos, Level world, Player player, ItemStack stack, BlockState state) {
+	protected boolean postPlacement(BlockPos pos, World world, PlayerEntity player, ItemStack stack, BlockState state) {
 		Axis prefferedAxis = null;
 		for (Direction side : Iterate.horizontalDirections) {
-			BlockState blockState = world.getBlockState(pos.relative(side));
+			BlockState blockState = world.getBlockState(pos.offset(side));
 			if (blockState.getBlock() instanceof IRotate) {
-				if (((IRotate) blockState.getBlock()).hasShaftTowards(world, pos.relative(side), blockState,
+				if (((IRotate) blockState.getBlock()).hasShaftTowards(world, pos.offset(side), blockState,
 						side.getOpposite()))
 					if (prefferedAxis != null && prefferedAxis != side.getAxis()) {
 						prefferedAxis = null;
@@ -50,11 +48,11 @@ public class VerticalGearboxItem extends BlockItem {
 			}
 		}
 
-		Axis axis = prefferedAxis == null ? player.getDirection()
-				.getClockWise()
+		Axis axis = prefferedAxis == null ? player.getHorizontalFacing()
+				.rotateYClockwise()
 				.getAxis() : prefferedAxis == Axis.X ? Axis.Z : Axis.X;
-		world.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.AXIS, axis));
-		return super.updateCustomBlockEntityTag(pos, world, player, stack, state);
+		world.setBlockState(pos, state.with(Properties.AXIS, axis));
+		return super.postPlacement(pos, world, player, stack, state);
 	}
 
 }

@@ -2,7 +2,14 @@ package com.simibubi.create.content.equipment.zapper.terrainzapper;
 
 import java.util.List;
 import java.util.Vector;
-
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
 import com.simibubi.create.content.equipment.zapper.ConfigureZapperPacket;
 import com.simibubi.create.content.equipment.zapper.ZapperScreen;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
@@ -17,20 +24,11 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.NBTHelper;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
-
 public class WorldshaperScreen extends ZapperScreen {
 
-	protected final Component placementSection = Lang.translateDirect("gui.terrainzapper.placement");
-	protected final Component toolSection = Lang.translateDirect("gui.terrainzapper.tool");
-	protected final List<Component> brushOptions =
+	protected final Text placementSection = Lang.translateDirect("gui.terrainzapper.placement");
+	protected final Text toolSection = Lang.translateDirect("gui.terrainzapper.tool");
+	protected final List<Text> brushOptions =
 		Lang.translatedOptions("gui.terrainzapper.brush", "cuboid", "sphere", "cylinder", "surface", "cluster");
 
 	protected Vector<IconButton> toolButtons;
@@ -52,15 +50,15 @@ public class WorldshaperScreen extends ZapperScreen {
 	protected TerrainTools currentTool;
 	protected PlacementOptions currentPlacement;
 
-	public WorldshaperScreen(ItemStack zapper, InteractionHand hand) {
+	public WorldshaperScreen(ItemStack zapper, Hand hand) {
 		super(AllGuiTextures.TERRAINZAPPER, zapper, hand);
 		fontColor = 0x767676;
-		title = zapper.getHoverName();
+		title = zapper.getName();
 
-		CompoundTag nbt = zapper.getOrCreateTag();
+		NbtCompound nbt = zapper.getOrCreateNbt();
 		currentBrush = NBTHelper.readEnum(nbt, "Brush", TerrainBrushes.class);
-		if (nbt.contains("BrushParams", Tag.TAG_COMPOUND)) {
-			BlockPos paramsData = NbtUtils.readBlockPos(nbt.getCompound("BrushParams"));
+		if (nbt.contains("BrushParams", NbtElement.COMPOUND_TYPE)) {
+			BlockPos paramsData = NbtHelper.toBlockPos(nbt.getCompound("BrushParams"));
 			currentBrushParams[0] = paramsData.getX();
 			currentBrushParams[1] = paramsData.getY();
 			currentBrushParams[2] = paramsData.getZ();
@@ -93,8 +91,8 @@ public class WorldshaperScreen extends ZapperScreen {
 
 		brushInput.setState(currentBrush.ordinal());
 
-		addRenderableWidget(brushLabel);
-		addRenderableWidget(brushInput);
+		addDrawableChild(brushLabel);
+		addDrawableChild(brushInput);
 
 		initBrushParams(x, y);
 	}
@@ -118,10 +116,10 @@ public class WorldshaperScreen extends ZapperScreen {
 				.withRange(currentBrush.getMin(index), currentBrush.getMax(index) + 1)
 				.writingTo(label)
 				.titled(currentBrush.getParamLabel(index)
-					.plainCopy())
+					.copyContentOnly())
 				.calling(state -> {
 					currentBrushParams[finalIndex] = state;
-					label.setX(x + 65 + 20 * finalIndex - font.width(label.text) / 2);
+					label.setX(x + 65 + 20 * finalIndex - textRenderer.getWidth(label.text) / 2);
 				});
 			input.setState(currentBrushParams[index]);
 			input.onChanged();
@@ -142,10 +140,10 @@ public class WorldshaperScreen extends ZapperScreen {
 		// Connectivity Options
 
 		if (followDiagonals != null) {
-			removeWidget(followDiagonals);
-			removeWidget(followDiagonalsIndicator);
-			removeWidget(acrossMaterials);
-			removeWidget(acrossMaterialsIndicator);
+			remove(followDiagonals);
+			remove(followDiagonalsIndicator);
+			remove(acrossMaterials);
+			remove(acrossMaterialsIndicator);
 			followDiagonals = null;
 			followDiagonalsIndicator = null;
 			acrossMaterials = null;
@@ -171,10 +169,10 @@ public class WorldshaperScreen extends ZapperScreen {
 				currentAcrossMaterials = !currentAcrossMaterials;
 			});
 			acrossMaterials.setToolTip(Lang.translateDirect("gui.terrainzapper.searchFuzzy"));
-			addRenderableWidget(followDiagonals);
-			addRenderableWidget(followDiagonalsIndicator);
-			addRenderableWidget(acrossMaterials);
-			addRenderableWidget(acrossMaterialsIndicator);
+			addDrawableChild(followDiagonals);
+			addDrawableChild(followDiagonalsIndicator);
+			addDrawableChild(acrossMaterials);
+			addDrawableChild(acrossMaterialsIndicator);
 			if (currentFollowDiagonals)
 				followDiagonalsIndicator.state = State.ON;
 			if (currentAcrossMaterials)
@@ -239,16 +237,16 @@ public class WorldshaperScreen extends ZapperScreen {
 	}
 
 	@Override
-	protected void drawOnBackground(GuiGraphics graphics, int x, int y) {
+	protected void drawOnBackground(DrawContext graphics, int x, int y) {
 		super.drawOnBackground(graphics, x, y);
 
 		Brush currentBrush = this.currentBrush.get();
 		for (int index = 2; index >= currentBrush.amtParams; index--)
 			AllGuiTextures.TERRAINZAPPER_INACTIVE_PARAM.render(graphics, x + 56 + 20 * index, y + 40);
 
-		graphics.drawString(font, toolSection, x + 7, y + 69, fontColor, false);
+		graphics.drawText(textRenderer, toolSection, x + 7, y + 69, fontColor, false);
 		if (currentBrush.hasPlacementOptions())
-			graphics.drawString(font, placementSection, x + 136, y + 69, fontColor, false);
+			graphics.drawText(textRenderer, placementSection, x + 136, y + 69, fontColor, false);
 	}
 
 	@Override

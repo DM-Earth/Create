@@ -5,7 +5,7 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
 
 public class ContraptionColliderLockPacket extends SimplePacketBase {
 
@@ -19,14 +19,14 @@ public class ContraptionColliderLockPacket extends SimplePacketBase {
 		this.sender = sender;
 	}
 
-	public ContraptionColliderLockPacket(FriendlyByteBuf buffer) {
+	public ContraptionColliderLockPacket(PacketByteBuf buffer) {
 		contraption = buffer.readVarInt();
 		offset = buffer.readDouble();
 		sender = buffer.readVarInt();
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeVarInt(contraption);
 		buffer.writeDouble(offset);
 		buffer.writeVarInt(sender);
@@ -49,13 +49,13 @@ public class ContraptionColliderLockPacket extends SimplePacketBase {
 			this.offset = offset;
 		}
 
-		public ContraptionColliderLockPacketRequest(FriendlyByteBuf buffer) {
+		public ContraptionColliderLockPacketRequest(PacketByteBuf buffer) {
 			contraption = buffer.readVarInt();
 			offset = buffer.readDouble();
 		}
 
 		@Override
-		public void write(FriendlyByteBuf buffer) {
+		public void write(PacketByteBuf buffer) {
 			buffer.writeVarInt(contraption);
 			buffer.writeDouble(offset);
 		}

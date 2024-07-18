@@ -4,15 +4,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.network.PacketByteBuf;
 import org.jetbrains.annotations.Nullable;
 
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.infrastructure.debugInfo.DebugInformation;
 import com.simibubi.create.infrastructure.debugInfo.InfoProvider;
-
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Player;
 
 /**
  * A section for organizing debug information. Can contain both information and other sections.
@@ -20,9 +18,9 @@ import net.minecraft.world.entity.player.Player;
  */
 public record DebugInfoSection(String name, ImmutableList<InfoElement> elements) implements InfoElement {
 	@Override
-	public void write(Player player, FriendlyByteBuf buffer) {
+	public void write(PlayerEntity player, PacketByteBuf buffer) {
 		buffer.writeBoolean(true);
-		buffer.writeUtf(name);
+		buffer.writeString(name);
 		buffer.writeCollection(elements, (buf, element) -> element.write(player, buf));
 	}
 
@@ -31,19 +29,19 @@ public record DebugInfoSection(String name, ImmutableList<InfoElement> elements)
 	}
 
 	@Override
-	public void print(int depth, @Nullable Player player, Consumer<String> lineConsumer) {
+	public void print(int depth, @Nullable PlayerEntity player, Consumer<String> lineConsumer) {
 		String indent = DebugInformation.getIndent(depth);
 		lineConsumer.accept(indent + name + ":");
 		elements.forEach(element -> element.print(depth + 1, player, lineConsumer));
 	}
 
-	public static DebugInfoSection read(FriendlyByteBuf buffer) {
-		String name = buffer.readUtf();
+	public static DebugInfoSection read(PacketByteBuf buffer) {
+		String name = buffer.readString();
 		ArrayList<InfoElement> elements = buffer.readCollection(ArrayList::new, InfoElement::read);
 		return new DebugInfoSection(name, ImmutableList.copyOf(elements));
 	}
 
-	public static DebugInfoSection readDirect(FriendlyByteBuf buf) {
+	public static DebugInfoSection readDirect(PacketByteBuf buf) {
 		buf.readBoolean(); // discard type marker
 		return read(buf);
 	}

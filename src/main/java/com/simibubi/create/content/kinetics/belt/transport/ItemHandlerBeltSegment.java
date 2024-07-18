@@ -3,7 +3,7 @@ package com.simibubi.create.content.kinetics.belt.transport;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
 
 public class ItemHandlerBeltSegment implements SingleSlotStorage<ItemVariant> {
 	private final BeltInventory beltInventory;
@@ -17,7 +17,7 @@ public class ItemHandlerBeltSegment implements SingleSlotStorage<ItemVariant> {
 	@Override
 	public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
 		if (this.beltInventory.canInsertAt(offset)) {
-			int toInsert = Math.min((int) maxAmount, resource.getItem().getMaxStackSize());
+			int toInsert = Math.min((int) maxAmount, resource.getItem().getMaxCount());
 			TransportedItemStack newStack = new TransportedItemStack(resource.toStack(toInsert));
 			newStack.insertedAt = offset;
 			newStack.beltPosition = offset + .5f + (beltInventory.beltMovementPositive ? -1 : 1) / 16f;
@@ -38,7 +38,7 @@ public class ItemHandlerBeltSegment implements SingleSlotStorage<ItemVariant> {
 
 		int toExtract = (int) Math.min(maxAmount, transported.stack.getCount());
 		this.beltInventory.itemsSnapshotParticipant.updateSnapshots(transaction);
-		transported.stack.shrink(toExtract);
+		transported.stack.decrement(toExtract);
 		return toExtract;
 	}
 
@@ -60,7 +60,7 @@ public class ItemHandlerBeltSegment implements SingleSlotStorage<ItemVariant> {
 
 	@Override
 	public long getCapacity() {
-		return getStack().getMaxStackSize();
+		return getStack().getMaxCount();
 	}
 
 	public ItemStack getStack() {

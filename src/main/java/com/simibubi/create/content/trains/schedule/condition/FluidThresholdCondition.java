@@ -19,14 +19,14 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
@@ -35,7 +35,7 @@ public class FluidThresholdCondition extends CargoThresholdCondition {
 	private FilterItemStack compareStack = FilterItemStack.empty();
 
 	@Override
-	protected Component getUnit() {
+	protected Text getUnit() {
 		return Components.literal("b");
 	}
 
@@ -45,7 +45,7 @@ public class FluidThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	protected boolean test(Level level, Train train, CompoundTag context) {
+	protected boolean test(World level, Train train, NbtCompound context) {
 		Ops operator = getOperator();
 		long target = getThreshold();
 
@@ -67,30 +67,30 @@ public class FluidThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	protected void writeAdditional(CompoundTag tag) {
+	protected void writeAdditional(NbtCompound tag) {
 		super.writeAdditional(tag);
 		tag.put("Bucket", compareStack.serializeNBT());
 	}
 
 	@Override
-	protected void readAdditional(CompoundTag tag) {
+	protected void readAdditional(NbtCompound tag) {
 		super.readAdditional(tag);
 		if (tag.contains("Bucket"))
 			compareStack = FilterItemStack.of(tag.getCompound("Bucket"));
 	}
 
 	@Override
-	public boolean tickCompletion(Level level, Train train, CompoundTag context) {
+	public boolean tickCompletion(World level, Train train, NbtCompound context) {
 		return super.tickCompletion(level, train, context);
 	}
 
 	@Environment(EnvType.CLIENT)
 	private FluidStack loadFluid() {
-		return compareStack.fluid(Minecraft.getInstance().level);
+		return compareStack.fluid(MinecraftClient.getInstance().world);
 	}
 
 	@Override
-	public List<Component> getTitleAs(String type) {
+	public List<Text> getTitleAs(String type) {
 		return ImmutableList.of(
 			Lang.translateDirect("schedule.condition.threshold.train_holds",
 				Lang.translateDirect("schedule.condition.threshold." + Lang.asId(getOperator().name()))),
@@ -100,7 +100,7 @@ public class FluidThresholdCondition extends CargoThresholdCondition {
 					: compareStack.isFilterItem()
 						? Lang.translateDirect("schedule.condition.threshold.matching_content")
 						: loadFluid().getDisplayName())
-				.withStyle(ChatFormatting.DARK_AQUA));
+				.formatted(Formatting.DARK_AQUA));
 	}
 
 	@Override
@@ -114,7 +114,7 @@ public class FluidThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return Create.asResource("fluid_threshold");
 	}
 
@@ -129,7 +129,7 @@ public class FluidThresholdCondition extends CargoThresholdCondition {
 	}
 
 	@Override
-	public MutableComponent getWaitingStatus(Level level, Train train, CompoundTag tag) {
+	public MutableText getWaitingStatus(World level, Train train, NbtCompound tag) {
 		long lastDisplaySnapshot = getLastDisplaySnapshot(tag);
 		if (lastDisplaySnapshot == -1)
 			return Components.empty();

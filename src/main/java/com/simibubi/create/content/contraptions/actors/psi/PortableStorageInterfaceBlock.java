@@ -1,26 +1,24 @@
 package com.simibubi.create.content.contraptions.actors.psi;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.foundation.advancement.AdvancementBehaviour;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
@@ -29,52 +27,52 @@ public class PortableStorageInterfaceBlock extends WrenchableDirectionalBlock
 
 	boolean fluids;
 
-	public static PortableStorageInterfaceBlock forItems(Properties p_i48415_1_) {
+	public static PortableStorageInterfaceBlock forItems(Settings p_i48415_1_) {
 		return new PortableStorageInterfaceBlock(p_i48415_1_, false);
 	}
 
-	public static PortableStorageInterfaceBlock forFluids(Properties p_i48415_1_) {
+	public static PortableStorageInterfaceBlock forFluids(Settings p_i48415_1_) {
 		return new PortableStorageInterfaceBlock(p_i48415_1_, true);
 	}
 
-	private PortableStorageInterfaceBlock(Properties p_i48415_1_, boolean fluids) {
+	private PortableStorageInterfaceBlock(Settings p_i48415_1_, boolean fluids) {
 		super(p_i48415_1_);
 		this.fluids = fluids;
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level world, BlockPos pos, Block p_220069_4_, BlockPos p_220069_5_,
+	public void neighborUpdate(BlockState state, World world, BlockPos pos, Block p_220069_4_, BlockPos p_220069_5_,
 		boolean p_220069_6_) {
 		withBlockEntityDo(world, pos, PortableStorageInterfaceBlockEntity::neighbourChanged);
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		AdvancementBehaviour.setPlacedBy(pLevel, pPos, pPlacer);
 	}
 	
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		Direction direction = context.getNearestLookingDirection();
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		Direction direction = context.getPlayerLookDirection();
 		if (context.getPlayer() != null && context.getPlayer()
-			.isShiftKeyDown())
+			.isSneaking())
 			direction = direction.getOpposite();
-		return defaultBlockState().setValue(FACING, direction.getOpposite());
+		return getDefaultState().with(FACING, direction.getOpposite());
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return AllShapes.PORTABLE_STORAGE_INTERFACE.get(state.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return AllShapes.PORTABLE_STORAGE_INTERFACE.get(state.get(FACING));
 	}
 
 	@Override
-	public boolean hasAnalogOutputSignal(BlockState state) {
+	public boolean hasComparatorOutput(BlockState state) {
 		return true;
 	}
 
 	@Override
-	public int getAnalogOutputSignal(BlockState blockState, Level worldIn, BlockPos pos) {
+	public int getComparatorOutput(BlockState blockState, World worldIn, BlockPos pos) {
 		return getBlockEntityOptional(worldIn, pos).map(be -> be.isConnected() ? 15 : 0)
 			.orElse(0);
 	}

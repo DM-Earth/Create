@@ -5,192 +5,191 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.map.MapState;
+import net.minecraft.recipe.RecipeManager;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.resource.featuretoggle.FeatureSet;
+import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.server.world.ChunkLevelType;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.profiler.Profiler;
+import net.minecraft.world.MutableWorldProperties;
+import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.chunk.ChunkManager;
+import net.minecraft.world.chunk.ChunkStatus;
+import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.chunk.light.LightSourceView;
+import net.minecraft.world.chunk.light.LightingProvider;
+import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.world.dimension.DimensionTypes;
+import net.minecraft.world.entity.EntityLookup;
+import net.minecraft.world.event.GameEvent;
+import net.minecraft.world.event.GameEvent.Emitter;
+import net.minecraft.world.tick.EmptyTickSchedulers;
+import net.minecraft.world.tick.QueryableTickScheduler;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Holder;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.FullChunkStatus;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.flag.FeatureFlagSet;
-import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.ChunkSource;
-import net.minecraft.world.level.chunk.ChunkStatus;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.LightChunk;
-import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
-import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.entity.LevelEntityGetter;
-import net.minecraft.world.level.gameevent.GameEvent;
-import net.minecraft.world.level.gameevent.GameEvent.Context;
-import net.minecraft.world.level.lighting.LevelLightEngine;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-import net.minecraft.world.level.storage.WritableLevelData;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.world.ticks.BlackholeTickAccess;
-import net.minecraft.world.ticks.LevelTickAccess;
+public class SchematicChunkSource extends ChunkManager {
+	private final World fallbackWorld;
 
-public class SchematicChunkSource extends ChunkSource {
-	private final Level fallbackWorld;
-
-	public SchematicChunkSource(Level world) {
+	public SchematicChunkSource(World world) {
 		fallbackWorld = world;
 	}
 
 	@Nullable
 	@Override
-	public LightChunk getChunkForLighting(int x, int z) {
-		return getChunk(x, z);
+	public LightSourceView getChunk(int x, int z) {
+		return create$getChunk(x, z);
 	}
 
 	@Override
-	public Level getLevel() {
+	public World getWorld() {
 		return fallbackWorld;
 	}
 
 	@Nullable
 	@Override
-	public ChunkAccess getChunk(int x, int z, ChunkStatus status, boolean p_212849_4_) {
-		return getChunk(x, z);
+	public Chunk getChunk(int x, int z, ChunkStatus status, boolean p_212849_4_) {
+		return create$getChunk(x, z);
 	}
 
-	public ChunkAccess getChunk(int x, int z) {
-		return new EmptierChunk(fallbackWorld.registryAccess());
+	public Chunk create$getChunk(int x, int z) {
+		return new EmptierChunk(fallbackWorld.getRegistryManager());
 	}
 
 	@Override
-	public String gatherStats() {
+	public String getDebugString() {
 		return "WrappedChunkProvider";
 	}
 
 	@Override
-	public LevelLightEngine getLightEngine() {
-		return fallbackWorld.getLightEngine();
+	public LightingProvider getLightingProvider() {
+		return fallbackWorld.getLightingProvider();
 	}
 
 	@Override
 	public void tick(BooleanSupplier p_202162_, boolean p_202163_) {}
 
 	@Override
-	public int getLoadedChunksCount() {
+	public int getLoadedChunkCount() {
 		return 0;
 	}
 
-	public static class EmptierChunk extends LevelChunk {
+	public static class EmptierChunk extends WorldChunk {
 
-		private static final class DummyLevel extends Level {
-			
-			private DummyLevel(WritableLevelData pLevelData, ResourceKey<Level> pDimension,
-				RegistryAccess pRegistryAccess, Holder<DimensionType> pDimensionTypeRegistration,
-				Supplier<ProfilerFiller> pProfiler, boolean pIsClientSide, boolean pIsDebug, long pBiomeZoomSeed,
+		private static final class DummyLevel extends World {
+
+			private DummyLevel(MutableWorldProperties pLevelData, RegistryKey<World> pDimension,
+				DynamicRegistryManager pRegistryAccess, RegistryEntry<DimensionType> pDimensionTypeRegistration,
+				Supplier<Profiler> pProfiler, boolean pIsClientSide, boolean pIsDebug, long pBiomeZoomSeed,
 				int pMaxChainedNeighborUpdates) {
 				super(pLevelData, pDimension, pRegistryAccess, pDimensionTypeRegistration, pProfiler, pIsClientSide, pIsDebug,
 					pBiomeZoomSeed, pMaxChainedNeighborUpdates);
 				access = pRegistryAccess;
 			}
 
-			private final RegistryAccess access;
-			
-			private DummyLevel(RegistryAccess access) {
-				this(null, null, access, access.registryOrThrow(Registries.DIMENSION_TYPE)
-					.getHolderOrThrow(BuiltinDimensionTypes.OVERWORLD), null, false, false, 0, 0);
+			private final DynamicRegistryManager access;
+
+			private DummyLevel(DynamicRegistryManager access) {
+				this(null, null, access, access.get(RegistryKeys.DIMENSION_TYPE)
+					.entryOf(DimensionTypes.OVERWORLD), null, false, false, 0, 0);
 			}
 
 			@Override
-			public ChunkSource getChunkSource() {
+			public ChunkManager getChunkManager() {
 				return null;
 			}
 
 			@Override
-			public void levelEvent(Player pPlayer, int pType, BlockPos pPos, int pData) {}
+			public void syncWorldEvent(PlayerEntity pPlayer, int pType, BlockPos pPos, int pData) {}
 
 			@Override
-			public void gameEvent(Entity pEntity, GameEvent pEvent, BlockPos pPos) {}
+			public void emitGameEvent(Entity pEntity, GameEvent pEvent, BlockPos pPos) {}
 
 			@Override
-			public void gameEvent(GameEvent p_220404_, Vec3 p_220405_, Context p_220406_) {}
+			public void emitGameEvent(GameEvent p_220404_, Vec3d p_220405_, Emitter p_220406_) {}
 
 			@Override
-			public RegistryAccess registryAccess() {
+			public DynamicRegistryManager getRegistryManager() {
 				return access;
 			}
 
 			@Override
-			public List<? extends Player> players() {
+			public List<? extends PlayerEntity> getPlayers() {
 				return null;
 			}
 
 			@Override
-			public Holder<Biome> getUncachedNoiseBiome(int pX, int pY, int pZ) {
+			public RegistryEntry<Biome> getGeneratorStoredBiome(int pX, int pY, int pZ) {
 				return null;
 			}
 
 			@Override
-			public float getShade(Direction pDirection, boolean pShade) {
+			public float getBrightness(Direction pDirection, boolean pShade) {
 				return 0;
 			}
 
 			@Override
-			public void sendBlockUpdated(BlockPos pPos, BlockState pOldState, BlockState pNewState, int pFlags) {}
+			public void updateListeners(BlockPos pPos, BlockState pOldState, BlockState pNewState, int pFlags) {}
 
 			@Override
-			public void playSound(Player pPlayer, double pX, double pY, double pZ, SoundEvent pSound,
-								  SoundSource pCategory, float pVolume, float pPitch) {}
+			public void playSound(PlayerEntity pPlayer, double pX, double pY, double pZ, SoundEvent pSound,
+								  SoundCategory pCategory, float pVolume, float pPitch) {}
 
 			@Override
-			public void playSound(Player pPlayer, Entity pEntity, SoundEvent pEvent, SoundSource pCategory,
+			public void playSoundFromEntity(PlayerEntity pPlayer, Entity pEntity, SoundEvent pEvent, SoundCategory pCategory,
 								  float pVolume, float pPitch) {}
 
 			@Override
-			public void playSeededSound(Player p_220363_, double p_220364_, double p_220365_, double p_220366_,
-					SoundEvent p_220367_, SoundSource p_220368_, float p_220369_, float p_220370_, long p_220371_) {}
+			public void playSound(PlayerEntity p_220363_, double p_220364_, double p_220365_, double p_220366_,
+					SoundEvent p_220367_, SoundCategory p_220368_, float p_220369_, float p_220370_, long p_220371_) {}
 
 			@Override
-			public void playSeededSound(Player p_220372_, Entity p_220373_, Holder<SoundEvent> p_220374_, SoundSource p_220375_,
+			public void playSoundFromEntity(PlayerEntity p_220372_, Entity p_220373_, RegistryEntry<SoundEvent> p_220374_, SoundCategory p_220375_,
 					float p_220376_, float p_220377_, long p_220378_) {}
 
 			@Override
-			public String gatherChunkSourceStats() {
+			public String asString() {
 				return null;
 			}
 
 			@Override
-			public Entity getEntity(int pId) {
+			public Entity getEntityById(int pId) {
 				return null;
 			}
 
 			@Override
-			public MapItemSavedData getMapData(String pMapName) {
+			public MapState getMapState(String pMapName) {
 				return null;
 			}
 
 			@Override
-			public void setMapData(String pMapId, MapItemSavedData pData) {}
+			public void putMapState(String pMapId, MapState pData) {}
 
 			@Override
-			public int getFreeMapId() {
+			public int getNextMapId() {
 				return 0;
 			}
 
 			@Override
-			public void destroyBlockProgress(int pBreakerId, BlockPos pPos, int pProgress) {}
+			public void setBlockBreakingInfo(int pBreakerId, BlockPos pPos, int pProgress) {}
 
 			@Override
 			public Scoreboard getScoreboard() {
@@ -203,36 +202,36 @@ public class SchematicChunkSource extends ChunkSource {
 			}
 
 			@Override
-			protected LevelEntityGetter<Entity> getEntities() {
+			protected EntityLookup<Entity> getEntityLookup() {
 				return null;
 			}
 
 			@Override
-			public LevelTickAccess<Block> getBlockTicks() {
-				return BlackholeTickAccess.emptyLevelList();
+			public QueryableTickScheduler<Block> getBlockTickScheduler() {
+				return EmptyTickSchedulers.getClientTickScheduler();
 			}
 
 			@Override
-			public LevelTickAccess<Fluid> getFluidTicks() {
-				return BlackholeTickAccess.emptyLevelList();
+			public QueryableTickScheduler<Fluid> getFluidTickScheduler() {
+				return EmptyTickSchedulers.getClientTickScheduler();
 			}
 
 			@Override
-			public FeatureFlagSet enabledFeatures() {
-				return FeatureFlagSet.of();
+			public FeatureSet getEnabledFeatures() {
+				return FeatureSet.empty();
 			}
 
 			@Override
-			public void playSeededSound(Player pPlayer, double pX, double pY, double pZ, Holder<SoundEvent> pSound,
-				SoundSource pSource, float pVolume, float pPitch, long pSeed) {}
+			public void playSound(PlayerEntity pPlayer, double pX, double pY, double pZ, RegistryEntry<SoundEvent> pSound,
+				SoundCategory pSource, float pVolume, float pPitch, long pSeed) {}
 		}
 
-		public EmptierChunk(RegistryAccess registryAccess) {
+		public EmptierChunk(DynamicRegistryManager registryAccess) {
 			super(new DummyLevel(registryAccess), null);
 		}
 
 		public BlockState getBlockState(BlockPos p_180495_1_) {
-			return Blocks.VOID_AIR.defaultBlockState();
+			return Blocks.VOID_AIR.getDefaultState();
 		}
 
 		@Nullable
@@ -241,19 +240,19 @@ public class SchematicChunkSource extends ChunkSource {
 		}
 
 		public FluidState getFluidState(BlockPos p_204610_1_) {
-			return Fluids.EMPTY.defaultFluidState();
+			return Fluids.EMPTY.getDefaultState();
 		}
 
-		public int getLightEmission(BlockPos p_217298_1_) {
+		public int getLuminance(BlockPos p_217298_1_) {
 			return 0;
 		}
 
 		@Nullable
-		public BlockEntity getBlockEntity(BlockPos p_177424_1_, EntityCreationType p_177424_2_) {
+		public BlockEntity getBlockEntity(BlockPos p_177424_1_, CreationType p_177424_2_) {
 			return null;
 		}
 
-		public void addAndRegisterBlockEntity(BlockEntity p_150813_1_) {}
+		public void addBlockEntity(BlockEntity p_150813_1_) {}
 
 		public void setBlockEntity(BlockEntity p_177426_2_) {}
 
@@ -265,12 +264,12 @@ public class SchematicChunkSource extends ChunkSource {
 			return true;
 		}
 
-		public boolean isYSpaceEmpty(int p_76606_1_, int p_76606_2_) {
+		public boolean areSectionsEmptyBetween(int p_76606_1_, int p_76606_2_) {
 			return true;
 		}
 
-		public FullChunkStatus getFullStatus() {
-			return FullChunkStatus.FULL;
+		public ChunkLevelType getLevelType() {
+			return ChunkLevelType.FULL;
 		}
 	}
 }

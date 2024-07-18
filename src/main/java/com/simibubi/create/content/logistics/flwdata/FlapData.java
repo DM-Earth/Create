@@ -4,9 +4,8 @@ import org.joml.Vector3f;
 
 import com.jozufozu.flywheel.api.InstanceData;
 import com.jozufozu.flywheel.core.materials.FlatLit;
-
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.core.BlockPos;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.util.math.BlockPos;
 
 public class FlapData extends InstanceData implements FlatLit<FlapData> {
 
@@ -58,7 +57,7 @@ public class FlapData extends InstanceData implements FlatLit<FlapData> {
 
 	@Override
 	public int getPackedLight() {
-		return LightTexture.pack(this.blockLight, this.skyLight);
+		return LightmapTextureManager.pack(this.blockLight, this.skyLight);
 	}
 
 	public FlapData setSegmentOffset(float x, float y, float z) {

@@ -10,7 +10,6 @@ import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import com.simibubi.create.content.contraptions.render.ActorInstance;
@@ -22,16 +21,16 @@ import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class DeployerActorInstance extends ActorInstance {
 
-	private final PoseStack stack = new PoseStack();
+	private final MatrixStack stack = new MatrixStack();
 	Direction facing;
     boolean stationaryTimer;
 
@@ -54,9 +53,9 @@ public class DeployerActorInstance extends ActorInstance {
         PartialModel handPose = DeployerRenderer.getHandPose(mode);
 
         stationaryTimer = context.data.contains("StationaryTimer");
-        facing = state.getValue(FACING);
+        facing = state.get(FACING);
 
-        boolean rotatePole = state.getValue(AXIS_ALONG_FIRST_COORDINATE) ^ facing.getAxis() == Direction.Axis.Z;
+        boolean rotatePole = state.get(AXIS_ALONG_FIRST_COORDINATE) ^ facing.getAxis() == Direction.Axis.Z;
         yRot = AngleHelper.horizontalAngle(facing);
         xRot = facing == Direction.UP ? 270 : facing == Direction.DOWN ? 90 : 0;
         zRot = rotatePole ? 90 : 0;
@@ -86,37 +85,37 @@ public class DeployerActorInstance extends ActorInstance {
         if (context.disabled) {
         	factor = 0;
         } else if (context.contraption.stalled || context.position == null || context.data.contains("StationaryTimer")) {
-            factor = Mth.sin(AnimationTickHolder.getRenderTime() * .5f) * .25f + .25f;
+            factor = MathHelper.sin(AnimationTickHolder.getRenderTime() * .5f) * .25f + .25f;
         } else {
-        	Vec3 center = VecHelper.getCenterOf(BlockPos.containing(context.position));
+        	Vec3d center = VecHelper.getCenterOf(BlockPos.ofFloored(context.position));
             double distance = context.position.distanceTo(center);
             double nextDistance = context.position.add(context.motion)
                                                   .distanceTo(center);
-            factor = .5f - Mth.clamp(Mth.lerp(AnimationTickHolder.getPartialTicks(), distance, nextDistance), 0, 1);
+            factor = .5f - MathHelper.clamp(MathHelper.lerp(AnimationTickHolder.getPartialTicks(), distance, nextDistance), 0, 1);
         }
 
-        Vec3 offset = Vec3.atLowerCornerOf(facing.getNormal()).scale(factor);
+        Vec3d offset = Vec3d.of(facing.getVector()).multiply(factor);
 
         TransformStack tstack = TransformStack.cast(stack);
-        stack.setIdentity();
+        stack.loadIdentity();
         tstack.translate(context.localPos)
 				.translate(offset);
 
         transformModel(stack, pole, hand, yRot, xRot, zRot);
     }
 
-    static void transformModel(PoseStack stack, ModelData pole, ModelData hand, float yRot, float xRot, float zRot) {
+    static void transformModel(MatrixStack stack, ModelData pole, ModelData hand, float yRot, float xRot, float zRot) {
         TransformStack tstack = TransformStack.cast(stack);
 
         tstack.centre();
         tstack.rotate(Direction.UP, (float) ((yRot) / 180 * Math.PI));
         tstack.rotate(Direction.EAST, (float) ((xRot) / 180 * Math.PI));
 
-        stack.pushPose();
+        stack.push();
         tstack.rotate(Direction.SOUTH, (float) ((zRot) / 180 * Math.PI));
         tstack.unCentre();
         pole.setTransform(stack);
-        stack.popPose();
+        stack.pop();
 
         tstack.unCentre();
 

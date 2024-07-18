@@ -4,7 +4,7 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
 
 public class GantryContraptionUpdatePacket extends SimplePacketBase {
 
@@ -20,7 +20,7 @@ public class GantryContraptionUpdatePacket extends SimplePacketBase {
 		this.sequenceLimit = sequenceLimit;
 	}
 
-	public GantryContraptionUpdatePacket(FriendlyByteBuf buffer) {
+	public GantryContraptionUpdatePacket(PacketByteBuf buffer) {
 		entityID = buffer.readInt();
 		coord = buffer.readFloat();
 		motion = buffer.readFloat();
@@ -28,7 +28,7 @@ public class GantryContraptionUpdatePacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(entityID);
 		buffer.writeFloat((float) coord);
 		buffer.writeFloat((float) motion);

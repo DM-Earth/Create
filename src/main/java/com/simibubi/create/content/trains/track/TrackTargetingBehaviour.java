@@ -6,7 +6,6 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import com.jozufozu.flywheel.core.PartialModel;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.contraptions.StructureTransform;
 import com.simibubi.create.content.schematics.SchematicWorld;
@@ -27,24 +26,24 @@ import com.simibubi.create.foundation.ponder.PonderWorld;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEntityBehaviour {
 
@@ -55,10 +54,10 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 	private AxisDirection targetDirection;
 	private UUID id;
 
-	private Vec3 prevDirection;
-	private Vec3 rotatedDirection;
+	private Vec3d prevDirection;
+	private Vec3d rotatedDirection;
 
-	private CompoundTag migrationData;
+	private NbtCompound migrationData;
 	private EdgePointType<T> edgePointType;
 	private T edgePoint;
 	private boolean orthogonal;
@@ -67,7 +66,7 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 		super(be);
 		this.edgePointType = edgePointType;
 		targetDirection = AxisDirection.POSITIVE;
-		targetTrack = BlockPos.ZERO;
+		targetTrack = BlockPos.ORIGIN;
 		id = UUID.randomUUID();
 		migrationData = null;
 		orthogonal = false;
@@ -79,9 +78,9 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
-		nbt.putUUID("Id", id);
-		nbt.put("TargetTrack", NbtUtils.writeBlockPos(targetTrack));
+	public void write(NbtCompound nbt, boolean clientPacket) {
+		nbt.putUuid("Id", id);
+		nbt.put("TargetTrack", NbtHelper.fromBlockPos(targetTrack));
 		nbt.putBoolean("Ortho", orthogonal);
 		nbt.putBoolean("TargetDirection", targetDirection == AxisDirection.POSITIVE);
 		if (rotatedDirection != null)
@@ -91,9 +90,9 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 		if (migrationData != null && !clientPacket)
 			nbt.put("Migrate", migrationData);
 		if (targetBezier != null) {
-			CompoundTag bezierNbt = new CompoundTag();
+			NbtCompound bezierNbt = new NbtCompound();
 			bezierNbt.putInt("Segment", targetBezier.segment());
-			bezierNbt.put("Key", NbtUtils.writeBlockPos(targetBezier.curveTarget()
+			bezierNbt.put("Key", NbtHelper.fromBlockPos(targetBezier.curveTarget()
 				.subtract(getPos())));
 			nbt.put("Bezier", bezierNbt);
 		}
@@ -101,23 +100,23 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
-		id = nbt.contains("Id") ? nbt.getUUID("Id") : UUID.randomUUID();
-		targetTrack = NbtUtils.readBlockPos(nbt.getCompound("TargetTrack"));
+	public void read(NbtCompound nbt, boolean clientPacket) {
+		id = nbt.contains("Id") ? nbt.getUuid("Id") : UUID.randomUUID();
+		targetTrack = NbtHelper.toBlockPos(nbt.getCompound("TargetTrack"));
 		targetDirection = nbt.getBoolean("TargetDirection") ? AxisDirection.POSITIVE : AxisDirection.NEGATIVE;
 		orthogonal = nbt.getBoolean("Ortho");
 		if (nbt.contains("PrevAxis"))
-			prevDirection = VecHelper.readNBT(nbt.getList("PrevAxis", Tag.TAG_DOUBLE));
+			prevDirection = VecHelper.readNBT(nbt.getList("PrevAxis", NbtElement.DOUBLE_TYPE));
 		if (nbt.contains("RotatedAxis"))
-			rotatedDirection = VecHelper.readNBT(nbt.getList("RotatedAxis", Tag.TAG_DOUBLE));
+			rotatedDirection = VecHelper.readNBT(nbt.getList("RotatedAxis", NbtElement.DOUBLE_TYPE));
 		if (nbt.contains("Migrate"))
 			migrationData = nbt.getCompound("Migrate");
 		if (clientPacket)
 			edgePoint = null;
 		if (nbt.contains("Bezier")) {
-			CompoundTag bezierNbt = nbt.getCompound("Bezier");
-			BlockPos key = NbtUtils.readBlockPos(bezierNbt.getCompound("Key"));
-			targetBezier = new BezierTrackPointLocation(bezierNbt.contains("FromStack") ? key : key.offset(getPos()),
+			NbtCompound bezierNbt = nbt.getCompound("Bezier");
+			BlockPos key = NbtHelper.toBlockPos(bezierNbt.getCompound("Key"));
+			targetBezier = new BezierTrackPointLocation(bezierNbt.contains("FromStack") ? key : key.add(getPos()),
 				bezierNbt.getInt("Segment"));
 		}
 		super.read(nbt, clientPacket);
@@ -128,7 +127,7 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 		return edgePoint;
 	}
 
-	public void invalidateEdgePoint(CompoundTag migrationData) {
+	public void invalidateEdgePoint(NbtCompound migrationData) {
 		this.migrationData = migrationData;
 		edgePoint = null;
 		blockEntity.sendData();
@@ -143,8 +142,8 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 
 	@SuppressWarnings("unchecked")
 	public T createEdgePoint() {
-		Level level = getWorld();
-		boolean isClientSide = level.isClientSide;
+		World level = getWorld();
+		boolean isClientSide = level.isClient;
 		if (migrationData == null || isClientSide)
 			for (TrackGraph trackGraph : Create.RAILWAYS.sided(level).trackNetworks.values()) {
 				T point = trackGraph.getPoint(edgePointType, id);
@@ -173,13 +172,13 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 		boolean front = getTargetDirection() == AxisDirection.POSITIVE;
 
 		prevDirection = edge.getDirectionAt(loc.position)
-			.scale(front ? -1 : 1);
+			.multiply(front ? -1 : 1);
 
 		if (rotatedDirection != null) {
-			double dot = prevDirection.dot(rotatedDirection);
+			double dot = prevDirection.dotProduct(rotatedDirection);
 			if (dot < -.85f) {
 				rotatedDirection = null;
-				targetDirection = targetDirection.opposite();
+				targetDirection = targetDirection.getOpposite();
 				return null;
 			}
 
@@ -187,15 +186,15 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 		}
 
 		double length = edge.getLength();
-		CompoundTag data = migrationData;
+		NbtCompound data = migrationData;
 		migrationData = null;
 
 		{
 			orthogonal = targetBezier == null;
-			Vec3 direction = edge.getDirection(true);
+			Vec3d direction = edge.getDirection(true);
 			int nonZeroComponents = 0;
 			for (Axis axis : Iterate.axes)
-				nonZeroComponents += direction.get(axis) != 0 ? 1 : 0;
+				nonZeroComponents += direction.getComponentAlongAxis(axis) != 0 ? 1 : 0;
 			orthogonal &= nonZeroComponents <= 1;
 		}
 
@@ -234,7 +233,7 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 	@Override
 	public void destroy() {
 		super.destroy();
-		if (edgePoint != null && !getWorld().isClientSide)
+		if (edgePoint != null && !getWorld().isClient)
 			edgePoint.blockEntityRemoved(getPos(), getTargetDirection() == AxisDirection.POSITIVE);
 	}
 
@@ -264,20 +263,20 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 	}
 
 	public BlockPos getGlobalPosition() {
-		return targetTrack.offset(blockEntity.getBlockPos());
+		return targetTrack.add(blockEntity.getPos());
 	}
 
 	public BlockPos getPositionForMapMarker() {
-		BlockPos target = targetTrack.offset(blockEntity.getBlockPos());
+		BlockPos target = targetTrack.add(blockEntity.getPos());
 		if (targetBezier != null && getWorld().getBlockEntity(target) instanceof TrackBlockEntity tbe) {
 			BezierConnection bc = tbe.getConnections()
 				.get(targetBezier.curveTarget());
 			if (bc == null)
 				return target;
-			double length = Mth.floor(bc.getLength() * 2);
+			double length = MathHelper.floor(bc.getLength() * 2);
 			int seg = targetBezier.segment() + 1;
 			double t = seg / length;
-			return BlockPos.containing(bc.getPosition(t));
+			return BlockPos.ofFloored(bc.getPosition(t));
 		}
 		return target;
 	}
@@ -291,11 +290,11 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 	}
 
 	public TrackGraphLocation determineGraphLocation() {
-		Level level = getWorld();
+		World level = getWorld();
 		BlockPos pos = getGlobalPosition();
 		BlockState state = getTrackBlockState();
 		ITrackBlock track = getTrack();
-		List<Vec3> trackAxes = track.getTrackAxes(level, pos, state);
+		List<Vec3d> trackAxes = track.getTrackAxes(level, pos, state);
 		AxisDirection targetDirection = getTargetDirection();
 
 		return targetBezier != null
@@ -308,8 +307,8 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 	}
 
 	@Environment(EnvType.CLIENT)
-	public static void render(LevelAccessor level, BlockPos pos, AxisDirection direction,
-		BezierTrackPointLocation bezier, PoseStack ms, MultiBufferSource buffer, int light, int overlay,
+	public static void render(WorldAccess level, BlockPos pos, AxisDirection direction,
+		BezierTrackPointLocation bezier, MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay,
 		RenderedTrackOverlayType type, float scale) {
 		if (level instanceof SchematicWorld && !(level instanceof PonderWorld))
 			return;
@@ -319,7 +318,7 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 		if (!(block instanceof ITrackBlock))
 			return;
 
-		ms.pushPose();
+		ms.push();
 		ITrackBlock track = (ITrackBlock) block;
 		PartialModel partial = track.prepareTrackOverlay(level, pos, trackState, bezier, direction, ms, type);
 		if (partial != null)
@@ -327,9 +326,9 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 				.translate(.5, 0, .5)
 				.scale(scale)
 				.translate(-.5, 0, -.5)
-				.light(LevelRenderer.getLightColor(level, pos))
-				.renderInto(ms, buffer.getBuffer(RenderType.cutoutMipped()));
-		ms.popPose();
+				.light(WorldRenderer.getLightmapCoordinates(level, pos))
+				.renderInto(ms, buffer.getBuffer(RenderLayer.getCutoutMipped()));
+		ms.pop();
 	}
 
 	public void transform(StructureTransform transform) {
@@ -340,7 +339,7 @@ public class TrackTargetingBehaviour<T extends TrackEdgePoint> extends BlockEnti
 		if (targetBezier != null)
 			targetBezier = new BezierTrackPointLocation(transform.applyWithoutOffset(targetBezier.curveTarget()
 				.subtract(getPos()))
-				.offset(getPos()), targetBezier.segment());
+				.add(getPos()), targetBezier.segment());
 		blockEntity.notifyUpdate();
 	}
 

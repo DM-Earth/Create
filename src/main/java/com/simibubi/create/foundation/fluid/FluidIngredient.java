@@ -18,18 +18,16 @@ import com.simibubi.create.foundation.utility.RegisteredObjects;
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.tags.TagKey;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.level.material.FlowingFluid;
-import net.minecraft.world.level.material.Fluid;
+import net.minecraft.fluid.FlowableFluid;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.JsonHelper;
 
 public abstract class FluidIngredient implements Predicate<FluidStack> {
 
@@ -66,9 +64,9 @@ public abstract class FluidIngredient implements Predicate<FluidStack> {
 
 	protected abstract boolean testInternal(FluidStack t);
 
-	protected abstract void readInternal(FriendlyByteBuf buffer);
+	protected abstract void readInternal(PacketByteBuf buffer);
 
-	protected abstract void writeInternal(FriendlyByteBuf buffer);
+	protected abstract void writeInternal(PacketByteBuf buffer);
 
 	protected abstract void readInternal(JsonObject json);
 
@@ -93,13 +91,13 @@ public abstract class FluidIngredient implements Predicate<FluidStack> {
 		return testInternal(t);
 	}
 
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBoolean(this instanceof FluidTagIngredient);
 		buffer.writeVarLong(amountRequired);
 		writeInternal(buffer);
 	}
 
-	public static FluidIngredient read(FriendlyByteBuf buffer) {
+	public static FluidIngredient read(PacketByteBuf buffer) {
 		boolean isTagIngredient = buffer.readBoolean();
 		FluidIngredient ingredient = isTagIngredient ? new FluidTagIngredient() : new FluidStackIngredient();
 		ingredient.amountRequired = buffer.readVarLong();
@@ -137,46 +135,46 @@ public abstract class FluidIngredient implements Predicate<FluidStack> {
 
 		if (!json.has("amount"))
 			throw new JsonSyntaxException("Fluid ingredient has to define an amount");
-		ingredient.amountRequired = GsonHelper.getAsInt(json, "amount");
+		ingredient.amountRequired = JsonHelper.getInt(json, "amount");
 		return ingredient;
 	}
 
 	public static class FluidStackIngredient extends FluidIngredient {
 
 		protected Fluid fluid;
-		protected CompoundTag tagToMatch;
+		protected NbtCompound tagToMatch;
 
 		public FluidStackIngredient() {
-			tagToMatch = new CompoundTag();
+			tagToMatch = new NbtCompound();
 		}
 
 		void fixFlowing() {
-			if (fluid instanceof FlowingFluid)
-				fluid = ((FlowingFluid) fluid).getSource();
+			if (fluid instanceof FlowableFluid)
+				fluid = ((FlowableFluid) fluid).getStill();
 		}
 
 		@Override
 		protected boolean testInternal(FluidStack t) {
 			if (!t.getFluid()
-				.isSame(fluid))
+				.matchesType(fluid))
 				return false;
 			if (tagToMatch.isEmpty())
 				return true;
-			CompoundTag tag = t.getOrCreateTag();
+			NbtCompound tag = t.getOrCreateTag();
 			return tag.copy()
-				.merge(tagToMatch)
+				.copyFrom(tagToMatch)
 				.equals(tag);
 		}
 
 		@Override
-		protected void readInternal(FriendlyByteBuf buffer) {
-			fluid = BuiltInRegistries.FLUID.get(buffer.readResourceLocation());
+		protected void readInternal(PacketByteBuf buffer) {
+			fluid = Registries.FLUID.get(buffer.readIdentifier());
 			tagToMatch = buffer.readNbt();
 		}
 
 		@Override
-		protected void writeInternal(FriendlyByteBuf buffer) {
-			buffer.writeResourceLocation(BuiltInRegistries.FLUID.getKey(fluid));
+		protected void writeInternal(PacketByteBuf buffer) {
+			buffer.writeIdentifier(Registries.FLUID.getId(fluid));
 			buffer.writeNbt(tagToMatch);
 		}
 
@@ -212,15 +210,15 @@ public abstract class FluidIngredient implements Predicate<FluidStack> {
 			if (tag == null) {
 				for (FluidStack accepted : getMatchingFluidStacks())
 					if (accepted.getFluid()
-						.isSame(t.getFluid()))
+						.matchesType(t.getFluid()))
 						return true;
 				return false;
 			}
-			return t.getFluid().is(tag);
+			return t.getFluid().isIn(tag);
 		}
 
 		@Override
-		protected void readInternal(FriendlyByteBuf buffer) {
+		protected void readInternal(PacketByteBuf buffer) {
 			int size = buffer.readVarInt();
 			matchingFluidStacks = new ArrayList<>(size);
 			for (int i = 0; i < size; i++)
@@ -228,7 +226,7 @@ public abstract class FluidIngredient implements Predicate<FluidStack> {
 		}
 
 		@Override
-		protected void writeInternal(FriendlyByteBuf buffer) {
+		protected void writeInternal(PacketByteBuf buffer) {
 			// Tag has to be resolved on the server before sending
 			List<FluidStack> matchingFluidStacks = getMatchingFluidStacks();
 			buffer.writeVarInt(matchingFluidStacks.size());
@@ -238,22 +236,22 @@ public abstract class FluidIngredient implements Predicate<FluidStack> {
 
 		@Override
 		protected void readInternal(JsonObject json) {
-			ResourceLocation name = new ResourceLocation(GsonHelper.getAsString(json, "fluidTag"));
-			tag = TagKey.create(Registries.FLUID, name);
+			Identifier name = new Identifier(JsonHelper.getString(json, "fluidTag"));
+			tag = TagKey.of(RegistryKeys.FLUID, name);
 		}
 
 		@Override
 		protected void writeInternal(JsonObject json) {
-			json.addProperty("fluidTag", tag.location()
+			json.addProperty("fluidTag", tag.id()
 				.toString());
 		}
 
 		@Override
 		protected List<FluidStack> determineMatchingFluidStacks() {
 			List<FluidStack> stacks = new ArrayList<>();
-			for (Holder<Fluid> holder : BuiltInRegistries.FLUID.getTagOrEmpty(tag)) {
+			for (RegistryEntry<Fluid> holder : Registries.FLUID.iterateEntries(tag)) {
 				Fluid f = holder.value();
-				if (f instanceof FlowingFluid flowing) f = flowing.getSource();
+				if (f instanceof FlowableFluid flowing) f = flowing.getStill();
 				stacks.add(new FluidStack(f, amountRequired));
 			}
 			return stacks;

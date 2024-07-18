@@ -1,11 +1,10 @@
 package com.simibubi.create.content.kinetics.transmission;
 
 import com.simibubi.create.content.kinetics.base.DirectionalShaftHalvesBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public abstract class SplitShaftBlockEntity extends DirectionalShaftHalvesBlockEntity {
 

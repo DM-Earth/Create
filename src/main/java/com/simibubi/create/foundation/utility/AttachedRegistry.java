@@ -6,21 +6,19 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.Create;
-
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceLocation;
 
 public class AttachedRegistry<K, V> {
 	private static final List<AttachedRegistry<?, ?>> ALL = new ArrayList<>();
 
 	protected final Registry<K> objectRegistry;
-	protected final Map<ResourceLocation, V> idMap = new HashMap<>();
+	protected final Map<Identifier, V> idMap = new HashMap<>();
 	protected final Map<K, V> objectMap = new IdentityHashMap<>();
-	protected final Map<ResourceLocation, Function<K, V>> deferredRegistrations = new HashMap<>();
+	protected final Map<Identifier, Function<K, V>> deferredRegistrations = new HashMap<>();
 	protected boolean unwrapped = false;
 
 	public AttachedRegistry(Registry<K> objectRegistry) {
@@ -28,7 +26,7 @@ public class AttachedRegistry<K, V> {
 		ALL.add(this);
 	}
 
-	public void register(ResourceLocation id, V value) {
+	public void register(Identifier id, V value) {
 		if (!unwrapped) {
 			idMap.put(id, value);
 		} else {
@@ -45,7 +43,7 @@ public class AttachedRegistry<K, V> {
 		if (unwrapped) {
 			objectMap.put(object, value);
 		} else {
-			ResourceLocation id = objectRegistry.getKey(object);
+			Identifier id = objectRegistry.getId(object);
 			if (id != null) {
 				idMap.put(id, value);
 			} else {
@@ -54,7 +52,7 @@ public class AttachedRegistry<K, V> {
 		}
 	}
 
-	public void registerDeferred(ResourceLocation id, Function<K, V> func) {
+	public void registerDeferred(Identifier id, Function<K, V> func) {
 		if (!unwrapped) {
 			deferredRegistrations.put(id, func);
 		} else {
@@ -71,7 +69,7 @@ public class AttachedRegistry<K, V> {
 		if (unwrapped) {
 			objectMap.put(object, func.apply(object));
 		} else {
-			ResourceLocation id = objectRegistry.getKey(object);
+			Identifier id = objectRegistry.getId(object);
 			if (id != null) {
 				deferredRegistrations.put(id, func);
 			} else {
@@ -81,7 +79,7 @@ public class AttachedRegistry<K, V> {
 	}
 
 	@Nullable
-	public V get(ResourceLocation id) {
+	public V get(Identifier id) {
 		if (!unwrapped) {
 			return idMap.get(id);
 		} else {
@@ -100,7 +98,7 @@ public class AttachedRegistry<K, V> {
 		if (unwrapped) {
 			return objectMap.get(object);
 		} else {
-			ResourceLocation id = objectRegistry.getKey(object);
+			Identifier id = objectRegistry.getId(object);
 			if (id != null) {
 				return idMap.get(id);
 			} else {

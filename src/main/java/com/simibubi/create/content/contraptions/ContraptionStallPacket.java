@@ -4,7 +4,7 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
 
 public class ContraptionStallPacket extends SimplePacketBase {
 
@@ -22,7 +22,7 @@ public class ContraptionStallPacket extends SimplePacketBase {
 		this.angle = angle;
 	}
 
-	public ContraptionStallPacket(FriendlyByteBuf buffer) {
+	public ContraptionStallPacket(PacketByteBuf buffer) {
 		entityID = buffer.readInt();
 		x = buffer.readDouble();
 		y = buffer.readDouble();
@@ -31,7 +31,7 @@ public class ContraptionStallPacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(entityID);
 		writeAll(buffer, x, y, z);
 		buffer.writeFloat(angle);
@@ -44,7 +44,7 @@ public class ContraptionStallPacket extends SimplePacketBase {
 		return true;
 	}
 
-	private void writeAll(FriendlyByteBuf buffer, double... doubles) {
+	private void writeAll(PacketByteBuf buffer, double... doubles) {
 		for (double d : doubles)
 			buffer.writeDouble(d);
 	}

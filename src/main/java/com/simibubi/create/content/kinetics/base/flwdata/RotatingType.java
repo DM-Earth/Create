@@ -9,13 +9,12 @@ import com.jozufozu.flywheel.backend.gl.buffer.VecBuffer;
 import com.jozufozu.flywheel.core.layout.BufferLayout;
 import com.jozufozu.flywheel.core.model.ModelTransformer;
 import com.jozufozu.flywheel.util.RenderMath;
-import com.mojang.math.Axis;
 import com.simibubi.create.content.kinetics.KineticDebugger;
 import com.simibubi.create.foundation.render.AllInstanceFormats;
 import com.simibubi.create.foundation.render.AllProgramSpecs;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.RotationAxis;
 
 public class RotatingType implements Instanced<RotatingData>, Batched<RotatingData> {
 	@Override
@@ -34,7 +33,7 @@ public class RotatingType implements Instanced<RotatingData>, Batched<RotatingDa
 	}
 
 	@Override
-	public ResourceLocation getProgramSpec() {
+	public Identifier getProgramSpec() {
 		return AllProgramSpecs.ROTATING;
 	}
 
@@ -42,7 +41,7 @@ public class RotatingType implements Instanced<RotatingData>, Batched<RotatingDa
 	public void transform(RotatingData d, ModelTransformer.Params b) {
 		float angle = ((AnimationTickHolder.getRenderTime() * d.rotationalSpeed * 3f / 10 + d.rotationOffset) % 360);
 
-		Axis axis = Axis.of(new Vector3f(RenderMath.f(d.rotationAxisX), RenderMath.f(d.rotationAxisY), RenderMath.f(d.rotationAxisZ)));
+		RotationAxis axis = RotationAxis.of(new Vector3f(RenderMath.f(d.rotationAxisX), RenderMath.f(d.rotationAxisY), RenderMath.f(d.rotationAxisZ)));
 		b.light(d.getPackedLight())
 				.translate(d.x + 0.5, d.y + 0.5, d.z + 0.5)
 				.multiply(axis.rotationDegrees(angle))

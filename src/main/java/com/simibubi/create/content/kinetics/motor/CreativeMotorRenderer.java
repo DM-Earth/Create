@@ -4,13 +4,12 @@ import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
-
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 
 public class CreativeMotorRenderer extends KineticBlockEntityRenderer<CreativeMotorBlockEntity> {
 
-	public CreativeMotorRenderer(BlockEntityRendererProvider.Context context) {
+	public CreativeMotorRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 

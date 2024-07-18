@@ -1,14 +1,12 @@
 package com.simibubi.create.content.kinetics.simpleRelays;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 
 public class SimpleKineticBlockEntity extends KineticBlockEntity {
 
@@ -17,8 +15,8 @@ public class SimpleKineticBlockEntity extends KineticBlockEntity {
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return new AABB(worldPosition).inflate(1);
+	protected Box createRenderBoundingBox() {
+		return new Box(pos).expand(1);
 	}
 
 	@Override
@@ -26,10 +24,10 @@ public class SimpleKineticBlockEntity extends KineticBlockEntity {
 		if (!ICogWheel.isLargeCog(state))
 			return super.addPropagationLocations(block, state, neighbours);
 
-		BlockPos.betweenClosedStream(new BlockPos(-1, -1, -1), new BlockPos(1, 1, 1))
+		BlockPos.stream(new BlockPos(-1, -1, -1), new BlockPos(1, 1, 1))
 			.forEach(offset -> {
-				if (offset.distSqr(BlockPos.ZERO) == 2)
-					neighbours.add(worldPosition.offset(offset));
+				if (offset.getSquaredDistance(BlockPos.ORIGIN) == 2)
+					neighbours.add(pos.add(offset));
 			});
 		return neighbours;
 	}

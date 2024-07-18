@@ -2,44 +2,42 @@ package com.simibubi.create.content.trains.track;
 
 import java.util.EnumMap;
 import java.util.List;
-
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.StringIdentifiable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.simibubi.create.foundation.utility.Lang;
 
-import net.minecraft.core.Direction;
-import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.phys.Vec3;
+public enum TrackShape implements StringIdentifiable {
+	NONE("", Vec3d.ZERO),
+	ZO("z_ortho", new Vec3d(0, 0, 1)),
+	XO("x_ortho", new Vec3d(1, 0, 0)),
+	PD("diag", new Vec3d(1, 0, 1)),
+	ND("diag_2", new Vec3d(-1, 0, 1)),
+	AN("ascending", 180, new Vec3d(0, 1, -1), new Vec3d(0, 1, 1)),
+	AS("ascending", 0, new Vec3d(0, 1, 1), new Vec3d(0, 1, -1)),
+	AE("ascending", 270, new Vec3d(1, 1, 0), new Vec3d(-1, 1, 0)),
+	AW("ascending", 90, new Vec3d(-1, 1, 0), new Vec3d(1, 1, 0)),
 
-public enum TrackShape implements StringRepresentable {
-	NONE("", Vec3.ZERO),
-	ZO("z_ortho", new Vec3(0, 0, 1)),
-	XO("x_ortho", new Vec3(1, 0, 0)),
-	PD("diag", new Vec3(1, 0, 1)),
-	ND("diag_2", new Vec3(-1, 0, 1)),
-	AN("ascending", 180, new Vec3(0, 1, -1), new Vec3(0, 1, 1)),
-	AS("ascending", 0, new Vec3(0, 1, 1), new Vec3(0, 1, -1)),
-	AE("ascending", 270, new Vec3(1, 1, 0), new Vec3(-1, 1, 0)),
-	AW("ascending", 90, new Vec3(-1, 1, 0), new Vec3(1, 1, 0)),
+	TN("teleport", 180, new Vec3d(0, 0, -1), new Vec3d(0, 1, 0)),
+	TS("teleport", 0, new Vec3d(0, 0, 1), new Vec3d(0, 1, 0)),
+	TE("teleport", 270, new Vec3d(1, 0, 0), new Vec3d(0, 1, 0)),
+	TW("teleport", 90, new Vec3d(-1, 0, 0), new Vec3d(0, 1, 0)),
 
-	TN("teleport", 180, new Vec3(0, 0, -1), new Vec3(0, 1, 0)),
-	TS("teleport", 0, new Vec3(0, 0, 1), new Vec3(0, 1, 0)),
-	TE("teleport", 270, new Vec3(1, 0, 0), new Vec3(0, 1, 0)),
-	TW("teleport", 90, new Vec3(-1, 0, 0), new Vec3(0, 1, 0)),
-
-	CR_O("cross_ortho", new Vec3(0, 0, 1), new Vec3(1, 0, 0)),
-	CR_D("cross_diag", new Vec3(1, 0, 1), new Vec3(-1, 0, 1)),
-	CR_PDX("cross_d1_xo", new Vec3(1, 0, 0), new Vec3(1, 0, 1)),
-	CR_PDZ("cross_d1_zo", new Vec3(0, 0, 1), new Vec3(1, 0, 1)),
-	CR_NDX("cross_d2_xo", new Vec3(1, 0, 0), new Vec3(-1, 0, 1)),
-	CR_NDZ("cross_d2_zo", new Vec3(0, 0, 1), new Vec3(-1, 0, 1));
+	CR_O("cross_ortho", new Vec3d(0, 0, 1), new Vec3d(1, 0, 0)),
+	CR_D("cross_diag", new Vec3d(1, 0, 1), new Vec3d(-1, 0, 1)),
+	CR_PDX("cross_d1_xo", new Vec3d(1, 0, 0), new Vec3d(1, 0, 1)),
+	CR_PDZ("cross_d1_zo", new Vec3d(0, 0, 1), new Vec3d(1, 0, 1)),
+	CR_NDX("cross_d2_xo", new Vec3d(1, 0, 0), new Vec3d(-1, 0, 1)),
+	CR_NDZ("cross_d2_zo", new Vec3d(0, 0, 1), new Vec3d(-1, 0, 1));
 
 	private String model;
-	private List<Vec3> axes;
+	private List<Vec3d> axes;
 	private int modelRotation;
-	private Vec3 normal;
+	private Vec3d normal;
 
 	static EnumMap<TrackShape, TrackShape> zMirror = new EnumMap<>(TrackShape.class),
 		xMirror = new EnumMap<>(TrackShape.class), clockwise = new EnumMap<>(TrackShape.class);
@@ -83,18 +81,18 @@ public enum TrackShape implements StringRepresentable {
 			.build());
 	}
 
-	private TrackShape(String model, Vec3 axis) {
-		this(model, 0, axis, new Vec3(0, 1, 0));
+	private TrackShape(String model, Vec3d axis) {
+		this(model, 0, axis, new Vec3d(0, 1, 0));
 	}
 
-	private TrackShape(String model, Vec3 axis, Vec3 secondAxis) {
+	private TrackShape(String model, Vec3d axis, Vec3d secondAxis) {
 		this.model = model;
 		this.modelRotation = 0;
-		this.normal = new Vec3(0, 1, 0);
+		this.normal = new Vec3d(0, 1, 0);
 		this.axes = ImmutableList.of(axis, secondAxis);
 	}
 
-	private TrackShape(String model, int modelRotation, Vec3 axis, Vec3 normal) {
+	private TrackShape(String model, int modelRotation, Vec3d axis, Vec3d normal) {
 		this.model = model;
 		this.modelRotation = modelRotation;
 		this.normal = normal.normalize();
@@ -102,7 +100,7 @@ public enum TrackShape implements StringRepresentable {
 	}
 
 	@Override
-	public String getSerializedName() {
+	public String asString() {
 		return Lang.asId(name());
 	}
 
@@ -110,7 +108,7 @@ public enum TrackShape implements StringRepresentable {
 		return model;
 	}
 
-	public List<Vec3> getAxes() {
+	public List<Vec3d> getAxes() {
 		return axes;
 	}
 
@@ -141,7 +139,7 @@ public enum TrackShape implements StringRepresentable {
 		}
 	}
 
-	public Vec3 getNormal() {
+	public Vec3d getNormal() {
 		return normal;
 	}
 
@@ -149,12 +147,12 @@ public enum TrackShape implements StringRepresentable {
 		return modelRotation;
 	}
 
-	public TrackShape mirror(Mirror mirror) {
-		return mirror == Mirror.NONE ? this
-			: mirror == Mirror.FRONT_BACK ? xMirror.getOrDefault(this, this) : zMirror.getOrDefault(this, this);
+	public TrackShape mirror(BlockMirror mirror) {
+		return mirror == BlockMirror.NONE ? this
+			: mirror == BlockMirror.FRONT_BACK ? xMirror.getOrDefault(this, this) : zMirror.getOrDefault(this, this);
 	}
 
-	public TrackShape rotate(Rotation rotation) {
+	public TrackShape rotate(BlockRotation rotation) {
 		TrackShape shape = this;
 		for (int i = 0; i < rotation.ordinal(); i++)
 			shape = clockwise.getOrDefault(shape, shape);

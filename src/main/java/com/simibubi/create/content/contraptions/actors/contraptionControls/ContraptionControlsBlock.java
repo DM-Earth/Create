@@ -5,51 +5,50 @@ import com.simibubi.create.AllShapes;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsBlock;
 import com.simibubi.create.foundation.block.IBE;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 
 public class ContraptionControlsBlock extends ControlsBlock implements IBE<ContraptionControlsBlockEntity> {
 
-	public ContraptionControlsBlock(Properties pProperties) {
+	public ContraptionControlsBlock(Settings pProperties) {
 		super(pProperties);
 	}
 
 	@Override
-	public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand,
+	public ActionResult onUse(BlockState pState, World pLevel, BlockPos pPos, PlayerEntity pPlayer, Hand pHand,
 		BlockHitResult pHit) {
 		return onBlockEntityUse(pLevel, pPos, cte -> {
 			cte.pressButton();
-			if (!pLevel.isClientSide()) {
+			if (!pLevel.isClient()) {
 				cte.disabled = !cte.disabled;
 				cte.notifyUpdate();
 				ContraptionControlsBlockEntity.sendStatus(pPlayer, cte.filtering.getFilter(), !cte.disabled);
-				AllSoundEvents.CONTROLLER_CLICK.play(cte.getLevel(), null, cte.getBlockPos(), 1,
+				AllSoundEvents.CONTROLLER_CLICK.play(cte.getWorld(), null, cte.getPos(), 1,
 					cte.disabled ? 0.8f : 1.5f);
 			}
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		});
 	}
 
 	@Override
-	public void neighborChanged(BlockState pState, Level pLevel, BlockPos pPos, Block pBlock, BlockPos pFromPos,
+	public void neighborUpdate(BlockState pState, World pLevel, BlockPos pPos, Block pBlock, BlockPos pFromPos,
 		boolean pIsMoving) {
 		withBlockEntityDo(pLevel, pPos, ContraptionControlsBlockEntity::updatePoweredState);
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		return AllShapes.CONTRAPTION_CONTROLS.get(pState.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
+		return AllShapes.CONTRAPTION_CONTROLS.get(pState.get(FACING));
 	}
 
 	@Override

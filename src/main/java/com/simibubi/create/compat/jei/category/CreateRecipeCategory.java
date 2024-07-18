@@ -27,16 +27,16 @@ import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
-import net.minecraft.ChatFormatting;
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.level.material.Fluid;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
@@ -45,7 +45,7 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements IReci
 	private static final IDrawable CHANCE_SLOT = asDrawable(AllGuiTextures.JEI_CHANCE_SLOT);
 
 	protected final RecipeType<T> type;
-	protected final Component title;
+	protected final Text title;
 	protected final IDrawable background;
 	protected final IDrawable icon;
 
@@ -68,7 +68,7 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements IReci
 	}
 
 	@Override
-	public Component getTitle() {
+	public Text getTitle() {
 		return title;
 	}
 
@@ -106,10 +106,10 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements IReci
 	}
 
 	public static ItemStack getResultItem(Recipe<?> recipe) {
-		ClientLevel level = Minecraft.getInstance().level;
+		ClientWorld level = MinecraftClient.getInstance().world;
 		if (level == null)
 			return ItemStack.EMPTY;
-		return recipe.getResultItem(level.registryAccess());
+		return recipe.getOutput(level.getRegistryManager());
 	}
 
 	public static IRecipeSlotTooltipCallback addStochasticTooltip(ProcessingOutput output) {
@@ -117,7 +117,7 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements IReci
 			float chance = output.getChance();
 			if (chance != 1)
 				tooltip.add(1, Lang.translateDirect("recipe.processing.chance", chance < 0.01 ? "<1" : (int) (chance * 100))
-					.withStyle(ChatFormatting.GOLD));
+					.formatted(Formatting.GOLD));
 		};
 	}
 
@@ -151,7 +151,7 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements IReci
 			}
 
 			@Override
-			public Optional<CompoundTag> getTag() {
+			public Optional<NbtCompound> getTag() {
 				return Optional.ofNullable(stack.getTag());
 			}
 		};
@@ -182,13 +182,13 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements IReci
 			long amountToUse = mbAmount == -1 ? fluidStack.getAmount() : mbAmount;
 			FluidUnit unit = AllConfigs.client().fluidUnitType.get();
 			String amount = FluidTextUtil.getUnicodeMillibuckets(amountToUse, unit, AllConfigs.client().simplifyFluidUnit.get());
-			Component text = Component.literal(String.valueOf(amount)).append(Lang.translateDirect(unit.getTranslationKey())).withStyle(ChatFormatting.GOLD);
+			Text text = Text.literal(String.valueOf(amount)).append(Lang.translateDirect(unit.getTranslationKey())).formatted(Formatting.GOLD);
 			if (tooltip.isEmpty())
 				tooltip.add(0, text);
 			else {
 				// fabric: sibling strategy doesn't work some reason
-				Component name = tooltip.get(0);
-				Component nameWithAmount = name.copy().append(" ").append(text);
+				Text name = tooltip.get(0);
+				Text nameWithAmount = name.copy().append(" ").append(text);
 				tooltip.set(0, nameWithAmount);
 			}
 		};
@@ -207,13 +207,13 @@ public abstract class CreateRecipeCategory<T extends Recipe<?>> implements IReci
 			}
 
 			@Override
-			public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
+			public void draw(DrawContext graphics, int xOffset, int yOffset) {
 				texture.render(graphics, xOffset, yOffset);
 			}
 		};
 	}
 
-	public record Info<T extends Recipe<?>>(RecipeType<T> recipeType, Component title, IDrawable background, IDrawable icon, Supplier<List<T>> recipes, List<Supplier<? extends ItemStack>> catalysts) {
+	public record Info<T extends Recipe<?>>(RecipeType<T> recipeType, Text title, IDrawable background, IDrawable icon, Supplier<List<T>> recipes, List<Supplier<? extends ItemStack>> catalysts) {
 	}
 
 	public interface Factory<T extends Recipe<?>> {

@@ -19,15 +19,14 @@ import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BarrelBlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.ChestBlockEntity;
-import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BarrelBlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.ChestBlockEntity;
+import net.minecraft.block.entity.ShulkerBoxBlockEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.Registries;
 
 public class MountedStorage {
 
@@ -67,12 +66,12 @@ public class MountedStorage {
 	public static boolean canUseModdedInventory(BlockEntity be, Storage<ItemVariant> handler) {
 		if (!handler.supportsExtraction() || !handler.supportsInsertion())
 			return false;
-		BlockState blockState = be.getBlockState();
+		BlockState blockState = be.getCachedState();
 		if (AllBlockTags.CONTRAPTION_INVENTORY_DENY.matches(blockState))
 			return false;
 
 		// There doesn't appear to be much of a standard for tagging chests/barrels
-		String blockId = BuiltInRegistries.BLOCK.getKey(blockState.getBlock())
+		String blockId = Registries.BLOCK.getId(blockState.getBlock())
 			.getPath();
 		if (blockId.contains("ender"))
 			return false;
@@ -90,13 +89,13 @@ public class MountedStorage {
 			return;
 
 		if (blockEntity instanceof ChestBlockEntity chest) {
-			CompoundTag tag = blockEntity.saveWithFullMetadata();
+			NbtCompound tag = blockEntity.createNbtWithIdentifyingData();
 			if (tag.contains("LootTable", 8))
 				return;
 
-			handler = new ItemStackHandler(chest.getContainerSize());
+			handler = new ItemStackHandler(chest.size());
 			for (int i = 0; i < handler.getSlotCount(); i++) {
-				handler.setStackInSlot(i, chest.getItem(i));
+				handler.setStackInSlot(i, chest.getStack(i));
 			}
 			valid = true;
 			return;
@@ -150,9 +149,9 @@ public class MountedStorage {
 			return;
 
 		if (be instanceof ChestBlockEntity chest) {
-			for (int i = 0; i < chest.getContainerSize(); i++) {
+			for (int i = 0; i < chest.size(); i++) {
 				ItemStack stack = i < handler.getSlotCount() ? handler.getStackInSlot(i) : ItemStack.EMPTY;
-				chest.setItem(i, stack);
+				chest.setStack(i, stack);
 			}
 			return;
 		}
@@ -179,11 +178,11 @@ public class MountedStorage {
 		return handler;
 	}
 
-	public CompoundTag serialize() {
+	public NbtCompound serialize() {
 		if (!valid)
 			return null;
 
-		CompoundTag tag = handler.serializeNBT();
+		NbtCompound tag = handler.serializeNBT();
 		if (noFuel)
 			NBTHelper.putMarker(tag, "NoFuel");
 		if (!(handler instanceof BottomlessItemHandler))
@@ -194,7 +193,7 @@ public class MountedStorage {
 		return tag;
 	}
 
-	public static MountedStorage deserialize(CompoundTag nbt) {
+	public static MountedStorage deserialize(NbtCompound nbt) {
 		MountedStorage storage = new MountedStorage(null);
 		storage.handler = new ItemStackHandler();
 		if (nbt == null)
@@ -203,7 +202,7 @@ public class MountedStorage {
 		storage.noFuel = nbt.contains("NoFuel");
 
 		if (nbt.contains("Bottomless")) {
-			ItemStack providedStack = ItemStack.of(nbt.getCompound("ProvidedStack"));
+			ItemStack providedStack = ItemStack.fromNbt(nbt.getCompound("ProvidedStack"));
 			storage.handler = new BottomlessItemHandler(() -> providedStack);
 			return storage;
 		}

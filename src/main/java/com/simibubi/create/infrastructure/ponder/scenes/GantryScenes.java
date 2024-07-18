@@ -10,13 +10,12 @@ import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RedStoneWireBlock;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.RedstoneWireBlock;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class GantryScenes {
 
@@ -59,7 +58,7 @@ public class GantryScenes {
 		scene.world.hideIndependentSection(gantry, Direction.UP);
 		scene.idle(10);
 		gantry = scene.world.showIndependentSection(util.select.layer(2), Direction.DOWN);
-		Vec3 gantryTop = util.vector.topOf(4, 2, 2);
+		Vec3d gantryTop = util.vector.topOf(4, 2, 2);
 		scene.world.modifyKineticSpeed(util.select.everywhere(), f -> 0f);
 		scene.overlay.showText(40)
 			.attachKeyFrame()
@@ -72,7 +71,7 @@ public class GantryScenes {
 
 		scene.world.showSectionAndMerge(util.select.layersFrom(3)
 			.substract(planks), Direction.DOWN, gantry);
-		scene.world.replaceBlocks(util.select.fromTo(5, 3, 2, 3, 4, 2), Blocks.OAK_PLANKS.defaultBlockState(), false);
+		scene.world.replaceBlocks(util.select.fromTo(5, 3, 2, 3, 4, 2), Blocks.OAK_PLANKS.getDefaultState(), false);
 		scene.idle(10);
 		scene.world.showSectionAndMerge(planks, Direction.SOUTH, gantry);
 
@@ -133,7 +132,7 @@ public class GantryScenes {
 		scene.overlay.showText(60)
 			.attachKeyFrame()
 			.colored(PonderPalette.RED)
-			.pointAt(util.vector.centerOf(cogPos.below()
+			.pointAt(util.vector.centerOf(cogPos.down()
 				.south()))
 			.text("Redstone-powered gantry shafts stop moving their carriages")
 			.placeNearTarget();
@@ -190,7 +189,7 @@ public class GantryScenes {
 		boolean flip = true;
 
 		for (int i = 0; i < 3; i++) {
-			scene.world.modifyBlocks(util.select.fromTo(4, 1, 2, 4, 2, 2), s -> s.cycle(BlockStateProperties.POWERED),
+			scene.world.modifyBlocks(util.select.fromTo(4, 1, 2, 4, 2, 2), s -> s.cycle(Properties.POWERED),
 				false);
 			scene.effects.indicateRedstone(util.grid.at(4, 2, 2));
 			scene.world.moveSection(gantry1, util.vector.of(flip ? -1 : 1, 0, 0), 20);
@@ -221,7 +220,7 @@ public class GantryScenes {
 
 		BlockPos leverPos = util.grid.at(4, 1, 0);
 		scene.world.modifyBlocks(util.select.fromTo(1, 1, 0, 3, 1, 1),
-			s -> s.hasProperty(RedStoneWireBlock.POWER) ? s.setValue(RedStoneWireBlock.POWER, 15) : s, false);
+			s -> s.contains(RedstoneWireBlock.POWER) ? s.with(RedstoneWireBlock.POWER, 15) : s, false);
 		scene.world.toggleRedstonePower(util.select.position(leverPos));
 		scene.world.toggleRedstonePower(shafts);
 		scene.effects.indicateRedstone(leverPos);
@@ -241,7 +240,7 @@ public class GantryScenes {
 			scene.effects.rotationDirectionIndicator(util.grid.at(3, 3, 3));
 
 			scene.idle(60);
-			scene.world.modifyBlocks(util.select.fromTo(4, 1, 2, 4, 2, 2), s -> s.cycle(BlockStateProperties.POWERED),
+			scene.world.modifyBlocks(util.select.fromTo(4, 1, 2, 4, 2, 2), s -> s.cycle(Properties.POWERED),
 				false);
 			scene.effects.indicateRedstone(util.grid.at(4, 2, 2));
 			scene.world.modifyKineticSpeed(gears1, f -> -f);

@@ -1,25 +1,23 @@
 package com.simibubi.create;
 
-import static net.minecraft.core.Direction.EAST;
-import static net.minecraft.core.Direction.NORTH;
-import static net.minecraft.core.Direction.SOUTH;
-import static net.minecraft.core.Direction.UP;
+import static net.minecraft.util.math.Direction.EAST;
+import static net.minecraft.util.math.Direction.NORTH;
+import static net.minecraft.util.math.Direction.SOUTH;
+import static net.minecraft.util.math.Direction.UP;
 
 import java.util.function.BiFunction;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.FacingBlock;
+import net.minecraft.block.PistonHeadBlock;
+import net.minecraft.util.function.BooleanBiFunction;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
 import com.simibubi.create.content.logistics.chute.ChuteShapes;
 import com.simibubi.create.content.trains.track.TrackVoxelShapes;
 import com.simibubi.create.foundation.utility.VoxelShaper;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DirectionalBlock;
-import net.minecraft.world.level.block.piston.PistonHeadBlock;
-import net.minecraft.world.phys.shapes.BooleanOp;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class AllShapes {
 
@@ -182,10 +180,10 @@ public class AllShapes {
 	// Internally Shared Shapes
 	private static final VoxelShape
 
-	PISTON_HEAD = Blocks.PISTON_HEAD.defaultBlockState()
-		.setValue(DirectionalBlock.FACING, UP)
-		.setValue(PistonHeadBlock.SHORT, true)
-		.getShape(null, null), PISTON_EXTENDED =
+	PISTON_HEAD = Blocks.PISTON_HEAD.getDefaultState()
+		.with(FacingBlock.FACING, UP)
+		.with(PistonHeadBlock.SHORT, true)
+		.getOutlineShape(null, null), PISTON_EXTENDED =
 			shape(CASING_12PX.get(UP)).add(FOUR_VOXEL_POLE.get(Axis.Y))
 				.build(),
 		SMALL_GEAR_SHAPE = cuboid(2, 6, 2, 14, 10, 14), LARGE_GEAR_SHAPE = cuboid(0, 6, 0, 16, 10, 16),
@@ -239,7 +237,7 @@ public class AllShapes {
 		HEATER_BLOCK_SPECIAL_COLLISION_SHAPE = shape(0, 0, 0, 16, 4, 16).build(),
 		CRUSHING_WHEEL_COLLISION_SHAPE = cuboid(0, 0, 0, 16, 16, 16), SEAT = cuboid(0, 0, 0, 16, 8, 16),
 		SEAT_COLLISION = cuboid(0, 0, 0, 16, 6, 16), SEAT_COLLISION_PLAYERS = cuboid(0, 0, 0, 16, 3, 16),
-		MECHANICAL_PROCESSOR_SHAPE = shape(Shapes.block()).erase(4, 0, 4, 12, 16, 12)
+		MECHANICAL_PROCESSOR_SHAPE = shape(VoxelShapes.fullCube()).erase(4, 0, 4, 12, 16, 12)
 			.build(),
 		TURNTABLE_SHAPE = shape(1, 4, 1, 15, 8, 15).add(5, 0, 5, 11, 4, 11)
 			.build(),
@@ -342,7 +340,7 @@ public class AllShapes {
 	}
 
 	private static VoxelShape cuboid(double x1, double y1, double z1, double x2, double y2, double z2) {
-		return Block.box(x1, y1, z1, x2, y2, z2);
+		return Block.createCuboidShape(x1, y1, z1, x2, y2, z2);
 	}
 
 	public static class Builder {
@@ -354,7 +352,7 @@ public class AllShapes {
 		}
 
 		public Builder add(VoxelShape shape) {
-			this.shape = Shapes.or(this.shape, shape);
+			this.shape = VoxelShapes.union(this.shape, shape);
 			return this;
 		}
 
@@ -363,7 +361,7 @@ public class AllShapes {
 		}
 
 		public Builder erase(double x1, double y1, double z1, double x2, double y2, double z2) {
-			this.shape = Shapes.join(shape, cuboid(x1, y1, z1, x2, y2, z2), BooleanOp.ONLY_FIRST);
+			this.shape = VoxelShapes.combineAndSimplify(shape, cuboid(x1, y1, z1, x2, y2, z2), BooleanBiFunction.ONLY_FIRST);
 			return this;
 		}
 

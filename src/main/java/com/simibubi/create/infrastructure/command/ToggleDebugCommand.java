@@ -1,8 +1,7 @@
 package com.simibubi.create.infrastructure.command;
 
 import com.simibubi.create.AllPackets;
-
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class ToggleDebugCommand extends ConfigureConfigCommand {
 
@@ -11,7 +10,7 @@ public class ToggleDebugCommand extends ConfigureConfigCommand {
 	}
 
 	@Override
-	protected void sendPacket(ServerPlayer player, String option) {
+	protected void sendPacket(ServerPlayerEntity player, String option) {
 		AllPackets.getChannel().sendToClient(new SConfigureConfigPacket(SConfigureConfigPacket.Actions.rainbowDebug.name(), option), player);
 	}
 }

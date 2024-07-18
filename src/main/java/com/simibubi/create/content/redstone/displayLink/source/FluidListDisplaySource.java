@@ -29,14 +29,14 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.material.Fluid;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.text.MutableText;
 
 public class FluidListDisplaySource extends ValueListDisplaySource {
 
 	@Override
-	protected Stream<LongAttached<MutableComponent>> provideEntries(DisplayLinkContext context, int maxRows) {
+	protected Stream<LongAttached<MutableText>> provideEntries(DisplayLinkContext context, int maxRows) {
 		BlockEntity sourceBE = context.getSourceBlockEntity();
 		if (!(sourceBE instanceof SmartObserverBlockEntity cobe))
 			return Stream.empty();
@@ -74,11 +74,11 @@ public class FluidListDisplaySource extends ValueListDisplaySource {
 	}
 
 	@Override
-	protected List<MutableComponent> createComponentsFromEntry(DisplayLinkContext context, LongAttached<MutableComponent> entry) {
+	protected List<MutableText> createComponentsFromEntry(DisplayLinkContext context, LongAttached<MutableText> entry) {
 		long amount = entry.getFirst();
-		MutableComponent name = entry.getSecond().append(WHITESPACE);
+		MutableText name = entry.getSecond().append(WHITESPACE);
 
-		Couple<MutableComponent> formatted = FluidFormatter.asComponents(amount, shortenNumbers(context), getUnit(context));
+		Couple<MutableText> formatted = FluidFormatter.asComponents(amount, shortenNumbers(context), getUnit(context));
 
 		return List.of(formatted.getFirst(), formatted.getSecond(), name);
 	}

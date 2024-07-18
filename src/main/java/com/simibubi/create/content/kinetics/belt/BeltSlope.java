@@ -1,14 +1,13 @@
 package com.simibubi.create.content.kinetics.belt;
 
 import com.simibubi.create.foundation.utility.Lang;
+import net.minecraft.util.StringIdentifiable;
 
-import net.minecraft.util.StringRepresentable;
-
-public enum BeltSlope implements StringRepresentable {
+public enum BeltSlope implements StringIdentifiable {
 	HORIZONTAL, UPWARD, DOWNWARD, VERTICAL, SIDEWAYS;
 
 	@Override
-	public String getSerializedName() {
+	public String asString() {
 		return Lang.asId(name());
 	}
 

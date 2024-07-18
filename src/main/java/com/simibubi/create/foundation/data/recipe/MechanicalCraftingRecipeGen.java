@@ -10,18 +10,18 @@ import com.simibubi.create.foundation.utility.RegisteredObjects;
 
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.util.Identifier;
 
 public class MechanicalCraftingRecipeGen extends CreateRecipeProvider {
 
 	GeneratedRecipe
 
 	CRUSHING_WHEEL = create(AllBlocks.CRUSHING_WHEEL::get).returns(2)
-		.recipe(b -> b.key('P', Ingredient.of(ItemTags.PLANKS))
-			.key('S', Ingredient.of(I.stone()))
+		.recipe(b -> b.key('P', Ingredient.fromTag(ItemTags.PLANKS))
+			.key('S', Ingredient.fromTag(I.stone()))
 			.key('A', I.andesite())
 			.patternLine(" AAA ")
 			.patternLine("AAPAA")
@@ -31,11 +31,11 @@ public class MechanicalCraftingRecipeGen extends CreateRecipeProvider {
 			.disallowMirrored()),
 
 		WAND_OF_SYMMETRY =
-			create(AllItems.WAND_OF_SYMMETRY::get).recipe(b -> b.key('E', Ingredient.of(Tags.Items.ENDER_PEARLS))
-				.key('G', Ingredient.of(Tags.Items.GLASS))
+			create(AllItems.WAND_OF_SYMMETRY::get).recipe(b -> b.key('E', Ingredient.fromTag(Tags.Items.ENDER_PEARLS))
+				.key('G', Ingredient.fromTag(Tags.Items.GLASS))
 				.key('P', I.precisionMechanism())
-				.key('O', Ingredient.of(Tags.Items.OBSIDIAN))
-				.key('B', Ingredient.of(I.brass()))
+				.key('O', Ingredient.fromTag(Tags.Items.OBSIDIAN))
+				.key('B', Ingredient.fromTag(I.brass()))
 				.patternLine(" G ")
 				.patternLine("GEG")
 				.patternLine(" P ")
@@ -43,10 +43,10 @@ public class MechanicalCraftingRecipeGen extends CreateRecipeProvider {
 				.patternLine(" O ")),
 
 		EXTENDO_GRIP = create(AllItems.EXTENDO_GRIP::get).returns(1)
-			.recipe(b -> b.key('L', Ingredient.of(I.brass()))
+			.recipe(b -> b.key('L', Ingredient.fromTag(I.brass()))
 				.key('R', I.precisionMechanism())
 				.key('H', AllItems.BRASS_HAND.get())
-				.key('S', Ingredient.of(Tags.Items.RODS_WOODEN))
+				.key('S', Ingredient.fromTag(Tags.Items.RODS_WOODEN))
 				.patternLine(" L ")
 				.patternLine(" R ")
 				.patternLine("SSS")
@@ -58,7 +58,7 @@ public class MechanicalCraftingRecipeGen extends CreateRecipeProvider {
 			.recipe(b -> b.key('L', I.andesite())
 				.key('R', I.precisionMechanism())
 				.key('S', AllBlocks.FLUID_PIPE.get())
-				.key('C', Ingredient.of(I.copper()))
+				.key('C', Ingredient.ofItems(I.copper()))
 				.patternLine("LRSSS")
 				.patternLine("CC   "))
 
@@ -68,17 +68,17 @@ public class MechanicalCraftingRecipeGen extends CreateRecipeProvider {
 		super(p_i48262_1_);
 	}
 
-	GeneratedRecipeBuilder create(Supplier<ItemLike> result) {
+	GeneratedRecipeBuilder create(Supplier<ItemConvertible> result) {
 		return new GeneratedRecipeBuilder(result);
 	}
 
 	class GeneratedRecipeBuilder {
 
 		private String suffix;
-		private Supplier<ItemLike> result;
+		private Supplier<ItemConvertible> result;
 		private int amount;
 
-		public GeneratedRecipeBuilder(Supplier<ItemLike> result) {
+		public GeneratedRecipeBuilder(Supplier<ItemConvertible> result) {
 			this.suffix = "";
 			this.result = result;
 			this.amount = 1;
@@ -98,7 +98,7 @@ public class MechanicalCraftingRecipeGen extends CreateRecipeProvider {
 			return register(consumer -> {
 				MechanicalCraftingRecipeBuilder b =
 					builder.apply(MechanicalCraftingRecipeBuilder.shapedRecipe(result.get(), amount));
-				ResourceLocation location = Create.asResource("mechanical_crafting/" + RegisteredObjects.getKeyOrThrow(result.get()
+				Identifier location = Create.asResource("mechanical_crafting/" + RegisteredObjects.getKeyOrThrow(result.get()
 					.asItem())
 					.getPath() + suffix);
 				b.build(consumer, location);

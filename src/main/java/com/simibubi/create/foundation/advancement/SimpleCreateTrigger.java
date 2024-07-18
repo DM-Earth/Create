@@ -5,14 +5,12 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-
+import net.minecraft.predicate.entity.AdvancementEntityPredicateDeserializer;
+import net.minecraft.predicate.entity.LootContextPredicate;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
 import com.google.gson.JsonObject;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.advancements.critereon.ContextAwarePredicate;
-import net.minecraft.advancements.critereon.DeserializationContext;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
@@ -23,22 +21,22 @@ public class SimpleCreateTrigger extends CriterionTriggerBase<SimpleCreateTrigge
 	}
 
 	@Override
-	public Instance createInstance(JsonObject json, DeserializationContext context) {
-		return new Instance(getId());
+	public com.simibubi.create.foundation.advancement.SimpleCreateTrigger.Instance conditionsFromJson(JsonObject json, AdvancementEntityPredicateDeserializer context) {
+		return new com.simibubi.create.foundation.advancement.SimpleCreateTrigger.Instance(getId());
 	}
 
-	public void trigger(ServerPlayer player) {
+	public void trigger(ServerPlayerEntity player) {
 		super.trigger(player, null);
 	}
 
-	public Instance instance() {
-		return new Instance(getId());
+	public com.simibubi.create.foundation.advancement.SimpleCreateTrigger.Instance instance() {
+		return new com.simibubi.create.foundation.advancement.SimpleCreateTrigger.Instance(getId());
 	}
 
 	public static class Instance extends CriterionTriggerBase.Instance {
 
-		public Instance(ResourceLocation idIn) {
-			super(idIn, ContextAwarePredicate.ANY);
+		public Instance(Identifier idIn) {
+			super(idIn, LootContextPredicate.EMPTY);
 		}
 
 		@Override

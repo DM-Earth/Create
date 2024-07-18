@@ -6,10 +6,10 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 
 public class FluidSplashPacket extends SimplePacketBase {
@@ -22,13 +22,13 @@ public class FluidSplashPacket extends SimplePacketBase {
 		this.fluid = fluid;
 	}
 
-	public FluidSplashPacket(FriendlyByteBuf buffer) {
+	public FluidSplashPacket(PacketByteBuf buffer) {
 		pos = buffer.readBlockPos();
 		fluid =FluidStack.readFromPacket(buffer);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBlockPos(pos);
 		fluid.writeToPacket(buffer);
 	}
@@ -36,8 +36,8 @@ public class FluidSplashPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> {
-			if (Minecraft.getInstance().player.position()
-				.distanceTo(new Vec3(pos.getX(), pos.getY(), pos.getZ())) > 100)
+			if (MinecraftClient.getInstance().player.getPos()
+				.distanceTo(new Vec3d(pos.getX(), pos.getY(), pos.getZ())) > 100)
 				return;
 			FluidFX.splash(pos, fluid);
 		}));

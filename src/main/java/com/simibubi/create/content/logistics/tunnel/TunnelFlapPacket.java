@@ -2,19 +2,17 @@ package com.simibubi.create.content.logistics.tunnel;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.Direction;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.simibubi.create.foundation.networking.BlockEntityDataPacket;
-
-import net.minecraft.core.Direction;
-import net.minecraft.network.FriendlyByteBuf;
 
 public class TunnelFlapPacket extends BlockEntityDataPacket<BeltTunnelBlockEntity> {
 
     private List<Pair<Direction, Boolean>> flaps;
 
-    public TunnelFlapPacket(FriendlyByteBuf buffer) {
+    public TunnelFlapPacket(PacketByteBuf buffer) {
         super(buffer);
 
         byte size = buffer.readByte();
@@ -22,7 +20,7 @@ public class TunnelFlapPacket extends BlockEntityDataPacket<BeltTunnelBlockEntit
         this.flaps = new ArrayList<>(size);
 
         for (int i = 0; i < size; i++) {
-            Direction direction = Direction.from3DDataValue(buffer.readByte());
+            Direction direction = Direction.byId(buffer.readByte());
             boolean inwards = buffer.readBoolean();
 
             flaps.add(Pair.of(direction, inwards));
@@ -30,17 +28,17 @@ public class TunnelFlapPacket extends BlockEntityDataPacket<BeltTunnelBlockEntit
     }
 
     public TunnelFlapPacket(BeltTunnelBlockEntity blockEntity, List<Pair<Direction, Boolean>> flaps) {
-        super(blockEntity.getBlockPos());
+        super(blockEntity.getPos());
 
         this.flaps = new ArrayList<>(flaps);
     }
 
     @Override
-    protected void writeData(FriendlyByteBuf buffer) {
+    protected void writeData(PacketByteBuf buffer) {
         buffer.writeByte(flaps.size());
 
         for (Pair<Direction, Boolean> flap : flaps) {
-            buffer.writeByte(flap.getLeft().get3DDataValue());
+            buffer.writeByte(flap.getLeft().getId());
             buffer.writeBoolean(flap.getRight());
         }
     }

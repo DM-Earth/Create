@@ -9,9 +9,9 @@ import com.simibubi.create.foundation.config.ui.ConfigHelper;
 import com.simibubi.create.foundation.utility.Components;
 
 import io.github.fabricators_of_create.porting_lib.config.ConfigType;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 /**
  * Examples:
@@ -21,24 +21,24 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public class ConfigCommand {
 
-	public static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("config")
+	public static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("config")
 				.executes(ctx -> {
-					ServerPlayer player = ctx.getSource().getPlayerOrException();
+					ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 					AllPackets.getChannel().sendToClient(new SConfigureConfigPacket(SConfigureConfigPacket.Actions.configScreen.name(), ""), player);
 
 					return Command.SINGLE_SUCCESS;
 				})
-				.then(Commands.argument("path", StringArgumentType.string())
+				.then(CommandManager.argument("path", StringArgumentType.string())
 						.executes(ctx -> {
-							ServerPlayer player = ctx.getSource().getPlayerOrException();
+							ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 							AllPackets.getChannel().sendToClient(new SConfigureConfigPacket(SConfigureConfigPacket.Actions.configScreen.name(), StringArgumentType.getString(ctx, "path")), player);
 
 							return Command.SINGLE_SUCCESS;
 						})
-						.then(Commands.literal("set")
-								.requires(cs -> cs.hasPermission(2))
-								.then(Commands.argument("value", StringArgumentType.string())
+						.then(CommandManager.literal("set")
+								.requires(cs -> cs.hasPermissionLevel(2))
+								.then(CommandManager.argument("value", StringArgumentType.string())
 										.executes(ctx -> {
 											String path = StringArgumentType.getString(ctx, "path");
 											String value = StringArgumentType.getString(ctx, "value");
@@ -48,12 +48,12 @@ public class ConfigCommand {
 											try {
 												configPath = ConfigHelper.ConfigPath.parse(path);
 											} catch (IllegalArgumentException e) {
-												ctx.getSource().sendFailure(Components.literal(e.getMessage()));
+												ctx.getSource().sendError(Components.literal(e.getMessage()));
 												return 0;
 											}
 
 											if (configPath.getType() == ConfigType.CLIENT) {
-												ServerPlayer player = ctx.getSource().getPlayerOrException();
+												ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 												AllPackets.getChannel().sendToClient(new SConfigureConfigPacket("SET" + path, value), player);
 
 												return Command.SINGLE_SUCCESS;
@@ -61,13 +61,13 @@ public class ConfigCommand {
 
 											try {
 												ConfigHelper.setConfigValue(configPath, value);
-												ctx.getSource().sendSuccess(() -> Components.literal("Great Success!"), false);
+												ctx.getSource().sendFeedback(() -> Components.literal("Great Success!"), false);
 												return Command.SINGLE_SUCCESS;
 											} catch (ConfigHelper.InvalidValueException e) {
-												ctx.getSource().sendFailure(Components.literal("Config could not be set the the specified value!"));
+												ctx.getSource().sendError(Components.literal("Config could not be set the the specified value!"));
 												return 0;
 											} catch (Exception e) {
-												ctx.getSource().sendFailure(Components.literal("Something went wrong while trying to set config value. Check the server logs for more information"));
+												ctx.getSource().sendError(Components.literal("Something went wrong while trying to set config value. Check the server logs for more information"));
 												Create.LOGGER.warn("Exception during server-side config value set:", e);
 												return 0;
 											}

@@ -10,39 +10,39 @@ import com.simibubi.create.AllPackets;
 import com.simibubi.create.foundation.ponder.PonderRegistry;
 
 import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
-import net.minecraft.commands.synchronization.SuggestionProviders;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.command.CommandSource;
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.command.argument.IdentifierArgumentType;
+import net.minecraft.command.suggestion.SuggestionProviders;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
 
 public class PonderCommand {
-	public static final SuggestionProvider<CommandSourceStack> ITEM_PONDERS = SuggestionProviders.register(new ResourceLocation("all_ponders"), (iSuggestionProviderCommandContext, builder) -> SharedSuggestionProvider.suggestResource(PonderRegistry.ALL.keySet().stream(), builder));
+	public static final SuggestionProvider<ServerCommandSource> ITEM_PONDERS = SuggestionProviders.register(new Identifier("all_ponders"), (iSuggestionProviderCommandContext, builder) -> CommandSource.suggestIdentifiers(PonderRegistry.ALL.keySet().stream(), builder));
 
-	static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("ponder")
-				.requires(cs -> cs.hasPermission(0))
-				.executes(ctx -> openScene("index", ctx.getSource().getPlayerOrException()))
-				.then(Commands.argument("scene", ResourceLocationArgument.id())
+	static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("ponder")
+				.requires(cs -> cs.hasPermissionLevel(0))
+				.executes(ctx -> openScene("index", ctx.getSource().getPlayerOrThrow()))
+				.then(CommandManager.argument("scene", IdentifierArgumentType.identifier())
 						.suggests(ITEM_PONDERS)
-						.executes(ctx -> openScene(ResourceLocationArgument.getId(ctx, "scene").toString(), ctx.getSource().getPlayerOrException()))
-						.then(Commands.argument("targets", EntityArgument.players())
-								.requires(cs -> cs.hasPermission(2))
-								.executes(ctx -> openScene(ResourceLocationArgument.getId(ctx, "scene").toString(), EntityArgument.getPlayers(ctx, "targets")))
+						.executes(ctx -> openScene(IdentifierArgumentType.getIdentifier(ctx, "scene").toString(), ctx.getSource().getPlayerOrThrow()))
+						.then(CommandManager.argument("targets", EntityArgumentType.players())
+								.requires(cs -> cs.hasPermissionLevel(2))
+								.executes(ctx -> openScene(IdentifierArgumentType.getIdentifier(ctx, "scene").toString(), EntityArgumentType.getPlayers(ctx, "targets")))
 						)
 				);
 
 	}
 
-	private static int openScene(String sceneId, ServerPlayer player) {
+	private static int openScene(String sceneId, ServerPlayerEntity player) {
 		return openScene(sceneId, ImmutableList.of(player));
 	}
 
-	private static int openScene(String sceneId, Collection<? extends ServerPlayer> players) {
-		for (ServerPlayer player : players) {
+	private static int openScene(String sceneId, Collection<? extends ServerPlayerEntity> players) {
+		for (ServerPlayerEntity player : players) {
 			if (player instanceof FakePlayer)
 				continue;
 

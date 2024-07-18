@@ -4,13 +4,12 @@ import com.simibubi.create.content.contraptions.elevator.ElevatorContactBlockEnt
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.text.MutableText;
 
 public class CurrentFloorDisplaySource extends SingleLineDisplaySource {
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
 		if (!(context.getSourceBlockEntity() instanceof ElevatorContactBlockEntity ecbe))
 			return EMPTY_LINE;
 		return Components.literal(ecbe.lastReportedCurrentFloor);

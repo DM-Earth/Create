@@ -3,8 +3,6 @@ package com.simibubi.create.content.trains.station;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.util.transform.Transform;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.logistics.depot.DepotRenderer;
 import com.simibubi.create.content.trains.track.ITrackBlock;
@@ -13,31 +11,32 @@ import com.simibubi.create.content.trains.track.TrackTargetingBehaviour.Rendered
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
-
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 
 public class StationRenderer extends SafeBlockEntityRenderer<StationBlockEntity> {
 
-	public StationRenderer(BlockEntityRendererProvider.Context context) {}
+	public StationRenderer(BlockEntityRendererFactory.Context context) {}
 
 	@Override
-	protected void renderSafe(StationBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(StationBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 
-		BlockPos pos = be.getBlockPos();
+		BlockPos pos = be.getPos();
 		TrackTargetingBehaviour<GlobalStation> target = be.edgePoint;
 		BlockPos targetPosition = target.getGlobalPosition();
-		Level level = be.getLevel();
+		World level = be.getWorld();
 
 		DepotRenderer.renderItemsOf(be, partialTicks, ms, buffer, light, overlay, be.depotBehaviour);
 
@@ -47,19 +46,19 @@ public class StationRenderer extends SafeBlockEntityRenderer<StationBlockEntity>
 			return;
 
 		GlobalStation station = be.getStation();
-		boolean isAssembling = be.getBlockState()
-			.getValue(StationBlock.ASSEMBLING);
-		
+		boolean isAssembling = be.getCachedState()
+			.get(StationBlock.ASSEMBLING);
+
 		if (!isAssembling || (station == null || station.getPresentTrain() != null) && !be.isVirtual()) {
 			renderFlag(
 				be.flag.getValue(partialTicks) > 0.75f ? AllPartialModels.STATION_ON : AllPartialModels.STATION_OFF, be,
 				partialTicks, ms, buffer, light, overlay);
-			ms.pushPose();
+			ms.push();
 			TransformStack.cast(ms)
 				.translate(targetPosition.subtract(pos));
 			TrackTargetingBehaviour.render(level, targetPosition, target.getTargetDirection(), target.getTargetBezier(),
 				ms, buffer, light, overlay, RenderedTrackOverlayType.STATION, 1);
-			ms.popPose();
+			ms.pop();
 			return;
 		}
 
@@ -70,20 +69,20 @@ public class StationRenderer extends SafeBlockEntityRenderer<StationBlockEntity>
 
 		if (be.isVirtual() && be.bogeyLocations == null)
 			be.refreshAssemblyInfo();
-		
+
 		if (direction == null || be.assemblyLength == 0 || be.bogeyLocations == null)
 			return;
 
-		ms.pushPose();
+		ms.push();
 		BlockPos offset = targetPosition.subtract(pos);
 		ms.translate(offset.getX(), offset.getY(), offset.getZ());
 
-		MutableBlockPos currentPos = targetPosition.mutable();
+		Mutable currentPos = targetPosition.mutableCopy();
 
 		PartialModel assemblyOverlay = track.prepareAssemblyOverlay(level, targetPosition, trackState, direction, ms);
 		int colorWhenValid = 0x96B5FF;
 		int colorWhenCarriage = 0xCAFF96;
-		VertexConsumer vb = buffer.getBuffer(RenderType.cutoutMipped());
+		VertexConsumer vb = buffer.getBuffer(RenderLayer.getCutoutMipped());
 
 		currentPos.move(direction, 1);
 		ms.translate(0, 0, 1);
@@ -98,7 +97,7 @@ public class StationRenderer extends SafeBlockEntityRenderer<StationBlockEntity>
 				}
 
 			if (valid != -1) {
-				int lightColor = LevelRenderer.getLightColor(level, currentPos);
+				int lightColor = WorldRenderer.getLightmapCoordinates(level, currentPos);
 				SuperByteBuffer sbb = CachedBufferer.partial(assemblyOverlay, trackState);
 				sbb.color(valid);
 				sbb.light(lightColor);
@@ -108,20 +107,20 @@ public class StationRenderer extends SafeBlockEntityRenderer<StationBlockEntity>
 			currentPos.move(direction);
 		}
 
-		ms.popPose();
+		ms.pop();
 	}
 
-	public static void renderFlag(PartialModel flag, StationBlockEntity be, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, int overlay) {
+	public static void renderFlag(PartialModel flag, StationBlockEntity be, float partialTicks, MatrixStack ms,
+		VertexConsumerProvider buffer, int light, int overlay) {
 		if (!be.resolveFlagAngle())
 			return;
-		SuperByteBuffer flagBB = CachedBufferer.partial(flag, be.getBlockState());
+		SuperByteBuffer flagBB = CachedBufferer.partial(flag, be.getCachedState());
 		transformFlag(flagBB, be, partialTicks, be.flagYRot, be.flagFlipped);
 		flagBB.translate(0.5f / 16, 0, 0)
 			.rotateY(be.flagFlipped ? 0 : 180)
 			.translate(-0.5f / 16, 0, 0)
 			.light(light)
-			.renderInto(ms, buffer.getBuffer(RenderType.cutoutMipped()));
+			.renderInto(ms, buffer.getBuffer(RenderLayer.getCutoutMipped()));
 	}
 
 	public static void transformFlag(Transform<?> flag, StationBlockEntity be, float partialTicks, int yRot,
@@ -130,7 +129,7 @@ public class StationRenderer extends SafeBlockEntityRenderer<StationBlockEntity>
 		float progress = (float) (Math.pow(Math.min(value * 5, 1), 2));
 		if (be.flag.getChaseTarget() > 0 && !be.flag.settled() && progress == 1) {
 			float wiggleProgress = (value - .2f) / .8f;
-			progress += (Math.sin(wiggleProgress * (2 * Mth.PI) * 4) / 8f) / Math.max(1, 8f * wiggleProgress);
+			progress += (Math.sin(wiggleProgress * (2 * MathHelper.PI) * 4) / 8f) / Math.max(1, 8f * wiggleProgress);
 		}
 
 		float nudge = 1 / 512f;
@@ -142,12 +141,12 @@ public class StationRenderer extends SafeBlockEntityRenderer<StationBlockEntity>
 	}
 
 	@Override
-	public boolean shouldRenderOffScreen(StationBlockEntity pBlockEntity) {
+	public boolean rendersOutsideBoundingBox(StationBlockEntity pBlockEntity) {
 		return true;
 	}
 
 	@Override
-	public int getViewDistance() {
+	public int getRenderDistance() {
 		return 96 * 2;
 	}
 

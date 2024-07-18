@@ -3,12 +3,12 @@ package com.simibubi.create.compat.jei;
 import java.util.function.Supplier;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.gui.element.GuiGameElement;
 
 import mezz.jei.api.gui.drawable.IDrawable;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
 
 public class ItemIcon implements IDrawable {
 
@@ -30,20 +30,20 @@ public class ItemIcon implements IDrawable {
 	}
 
 	@Override
-	public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
-		PoseStack matrixStack = graphics.pose();
+	public void draw(DrawContext graphics, int xOffset, int yOffset) {
+		MatrixStack matrixStack = graphics.getMatrices();
 		if (stack == null) {
 			stack = supplier.get();
 		}
 
 		RenderSystem.enableDepthTest();
-		matrixStack.pushPose();
+		matrixStack.push();
 		matrixStack.translate(xOffset + 1, yOffset + 1, 0);
 
 		GuiGameElement.of(stack)
 			.render(graphics);
 
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 

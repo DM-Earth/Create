@@ -14,15 +14,14 @@ import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class DisplayScenes {
 
@@ -70,13 +69,13 @@ public class DisplayScenes {
 		scene.world.showSection(fullBoard, Direction.NORTH);
 		scene.idle(25);
 
-		Vec3 target = util.vector.of(3.5, 2.75, 3.25);
+		Vec3d target = util.vector.of(3.5, 2.75, 3.25);
 		scene.overlay
 			.showControls(new InputWindowElement(target, Pointing.RIGHT).withItem(AllBlocks.DISPLAY_LINK.asStack())
 				.rightClick(), 60);
 		scene.idle(6);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, link, new AABB(board).expandTowards(-2, -1, 0)
-			.deflate(0, 0, 3 / 16f), 60);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, link, new Box(board).stretch(-2, -1, 0)
+			.contract(0, 0, 3 / 16f), 60);
 		scene.idle(35);
 		scene.overlay.showText(70)
 			.text("First, right-click the target display...")
@@ -110,14 +109,14 @@ public class DisplayScenes {
 			.placeNearTarget();
 		scene.idle(80);
 		scene.effects.indicateSuccess(linkPos);
-		scene.world.setDisplayBoardText(board, 1, item.getHoverName());
+		scene.world.setDisplayBoardText(board, 1, item.getName());
 		scene.world.flashDisplayLink(linkPos);
 		scene.idle(50);
 
 		scene.world.removeItemsFromBelt(depotPos);
 		item = AllItems.BLAZE_CAKE.asStack();
 		scene.world.createItemOnBeltLike(depotPos, Direction.SOUTH, item);
-		scene.world.setDisplayBoardText(board, 1, item.getHoverName());
+		scene.world.setDisplayBoardText(board, 1, item.getName());
 		scene.world.flashDisplayLink(linkPos);
 		scene.idle(20);
 
@@ -131,7 +130,7 @@ public class DisplayScenes {
 		scene.world.removeItemsFromBelt(depotPos);
 		item = AllBlocks.DISPLAY_BOARD.asStack();
 		scene.world.createItemOnBeltLike(depotPos, Direction.SOUTH, item);
-		scene.world.setDisplayBoardText(board, 1, item.getHoverName());
+		scene.world.setDisplayBoardText(board, 1, item.getName());
 		scene.world.flashDisplayLink(linkPos);
 		scene.idle(50);
 
@@ -168,9 +167,9 @@ public class DisplayScenes {
 		scene.world.moveSection(chestElement, util.vector.of(0, -3, 0), 0);
 		scene.idle(10);
 		scene.world.setDisplayBoardText(board, 1,
-			Components.literal(418 + " ").append(new ItemStack(Items.DEEPSLATE).getHoverName()));
+			Components.literal(418 + " ").append(new ItemStack(Items.DEEPSLATE).getName()));
 		scene.world.setDisplayBoardText(board, 2, Components.literal(14 + " ").append(AllBlocks.COGWHEEL.asStack()
-			.getHoverName()));
+			.getName()));
 		scene.world.flashDisplayLink(linkPos);
 		scene.idle(40);
 		scene.world.hideIndependentSection(chestElement, Direction.SOUTH);
@@ -280,7 +279,7 @@ public class DisplayScenes {
 		scene.rotateCameraY(-60);
 		scene.idle(20);
 
-		Vec3 target = util.vector.of(3.95, 2.75, 3.25);
+		Vec3d target = util.vector.of(3.95, 2.75, 3.25);
 		ItemStack clipboard = AllBlocks.CLIPBOARD.asStack();
 		ClipboardOverrides.switchTo(ClipboardType.WRITTEN, clipboard);
 		scene.overlay.showControls(new InputWindowElement(target, Pointing.RIGHT).withItem(clipboard)
@@ -300,10 +299,10 @@ public class DisplayScenes {
 		scene.idle(10);
 		scene.world.showSection(link, Direction.EAST);
 		scene.idle(15);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.INPUT, depot, new AABB(linkPos).contract(-.5f, 0, 0), 60);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.INPUT, depot, new Box(linkPos).shrink(-.5f, 0, 0), 60);
 		scene.idle(5);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, link, new AABB(board).expandTowards(-2, -1, 0)
-			.deflate(0, 0, 3 / 16f), 60);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, link, new Box(board).stretch(-2, -1, 0)
+			.contract(0, 0, 3 / 16f), 60);
 		scene.idle(20);
 
 		scene.overlay.showText(70)
@@ -316,21 +315,21 @@ public class DisplayScenes {
 
 		ItemStack item = AllItems.PROPELLER.asStack();
 		scene.world.createItemOnBeltLike(depotPos, Direction.SOUTH, item);
-		scene.world.setDisplayBoardText(board, 1, item.getHoverName());
+		scene.world.setDisplayBoardText(board, 1, item.getName());
 		scene.world.flashDisplayLink(linkPos);
 		scene.idle(50);
 
 		scene.world.removeItemsFromBelt(depotPos);
 		item = AllItems.BLAZE_CAKE.asStack();
 		scene.world.createItemOnBeltLike(depotPos, Direction.SOUTH, item);
-		scene.world.setDisplayBoardText(board, 1, item.getHoverName());
+		scene.world.setDisplayBoardText(board, 1, item.getName());
 		scene.world.flashDisplayLink(linkPos);
 		scene.idle(50);
 
 		scene.world.removeItemsFromBelt(depotPos);
 		item = AllBlocks.DISPLAY_BOARD.asStack();
 		scene.world.createItemOnBeltLike(depotPos, Direction.SOUTH, item);
-		scene.world.setDisplayBoardText(board, 1, item.getHoverName());
+		scene.world.setDisplayBoardText(board, 1, item.getName());
 		scene.world.flashDisplayLink(linkPos);
 		scene.idle(50);
 
@@ -392,13 +391,13 @@ public class DisplayScenes {
 		scene.world.showSection(fullBoard, Direction.NORTH);
 		scene.idle(25);
 
-		Vec3 target = util.vector.of(3.5, 2.75, 3.25);
+		Vec3d target = util.vector.of(3.5, 2.75, 3.25);
 		scene.world.showSection(depot, Direction.DOWN);
 		scene.idle(10);
 		scene.world.showSection(link, Direction.EAST);
 		scene.idle(10);
 		scene.world.flashDisplayLink(linkPos);
-		scene.world.setDisplayBoardText(board, 1, new ItemStack(Items.CALCITE).getHoverName());
+		scene.world.setDisplayBoardText(board, 1, new ItemStack(Items.CALCITE).getName());
 		scene.idle(10);
 		scene.world.showSection(redstone, Direction.EAST);
 		scene.idle(20);
@@ -431,7 +430,7 @@ public class DisplayScenes {
 		scene.effects.indicateRedstone(leverPos);
 		scene.idle(1);
 		scene.world.flashDisplayLink(linkPos);
-		scene.world.setDisplayBoardText(board, 1, item.getHoverName());
+		scene.world.setDisplayBoardText(board, 1, item.getName());
 
 		scene.idle(15);
 		scene.overlay.showText(100)
@@ -443,7 +442,7 @@ public class DisplayScenes {
 		scene.idle(100);
 
 		scene.world.hideSection(depot, Direction.SOUTH);
-		scene.world.setBlock(util.grid.at(4, 1, 0), Blocks.REDSTONE_BLOCK.defaultBlockState(), false);
+		scene.world.setBlock(util.grid.at(4, 1, 0), Blocks.REDSTONE_BLOCK.getDefaultState(), false);
 		scene.idle(10);
 		ElementLink<WorldSectionElement> redstoneBlock =
 			scene.world.showIndependentSection(util.select.position(4, 1, 0), Direction.SOUTH);

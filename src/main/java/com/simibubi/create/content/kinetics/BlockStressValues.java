@@ -4,13 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
-
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
 
 public class BlockStressValues {
 
@@ -32,7 +29,7 @@ public class BlockStressValues {
 	}
 
 	public static double getImpact(Block block) {
-		ResourceLocation blockId = RegisteredObjects.getKeyOrThrow(block);
+		Identifier blockId = RegisteredObjects.getKeyOrThrow(block);
 		IStressValueProvider provider = getProvider(blockId.getNamespace());
 		if (provider != null) {
 			return provider.getImpact(block);
@@ -45,7 +42,7 @@ public class BlockStressValues {
 	}
 
 	public static double getCapacity(Block block) {
-		ResourceLocation blockId = RegisteredObjects.getKeyOrThrow(block);
+		Identifier blockId = RegisteredObjects.getKeyOrThrow(block);
 		IStressValueProvider provider = getProvider(blockId.getNamespace());
 		if (provider != null) {
 			return provider.getCapacity(block);
@@ -58,7 +55,7 @@ public class BlockStressValues {
 	}
 
 	public static boolean hasImpact(Block block) {
-		ResourceLocation blockId = RegisteredObjects.getKeyOrThrow(block);
+		Identifier blockId = RegisteredObjects.getKeyOrThrow(block);
 		IStressValueProvider provider = getProvider(blockId.getNamespace());
 		if (provider != null) {
 			return provider.hasImpact(block);
@@ -67,7 +64,7 @@ public class BlockStressValues {
 	}
 
 	public static boolean hasCapacity(Block block) {
-		ResourceLocation blockId = RegisteredObjects.getKeyOrThrow(block);
+		Identifier blockId = RegisteredObjects.getKeyOrThrow(block);
 		IStressValueProvider provider = getProvider(blockId.getNamespace());
 		if (provider != null) {
 			return provider.hasCapacity(block);
@@ -77,7 +74,7 @@ public class BlockStressValues {
 
 	@Nullable
 	public static Couple<Integer> getGeneratedRPM(Block block) {
-		ResourceLocation blockId = RegisteredObjects.getKeyOrThrow(block);
+		Identifier blockId = RegisteredObjects.getKeyOrThrow(block);
 		IStressValueProvider provider = getProvider(blockId.getNamespace());
 		if (provider != null) {
 			return provider.getGeneratedRPM(block);

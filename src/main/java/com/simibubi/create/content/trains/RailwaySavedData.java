@@ -12,20 +12,19 @@ import com.simibubi.create.content.trains.graph.TrackGraph;
 import com.simibubi.create.content.trains.signal.SignalBoundary;
 import com.simibubi.create.content.trains.signal.SignalEdgeGroup;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.PersistentState;
 
-public class RailwaySavedData extends SavedData {
+public class RailwaySavedData extends PersistentState {
 
 	private Map<UUID, TrackGraph> trackNetworks = new HashMap<>();
 	private Map<UUID, SignalEdgeGroup> signalEdgeGroups = new HashMap<>();
 	private Map<UUID, Train> trains = new HashMap<>();
 
 	@Override
-	public CompoundTag save(CompoundTag nbt) {
+	public NbtCompound writeNbt(NbtCompound nbt) {
 		GlobalRailwayManager railways = Create.RAILWAYS;
 //		Create.LOGGER.info("Saving Railway Information...");
 		DimensionPalette dimensions = new DimensionPalette();
@@ -40,7 +39,7 @@ public class RailwaySavedData extends SavedData {
 		return nbt;
 	}
 
-	private static RailwaySavedData load(CompoundTag nbt) {
+	private static RailwaySavedData load(NbtCompound nbt) {
 		RailwaySavedData sd = new RailwaySavedData();
 		sd.trackNetworks = new HashMap<>();
 		sd.signalEdgeGroups = new HashMap<>();
@@ -48,15 +47,15 @@ public class RailwaySavedData extends SavedData {
 //		Create.LOGGER.info("Loading Railway Information...");
 
 		DimensionPalette dimensions = DimensionPalette.read(nbt);
-		NBTHelper.iterateCompoundList(nbt.getList("RailGraphs", Tag.TAG_COMPOUND), c -> {
+		NBTHelper.iterateCompoundList(nbt.getList("RailGraphs", NbtElement.COMPOUND_TYPE), c -> {
 			TrackGraph graph = TrackGraph.read(c, dimensions);
 			sd.trackNetworks.put(graph.id, graph);
 		});
-		NBTHelper.iterateCompoundList(nbt.getList("SignalBlocks", Tag.TAG_COMPOUND), c -> {
+		NBTHelper.iterateCompoundList(nbt.getList("SignalBlocks", NbtElement.COMPOUND_TYPE), c -> {
 			SignalEdgeGroup group = SignalEdgeGroup.read(c);
 			sd.signalEdgeGroups.put(group.id, group);
 		});
-		NBTHelper.iterateCompoundList(nbt.getList("Trains", Tag.TAG_COMPOUND), c -> {
+		NBTHelper.iterateCompoundList(nbt.getList("Trains", NbtElement.COMPOUND_TYPE), c -> {
 			Train train = Train.read(c, sd.trackNetworks, dimensions);
 			sd.trains.put(train.id, train);
 		});
@@ -94,9 +93,9 @@ public class RailwaySavedData extends SavedData {
 	private RailwaySavedData() {}
 
 	public static RailwaySavedData load(MinecraftServer server) {
-		return server.overworld()
-			.getDataStorage()
-			.computeIfAbsent(RailwaySavedData::load, RailwaySavedData::new, "create_tracks");
+		return server.getOverworld()
+			.getPersistentStateManager()
+			.getOrCreate(RailwaySavedData::load, RailwaySavedData::new, "create_tracks");
 	}
 
 }

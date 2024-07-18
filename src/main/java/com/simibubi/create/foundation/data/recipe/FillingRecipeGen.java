@@ -9,9 +9,9 @@ import com.simibubi.create.content.fluids.potion.PotionFluidHandler;
 import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.Items;
+import net.minecraft.potion.Potions;
 
 public class FillingRecipeGen extends ProcessingRecipeGen {
 

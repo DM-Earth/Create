@@ -4,20 +4,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
+import net.minecraft.block.Block;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.Registries;
+import net.minecraft.text.Text;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.content.trains.bogey.AbstractBogeyBlock;
 import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
-
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.block.Block;
 
 public class TrainPacket extends SimplePacketBase {
 
@@ -30,16 +27,16 @@ public class TrainPacket extends SimplePacketBase {
 		this.add = add;
 	}
 
-	public TrainPacket(FriendlyByteBuf buffer) {
+	public TrainPacket(PacketByteBuf buffer) {
 		add = buffer.readBoolean();
-		trainId = buffer.readUUID();
+		trainId = buffer.readUuid();
 
 		if (!add)
 			return;
 
 		UUID owner = null;
 		if (buffer.readBoolean())
-			owner = buffer.readUUID();
+			owner = buffer.readUuid();
 
 		List<Carriage> carriages = new ArrayList<>();
 		List<Integer> carriageSpacing = new ArrayList<>();
@@ -50,9 +47,9 @@ public class TrainPacket extends SimplePacketBase {
 			for (boolean isFirst : Iterate.trueAndFalse) {
 				if (!isFirst && !buffer.readBoolean())
 					continue;
-				AbstractBogeyBlock<?> type = (AbstractBogeyBlock<?>) BuiltInRegistries.BLOCK.get(buffer.readResourceLocation());
+				AbstractBogeyBlock<?> type = (AbstractBogeyBlock<?>) Registries.BLOCK.get(buffer.readIdentifier());
 				boolean upsideDown = buffer.readBoolean();
-				CompoundTag data = buffer.readNbt();
+				NbtCompound data = buffer.readNbt();
 				bogies.set(isFirst, new CarriageBogey(type, upsideDown, data, new TravellingPoint(), new TravellingPoint()));
 			}
 			int spacing = buffer.readVarInt();
@@ -66,21 +63,21 @@ public class TrainPacket extends SimplePacketBase {
 		boolean doubleEnded = buffer.readBoolean();
 		train = new Train(trainId, owner, null, carriages, carriageSpacing, doubleEnded);
 
-		train.name = Component.Serializer.fromJson(buffer.readUtf());
-		train.icon = TrainIconType.byId(buffer.readResourceLocation());
+		train.name = Text.Serializer.fromJson(buffer.readString());
+		train.icon = TrainIconType.byId(buffer.readIdentifier());
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBoolean(add);
-		buffer.writeUUID(train.id);
+		buffer.writeUuid(train.id);
 
 		if (!add)
 			return;
 
 		buffer.writeBoolean(train.owner != null);
 		if (train.owner != null)
-			buffer.writeUUID(train.owner);
+			buffer.writeUuid(train.owner);
 
 		buffer.writeVarInt(train.carriages.size());
 		for (Carriage carriage : train.carriages) {
@@ -92,7 +89,7 @@ public class TrainPacket extends SimplePacketBase {
 						continue;
 				}
 				CarriageBogey bogey = carriage.bogeys.get(first);
-				buffer.writeResourceLocation(RegisteredObjects.getKeyOrThrow((Block) bogey.type));
+				buffer.writeIdentifier(RegisteredObjects.getKeyOrThrow((Block) bogey.type));
 				buffer.writeBoolean(bogey.upsideDown);
 				buffer.writeNbt(bogey.bogeyData);
 			}
@@ -103,8 +100,8 @@ public class TrainPacket extends SimplePacketBase {
 		train.carriageSpacing.forEach(buffer::writeVarInt);
 
 		buffer.writeBoolean(train.doubleEnded);
-		buffer.writeUtf(Component.Serializer.toJson(train.name));
-		buffer.writeResourceLocation(train.icon.id);
+		buffer.writeString(Text.Serializer.toJson(train.name));
+		buffer.writeIdentifier(train.icon.id);
 	}
 
 	@Override

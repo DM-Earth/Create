@@ -3,8 +3,7 @@ package com.simibubi.create.content.contraptions.render;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-
-import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.LightType;
 
 public abstract class ActorInstance {
     protected final MaterialManager materialManager;
@@ -22,6 +21,6 @@ public abstract class ActorInstance {
     public void beginFrame() { }
 
     protected int localBlockLight() {
-        return simulationWorld.getBrightness(LightLayer.BLOCK, context.localPos);
+        return simulationWorld.getLightLevel(LightType.BLOCK, context.localPos);
     }
 }

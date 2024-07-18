@@ -1,10 +1,10 @@
 package com.simibubi.create.content.trains.entity;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.Entity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkSectionPos;
+import net.minecraft.world.World;
 
 /**
  * Removes all Carriage entities in chunks that aren't ticking
@@ -12,31 +12,31 @@ import net.minecraft.world.level.Level;
 public class CarriageEntityHandler {
 
 	public static void onEntityEnterSection(Entity entity, long packedOldPos, long packedNewPos) {
-		if (!(SectionPos.x(packedOldPos) != SectionPos.x(packedNewPos) || SectionPos.z(packedOldPos) != SectionPos.z(packedNewPos)))
+		if (!(ChunkSectionPos.unpackX(packedOldPos) != ChunkSectionPos.unpackX(packedNewPos) || ChunkSectionPos.unpackZ(packedOldPos) != ChunkSectionPos.unpackZ(packedNewPos)))
 			return;
 		if (!(entity instanceof CarriageContraptionEntity cce))
 			return;
-		SectionPos newPos = SectionPos.of(packedNewPos);
-		Level level = entity.level();
-		if (level.isClientSide)
+		ChunkSectionPos newPos = ChunkSectionPos.from(packedNewPos);
+		World level = entity.getWorld();
+		if (level.isClient)
 			return;
-		if (!isActiveChunk(level, newPos.center()))
+		if (!isActiveChunk(level, newPos.getCenterPos()))
 			cce.leftTickingChunks = true;
 	}
 
 	public static void validateCarriageEntity(CarriageContraptionEntity entity) {
 		if (!entity.isAlive())
 			return;
-		Level level = entity.level();
-		if (level.isClientSide)
+		World level = entity.getWorld();
+		if (level.isClient)
 			return;
-		if (!isActiveChunk(level, entity.blockPosition()))
+		if (!isActiveChunk(level, entity.getBlockPos()))
 			entity.leftTickingChunks = true;
 	}
 
-	public static boolean isActiveChunk(Level level, BlockPos pos) {
-		if (level instanceof ServerLevel serverLevel)
-			return serverLevel.isPositionEntityTicking(pos);
+	public static boolean isActiveChunk(World level, BlockPos pos) {
+		if (level instanceof ServerWorld serverLevel)
+			return serverLevel.shouldTickEntity(pos);
 		return false;
 	}
 

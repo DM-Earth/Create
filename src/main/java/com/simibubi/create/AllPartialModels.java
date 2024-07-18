@@ -5,16 +5,14 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.simibubi.create.content.fluids.FluidTransportBehaviour;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.DyeColor;
 
 public class AllPartialModels {
 
@@ -190,7 +188,7 @@ public class AllPartialModels {
 
 	public static final Map<Direction, PartialModel> METAL_GIRDER_BRACKETS = new EnumMap<>(Direction.class);
 	public static final Map<DyeColor, PartialModel> TOOLBOX_LIDS = new EnumMap<>(DyeColor.class);
-	public static final Map<ResourceLocation, Couple<PartialModel>> FOLDING_DOORS = new HashMap<>();
+	public static final Map<Identifier, Couple<PartialModel>> FOLDING_DOORS = new HashMap<>();
 	public static final List<PartialModel> CONTRAPTION_CONTROLS_INDICATOR = new ArrayList<>();
 
 	static {
@@ -198,7 +196,7 @@ public class AllPartialModels {
 			Map<Direction, PartialModel> map = new HashMap<>();
 			for (Direction d : Iterate.directions) {
 				String asId = Lang.asId(type.name());
-				map.put(d, block("fluid_pipe/" + asId + "/" + Lang.asId(d.getSerializedName())));
+				map.put(d, block("fluid_pipe/" + asId + "/" + Lang.asId(d.asString())));
 			}
 			PIPE_ATTACHMENTS.put(type, map);
 		}

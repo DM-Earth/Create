@@ -1,21 +1,20 @@
 package com.simibubi.create.content.kinetics.simpleRelays;
 
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.foundation.render.CachedBufferer;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider.Context;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory.Context;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
 
 public class BracketedKineticBlockEntityRenderer extends KineticBlockEntityRenderer<BracketedKineticBlockEntity> {
 
@@ -24,13 +23,13 @@ public class BracketedKineticBlockEntityRenderer extends KineticBlockEntityRende
 	}
 
 	@Override
-	protected void renderSafe(BracketedKineticBlockEntity be, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, int overlay) {
+	protected void renderSafe(BracketedKineticBlockEntity be, float partialTicks, MatrixStack ms,
+		VertexConsumerProvider buffer, int light, int overlay) {
 
-		if (Backend.canUseInstancing(be.getLevel()))
+		if (Backend.canUseInstancing(be.getWorld()))
 			return;
 
-		if (!AllBlocks.LARGE_COGWHEEL.has(be.getBlockState())) {
+		if (!AllBlocks.LARGE_COGWHEEL.has(be.getCachedState())) {
 			super.renderSafe(be, partialTicks, ms, buffer, light, overlay);
 			return;
 		}
@@ -39,23 +38,23 @@ public class BracketedKineticBlockEntityRenderer extends KineticBlockEntityRende
 		// mesh properly
 
 		Axis axis = getRotationAxisOf(be);
-		Direction facing = Direction.fromAxisAndDirection(axis, AxisDirection.POSITIVE);
+		Direction facing = Direction.from(axis, AxisDirection.POSITIVE);
 		renderRotatingBuffer(be,
-			CachedBufferer.partialFacingVertical(AllPartialModels.SHAFTLESS_LARGE_COGWHEEL, be.getBlockState(), facing),
-			ms, buffer.getBuffer(RenderType.solid()), light);
+			CachedBufferer.partialFacingVertical(AllPartialModels.SHAFTLESS_LARGE_COGWHEEL, be.getCachedState(), facing),
+			ms, buffer.getBuffer(RenderLayer.getSolid()), light);
 
 		float angle = getAngleForLargeCogShaft(be, axis);
 		SuperByteBuffer shaft =
-			CachedBufferer.partialFacingVertical(AllPartialModels.COGWHEEL_SHAFT, be.getBlockState(), facing);
+			CachedBufferer.partialFacingVertical(AllPartialModels.COGWHEEL_SHAFT, be.getCachedState(), facing);
 		kineticRotationTransform(shaft, be, axis, angle, light);
-		shaft.renderInto(ms, buffer.getBuffer(RenderType.solid()));
+		shaft.renderInto(ms, buffer.getBuffer(RenderLayer.getSolid()));
 
 	}
 
 	public static float getAngleForLargeCogShaft(SimpleKineticBlockEntity be, Axis axis) {
-		BlockPos pos = be.getBlockPos();
+		BlockPos pos = be.getPos();
 		float offset = getShaftAngleOffset(axis, pos);
-		float time = AnimationTickHolder.getRenderTime(be.getLevel());
+		float time = AnimationTickHolder.getRenderTime(be.getWorld());
 		float angle = ((time * be.getSpeed() * 3f / 10 + offset) % 360) / 180 * (float) Math.PI;
 		return angle;
 	}

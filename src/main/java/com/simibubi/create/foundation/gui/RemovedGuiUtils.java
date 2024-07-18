@@ -4,25 +4,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
-
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.tooltip.TooltipComponent;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.OrderedText;
+import net.minecraft.text.StringVisitable;
+import net.minecraft.text.Style;
+import net.minecraft.text.Text;
+import net.minecraft.util.Language;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-
 import io.github.fabricators_of_create.porting_lib.util.client.ScreenUtils;
 
 import org.joml.Matrix4f;
-
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.locale.Language;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.network.chat.Style;
-import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.world.item.ItemStack;
 
 public class RemovedGuiUtils {
 	@Nonnull
@@ -36,50 +33,50 @@ public class RemovedGuiUtils {
 		cachedTooltipStack = ItemStack.EMPTY;
 	}
 
-	public static void drawHoveringText(GuiGraphics graphics, List<? extends FormattedText> textLines, int mouseX,
-										int mouseY, int screenWidth, int screenHeight, int maxTextWidth, Font font) {
+	public static void drawHoveringText(DrawContext graphics, List<? extends StringVisitable> textLines, int mouseX,
+										int mouseY, int screenWidth, int screenHeight, int maxTextWidth, TextRenderer font) {
 		drawHoveringText(graphics, textLines, mouseX, mouseY, screenWidth, screenHeight, maxTextWidth,
 				ScreenUtils.DEFAULT_BACKGROUND_COLOR, ScreenUtils.DEFAULT_BORDER_COLOR_START, ScreenUtils.DEFAULT_BORDER_COLOR_END,
 				font);
 	}
 
-	public static void drawHoveringText(GuiGraphics graphics, List<? extends FormattedText> textLines, int mouseX,
+	public static void drawHoveringText(DrawContext graphics, List<? extends StringVisitable> textLines, int mouseX,
 										int mouseY, int screenWidth, int screenHeight, int maxTextWidth, int backgroundColor, int borderColorStart,
-										int borderColorEnd, Font font) {
+										int borderColorEnd, TextRenderer font) {
 		drawHoveringText(cachedTooltipStack, graphics, textLines, mouseX, mouseY, screenWidth, screenHeight, maxTextWidth,
 				backgroundColor, borderColorStart, borderColorEnd, font);
 	}
 
-	public static void drawHoveringText(@Nonnull final ItemStack stack, GuiGraphics graphics,
-										List<? extends FormattedText> textLines, int mouseX, int mouseY, int screenWidth, int screenHeight,
-										int maxTextWidth, Font font) {
+	public static void drawHoveringText(@Nonnull final ItemStack stack, DrawContext graphics,
+										List<? extends StringVisitable> textLines, int mouseX, int mouseY, int screenWidth, int screenHeight,
+										int maxTextWidth, TextRenderer font) {
 		drawHoveringText(stack, graphics, textLines, mouseX, mouseY, screenWidth, screenHeight, maxTextWidth,
 				ScreenUtils.DEFAULT_BACKGROUND_COLOR, ScreenUtils.DEFAULT_BORDER_COLOR_START, ScreenUtils.DEFAULT_BORDER_COLOR_END,
 				font);
 	}
 
-	public static void drawHoveringText(@Nonnull final ItemStack stack, GuiGraphics graphics,
-										List<? extends FormattedText> textLines, int mouseX, int mouseY, int screenWidth, int screenHeight,
-										int maxTextWidth, int backgroundColor, int borderColorStart, int borderColorEnd, Font font) {
+	public static void drawHoveringText(@Nonnull final ItemStack stack, DrawContext graphics,
+										List<? extends StringVisitable> textLines, int mouseX, int mouseY, int screenWidth, int screenHeight,
+										int maxTextWidth, int backgroundColor, int borderColorStart, int borderColorEnd, TextRenderer font) {
 		if (textLines.isEmpty())
 			return;
 
-		List<ClientTooltipComponent> list = new ArrayList<>();
-		for (FormattedText textLine : textLines) {
-			FormattedCharSequence charSequence = textLine instanceof Component component
-					? component.getVisualOrderText()
-					: Language.getInstance().getVisualOrder(textLine);
-			list.add(ClientTooltipComponent.create(charSequence));
+		List<TooltipComponent> list = new ArrayList<>();
+		for (StringVisitable textLine : textLines) {
+			OrderedText charSequence = textLine instanceof Text component
+					? component.asOrderedText()
+					: Language.getInstance().reorder(textLine);
+			list.add(TooltipComponent.of(charSequence));
 		}
 
-		PoseStack pStack = graphics.pose();
+		MatrixStack pStack = graphics.getMatrices();
 
 		// RenderSystem.disableRescaleNormal();
 		RenderSystem.disableDepthTest();
 		int tooltipTextWidth = 0;
 
-		for (FormattedText textLine : textLines) {
-			int textLineWidth = font.width(textLine);
+		for (StringVisitable textLine : textLines) {
+			int textLineWidth = font.getWidth(textLine);
 			if (textLineWidth > tooltipTextWidth)
 				tooltipTextWidth = textLineWidth;
 		}
@@ -107,16 +104,16 @@ public class RemovedGuiUtils {
 
 		if (needsWrap) {
 			int wrappedTooltipWidth = 0;
-			List<FormattedText> wrappedTextLines = new ArrayList<>();
+			List<StringVisitable> wrappedTextLines = new ArrayList<>();
 			for (int i = 0; i < textLines.size(); i++) {
-				FormattedText textLine = textLines.get(i);
-				List<FormattedText> wrappedLine = font.getSplitter()
-						.splitLines(textLine, tooltipTextWidth, Style.EMPTY);
+				StringVisitable textLine = textLines.get(i);
+				List<StringVisitable> wrappedLine = font.getTextHandler()
+						.wrapLines(textLine, tooltipTextWidth, Style.EMPTY);
 				if (i == 0)
 					titleLinesCount = wrappedLine.size();
 
-				for (FormattedText line : wrappedLine) {
-					int lineWidth = font.width(line);
+				for (StringVisitable line : wrappedLine) {
+					int lineWidth = font.getWidth(line);
 					if (lineWidth > wrappedTooltipWidth)
 						wrappedTooltipWidth = lineWidth;
 					wrappedTextLines.add(line);
@@ -147,9 +144,9 @@ public class RemovedGuiUtils {
 
 		final int zLevel = 400;
 
-		pStack.pushPose();
-		Matrix4f mat = pStack.last()
-				.pose();
+		pStack.push();
+		Matrix4f mat = pStack.peek()
+				.getPositionMatrix();
 		graphics.fillGradient(tooltipX - 3, tooltipY - 4, tooltipX + tooltipTextWidth + 3,
 				tooltipY - 3, zLevel, backgroundColor, backgroundColor);
 		graphics.fillGradient(tooltipX - 3, tooltipY + tooltipHeight + 3,
@@ -169,15 +166,15 @@ public class RemovedGuiUtils {
 		graphics.fillGradient(tooltipX - 3, tooltipY + tooltipHeight + 2,
 				tooltipX + tooltipTextWidth + 3, tooltipY + tooltipHeight + 3, zLevel, borderColorEnd, borderColorEnd);
 
-		MultiBufferSource.BufferSource renderType = MultiBufferSource.immediate(Tesselator.getInstance()
-				.getBuilder());
+		VertexConsumerProvider.Immediate renderType = VertexConsumerProvider.immediate(Tessellator.getInstance()
+				.getBuffer());
 		pStack.translate(0.0D, 0.0D, zLevel);
 
 		for (int lineNumber = 0; lineNumber < list.size(); ++lineNumber) {
-			ClientTooltipComponent line = list.get(lineNumber);
+			TooltipComponent line = list.get(lineNumber);
 
 			if (line != null)
-				line.renderText(font, tooltipX, tooltipY, mat, renderType);
+				line.drawText(font, tooltipX, tooltipY, mat, renderType);
 
 			if (lineNumber + 1 == titleLinesCount)
 				tooltipY += 2;
@@ -185,8 +182,8 @@ public class RemovedGuiUtils {
 			tooltipY += 10;
 		}
 
-		renderType.endBatch();
-		pStack.popPose();
+		renderType.draw();
+		pStack.pop();
 
 		RenderSystem.enableDepthTest();
 	}

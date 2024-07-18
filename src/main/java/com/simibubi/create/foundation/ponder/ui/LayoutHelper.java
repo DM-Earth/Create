@@ -1,6 +1,6 @@
 package com.simibubi.create.foundation.ponder.ui;
 
-import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.client.util.math.Rect2i;
 
 public interface LayoutHelper {
 

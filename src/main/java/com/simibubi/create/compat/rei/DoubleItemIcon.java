@@ -3,14 +3,14 @@ package com.simibubi.create.compat.rei;
 import java.util.function.Supplier;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.gui.element.GuiGameElement;
 
 import me.shedaniel.math.Point;
 import me.shedaniel.math.Rectangle;
 import me.shedaniel.rei.api.client.gui.Renderer;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
 
 public class DoubleItemIcon implements Renderer {
 
@@ -31,33 +31,33 @@ public class DoubleItemIcon implements Renderer {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, Rectangle bounds, int mouseX, int mouseY, float delta) {
+	public void render(DrawContext graphics, Rectangle bounds, int mouseX, int mouseY, float delta) {
 		if (primaryStack == null) {
 			primaryStack = primarySupplier.get();
 			secondaryStack = secondarySupplier.get();
 		}
 
-		PoseStack matrixStack = graphics.pose();
+		MatrixStack matrixStack = graphics.getMatrices();
 		RenderSystem.enableDepthTest();
-		matrixStack.pushPose();
+		matrixStack.push();
 		if(pos == null)
 			matrixStack.translate(bounds.getCenterX() - 9, bounds.getCenterY() - 9, 0);
 		else
 			matrixStack.translate(pos.getX(), pos.getY(), 0);
 
-		matrixStack.pushPose();
+		matrixStack.push();
 		matrixStack.translate(1, 1, 0);
 		GuiGameElement.of(primaryStack)
 			.render(graphics);
-		matrixStack.popPose();
+		matrixStack.pop();
 
-		matrixStack.pushPose();
+		matrixStack.push();
 		matrixStack.translate(10, 10, 100);
 		matrixStack.scale(.5f, .5f, .5f);
 		GuiGameElement.of(secondaryStack)
 			.render(graphics);
-		matrixStack.popPose();
+		matrixStack.pop();
 
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 }

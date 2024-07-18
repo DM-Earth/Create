@@ -6,20 +6,17 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.util.Identifier;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
 import com.tterrag.registrate.util.entry.ItemProviderEntry;
 
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.ItemLike;
-
 public class PonderTagRegistry {
 
-	private final Multimap<ResourceLocation, PonderTag> tags;
+	private final Multimap<Identifier, PonderTag> tags;
 	private final Multimap<PonderChapter, PonderTag> chapterTags;
 
 	private final List<PonderTag> listedTags;
@@ -30,7 +27,7 @@ public class PonderTagRegistry {
 		listedTags = new ArrayList<>();
 	}
 
-	public Set<PonderTag> getTags(ResourceLocation item) {
+	public Set<PonderTag> getTags(Identifier item) {
 		return ImmutableSet.copyOf(tags.get(item));
 	}
 
@@ -38,7 +35,7 @@ public class PonderTagRegistry {
 		return ImmutableSet.copyOf(chapterTags.get(chapter));
 	}
 
-	public Set<ResourceLocation> getItems(PonderTag tag) {
+	public Set<Identifier> getItems(PonderTag tag) {
 		return tags.entries()
 			.stream()
 			.filter(e -> e.getValue() == tag)
@@ -62,7 +59,7 @@ public class PonderTagRegistry {
 		listedTags.add(tag);
 	}
 
-	public void add(PonderTag tag, ResourceLocation item) {
+	public void add(PonderTag tag, Identifier item) {
 		synchronized (tags) {
 			tags.put(item, tag);
 		}
@@ -74,7 +71,7 @@ public class PonderTagRegistry {
 		}
 	}
 
-	public ItemBuilder forItems(ResourceLocation... items) {
+	public ItemBuilder forItems(Identifier... items) {
 		return new ItemBuilder(items);
 	}
 
@@ -84,9 +81,9 @@ public class PonderTagRegistry {
 
 	public class ItemBuilder {
 
-		private final Collection<ResourceLocation> items;
+		private final Collection<Identifier> items;
 
-		private ItemBuilder(ResourceLocation... items) {
+		private ItemBuilder(Identifier... items) {
 			this.items = Arrays.asList(items);
 		}
 
@@ -105,12 +102,12 @@ public class PonderTagRegistry {
 			this.tag = tag;
 		}
 
-		public TagBuilder add(ResourceLocation item) {
+		public TagBuilder add(Identifier item) {
 			PonderTagRegistry.this.add(tag, item);
 			return this;
 		}
 
-		public TagBuilder add(ItemLike item) {
+		public TagBuilder add(ItemConvertible item) {
 			return add(RegisteredObjects.getKeyOrThrow(item.asItem()));
 		}
 

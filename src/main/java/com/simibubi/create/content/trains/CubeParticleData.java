@@ -11,12 +11,12 @@ import com.simibubi.create.foundation.particle.ICustomParticleData;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.client.particle.ParticleFactory;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleType;
 
-public class CubeParticleData implements ParticleOptions, ICustomParticleData<CubeParticleData> {
+public class CubeParticleData implements ParticleEffect, ICustomParticleData<CubeParticleData> {
 
 	public static final Codec<CubeParticleData> CODEC = RecordCodecBuilder.create(i -> 
 		i.group(
@@ -28,9 +28,9 @@ public class CubeParticleData implements ParticleOptions, ICustomParticleData<Cu
 			Codec.BOOL.fieldOf("hot").forGetter(p -> p.hot))
 		.apply(i, CubeParticleData::new));
 
-	public static final ParticleOptions.Deserializer<CubeParticleData> DESERIALIZER = new ParticleOptions.Deserializer<CubeParticleData>() {
+	public static final ParticleEffect.Factory<CubeParticleData> DESERIALIZER = new ParticleEffect.Factory<CubeParticleData>() {
 		@Override
-		public CubeParticleData fromCommand(ParticleType<CubeParticleData> type, StringReader reader) throws CommandSyntaxException {
+		public CubeParticleData read(ParticleType<CubeParticleData> type, StringReader reader) throws CommandSyntaxException {
 			reader.expect(' ');
 			float r = reader.readFloat();
 			reader.expect(' ');
@@ -47,7 +47,7 @@ public class CubeParticleData implements ParticleOptions, ICustomParticleData<Cu
 		}
 
 		@Override
-		public CubeParticleData fromNetwork(ParticleType<CubeParticleData> type, FriendlyByteBuf buffer) {
+		public CubeParticleData read(ParticleType<CubeParticleData> type, PacketByteBuf buffer) {
 			return new CubeParticleData(buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readInt(), buffer.readBoolean());
 		}
 	};
@@ -73,7 +73,7 @@ public class CubeParticleData implements ParticleOptions, ICustomParticleData<Cu
 	}
 
 	@Override
-	public Deserializer<CubeParticleData> getDeserializer() {
+	public Factory<CubeParticleData> getDeserializer() {
 		return DESERIALIZER;
 	}
 
@@ -84,7 +84,7 @@ public class CubeParticleData implements ParticleOptions, ICustomParticleData<Cu
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public ParticleProvider<CubeParticleData> getFactory() {
+	public ParticleFactory<CubeParticleData> getFactory() {
 		return new CubeParticle.Factory();
 	}
 
@@ -94,7 +94,7 @@ public class CubeParticleData implements ParticleOptions, ICustomParticleData<Cu
 	}
 
 	@Override
-	public void writeToNetwork(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeFloat(r);
 		buffer.writeFloat(g);
 		buffer.writeFloat(b);
@@ -104,7 +104,7 @@ public class CubeParticleData implements ParticleOptions, ICustomParticleData<Cu
 	}
 
 	@Override
-	public String writeToString() {
+	public String asString() {
 		return String.format(Locale.ROOT, "%s %f %f %f %f %d %s", AllParticleTypes.CUBE.parameter(), r, g, b, scale, avgAge, hot);
 	}
 }

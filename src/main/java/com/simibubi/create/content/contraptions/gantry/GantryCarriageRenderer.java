@@ -1,7 +1,6 @@
 package com.simibubi.create.content.contraptions.gantry;
 
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
@@ -10,36 +9,36 @@ import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
 
 public class GantryCarriageRenderer extends KineticBlockEntityRenderer<GantryCarriageBlockEntity> {
 
-	public GantryCarriageRenderer(BlockEntityRendererProvider.Context context) {
+	public GantryCarriageRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	protected void renderSafe(GantryCarriageBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(GantryCarriageBlockEntity be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
 		super.renderSafe(be, partialTicks, ms, buffer, light, overlay);
 
-		if (Backend.canUseInstancing(be.getLevel())) return;
+		if (Backend.canUseInstancing(be.getWorld())) return;
 
-		BlockState state = be.getBlockState();
-		Direction facing = state.getValue(GantryCarriageBlock.FACING);
-		Boolean alongFirst = state.getValue(GantryCarriageBlock.AXIS_ALONG_FIRST_COORDINATE);
+		BlockState state = be.getCachedState();
+		Direction facing = state.get(GantryCarriageBlock.FACING);
+		Boolean alongFirst = state.get(GantryCarriageBlock.AXIS_ALONG_FIRST_COORDINATE);
 		Axis rotationAxis = getRotationAxisOf(be);
-		BlockPos visualPos = facing.getAxisDirection() == AxisDirection.POSITIVE ? be.getBlockPos()
-				: be.getBlockPos()
-				.relative(facing.getOpposite());
+		BlockPos visualPos = facing.getDirection() == AxisDirection.POSITIVE ? be.getPos()
+				: be.getPos()
+				.offset(facing.getOpposite());
 		float angleForBE = getAngleForBE(be, visualPos, rotationAxis);
 
 		Axis gantryAxis = Axis.X;
@@ -65,12 +64,12 @@ public class GantryCarriageRenderer extends KineticBlockEntityRenderer<GantryCar
 				.unCentre();
 
 		cogs.light(light)
-			.renderInto(ms, buffer.getBuffer(RenderType.solid()));
+			.renderInto(ms, buffer.getBuffer(RenderLayer.getSolid()));
 
 	}
 
 	public static float getAngleForBE(KineticBlockEntity be, final BlockPos pos, Axis axis) {
-		float time = AnimationTickHolder.getRenderTime(be.getLevel());
+		float time = AnimationTickHolder.getRenderTime(be.getWorld());
 		float offset = getRotationOffsetForPosition(be, pos, axis);
 		return (time * be.getSpeed() * 3f / 20 + offset) % 360;
 	}

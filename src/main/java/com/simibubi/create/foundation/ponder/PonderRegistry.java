@@ -17,26 +17,26 @@ import com.simibubi.create.infrastructure.ponder.PonderIndex;
 import com.simibubi.create.infrastructure.ponder.SharedText;
 
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.block.Block;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.nbt.NbtTagSizeTracker;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class PonderRegistry {
 
 	public static final PonderTagRegistry TAGS = new PonderTagRegistry();
 	public static final PonderChapterRegistry CHAPTERS = new PonderChapterRegistry();
 	// Map from item IDs to storyboard entries
-	public static final Map<ResourceLocation, List<PonderStoryBoardEntry>> ALL = new HashMap<>();
+	public static final Map<Identifier, List<PonderStoryBoardEntry>> ALL = new HashMap<>();
 
 	public static void addStoryBoard(PonderStoryBoardEntry entry) {
 		synchronized (ALL) {
@@ -47,7 +47,7 @@ public class PonderRegistry {
 		}
 	}
 
-	public static List<PonderScene> compile(ResourceLocation id) {
+	public static List<PonderScene> compile(Identifier id) {
 		List<PonderStoryBoardEntry> list = ALL.get(id);
 		if (list == null) {
 			return Collections.emptyList();
@@ -73,17 +73,17 @@ public class PonderRegistry {
 
 		for (int i = 0; i < entries.size(); i++) {
 			PonderStoryBoardEntry sb = entries.get(i);
-			ResourceLocation id = sb.getSchematicLocation();
+			Identifier id = sb.getSchematicLocation();
 			StructureTemplate activeTemplate = loadSchematic(id);
-			Level level = EnvExecutor.unsafeRunForDist(
-					() -> () -> Minecraft.getInstance().level,
+			World level = EnvExecutor.unsafeRunForDist(
+					() -> () -> MinecraftClient.getInstance().world,
 					() -> () -> {
 						throw new IllegalStateException("Cannot compile on a server");
 					}
 			);
-			PonderWorld world = new PonderWorld(BlockPos.ZERO, level);
-			StructurePlaceSettings settings = FabricPonderProcessing.makePlaceSettings(id);
-			activeTemplate.placeInWorld(world, BlockPos.ZERO, BlockPos.ZERO, settings, world.random, Block.UPDATE_CLIENTS);
+			PonderWorld world = new PonderWorld(BlockPos.ORIGIN, level);
+			StructurePlacementData settings = FabricPonderProcessing.makePlaceSettings(id);
+			activeTemplate.place(world, BlockPos.ORIGIN, BlockPos.ORIGIN, settings, world.random, Block.NOTIFY_LISTENERS);
 			world.createBackup();
 			PonderScene scene = compileScene(i, sb, world);
 			scene.begin();
@@ -101,19 +101,19 @@ public class PonderRegistry {
 		return scene;
 	}
 
-	public static StructureTemplate loadSchematic(ResourceLocation location) {
-		return loadSchematic(Minecraft.getInstance().getResourceManager(), location);
+	public static StructureTemplate loadSchematic(Identifier location) {
+		return loadSchematic(MinecraftClient.getInstance().getResourceManager(), location);
 	}
 
-	public static StructureTemplate loadSchematic(ResourceManager resourceManager, ResourceLocation location) {
+	public static StructureTemplate loadSchematic(ResourceManager resourceManager, Identifier location) {
 		String namespace = location.getNamespace();
 		String path = "ponder/" + location.getPath() + ".nbt";
-		ResourceLocation location1 = new ResourceLocation(namespace, path);
+		Identifier location1 = new Identifier(namespace, path);
 
 		Optional<Resource> optionalResource = resourceManager.getResource(location1);
 		if (optionalResource.isPresent()) {
 			Resource resource = optionalResource.get();
-			try (InputStream inputStream = resource.open()) {
+			try (InputStream inputStream = resource.getInputStream()) {
 				return loadSchematic(inputStream);
 			} catch (IOException e) {
 				Create.LOGGER.error("Failed to read ponder schematic: " + location1, e);
@@ -128,8 +128,8 @@ public class PonderRegistry {
 		StructureTemplate t = new StructureTemplate();
 		DataInputStream stream =
 				new DataInputStream(new BufferedInputStream(new GZIPInputStream(resourceStream)));
-		CompoundTag nbt = NbtIo.read(stream, new NbtAccounter(0x20000000L));
-		t.load(Minecraft.getInstance().level.holderLookup(Registries.BLOCK), nbt);
+		NbtCompound nbt = NbtIo.read(stream, new NbtTagSizeTracker(0x20000000L));
+		t.readNbt(MinecraftClient.getInstance().world.createCommandRegistryWrapper(RegistryKeys.BLOCK), nbt);
 		return t;
 	}
 

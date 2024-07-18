@@ -11,13 +11,13 @@ import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
 
 public class ClipboardBlockEntity extends SmartBlockEntity {
 
@@ -35,54 +35,54 @@ public class ClipboardBlockEntity extends SmartBlockEntity {
 		updateWrittenState();
 	}
 
-	public void onEditedBy(Player player) {
-		lastEdit = player.getUUID();
+	public void onEditedBy(PlayerEntity player) {
+		lastEdit = player.getUuid();
 		notifyUpdate();
 		updateWrittenState();
 	}
 
 	public void updateWrittenState() {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (!AllBlocks.CLIPBOARD.has(blockState))
 			return;
-		if (level.isClientSide())
+		if (world.isClient())
 			return;
-		boolean isWritten = blockState.getValue(ClipboardBlock.WRITTEN);
-		boolean shouldBeWritten = dataContainer.getTag() != null;
+		boolean isWritten = blockState.get(ClipboardBlock.WRITTEN);
+		boolean shouldBeWritten = dataContainer.getNbt() != null;
 		if (isWritten == shouldBeWritten)
 			return;
-		level.setBlockAndUpdate(worldPosition, blockState.setValue(ClipboardBlock.WRITTEN, shouldBeWritten));
+		world.setBlockState(pos, blockState.with(ClipboardBlock.WRITTEN, shouldBeWritten));
 	}
 
 	@Override
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 		tag.put("Item", NBTSerializer.serializeNBT(dataContainer));
 		if (clientPacket && lastEdit != null)
-			tag.putUUID("LastEdit", lastEdit);
+			tag.putUuid("LastEdit", lastEdit);
 	}
 
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		super.read(tag, clientPacket);
-		dataContainer = ItemStack.of(tag.getCompound("Item"));
+		dataContainer = ItemStack.fromNbt(tag.getCompound("Item"));
 
 		if (clientPacket)
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> readClientSide(tag));
 	}
 
 	@Environment(EnvType.CLIENT)
-	private void readClientSide(CompoundTag tag) {
-		Minecraft mc = Minecraft.getInstance();
-		if (!(mc.screen instanceof ClipboardScreen cs))
+	private void readClientSide(NbtCompound tag) {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (!(mc.currentScreen instanceof ClipboardScreen cs))
 			return;
-		if (tag.contains("LastEdit") && tag.getUUID("LastEdit")
-			.equals(mc.player.getUUID()))
+		if (tag.contains("LastEdit") && tag.getUuid("LastEdit")
+			.equals(mc.player.getUuid()))
 			return;
-		if (!worldPosition.equals(cs.targetedBlock))
+		if (!pos.equals(cs.targetedBlock))
 			return;
 		cs.reopenWith(dataContainer);
 	}

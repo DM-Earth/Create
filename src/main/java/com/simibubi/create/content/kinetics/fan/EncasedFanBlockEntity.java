@@ -3,22 +3,20 @@ package com.simibubi.create.content.kinetics.fan;
 import java.util.List;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.logistics.chute.ChuteBlockEntity;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 @MethodsReturnNonnullByDefault
 public class EncasedFanBlockEntity extends KineticBlockEntity implements IAirCurrentSource {
@@ -41,14 +39,14 @@ public class EncasedFanBlockEntity extends KineticBlockEntity implements IAirCur
 	}
 	
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		if (clientPacket)
 			airCurrent.rebuild();
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 	}
 
@@ -59,19 +57,19 @@ public class EncasedFanBlockEntity extends KineticBlockEntity implements IAirCur
 
 	@Nullable
 	@Override
-	public Level getAirCurrentWorld() {
-		return level;
+	public World getAirCurrentWorld() {
+		return world;
 	}
 
 	@Override
 	public BlockPos getAirCurrentPos() {
-		return worldPosition;
+		return pos;
 	}
 
 	@Override
 	public Direction getAirflowOriginSide() {
-		return this.getBlockState()
-			.getValue(EncasedFanBlock.FACING);
+		return this.getCachedState()
+			.get(EncasedFanBlock.FACING);
 	}
 
 	@Override
@@ -79,7 +77,7 @@ public class EncasedFanBlockEntity extends KineticBlockEntity implements IAirCur
 		float speed = getSpeed();
 		if (speed == 0)
 			return null;
-		Direction facing = getBlockState().getValue(BlockStateProperties.FACING);
+		Direction facing = getCachedState().get(Properties.FACING);
 		speed = convertToDirection(speed, facing);
 		return speed > 0 ? facing : facing.getOpposite();
 	}
@@ -92,7 +90,7 @@ public class EncasedFanBlockEntity extends KineticBlockEntity implements IAirCur
 	
 	@Override
 	public boolean isSourceRemoved() {
-		return remove;
+		return removed;
 	}
 
 	@Override
@@ -103,11 +101,11 @@ public class EncasedFanBlockEntity extends KineticBlockEntity implements IAirCur
 	}
 
 	public void updateChute() {
-		Direction direction = getBlockState().getValue(EncasedFanBlock.FACING);
+		Direction direction = getCachedState().get(EncasedFanBlock.FACING);
 		if (!direction.getAxis()
 			.isVertical())
 			return;
-		BlockEntity poweredChute = level.getBlockEntity(worldPosition.relative(direction));
+		BlockEntity poweredChute = world.getBlockEntity(pos.offset(direction));
 		if (!(poweredChute instanceof ChuteBlockEntity))
 			return;
 		ChuteBlockEntity chuteBE = (ChuteBlockEntity) poweredChute;
@@ -125,7 +123,7 @@ public class EncasedFanBlockEntity extends KineticBlockEntity implements IAirCur
 	public void tick() {
 		super.tick();
 
-		boolean server = !level.isClientSide || isVirtual();
+		boolean server = !world.isClient || isVirtual();
 
 		if (server && airCurrentUpdateCooldown-- <= 0) {
 			airCurrentUpdateCooldown = AllConfigs.server().kinetics.fanBlockCheckRate.get();

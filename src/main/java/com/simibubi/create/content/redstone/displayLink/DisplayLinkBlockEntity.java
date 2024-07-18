@@ -1,7 +1,13 @@
 package com.simibubi.create.content.redstone.displayLink;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import com.simibubi.create.compat.computercraft.AbstractComputerBehaviour;
 import com.simibubi.create.compat.computercraft.ComputerCraftProxy;
 import com.simibubi.create.content.redstone.displayLink.source.DisplaySource;
@@ -13,20 +19,12 @@ import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat.Chaser;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-
 public class DisplayLinkBlockEntity extends SmartBlockEntity {
 
 	protected BlockPos targetOffset;
 
 	public DisplaySource activeSource;
-	private CompoundTag sourceConfig;
+	private NbtCompound sourceConfig;
 
 	public DisplayTarget activeTarget;
 	public int targetLine;
@@ -39,8 +37,8 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 
 	public DisplayLinkBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
-		targetOffset = BlockPos.ZERO;
-		sourceConfig = new CompoundTag();
+		targetOffset = BlockPos.ORIGIN;
+		sourceConfig = new NbtCompound();
 		targetLine = 0;
 		glow = LerpedFloat.linear()
 			.startWithValue(0);
@@ -64,7 +62,7 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 
 		if (activeSource == null)
 			return;
-		if (level.isClientSide) {
+		if (world.isClient) {
 			glow.tickChaser();
 			return;
 		}
@@ -77,10 +75,10 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 
 	public void tickSource() {
 		refreshTicks = 0;
-		if (getBlockState().getOptionalValue(DisplayLinkBlock.POWERED)
+		if (getCachedState().getOrEmpty(DisplayLinkBlock.POWERED)
 			.orElse(true))
 			return;
-		if (!level.isClientSide)
+		if (!world.isClient)
 			updateGatheredData();
 	}
 
@@ -88,7 +86,7 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 		if (activeSource == null)
 			return;
 		refreshTicks = 0;
-		activeSource.onSignalReset(new DisplayLinkContext(level, this));
+		activeSource.onSignalReset(new DisplayLinkContext(world, this));
 		updateGatheredData();
 	}
 
@@ -96,11 +94,11 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 		BlockPos sourcePosition = getSourcePosition();
 		BlockPos targetPosition = getTargetPosition();
 
-		if (!level.isLoaded(targetPosition) || !level.isLoaded(sourcePosition))
+		if (!world.canSetBlock(targetPosition) || !world.canSetBlock(sourcePosition))
 			return;
 
-		DisplayTarget target = AllDisplayBehaviours.targetOf(level, targetPosition);
-		List<DisplaySource> sources = AllDisplayBehaviours.sourcesOf(level, sourcePosition);
+		DisplayTarget target = AllDisplayBehaviours.targetOf(world, targetPosition);
+		List<DisplaySource> sources = AllDisplayBehaviours.sourcesOf(world, sourcePosition);
 		boolean notify = false;
 
 		if (activeTarget != target) {
@@ -110,7 +108,7 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 
 		if (activeSource != null && !sources.contains(activeSource)) {
 			activeSource = null;
-			sourceConfig = new CompoundTag();
+			sourceConfig = new NbtCompound();
 			notify = true;
 		}
 
@@ -119,7 +117,7 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 		if (activeSource == null || activeTarget == null)
 			return;
 
-		DisplayLinkContext context = new DisplayLinkContext(level, this);
+		DisplayLinkContext context = new DisplayLinkContext(world, this);
 		activeSource.transferData(context, activeTarget, targetLine);
 		sendPulse = true;
 		sendData();
@@ -128,13 +126,13 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	public void writeSafe(CompoundTag tag) {
+	public void writeSafe(NbtCompound tag) {
 		super.writeSafe(tag);
 		writeGatheredData(tag);
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 		writeGatheredData(tag);
 		if (clientPacket && activeTarget != null)
@@ -145,62 +143,62 @@ public class DisplayLinkBlockEntity extends SmartBlockEntity {
 		}
 	}
 
-	private void writeGatheredData(CompoundTag tag) {
-		tag.put("TargetOffset", NbtUtils.writeBlockPos(targetOffset));
+	private void writeGatheredData(NbtCompound tag) {
+		tag.put("TargetOffset", NbtHelper.fromBlockPos(targetOffset));
 		tag.putInt("TargetLine", targetLine);
 
 		if (activeSource != null) {
-			CompoundTag data = sourceConfig.copy();
+			NbtCompound data = sourceConfig.copy();
 			data.putString("Id", activeSource.id.toString());
 			tag.put("Source", data);
 		}
 	}
 
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		super.read(tag, clientPacket);
-		targetOffset = NbtUtils.readBlockPos(tag.getCompound("TargetOffset"));
+		targetOffset = NbtHelper.toBlockPos(tag.getCompound("TargetOffset"));
 		targetLine = tag.getInt("TargetLine");
 
 		if (clientPacket && tag.contains("TargetType"))
-			activeTarget = AllDisplayBehaviours.getTarget(new ResourceLocation(tag.getString("TargetType")));
+			activeTarget = AllDisplayBehaviours.getTarget(new Identifier(tag.getString("TargetType")));
 		if (clientPacket && tag.contains("Pulse"))
 			glow.setValue(2);
 
 		if (!tag.contains("Source"))
 			return;
 
-		CompoundTag data = tag.getCompound("Source");
-		activeSource = AllDisplayBehaviours.getSource(new ResourceLocation(data.getString("Id")));
-		sourceConfig = new CompoundTag();
+		NbtCompound data = tag.getCompound("Source");
+		activeSource = AllDisplayBehaviours.getSource(new Identifier(data.getString("Id")));
+		sourceConfig = new NbtCompound();
 		if (activeSource != null)
 			sourceConfig = data.copy();
 	}
 
 	public void target(BlockPos targetPosition) {
-		this.targetOffset = targetPosition.subtract(worldPosition);
+		this.targetOffset = targetPosition.subtract(pos);
 	}
 
 	public BlockPos getSourcePosition() {
-		return worldPosition.relative(getDirection());
+		return pos.offset(getDirection());
 	}
 
-	public CompoundTag getSourceConfig() {
+	public NbtCompound getSourceConfig() {
 		return sourceConfig;
 	}
 
-	public void setSourceConfig(CompoundTag sourceConfig) {
+	public void setSourceConfig(NbtCompound sourceConfig) {
 		this.sourceConfig = sourceConfig;
 	}
 
 	public Direction getDirection() {
-		return getBlockState().getOptionalValue(DisplayLinkBlock.FACING)
+		return getCachedState().getOrEmpty(DisplayLinkBlock.FACING)
 			.orElse(Direction.UP)
 			.getOpposite();
 	}
 
 	public BlockPos getTargetPosition() {
-		return worldPosition.offset(targetOffset);
+		return pos.add(targetOffset);
 	}
 
 }

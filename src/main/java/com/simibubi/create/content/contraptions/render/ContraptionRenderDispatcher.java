@@ -16,7 +16,6 @@ import com.jozufozu.flywheel.event.ReloadRenderersEvent;
 import com.jozufozu.flywheel.event.RenderLayerEvent;
 import com.jozufozu.flywheel.util.WorldAttached;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllMovementBehaviours;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
@@ -28,15 +27,16 @@ import com.simibubi.create.foundation.render.SuperByteBuffer;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.LightType;
+import net.minecraft.world.World;
 
 @Environment(EnvType.CLIENT)
 public class ContraptionRenderDispatcher {
@@ -50,14 +50,14 @@ public class ContraptionRenderDispatcher {
 	 * @return true if there was a renderer associated with the given contraption.
 	 */
 	public static boolean invalidate(Contraption contraption) {
-		Level level = contraption.entity.level();
+		World level = contraption.entity.getWorld();
 
 		return WORLDS.get(level)
 			.invalidate(contraption);
 	}
 
-	public static void tick(Level world) {
-		if (Minecraft.getInstance()
+	public static void tick(World world) {
+		if (MinecraftClient.getInstance()
 			.isPaused())
 			return;
 
@@ -86,8 +86,8 @@ public class ContraptionRenderDispatcher {
 	}
 
 	public static void renderFromEntity(AbstractContraptionEntity entity, Contraption contraption,
-		MultiBufferSource buffers) {
-		Level world = entity.level();
+		VertexConsumerProvider buffers) {
+		World world = entity.getWorld();
 
 		ContraptionRenderInfo renderInfo = WORLDS.get(world)
 			.getRenderInfo(contraption);
@@ -101,17 +101,17 @@ public class ContraptionRenderDispatcher {
 
 		renderBlockEntities(world, renderWorld, contraption, matrices, buffers);
 
-		if (buffers instanceof MultiBufferSource.BufferSource)
-			((MultiBufferSource.BufferSource) buffers).endBatch();
+		if (buffers instanceof VertexConsumerProvider.Immediate)
+			((VertexConsumerProvider.Immediate) buffers).draw();
 
 		renderActors(world, renderWorld, contraption, matrices, buffers);
 	}
 
-	public static VirtualRenderWorld setupRenderWorld(Level world, Contraption c) {
+	public static VirtualRenderWorld setupRenderWorld(World world, Contraption c) {
 		ContraptionWorld contraptionWorld = c.getContraptionWorld();
 
 		BlockPos origin = c.anchor;
-		int minBuildHeight = contraptionWorld.getMinBuildHeight();
+		int minBuildHeight = contraptionWorld.getBottomY();
 		int height = contraptionWorld.getHeight();
 		VirtualRenderWorld renderWorld = new VirtualRenderWorld(world, minBuildHeight, height, origin) {
 			@Override
@@ -125,21 +125,21 @@ public class ContraptionRenderDispatcher {
 			.values())
 			// Skip individual lighting updates to prevent lag with large contraptions
 			// FIXME 1.20 this '0' used to be Block.UPDATE_SUPPRESS_LIGHT, yet VirtualRenderWorld didn't actually parse the flags at all
-			renderWorld.setBlock(info.pos(), info.state(), 0);
+			renderWorld.setBlockState(info.pos(), info.state(), 0);
 
 		renderWorld.runLightEngine();
 		return renderWorld;
 	}
 
-	public static void renderBlockEntities(Level world, VirtualRenderWorld renderWorld, Contraption c,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
+	public static void renderBlockEntities(World world, VirtualRenderWorld renderWorld, Contraption c,
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
 		BlockEntityRenderHelper.renderBlockEntities(world, renderWorld, c.getSpecialRenderedBEs(),
 			matrices.getModelViewProjection(), matrices.getLight(), buffer);
 	}
 
-	protected static void renderActors(Level world, VirtualRenderWorld renderWorld, Contraption c,
-		ContraptionMatrices matrices, MultiBufferSource buffer) {
-		PoseStack m = matrices.getModel();
+	protected static void renderActors(World world, VirtualRenderWorld renderWorld, Contraption c,
+		ContraptionMatrices matrices, VertexConsumerProvider buffer) {
+		MatrixStack m = matrices.getModel();
 
 		for (Pair<StructureTemplate.StructureBlockInfo, MovementContext> actor : c.getActors()) {
 			MovementContext context = actor.getRight();
@@ -153,17 +153,17 @@ public class ContraptionRenderDispatcher {
 			if (movementBehaviour != null) {
 				if (c.isHiddenInPortal(blockInfo.pos()))
 					continue;
-				m.pushPose();
+				m.push();
 				TransformStack.cast(m)
 					.translate(blockInfo.pos());
 				movementBehaviour.renderInContraption(context, renderWorld, matrices, buffer);
-				m.popPose();
+				m.pop();
 			}
 		}
 	}
 
 	public static SuperByteBuffer buildStructureBuffer(VirtualRenderWorld renderWorld, Contraption c,
-		RenderType layer) {
+		RenderLayer layer) {
 		Collection<StructureTemplate.StructureBlockInfo> values = c.getRenderedBlocks();
 		ShadeSeparatedBufferedData data = new WorldModelBuilder(layer).withRenderWorld(renderWorld)
 				.withBlocks(values)
@@ -173,8 +173,8 @@ public class ContraptionRenderDispatcher {
 		return sbb;
 	}
 
-	public static int getLight(Level world, float lx, float ly, float lz) {
-		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+	public static int getLight(World world, float lx, float ly, float lz) {
+		BlockPos.Mutable pos = new BlockPos.Mutable();
 		float block = 0, sky = 0;
 		float offset = 1 / 8f;
 
@@ -182,15 +182,15 @@ public class ContraptionRenderDispatcher {
 			for (float yOffset = offset; yOffset >= -offset; yOffset -= 2 * offset)
 				for (float xOffset = offset; xOffset >= -offset; xOffset -= 2 * offset) {
 					pos.set(lx + xOffset, ly + yOffset, lz + zOffset);
-					block += world.getBrightness(LightLayer.BLOCK, pos) / 8f;
-					sky += world.getBrightness(LightLayer.SKY, pos) / 8f;
+					block += world.getLightLevel(LightType.BLOCK, pos) / 8f;
+					sky += world.getLightLevel(LightType.SKY, pos) / 8f;
 				}
 
-		return LightTexture.pack((int) block, (int) sky);
+		return LightmapTextureManager.pack((int) block, (int) sky);
 	}
 
 	public static int getContraptionWorldLight(MovementContext context, VirtualRenderWorld renderWorld) {
-		return LevelRenderer.getLightColor(renderWorld, context.localPos);
+		return WorldRenderer.getLightmapCoordinates(renderWorld, context.localPos);
 	}
 
 	public static void reset() {

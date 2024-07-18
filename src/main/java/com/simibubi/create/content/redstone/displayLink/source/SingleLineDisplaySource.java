@@ -11,15 +11,14 @@ import com.simibubi.create.content.trains.display.FlapDisplaySection;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.MutableComponent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.Formatting;
 
 public abstract class SingleLineDisplaySource extends DisplaySource {
 
-	protected abstract MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats);
+	protected abstract MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats);
 
 	protected abstract boolean allowsLabeling(DisplayLinkContext context);
 
@@ -33,17 +32,17 @@ public abstract class SingleLineDisplaySource extends DisplaySource {
 	@Environment(EnvType.CLIENT)
 	protected void addLabelingTextBox(ModularGuiLineBuilder builder) {
 		builder.addTextInput(0, 137, (e, t) -> {
-			e.setValue("");
+			e.setText("");
 			t.withTooltip(ImmutableList.of(Lang.translateDirect("display_source.label")
-				.withStyle(s -> s.withColor(0x5391E1)),
+				.styled(s -> s.withColor(0x5391E1)),
 				Lang.translateDirect("gui.schedule.lmb_edit")
-					.withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC)));
+					.formatted(Formatting.DARK_GRAY, Formatting.ITALIC)));
 		}, "Label");
 	}
 
 	@Override
-	public List<MutableComponent> provideText(DisplayLinkContext context, DisplayTargetStats stats) {
-		MutableComponent line = provideLine(context, stats);
+	public List<MutableText> provideText(DisplayLinkContext context, DisplayTargetStats stats) {
+		MutableText line = provideLine(context, stats);
 		if (line == EMPTY_LINE)
 			return EMPTY;
 
@@ -58,7 +57,7 @@ public abstract class SingleLineDisplaySource extends DisplaySource {
 	}
 
 	@Override
-	public List<List<MutableComponent>> provideFlapDisplayText(DisplayLinkContext context, DisplayTargetStats stats) {
+	public List<List<MutableText>> provideFlapDisplayText(DisplayLinkContext context, DisplayTargetStats stats) {
 
 		if (allowsLabeling(context)) {
 			String label = context.sourceConfig()

@@ -1,33 +1,32 @@
 package com.simibubi.create.content.trains.signal;
 
 import com.simibubi.create.content.trains.graph.DimensionPalette;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 public abstract class SingleBlockEntityEdgePoint extends TrackEdgePoint {
 
-	public ResourceKey<Level> blockEntityDimension;
+	public RegistryKey<World> blockEntityDimension;
 	public BlockPos blockEntityPos;
 
 	public BlockPos getBlockEntityPos() {
 		return blockEntityPos;
 	}
 	
-	public ResourceKey<Level> getBlockEntityDimension() {
+	public RegistryKey<World> getBlockEntityDimension() {
 		return blockEntityDimension;
 	}
 
 	@Override
 	public void blockEntityAdded(BlockEntity blockEntity, boolean front) {
-		this.blockEntityPos = blockEntity.getBlockPos();
-		this.blockEntityDimension = blockEntity.getLevel()
-			.dimension();
+		this.blockEntityPos = blockEntity.getPos();
+		this.blockEntityDimension = blockEntity.getWorld()
+			.getRegistryKey();
 	}
 
 	@Override
@@ -36,7 +35,7 @@ public abstract class SingleBlockEntityEdgePoint extends TrackEdgePoint {
 	}
 
 	@Override
-	public void invalidate(LevelAccessor level) {
+	public void invalidate(WorldAccess level) {
 		invalidateAt(level, blockEntityPos);
 	}
 
@@ -46,18 +45,18 @@ public abstract class SingleBlockEntityEdgePoint extends TrackEdgePoint {
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean migration, DimensionPalette dimensions) {
+	public void read(NbtCompound nbt, boolean migration, DimensionPalette dimensions) {
 		super.read(nbt, migration, dimensions);
 		if (migration)
 			return;
-		blockEntityPos = NbtUtils.readBlockPos(nbt.getCompound("TilePos"));
+		blockEntityPos = NbtHelper.toBlockPos(nbt.getCompound("TilePos"));
 		blockEntityDimension = dimensions.decode(nbt.contains("TileDimension") ? nbt.getInt("TileDimension") : -1);
 	}
 
 	@Override
-	public void write(CompoundTag nbt, DimensionPalette dimensions) {
+	public void write(NbtCompound nbt, DimensionPalette dimensions) {
 		super.write(nbt, dimensions);
-		nbt.put("TilePos", NbtUtils.writeBlockPos(blockEntityPos));
+		nbt.put("TilePos", NbtHelper.fromBlockPos(blockEntityPos));
 		nbt.putInt("TileDimension", dimensions.encode(blockEntityDimension));
 	}
 

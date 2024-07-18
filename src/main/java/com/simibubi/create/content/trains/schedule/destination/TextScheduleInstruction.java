@@ -9,9 +9,9 @@ import com.simibubi.create.foundation.utility.Lang;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public abstract class TextScheduleInstruction extends ScheduleInstruction {
 
@@ -20,9 +20,9 @@ public abstract class TextScheduleInstruction extends ScheduleInstruction {
 	}
 
 	@Override
-	public List<Component> getTitleAs(String type) {
+	public List<Text> getTitleAs(String type) {
 		return ImmutableList.of(Lang.translateDirect("schedule." + type + "." + getId().getPath() + ".summary")
-			.withStyle(ChatFormatting.GOLD), Lang.translateDirect("generic.in_quotes", Components.literal(getLabelText())));
+			.formatted(Formatting.GOLD), Lang.translateDirect("generic.in_quotes", Components.literal(getLabelText())));
 	}
 
 	@Override
@@ -32,6 +32,6 @@ public abstract class TextScheduleInstruction extends ScheduleInstruction {
 	}
 
 	@Environment(EnvType.CLIENT)
-	protected void modifyEditBox(EditBox box) {}
+	protected void modifyEditBox(TextFieldWidget box) {}
 
 }

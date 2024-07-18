@@ -17,61 +17,60 @@ import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Lang;
 
 import com.tterrag.registrate.fabric.EnvExecutor;
-
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 public class DisplayLinkBlock extends WrenchableDirectionalBlock implements IBE<DisplayLinkBlockEntity> {
 
-	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+	public static final BooleanProperty POWERED = Properties.POWERED;
 
-	public DisplayLinkBlock(Properties p_i48415_1_) {
+	public DisplayLinkBlock(Settings p_i48415_1_) {
 		super(p_i48415_1_);
-		registerDefaultState(defaultBlockState().setValue(POWERED, false));
+		setDefaultState(getDefaultState().with(POWERED, false));
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState placed = super.getStateForPlacement(context);
-		placed = placed.setValue(FACING, context.getClickedFace());
-		return placed.setValue(POWERED, shouldBePowered(placed, context.getLevel(), context.getClickedPos()));
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState placed = super.getPlacementState(context);
+		placed = placed.with(FACING, context.getSide());
+		return placed.with(POWERED, shouldBePowered(placed, context.getWorld(), context.getBlockPos()));
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		AdvancementBehaviour.setPlacedBy(pLevel, pPos, pPlacer);
 	}
 
-	public static void notifyGatherers(LevelAccessor level, BlockPos pos) {
+	public static void notifyGatherers(WorldAccess level, BlockPos pos) {
 		forEachAttachedGatherer(level, pos, DisplayLinkBlockEntity::updateGatheredData);
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T extends DisplaySource> void sendToGatherers(LevelAccessor level, BlockPos pos,
+	public static <T extends DisplaySource> void sendToGatherers(WorldAccess level, BlockPos pos,
 		BiConsumer<DisplayLinkBlockEntity, T> callback, Class<T> type) {
 		forEachAttachedGatherer(level, pos, dgte -> {
 			if (type.isInstance(dgte.activeSource))
@@ -79,10 +78,10 @@ public class DisplayLinkBlock extends WrenchableDirectionalBlock implements IBE<
 		});
 	}
 
-	private static void forEachAttachedGatherer(LevelAccessor level, BlockPos pos,
+	private static void forEachAttachedGatherer(WorldAccess level, BlockPos pos,
 		Consumer<DisplayLinkBlockEntity> callback) {
 		for (Direction d : Iterate.directions) {
-			BlockPos offsetPos = pos.relative(d);
+			BlockPos offsetPos = pos.offset(d);
 			BlockState blockState = level.getBlockState(offsetPos);
 			if (!AllBlocks.DISPLAY_LINK.has(blockState))
 				continue;
@@ -100,30 +99,30 @@ public class DisplayLinkBlock extends WrenchableDirectionalBlock implements IBE<
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
+	public void neighborUpdate(BlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
 		boolean isMoving) {
-		if (worldIn.isClientSide)
+		if (worldIn.isClient)
 			return;
 
-		if (fromPos.equals(pos.relative(state.getValue(FACING)
+		if (fromPos.equals(pos.offset(state.get(FACING)
 			.getOpposite())))
 			sendToGatherers(worldIn, fromPos, (dlte, p) -> dlte.tickSource(), RedstonePowerDisplaySource.class);
 
 		boolean powered = shouldBePowered(state, worldIn, pos);
-		boolean previouslyPowered = state.getValue(POWERED);
+		boolean previouslyPowered = state.get(POWERED);
 		if (previouslyPowered != powered) {
-			worldIn.setBlock(pos, state.cycle(POWERED), 2);
+			worldIn.setBlockState(pos, state.cycle(POWERED), 2);
 			if (!powered)
 				withBlockEntityDo(worldIn, pos, DisplayLinkBlockEntity::onNoLongerPowered);
 		}
 	}
 
-	private boolean shouldBePowered(BlockState state, Level worldIn, BlockPos pos) {
+	private boolean shouldBePowered(BlockState state, World worldIn, BlockPos pos) {
 		boolean powered = false;
 		for (Direction d : Iterate.directions) {
-			if (d.getOpposite() == state.getValue(FACING))
+			if (d.getOpposite() == state.get(FACING))
 				continue;
-			if (worldIn.getSignal(pos.relative(d), d) == 0)
+			if (worldIn.getEmittedRedstonePower(pos.offset(d), d) == 0)
 				continue;
 			powered = true;
 			break;
@@ -132,41 +131,41 @@ public class DisplayLinkBlock extends WrenchableDirectionalBlock implements IBE<
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(POWERED));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(POWERED));
 	}
 
 	@Override
-	public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand,
+	public ActionResult onUse(BlockState pState, World pLevel, BlockPos pPos, PlayerEntity pPlayer, Hand pHand,
 		BlockHitResult pHit) {
 		if (pPlayer == null || AdventureUtil.isAdventure(pPlayer))
-			return InteractionResult.PASS;
-		if (pPlayer.isShiftKeyDown())
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
+		if (pPlayer.isSneaking())
+			return ActionResult.PASS;
 		EnvExecutor.runWhenOn(EnvType.CLIENT,
 			() -> () -> withBlockEntityDo(pLevel, pPos, be -> this.displayScreen(be, pPlayer)));
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Environment(value = EnvType.CLIENT)
-	protected void displayScreen(DisplayLinkBlockEntity be, Player player) {
-		if (!(player instanceof LocalPlayer))
+	protected void displayScreen(DisplayLinkBlockEntity be, PlayerEntity player) {
+		if (!(player instanceof ClientPlayerEntity))
 			return;
-		if (be.targetOffset.equals(BlockPos.ZERO)) {
-			player.displayClientMessage(Lang.translateDirect("display_link.invalid"), true);
+		if (be.targetOffset.equals(BlockPos.ORIGIN)) {
+			player.sendMessage(Lang.translateDirect("display_link.invalid"), true);
 			return;
 		}
 		ScreenOpener.open(new DisplayLinkScreen(be));
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState pState, BlockGetter pLevel, BlockPos pPos, PathComputationType pType) {
+	public boolean canPathfindThrough(BlockState pState, BlockView pLevel, BlockPos pPos, NavigationType pType) {
 		return false;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		return AllShapes.DATA_GATHERER.get(pState.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
+		return AllShapes.DATA_GATHERER.get(pState.get(FACING));
 	}
 
 	@Override

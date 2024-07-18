@@ -9,8 +9,7 @@ import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.content.kinetics.simpleRelays.encased.EncasedCogInstance;
 import com.simibubi.create.foundation.render.AllMaterialSpecs;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction;
+import net.minecraft.util.math.Direction;
 
 public class MixerInstance extends EncasedCogInstance implements DynamicInstance {
 
@@ -44,7 +43,7 @@ public class MixerInstance extends EncasedCogInstance implements DynamicInstance
 	protected Instancer<RotatingData> getCogModel() {
 		return materialManager.defaultSolid()
 			.material(AllMaterialSpecs.ROTATING)
-			.getModel(AllPartialModels.SHAFTLESS_COGWHEEL, blockEntity.getBlockState());
+			.getModel(AllPartialModels.SHAFTLESS_COGWHEEL, blockEntity.getCachedState());
 	}
 
 	@Override
@@ -77,7 +76,7 @@ public class MixerInstance extends EncasedCogInstance implements DynamicInstance
 	public void updateLight() {
 		super.updateLight();
 
-		relight(pos.below(), mixerHead);
+		relight(pos.down(), mixerHead);
 		relight(pos, mixerPole);
 	}
 

@@ -4,14 +4,12 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.MathHelper;
 import com.google.common.base.Strings;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
 
 public class FlapDisplaySection {
 
@@ -28,7 +26,7 @@ public class FlapDisplaySection {
 	boolean wideFlaps;
 	boolean sendTransition;
 	String cycle;
-	Component component;
+	Text component;
 
 	// Client
 	String[] cyclingOptions;
@@ -56,7 +54,7 @@ public class FlapDisplaySection {
 		return this;
 	}
 
-	public void setText(Component component) {
+	public void setText(Text component) {
 		this.component = component;
 		sendTransition = true;
 	}
@@ -97,7 +95,7 @@ public class FlapDisplaySection {
 
 		int spinningFlaps = 0;
 		for (int i = 0; i < spinning.length; i++) {
-			int increasingChance = Mth.clamp(8 - spinningTicks, 1, 10);
+			int increasingChance = MathHelper.clamp(8 - spinningTicks, 1, 10);
 			boolean continueSpin = !instant && r.nextInt(increasingChance * max / 4) != 0;
 			continueSpin &= max > 5 || spinningTicks < 2;
 			spinning[i] &= continueSpin;
@@ -120,8 +118,8 @@ public class FlapDisplaySection {
 		return size;
 	}
 
-	public CompoundTag write() {
-		CompoundTag tag = new CompoundTag();
+	public NbtCompound write() {
+		NbtCompound tag = new NbtCompound();
 		tag.putFloat("Width", size);
 		tag.putString("Cycle", cycle);
 		if (rightAligned)
@@ -133,14 +131,14 @@ public class FlapDisplaySection {
 		if (wideFlaps)
 			NBTHelper.putMarker(tag, "Wide");
 		if (component != null)
-			tag.putString("Text", Component.Serializer.toJson(component));
+			tag.putString("Text", Text.Serializer.toJson(component));
 		if (sendTransition)
 			NBTHelper.putMarker(tag, "Transition");
 		sendTransition = false;
 		return tag;
 	}
 
-	public static FlapDisplaySection load(CompoundTag tag) {
+	public static FlapDisplaySection load(NbtCompound tag) {
 		float width = tag.getFloat("Width");
 		String cycle = tag.getString("Cycle");
 		boolean singleFlap = tag.contains("SingleFlap");
@@ -154,13 +152,13 @@ public class FlapDisplaySection {
 		if (!tag.contains("Text"))
 			return section;
 
-		section.component = Component.Serializer.fromJson(tag.getString("Text"));
+		section.component = Text.Serializer.fromJson(tag.getString("Text"));
 		section.refresh(tag.getBoolean("Transition"));
 		return section;
 	}
 
-	public void update(CompoundTag tag) {
-		component = Component.Serializer.fromJson(tag.getString("Text"));
+	public void update(NbtCompound tag) {
+		component = Text.Serializer.fromJson(tag.getString("Text"));
 		if (cyclingOptions == null)
 			cyclingOptions = getFlapCycle(cycle);
 		refresh(tag.getBoolean("Transition"));
@@ -170,7 +168,7 @@ public class FlapDisplaySection {
 		return !singleFlap;
 	}
 
-	public Component getText() {
+	public Text getText() {
 		return component;
 	}
 

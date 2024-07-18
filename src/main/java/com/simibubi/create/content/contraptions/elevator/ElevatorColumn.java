@@ -8,7 +8,12 @@ import java.util.Map;
 import java.util.Objects;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.foundation.utility.BlockHelper;
 import com.simibubi.create.foundation.utility.Couple;
@@ -17,36 +22,29 @@ import com.simibubi.create.foundation.utility.LongAttached;
 import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.WorldAttached;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
-
 public class ElevatorColumn {
 
 	public static WorldAttached<Map<ColumnCoords, ElevatorColumn>> LOADED_COLUMNS =
 		new WorldAttached<>($ -> new HashMap<>());
 
-	protected LevelAccessor level;
+	protected WorldAccess level;
 	protected ColumnCoords coords;
 	protected List<Integer> contacts;
 	protected int targetedYLevel;
 	protected boolean isActive;
 
 	@Nullable
-	public static ElevatorColumn get(LevelAccessor level, ColumnCoords coords) {
+	public static ElevatorColumn get(WorldAccess level, ColumnCoords coords) {
 		return LOADED_COLUMNS.get(level)
 			.get(coords);
 	}
 
-	public static ElevatorColumn getOrCreate(LevelAccessor level, ColumnCoords coords) {
+	public static ElevatorColumn getOrCreate(WorldAccess level, ColumnCoords coords) {
 		return LOADED_COLUMNS.get(level)
 			.computeIfAbsent(coords, c -> new ElevatorColumn(level, c));
 	}
 
-	public ElevatorColumn(LevelAccessor level, ColumnCoords coords) {
+	public ElevatorColumn(WorldAccess level, ColumnCoords coords) {
 		this.level = level;
 		this.coords = coords;
 		contacts = new ArrayList<>();
@@ -56,11 +54,11 @@ public class ElevatorColumn {
 		for (BlockPos pos : getContacts()) {
 			BlockEntity blockEntity = level.getBlockEntity(pos);
 			if (blockEntity instanceof ElevatorContactBlockEntity ecbe)
-				ecbe.setChanged();
+				ecbe.markDirty();
 		}
 	}
 
-	public void floorReached(LevelAccessor level, String name) {
+	public void floorReached(WorldAccess level, String name) {
 		getContacts().stream()
 			.forEach(p -> {
 				if (level.getBlockEntity(p) instanceof ElevatorContactBlockEntity ecbe)
@@ -92,9 +90,9 @@ public class ElevatorColumn {
 	}
 
 	public void gatherAll() {
-		BlockPos.betweenClosedStream(contactAt(level.getMinBuildHeight()), contactAt(level.getMaxBuildHeight()))
+		BlockPos.stream(contactAt(level.getBottomY()), contactAt(level.getTopY()))
 			.filter(p -> coords.equals(ElevatorContactBlock.getColumnCoords(level, p)))
-			.forEach(p -> level.setBlock(p,
+			.forEach(p -> level.setBlockState(p,
 				BlockHelper.copyProperties(level.getBlockState(p), AllBlocks.ELEVATOR_CONTACT.getDefaultState()), 3));
 	}
 
@@ -120,7 +118,7 @@ public class ElevatorColumn {
 		return targetedYLevel;
 	}
 
-	public void initNames(Level level) {
+	public void initNames(World level) {
 		Integer prevLevel = null;
 
 		for (int i = 0; i < contacts.size(); i++) {
@@ -207,15 +205,15 @@ public class ElevatorColumn {
 			return new ColumnCoords(x + anchor.getX(), z + anchor.getZ(), side);
 		}
 
-		public CompoundTag write() {
-			CompoundTag tag = new CompoundTag();
+		public NbtCompound write() {
+			NbtCompound tag = new NbtCompound();
 			tag.putInt("X", x);
 			tag.putInt("Z", z);
 			NBTHelper.writeEnum(tag, "Side", side);
 			return tag;
 		}
 
-		public static ColumnCoords read(CompoundTag tag) {
+		public static ColumnCoords read(NbtCompound tag) {
 			int x = tag.getInt("X");
 			int z = tag.getInt("Z");
 			Direction side = NBTHelper.readEnum(tag, "Side", Direction.class);

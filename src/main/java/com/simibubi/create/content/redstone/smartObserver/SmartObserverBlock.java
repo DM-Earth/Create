@@ -14,49 +14,47 @@ import com.simibubi.create.foundation.utility.Iterate;
 
 import io.github.fabricators_of_create.porting_lib.block.ConnectableRedstoneBlock;
 import io.github.fabricators_of_create.porting_lib.transfer.TransferUtil;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.AttachFace;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.enums.WallMountLocation;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 
 public class SmartObserverBlock extends DirectedDirectionalBlock implements IBE<SmartObserverBlockEntity>, ConnectableRedstoneBlock {
 
-	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+	public static final BooleanProperty POWERED = Properties.POWERED;
 
-	public SmartObserverBlock(Properties properties) {
+	public SmartObserverBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(POWERED, false));
+		setDefaultState(getDefaultState().with(POWERED, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(POWERED));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(POWERED));
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState state = defaultBlockState();
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState state = getDefaultState();
 
 		Direction preferredFacing = null;
-		for (Direction face : context.getNearestLookingDirections()) {
-			BlockPos offsetPos = context.getClickedPos()
-				.relative(face);
-			Level world = context.getLevel();
+		for (Direction face : context.getPlacementDirections()) {
+			BlockPos offsetPos = context.getBlockPos()
+				.offset(face);
+			World world = context.getWorld();
 			boolean canDetect = false;
 			BlockEntity blockEntity = world.getBlockEntity(offsetPos);
 
@@ -77,58 +75,58 @@ public class SmartObserverBlock extends DirectedDirectionalBlock implements IBE<
 		}
 
 		if (preferredFacing == null) {
-			Direction facing = context.getNearestLookingDirection();
+			Direction facing = context.getPlayerLookDirection();
 			preferredFacing = context.getPlayer() != null && context.getPlayer()
-				.isShiftKeyDown() ? facing : facing.getOpposite();
+				.isSneaking() ? facing : facing.getOpposite();
 		}
 
 		if (preferredFacing.getAxis() == Axis.Y) {
-			state = state.setValue(TARGET, preferredFacing == Direction.UP ? AttachFace.CEILING : AttachFace.FLOOR);
-			preferredFacing = context.getHorizontalDirection();
+			state = state.with(TARGET, preferredFacing == Direction.UP ? WallMountLocation.CEILING : WallMountLocation.FLOOR);
+			preferredFacing = context.getHorizontalPlayerFacing();
 		}
 
-		return state.setValue(FACING, preferredFacing);
+		return state.with(FACING, preferredFacing);
 	}
 
 	@Override
-	public boolean isSignalSource(BlockState state) {
-		return state.getValue(POWERED);
+	public boolean emitsRedstonePower(BlockState state) {
+		return state.get(POWERED);
 	}
 
 	@Override
-	public int getSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		return isSignalSource(blockState) && (side == null || side != getTargetDirection(blockState)
+	public int getWeakRedstonePower(BlockState blockState, BlockView blockAccess, BlockPos pos, Direction side) {
+		return emitsRedstonePower(blockState) && (side == null || side != getTargetDirection(blockState)
 			.getOpposite()) ? 15 : 0;
 	}
 
 	@Override
-	public void tick(BlockState state, ServerLevel worldIn, BlockPos pos, RandomSource random) {
-		worldIn.setBlock(pos, state.setValue(POWERED, false), 2);
-		worldIn.updateNeighborsAt(pos, this);
+	public void scheduledTick(BlockState state, ServerWorld worldIn, BlockPos pos, Random random) {
+		worldIn.setBlockState(pos, state.with(POWERED, false), 2);
+		worldIn.updateNeighborsAlways(pos, this);
 	}
 
 	@Override
-	public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, Direction side) {
-		return side != state.getValue(FACING)
+	public boolean canConnectRedstone(BlockState state, BlockView world, BlockPos pos, Direction side) {
+		return side != state.get(FACING)
 			.getOpposite();
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		IBE.onRemove(state, worldIn, pos, newState);
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
+	public void neighborUpdate(BlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
 		boolean isMoving) {
 		InvManipulationBehaviour behaviour = BlockEntityBehaviour.get(worldIn, pos, InvManipulationBehaviour.TYPE);
 		if (behaviour != null)
 			behaviour.onNeighborChanged(fromPos);
 	}
 
-	public void onFunnelTransfer(Level world, BlockPos funnelPos, ItemStack transferred) {
+	public void onFunnelTransfer(World world, BlockPos funnelPos, ItemStack transferred) {
 		for (Direction direction : Iterate.directions) {
-			BlockPos detectorPos = funnelPos.relative(direction);
+			BlockPos detectorPos = funnelPos.offset(direction);
 			BlockState detectorState = world.getBlockState(detectorPos);
 			if (!AllBlocks.SMART_OBSERVER.has(detectorState))
 				continue;

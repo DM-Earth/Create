@@ -13,7 +13,7 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
 
 @ParametersAreNonnullByDefault
 public class PressingCategory extends CreateRecipeCategory<PressingRecipe> {
@@ -43,7 +43,7 @@ public class PressingCategory extends CreateRecipeCategory<PressingRecipe> {
 	}
 
 	@Override
-	public void draw(PressingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(PressingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SHADOW.render(graphics, 61, 41);
 		AllGuiTextures.JEI_LONG_ARROW.render(graphics, 52, 54);
 

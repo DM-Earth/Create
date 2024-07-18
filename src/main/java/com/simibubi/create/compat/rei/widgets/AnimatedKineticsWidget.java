@@ -3,12 +3,10 @@ package com.simibubi.create.compat.rei.widgets;
 import java.util.List;
 
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import me.shedaniel.math.Point;
 import me.shedaniel.rei.api.client.gui.widgets.Widget;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.Element;
 
 public class AnimatedKineticsWidget extends Widget {
 
@@ -23,15 +21,15 @@ public class AnimatedKineticsWidget extends Widget {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+	public void render(DrawContext graphics, int mouseX, int mouseY, float partialTick) {
 		draw(graphics, pos.getX(), pos.getY());
 	}
 
 	@Override
-	public List<? extends GuiEventListener> children() {
+	public List<? extends Element> children() {
 		return Lists.newArrayList();
 	}
 
-	public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
+	public void draw(DrawContext graphics, int xOffset, int yOffset) {
 	}
 }

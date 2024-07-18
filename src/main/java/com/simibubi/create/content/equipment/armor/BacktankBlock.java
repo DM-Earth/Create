@@ -9,89 +9,89 @@ import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
 
 import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SimpleWaterloggedBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.Waterloggable;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.Properties;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 
 public class BacktankBlock extends HorizontalKineticBlock
-	implements IBE<BacktankBlockEntity>, SimpleWaterloggedBlock {
+	implements IBE<BacktankBlockEntity>, Waterloggable {
 
-	public BacktankBlock(Properties properties) {
+	public BacktankBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(Properties.WATERLOGGED, false));
 	}
 
 	@Override
 	public FluidState getFluidState(BlockState state) {
-		return state.getValue(BlockStateProperties.WATERLOGGED) ? Fluids.WATER.getSource(false)
-			: Fluids.EMPTY.defaultFluidState();
+		return state.get(Properties.WATERLOGGED) ? Fluids.WATER.getStill(false)
+			: Fluids.EMPTY.getDefaultState();
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		builder.add(BlockStateProperties.WATERLOGGED);
-		super.createBlockStateDefinition(builder);
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		builder.add(Properties.WATERLOGGED);
+		super.appendProperties(builder);
 	}
 	@Override
-	public boolean hasAnalogOutputSignal(BlockState p_149740_1_) {
+	public boolean hasComparatorOutput(BlockState p_149740_1_) {
 		return true;
 	}
 
 	@Override
-	public int getAnalogOutputSignal(BlockState state, Level world, BlockPos pos) {
+	public int getComparatorOutput(BlockState state, World world, BlockPos pos) {
 		return getBlockEntityOptional(world, pos).map(BacktankBlockEntity::getComparatorOutput)
 			.orElse(0);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction direction, BlockState neighbourState,
-		LevelAccessor world, BlockPos pos, BlockPos neighbourPos) {
-		if (state.getValue(BlockStateProperties.WATERLOGGED))
-			world.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(world));
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState neighbourState,
+		WorldAccess world, BlockPos pos, BlockPos neighbourPos) {
+		if (state.get(Properties.WATERLOGGED))
+			world.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		return state;
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		FluidState fluidState = context.getLevel()
-			.getFluidState(context.getClickedPos());
-		return super.getStateForPlacement(context).setValue(BlockStateProperties.WATERLOGGED,
-			fluidState.getType() == Fluids.WATER);
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		FluidState fluidState = context.getWorld()
+			.getFluidState(context.getBlockPos());
+		return super.getPlacementState(context).with(Properties.WATERLOGGED,
+			fluidState.getFluid() == Fluids.WATER);
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
 		return face == Direction.UP;
 	}
 
@@ -101,54 +101,54 @@ public class BacktankBlock extends HorizontalKineticBlock
 	}
 
 	@Override
-	public void setPlacedBy(Level worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
-		super.setPlacedBy(worldIn, pos, state, placer, stack);
-		if (worldIn.isClientSide)
+	public void onPlaced(World worldIn, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+		super.onPlaced(worldIn, pos, state, placer, stack);
+		if (worldIn.isClient)
 			return;
 		if (stack == null)
 			return;
 		withBlockEntityDo(worldIn, pos, be -> {
-			int level = EnchantmentHelper.getItemEnchantmentLevel(AllEnchantments.CAPACITY.get(), stack);
+			int level = EnchantmentHelper.getLevel(AllEnchantments.CAPACITY.get(), stack);
 			be.setCapacityEnchantLevel(level);
-			be.setAirLevel(stack.getOrCreateTag()
+			be.setAirLevel(stack.getOrCreateNbt()
 				.getInt("Air"));
-			if (stack.isEnchanted())
-				be.setEnchantmentTag(stack.getEnchantmentTags());
-			if (stack.hasCustomHoverName())
-				be.setCustomName(stack.getHoverName());
+			if (stack.hasEnchantments())
+				be.setEnchantmentTag(stack.getEnchantments());
+			if (stack.hasCustomName())
+				be.setCustomName(stack.getName());
 			// fabric: forge mangles item placement logic, so this isn't needed there.
 			// here, we need to do this manually so neighboring blocks are updated (comparators, #1396)
 			// this isn't needed for other items with block entity data (ex. chests) since they use the BlockEntityTag
 			// nbt, and that system calls this after updating it.
-			be.setChanged();
+			be.markDirty();
 		});
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult hit) {
 		if (player == null)
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		if (player instanceof FakePlayer)
-			return InteractionResult.PASS;
-		if (player.isShiftKeyDown())
-			return InteractionResult.PASS;
-		if (player.getMainHandItem()
+			return ActionResult.PASS;
+		if (player.isSneaking())
+			return ActionResult.PASS;
+		if (player.getMainHandStack()
 			.getItem() instanceof BlockItem)
-			return InteractionResult.PASS;
-		if (!player.getItemBySlot(EquipmentSlot.CHEST)
+			return ActionResult.PASS;
+		if (!player.getEquippedStack(EquipmentSlot.CHEST)
 			.isEmpty())
-			return InteractionResult.PASS;
-		if (!world.isClientSide) {
-			world.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, .75f, 1);
-			player.setItemSlot(EquipmentSlot.CHEST, getCloneItemStack(world, pos, state));
-			world.destroyBlock(pos, false);
+			return ActionResult.PASS;
+		if (!world.isClient) {
+			world.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, .75f, 1);
+			player.equipStack(EquipmentSlot.CHEST, getPickStack(world, pos, state));
+			world.breakBlock(pos, false);
 		}
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
-	public ItemStack getCloneItemStack(BlockGetter blockGetter, BlockPos pos, BlockState state) {
+	public ItemStack getPickStack(BlockView blockGetter, BlockPos pos, BlockState state) {
 		Item item = asItem();
 		if (item instanceof BacktankItem.BacktankBlockItem placeable) {
 			item = placeable.getActualItem();
@@ -159,27 +159,27 @@ public class BacktankBlock extends HorizontalKineticBlock
 
 		int air = blockEntityOptional.map(BacktankBlockEntity::getAirLevel)
 			.orElse(0);
-		CompoundTag tag = stack.getOrCreateTag();
+		NbtCompound tag = stack.getOrCreateNbt();
 		tag.putInt("Air", air);
 
-		ListTag enchants = blockEntityOptional.map(BacktankBlockEntity::getEnchantmentTag)
-			.orElse(new ListTag());
+		NbtList enchants = blockEntityOptional.map(BacktankBlockEntity::getEnchantmentTag)
+			.orElse(new NbtList());
 		if (!enchants.isEmpty()) {
-			ListTag enchantmentTagList = stack.getEnchantmentTags();
+			NbtList enchantmentTagList = stack.getEnchantments();
 			enchantmentTagList.addAll(enchants);
 			tag.put("Enchantments", enchantmentTagList);
 		}
 
-		Component customName = blockEntityOptional.map(BacktankBlockEntity::getCustomName)
+		Text customName = blockEntityOptional.map(BacktankBlockEntity::getCustomName)
 			.orElse(null);
 		if (customName != null)
-			stack.setHoverName(customName);
+			stack.setCustomName(customName);
 		return stack;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState p_220053_1_, BlockGetter p_220053_2_, BlockPos p_220053_3_,
-		CollisionContext p_220053_4_) {
+	public VoxelShape getOutlineShape(BlockState p_220053_1_, BlockView p_220053_2_, BlockPos p_220053_3_,
+		ShapeContext p_220053_4_) {
 		return AllShapes.BACKTANK;
 	}
 
@@ -194,7 +194,7 @@ public class BacktankBlock extends HorizontalKineticBlock
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

@@ -7,149 +7,148 @@ import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.Iterate;
 import io.github.fabricators_of_create.porting_lib.block.ConnectableRedstoneBlock;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldView;
 
 public class RedstoneLinkBlock extends WrenchableDirectionalBlock implements IBE<RedstoneLinkBlockEntity>, ConnectableRedstoneBlock {
 
-	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
-	public static final BooleanProperty RECEIVER = BooleanProperty.create("receiver");
+	public static final BooleanProperty POWERED = Properties.POWERED;
+	public static final BooleanProperty RECEIVER = BooleanProperty.of("receiver");
 
-	public RedstoneLinkBlock(Properties properties) {
+	public RedstoneLinkBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(POWERED, false)
-			.setValue(RECEIVER, false));
+		setDefaultState(getDefaultState().with(POWERED, false)
+			.with(RECEIVER, false));
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
+	public void neighborUpdate(BlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
 		boolean isMoving) {
-		if (worldIn.isClientSide)
+		if (worldIn.isClient)
 			return;
 
-		Direction blockFacing = state.getValue(FACING);
-		if (fromPos.equals(pos.relative(blockFacing.getOpposite()))) {
-			if (!canSurvive(state, worldIn, pos)) {
-				worldIn.destroyBlock(pos, true);
+		Direction blockFacing = state.get(FACING);
+		if (fromPos.equals(pos.offset(blockFacing.getOpposite()))) {
+			if (!canPlaceAt(state, worldIn, pos)) {
+				worldIn.breakBlock(pos, true);
 				return;
 			}
 		}
 
-		if (!worldIn.getBlockTicks()
-			.willTickThisTick(pos, this))
-			worldIn.scheduleTick(pos, this, 0);
+		if (!worldIn.getBlockTickScheduler()
+			.isTicking(pos, this))
+			worldIn.scheduleBlockTick(pos, this, 0);
 	}
 
 	@Override
-	public void tick(BlockState state, ServerLevel worldIn, BlockPos pos, RandomSource r) {
+	public void scheduledTick(BlockState state, ServerWorld worldIn, BlockPos pos, Random r) {
 		updateTransmittedSignal(state, worldIn, pos);
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
+	public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
 		if (state.getBlock() == oldState.getBlock() || isMoving)
 			return;
 		updateTransmittedSignal(state, worldIn, pos);
 	}
 
-	public void updateTransmittedSignal(BlockState state, Level worldIn, BlockPos pos) {
-		if (worldIn.isClientSide)
+	public void updateTransmittedSignal(BlockState state, World worldIn, BlockPos pos) {
+		if (worldIn.isClient)
 			return;
-		if (state.getValue(RECEIVER))
+		if (state.get(RECEIVER))
 			return;
 
 		int power = getPower(worldIn, pos);
 
-		boolean previouslyPowered = state.getValue(POWERED);
+		boolean previouslyPowered = state.get(POWERED);
 		if (previouslyPowered != power > 0)
-			worldIn.setBlock(pos, state.cycle(POWERED), 2);
+			worldIn.setBlockState(pos, state.cycle(POWERED), 2);
 
 		int transmit = power;
 		withBlockEntityDo(worldIn, pos, be -> be.transmit(transmit));
 	}
 
-	private int getPower(Level worldIn, BlockPos pos) {
+	private int getPower(World worldIn, BlockPos pos) {
 		int power = 0;
 		for (Direction direction : Iterate.directions)
-			power = Math.max(worldIn.getSignal(pos.relative(direction), direction), power);
+			power = Math.max(worldIn.getEmittedRedstonePower(pos.offset(direction), direction), power);
 		for (Direction direction : Iterate.directions)
-			power = Math.max(worldIn.getSignal(pos.relative(direction), Direction.UP), power);
+			power = Math.max(worldIn.getEmittedRedstonePower(pos.offset(direction), Direction.UP), power);
 		return power;
 	}
 
 	@Override
-	public boolean isSignalSource(BlockState state) {
-		return state.getValue(POWERED) && state.getValue(RECEIVER);
+	public boolean emitsRedstonePower(BlockState state) {
+		return state.get(POWERED) && state.get(RECEIVER);
 	}
 
 	@Override
-	public int getDirectSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		if (side != blockState.getValue(FACING))
+	public int getStrongRedstonePower(BlockState blockState, BlockView blockAccess, BlockPos pos, Direction side) {
+		if (side != blockState.get(FACING))
 			return 0;
-		return getSignal(blockState, blockAccess, pos, side);
+		return getWeakRedstonePower(blockState, blockAccess, pos, side);
 	}
 
 	@Override
-	public int getSignal(BlockState state, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		if (!state.getValue(RECEIVER))
+	public int getWeakRedstonePower(BlockState state, BlockView blockAccess, BlockPos pos, Direction side) {
+		if (!state.get(RECEIVER))
 			return 0;
 		return getBlockEntityOptional(blockAccess, pos).map(RedstoneLinkBlockEntity::getReceivedSignal)
 				.orElse(0);
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+	protected void appendProperties(Builder<Block, BlockState> builder) {
 		builder.add(POWERED, RECEIVER);
-		super.createBlockStateDefinition(builder);
+		super.appendProperties(builder);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
-		if (player.isShiftKeyDown() && !AdventureUtil.isAdventure(player))
+		if (player.isSneaking() && !AdventureUtil.isAdventure(player))
 			return toggleMode(state, worldIn, pos);
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
-	public InteractionResult toggleMode(BlockState state, Level worldIn, BlockPos pos) {
-		if (worldIn.isClientSide)
-			return InteractionResult.SUCCESS;
+	public ActionResult toggleMode(BlockState state, World worldIn, BlockPos pos) {
+		if (worldIn.isClient)
+			return ActionResult.SUCCESS;
 
 		return onBlockEntityUse(worldIn, pos, be -> {
-			Boolean wasReceiver = state.getValue(RECEIVER);
-			boolean blockPowered = worldIn.hasNeighborSignal(pos);
-			worldIn.setBlock(pos, state.cycle(RECEIVER)
-					.setValue(POWERED, blockPowered), 3);
+			Boolean wasReceiver = state.get(RECEIVER);
+			boolean blockPowered = worldIn.isReceivingRedstonePower(pos);
+			worldIn.setBlockState(pos, state.cycle(RECEIVER)
+					.with(POWERED, blockPowered), 3);
 			be.transmit(wasReceiver ? 0 : getPower(worldIn, pos));
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		});
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		if (toggleMode(state, context.getLevel(), context.getClickedPos()) == InteractionResult.SUCCESS)
-			return InteractionResult.SUCCESS;
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		if (toggleMode(state, context.getWorld(), context.getBlockPos()) == ActionResult.SUCCESS)
+			return ActionResult.SUCCESS;
 		return super.onWrenched(state, context);
 	}
 
@@ -159,32 +158,32 @@ public class RedstoneLinkBlock extends WrenchableDirectionalBlock implements IBE
 	}
 
 	@Override
-	public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, Direction side) {
+	public boolean canConnectRedstone(BlockState state, BlockView world, BlockPos pos, Direction side) {
 		return side != null;
 	}
 
 	@Override
-	public boolean canSurvive(BlockState state, LevelReader worldIn, BlockPos pos) {
-		BlockPos neighbourPos = pos.relative(state.getValue(FACING)
+	public boolean canPlaceAt(BlockState state, WorldView worldIn, BlockPos pos) {
+		BlockPos neighbourPos = pos.offset(state.get(FACING)
 			.getOpposite());
 		BlockState neighbour = worldIn.getBlockState(neighbourPos);
-		return !neighbour.canBeReplaced();
+		return !neighbour.isReplaceable();
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState state = defaultBlockState();
-		state = state.setValue(FACING, context.getClickedFace());
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState state = getDefaultState();
+		state = state.with(FACING, context.getSide());
 		return state;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		return AllShapes.REDSTONE_BRIDGE.get(state.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		return AllShapes.REDSTONE_BRIDGE.get(state.get(FACING));
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

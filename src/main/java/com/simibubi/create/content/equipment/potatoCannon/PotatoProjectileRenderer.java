@@ -1,43 +1,42 @@
 package com.simibubi.create.content.equipment.potatoCannon;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Identifier;
 
 public class PotatoProjectileRenderer extends EntityRenderer<PotatoProjectileEntity> {
 
-	public PotatoProjectileRenderer(EntityRendererProvider.Context context) {
+	public PotatoProjectileRenderer(EntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	public void render(PotatoProjectileEntity entity, float yaw, float pt, PoseStack ms, MultiBufferSource buffer,
+	public void render(PotatoProjectileEntity entity, float yaw, float pt, MatrixStack ms, VertexConsumerProvider buffer,
 		int light) {
 		ItemStack item = entity.getItem();
 		if (item.isEmpty())
 			return;
-		ms.pushPose();
+		ms.push();
 		ms.translate(0, entity.getBoundingBox()
-			.getYsize() / 2 - 1 / 8f, 0);
+			.getYLength() / 2 - 1 / 8f, 0);
 		entity.getRenderMode()
 			.transform(ms, entity, pt);
 
-		Minecraft.getInstance()
+		MinecraftClient.getInstance()
 			.getItemRenderer()
-			.renderStatic(item, ItemDisplayContext.GROUND, light, OverlayTexture.NO_OVERLAY, ms, buffer, entity.level(),
+			.renderItem(item, ModelTransformationMode.GROUND, light, OverlayTexture.DEFAULT_UV, ms, buffer, entity.getWorld(),
 				0);
-		ms.popPose();
+		ms.pop();
 	}
 
 	@Override
-	public ResourceLocation getTextureLocation(PotatoProjectileEntity entity) {
+	public Identifier getTexture(PotatoProjectileEntity entity) {
 		return null;
 	}
 

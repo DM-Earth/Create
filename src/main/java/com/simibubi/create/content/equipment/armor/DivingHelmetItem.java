@@ -2,33 +2,32 @@ package com.simibubi.create.content.equipment.armor;
 
 import java.util.List;
 import java.util.Map;
-
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantments;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ArmorItem;
+import net.minecraft.item.ArmorMaterial;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 import com.simibubi.create.AllTags.AllFluidTags;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 
 import io.github.fabricators_of_create.porting_lib.enchant.CustomEnchantingBehaviorItem;
 import io.github.fabricators_of_create.porting_lib.item.CustomEnchantmentLevelItem;
 import io.github.fabricators_of_create.porting_lib.item.CustomEnchantmentsItem;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.ArmorMaterial;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.level.Level;
 
 public class DivingHelmetItem extends BaseArmorItem implements CustomEnchantingBehaviorItem, CustomEnchantmentLevelItem, CustomEnchantmentsItem {
 	public static final EquipmentSlot SLOT = EquipmentSlot.HEAD;
 	public static final ArmorItem.Type TYPE = ArmorItem.Type.HELMET;
 
-	public DivingHelmetItem(ArmorMaterial material, Properties properties, ResourceLocation textureLoc) {
+	public DivingHelmetItem(ArmorMaterial material, Settings properties, Identifier textureLoc) {
 		super(material, TYPE, properties, textureLoc);
 	}
 
@@ -61,7 +60,7 @@ public class DivingHelmetItem extends BaseArmorItem implements CustomEnchantingB
 		if (!(entity instanceof LivingEntity livingEntity)) {
 			return ItemStack.EMPTY;
 		}
-		ItemStack stack = livingEntity.getItemBySlot(SLOT);
+		ItemStack stack = livingEntity.getEquippedStack(SLOT);
 		if (!(stack.getItem() instanceof DivingHelmetItem)) {
 			return ItemStack.EMPTY;
 		}
@@ -70,11 +69,11 @@ public class DivingHelmetItem extends BaseArmorItem implements CustomEnchantingB
 
 	public static void breatheUnderwater(LivingEntity entity) {
 //		LivingEntity entity = event.getEntityLiving();
-		Level world = entity.level();
-		boolean second = world.getGameTime() % 20 == 0;
-		boolean drowning = entity.getAirSupply() == 0;
+		World world = entity.getWorld();
+		boolean second = world.getTime() % 20 == 0;
+		boolean drowning = entity.getAir() == 0;
 
-		if (world.isClientSide)
+		if (world.isClient)
 			entity.getCustomData()
 				.remove("VisualBacktankAir");
 
@@ -84,11 +83,11 @@ public class DivingHelmetItem extends BaseArmorItem implements CustomEnchantingB
 
 		boolean lavaDiving = entity.isInLava();
 		if (!helmet.getItem()
-			.isFireResistant() && lavaDiving)
+			.isFireproof() && lavaDiving)
 			return;
-		if (!entity.isEyeInFluid(AllFluidTags.DIVING_FLUIDS.tag) && !lavaDiving)
+		if (!entity.isSubmergedIn(AllFluidTags.DIVING_FLUIDS.tag) && !lavaDiving)
 			return;
-		if (entity instanceof Player && ((Player) entity).isCreative())
+		if (entity instanceof PlayerEntity && ((PlayerEntity) entity).isCreative())
 			return;
 
 		List<ItemStack> backtanks = BacktankUtil.getAllWithAir(entity);
@@ -96,18 +95,18 @@ public class DivingHelmetItem extends BaseArmorItem implements CustomEnchantingB
 			return;
 
 		if (lavaDiving) {
-			if (entity instanceof ServerPlayer sp)
+			if (entity instanceof ServerPlayerEntity sp)
 				AllAdvancements.DIVING_SUIT_LAVA.awardTo(sp);
 			if (backtanks.stream()
 				.noneMatch(backtank -> backtank.getItem()
-					.isFireResistant()))
+					.isFireproof()))
 				return;
 		}
 
 		if (drowning)
-			entity.setAirSupply(10);
+			entity.setAir(10);
 
-		if (world.isClientSide)
+		if (world.isClient)
 			entity.getCustomData()
 				.putInt("VisualBacktankAir", Math.round(backtanks.stream()
 					.map(BacktankUtil::getAir)
@@ -121,10 +120,10 @@ public class DivingHelmetItem extends BaseArmorItem implements CustomEnchantingB
 		if (lavaDiving)
 			return;
 
-		if (entity instanceof ServerPlayer sp)
+		if (entity instanceof ServerPlayerEntity sp)
 			AllAdvancements.DIVING_SUIT.awardTo(sp);
 
-		entity.setAirSupply(Math.min(entity.getMaxAirSupply(), entity.getAirSupply() + 10));
-		entity.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 30, 0, true, false, true));
+		entity.setAir(Math.min(entity.getMaxAir(), entity.getAir() + 10));
+		entity.addStatusEffect(new StatusEffectInstance(StatusEffects.WATER_BREATHING, 30, 0, true, false, true));
 	}
 }

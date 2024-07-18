@@ -5,14 +5,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.signal.TrackEdgePoint;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 
 public class EdgePointStorage {
 
@@ -64,13 +62,13 @@ public class EdgePointStorage {
 		pointsByType.clear();
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag nbt = new CompoundTag();
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound nbt = new NbtCompound();
 		for (Entry<EdgePointType<?>, Map<UUID, TrackEdgePoint>> entry : pointsByType.entrySet()) {
 			EdgePointType<?> type = entry.getKey();
-			ListTag list = NBTHelper.writeCompoundList(entry.getValue()
+			NbtList list = NBTHelper.writeCompoundList(entry.getValue()
 				.values(), edgePoint -> {
-					CompoundTag tag = new CompoundTag();
+					NbtCompound tag = new NbtCompound();
 					edgePoint.write(tag, dimensions);
 					return tag;
 				});
@@ -80,10 +78,10 @@ public class EdgePointStorage {
 		return nbt;
 	}
 
-	public void read(CompoundTag nbt, DimensionPalette dimensions) {
+	public void read(NbtCompound nbt, DimensionPalette dimensions) {
 		for (EdgePointType<?> type : EdgePointType.TYPES.values()) {
-			ListTag list = nbt.getList(type.getId()
-				.toString(), Tag.TAG_COMPOUND);
+			NbtList list = nbt.getList(type.getId()
+				.toString(), NbtElement.COMPOUND_TYPE);
 			Map<UUID, TrackEdgePoint> map = getMap(type);
 			NBTHelper.iterateCompoundList(list, tag -> {
 				TrackEdgePoint edgePoint = type.create();

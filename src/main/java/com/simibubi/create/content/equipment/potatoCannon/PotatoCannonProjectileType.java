@@ -7,22 +7,19 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.InvalidIdentifierException;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.world.WorldAccess;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
-
-import net.minecraft.ResourceLocationException;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
 
 public class PotatoCannonProjectileType {
 
@@ -41,7 +38,7 @@ public class PotatoCannonProjectileType {
 
 	private Predicate<EntityHitResult> preEntityHit = e -> false; // True if hit should be canceled
 	private Predicate<EntityHitResult> onEntityHit = e -> false; // True if shouldn't recover projectile
-	private BiPredicate<LevelAccessor, BlockHitResult> onBlockHit = (w, ray) -> false;
+	private BiPredicate<WorldAccess, BlockHitResult> onBlockHit = (w, ray) -> false;
 
 	protected PotatoCannonProjectileType() {
 	}
@@ -98,7 +95,7 @@ public class PotatoCannonProjectileType {
 		return onEntityHit.test(ray);
 	}
 
-	public boolean onBlockHit(LevelAccessor world, BlockHitResult ray) {
+	public boolean onBlockHit(WorldAccess world, BlockHitResult ray) {
 		return onBlockHit.test(world, ray);
 	}
 
@@ -112,9 +109,9 @@ public class PotatoCannonProjectileType {
 						JsonPrimitive primitive = element.getAsJsonPrimitive();
 						if (primitive.isString()) {
 							try {
-								BuiltInRegistries.ITEM.getOptional(new ResourceLocation(primitive.getAsString()))
+								Registries.ITEM.getOrEmpty(new Identifier(primitive.getAsString()))
 										.ifPresent(item -> type.items.add(() -> item));
-							} catch (ResourceLocationException e) {
+							} catch (InvalidIdentifierException e) {
 								//
 							}
 						}
@@ -147,10 +144,10 @@ public class PotatoCannonProjectileType {
 		}
 	}
 
-	public static void toBuffer(PotatoCannonProjectileType type, FriendlyByteBuf buffer) {
+	public static void toBuffer(PotatoCannonProjectileType type, PacketByteBuf buffer) {
 		buffer.writeVarInt(type.items.size());
 		for (Supplier<Item> delegate : type.items) {
-			buffer.writeResourceLocation(RegisteredObjects.getKeyOrThrow(delegate.get()));
+			buffer.writeIdentifier(RegisteredObjects.getKeyOrThrow(delegate.get()));
 		}
 		buffer.writeInt(type.reloadTicks);
 		buffer.writeInt(type.damage);
@@ -163,11 +160,11 @@ public class PotatoCannonProjectileType {
 		buffer.writeBoolean(type.sticky);
 	}
 
-	public static PotatoCannonProjectileType fromBuffer(FriendlyByteBuf buffer) {
+	public static PotatoCannonProjectileType fromBuffer(PacketByteBuf buffer) {
 		PotatoCannonProjectileType type = new PotatoCannonProjectileType();
 		int size = buffer.readVarInt();
 		for (int i = 0; i < size; i++) {
-			Item item = BuiltInRegistries.ITEM.get(buffer.readResourceLocation());
+			Item item = Registries.ITEM.get(buffer.readIdentifier());
 			if (item != null) {
 				type.items.add(() -> item);
 			}
@@ -186,10 +183,10 @@ public class PotatoCannonProjectileType {
 
 	public static class Builder {
 
-		protected ResourceLocation id;
+		protected Identifier id;
 		protected PotatoCannonProjectileType result;
 
-		public Builder(ResourceLocation id) {
+		public Builder(Identifier id) {
 			this.id = id;
 			this.result = new PotatoCannonProjectileType();
 		}
@@ -269,13 +266,13 @@ public class PotatoCannonProjectileType {
 			return this;
 		}
 
-		public Builder onBlockHit(BiPredicate<LevelAccessor, BlockHitResult> callback) {
+		public Builder onBlockHit(BiPredicate<WorldAccess, BlockHitResult> callback) {
 			result.onBlockHit = callback;
 			return this;
 		}
 
-		public Builder addItems(ItemLike... items) {
-			for (ItemLike provider : items)
+		public Builder addItems(ItemConvertible... items) {
+			for (ItemConvertible provider : items)
 				result.items.add(provider::asItem);
 			return this;
 		}
@@ -285,7 +282,7 @@ public class PotatoCannonProjectileType {
 			return result;
 		}
 
-		public PotatoCannonProjectileType registerAndAssign(ItemLike... items) {
+		public PotatoCannonProjectileType registerAndAssign(ItemConvertible... items) {
 			addItems(items);
 			register();
 			return result;

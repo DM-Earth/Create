@@ -2,19 +2,18 @@ package com.simibubi.create.content.equipment.bell;
 
 import com.jozufozu.flywheel.core.PartialModel;
 import com.simibubi.create.AllPartialModels;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
 
 public class HauntedBellBlockEntity extends AbstractBellBlockEntity {
 
@@ -35,7 +34,7 @@ public class HauntedBellBlockEntity extends AbstractBellBlockEntity {
 	}
 
 	@Override
-	public boolean ring(Level world, BlockPos pos, Direction direction) {
+	public boolean ring(World world, BlockPos pos, Direction direction) {
 		if (isRinging && ringingTicks < RECHARGE_TICKS)
 			return false;
 		HauntedBellPulser.sendPulse(world, pos, DISTANCE, false);
@@ -44,13 +43,13 @@ public class HauntedBellBlockEntity extends AbstractBellBlockEntity {
 	}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		compound.putInt("EffectTicks", effectTicks);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		effectTicks = compound.getInt("EffectTicks");
 	}
@@ -63,10 +62,10 @@ public class HauntedBellBlockEntity extends AbstractBellBlockEntity {
 			return;
 		effectTicks--;
 
-		if (!level.isClientSide)
+		if (!world.isClient)
 			return;
 
-		RandomSource rand = level.getRandom();
+		Random rand = world.getRandom();
 		if (rand.nextFloat() > 0.25f)
 			return;
 
@@ -74,20 +73,20 @@ public class HauntedBellBlockEntity extends AbstractBellBlockEntity {
 		playSound(rand);
 	}
 
-	protected void spawnParticle(RandomSource rand) {
-		double x = worldPosition.getX() + rand.nextDouble();
-		double y = worldPosition.getY() + 0.5;
-		double z = worldPosition.getZ() + rand.nextDouble();
+	protected void spawnParticle(Random rand) {
+		double x = pos.getX() + rand.nextDouble();
+		double y = pos.getY() + 0.5;
+		double z = pos.getZ() + rand.nextDouble();
 		double vx = rand.nextDouble() * 0.04 - 0.02;
 		double vy = 0.1;
 		double vz = rand.nextDouble() * 0.04 - 0.02;
-		level.addParticle(ParticleTypes.SOUL, x, y, z, vx, vy, vz);
+		world.addParticle(ParticleTypes.SOUL, x, y, z, vx, vy, vz);
 	}
 
-	protected void playSound(RandomSource rand) {
+	protected void playSound(Random rand) {
 		float vol = rand.nextFloat() * 0.4F + rand.nextFloat() > 0.9F ? 0.6F : 0.0F;
 		float pitch = 0.6F + rand.nextFloat() * 0.4F;
-		level.playSound(null, worldPosition, SoundEvents.SOUL_ESCAPE, SoundSource.BLOCKS, vol, pitch);
+		world.playSound(null, pos, SoundEvents.PARTICLE_SOUL_ESCAPE, SoundCategory.BLOCKS, vol, pitch);
 	}
 
 }

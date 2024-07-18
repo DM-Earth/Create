@@ -2,16 +2,14 @@ package com.simibubi.create.content.processing.basin;
 
 import java.util.HashMap;
 import java.util.Map;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.content.contraptions.behaviour.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.phys.Vec3;
 
 public class BasinMovementBehaviour implements MovementBehaviour {
 	public Map<String, ItemStackHandler> getOrReadInventory(MovementContext context) {
@@ -31,14 +29,14 @@ public class BasinMovementBehaviour implements MovementBehaviour {
 	public void tick(MovementContext context) {
 		MovementBehaviour.super.tick(context);
 		if (context.temporaryData == null || (boolean) context.temporaryData) {
-			Vec3 facingVec = context.rotation.apply(Vec3.atLowerCornerOf(Direction.UP.getNormal()));
+			Vec3d facingVec = context.rotation.apply(Vec3d.of(Direction.UP.getVector()));
 			facingVec.normalize();
-			if (Direction.getNearest(facingVec.x, facingVec.y, facingVec.z) == Direction.DOWN)
+			if (Direction.getFacing(facingVec.x, facingVec.y, facingVec.z) == Direction.DOWN)
 				dump(context, facingVec);
 		}
 	}
 
-	private void dump(MovementContext context, Vec3 facingVec) {
+	private void dump(MovementContext context, Vec3d facingVec) {
 		getOrReadInventory(context).forEach((key, itemStackHandler) -> {
 			for (int i = 0; i < itemStackHandler.getSlotCount(); i++) {
 				if (itemStackHandler.getStackInSlot(i)
@@ -46,8 +44,8 @@ public class BasinMovementBehaviour implements MovementBehaviour {
 					continue;
 				ItemEntity itemEntity = new ItemEntity(context.world, context.position.x, context.position.y,
 					context.position.z, itemStackHandler.getStackInSlot(i));
-				itemEntity.setDeltaMovement(facingVec.scale(.05));
-				context.world.addFreshEntity(itemEntity);
+				itemEntity.setVelocity(facingVec.multiply(.05));
+				context.world.spawnEntity(itemEntity);
 				itemStackHandler.setStackInSlot(i, ItemStack.EMPTY);
 			}
 			context.blockEntityData.put(key, itemStackHandler.serializeNBT());

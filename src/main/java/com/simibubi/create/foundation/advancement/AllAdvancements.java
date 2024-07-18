@@ -25,16 +25,15 @@ import com.simibubi.create.AllItems;
 import com.simibubi.create.foundation.advancement.CreateAdvancement.Builder;
 
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
-
-import net.minecraft.advancements.Advancement;
-import net.minecraft.data.CachedOutput;
+import net.minecraft.advancement.Advancement;
+import net.minecraft.block.Blocks;
+import net.minecraft.data.DataOutput;
+import net.minecraft.data.DataOutput.PathResolver;
 import net.minecraft.data.DataProvider;
-import net.minecraft.data.PackOutput;
-import net.minecraft.data.PackOutput.PathProvider;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.data.DataWriter;
+import net.minecraft.item.Items;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Identifier;
 
 public class AllAdvancements implements DataProvider {
 
@@ -300,7 +299,7 @@ public class AllAdvancements implements DataProvider {
 			.after(WATER_SUPPLY)),
 
 		CHOCOLATE_BUCKET = create("chocolate_bucket", b -> b.icon(AllFluids.CHOCOLATE.get()
-			.getBucket())
+			.getBucketItem())
 			.title("A World of Imagination")
 			.description("Obtain a bucket of molten chocolate")
 			.whenIconCollected()
@@ -614,25 +613,25 @@ public class AllAdvancements implements DataProvider {
 
 	// Datagen
 
-	private final PackOutput output;
+	private final DataOutput output;
 
 	public AllAdvancements(FabricDataOutput output) {
 		this.output = output;
 	}
 
 	@Override
-	public CompletableFuture<?> run(CachedOutput cache) {
-		PathProvider pathProvider = output.createPathProvider(PackOutput.Target.DATA_PACK, "advancements");
+	public CompletableFuture<?> run(DataWriter cache) {
+		PathResolver pathProvider = output.getResolver(DataOutput.OutputType.DATA_PACK, "advancements");
 		List<CompletableFuture<?>> futures = new ArrayList<>();
 
-		Set<ResourceLocation> set = Sets.newHashSet();
+		Set<Identifier> set = Sets.newHashSet();
 		Consumer<Advancement> consumer = (advancement) -> {
-			ResourceLocation id = advancement.getId();
+			Identifier id = advancement.getId();
 			if (!set.add(id))
 				throw new IllegalStateException("Duplicate advancement " + id);
-			Path path = pathProvider.json(id);
-			futures.add(DataProvider.saveStable(cache, advancement.deconstruct()
-				.serializeToJson(), path));
+			Path path = pathProvider.resolveJson(id);
+			futures.add(DataProvider.writeToPath(cache, advancement.createTask()
+				.toJson(), path));
 		};
 
 		for (CreateAdvancement advancement : ENTRIES)

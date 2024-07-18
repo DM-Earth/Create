@@ -10,19 +10,18 @@ import com.simibubi.create.Create;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 
 public class DestinationInstruction extends TextScheduleInstruction {
 
 	@Override
-	public Pair<ItemStack, Component> getSummary() {
+	public Pair<ItemStack, Text> getSummary() {
 		return Pair.of(AllBlocks.TRACK_STATION.asStack(), Components.literal(getLabelText()));
 	}
 
@@ -32,7 +31,7 @@ public class DestinationInstruction extends TextScheduleInstruction {
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return Create.asResource("destination");
 	}
 
@@ -53,20 +52,20 @@ public class DestinationInstruction extends TextScheduleInstruction {
 	}
 
 	@Override
-	public List<Component> getSecondLineTooltip(int slot) {
+	public List<Text> getSecondLineTooltip(int slot) {
 		return ImmutableList.of(Lang.translateDirect("schedule.instruction.filter_edit_box"),
 			Lang.translateDirect("schedule.instruction.filter_edit_box_1")
-				.withStyle(ChatFormatting.GRAY),
+				.formatted(Formatting.GRAY),
 			Lang.translateDirect("schedule.instruction.filter_edit_box_2")
-				.withStyle(ChatFormatting.DARK_GRAY),
+				.formatted(Formatting.DARK_GRAY),
 			Lang.translateDirect("schedule.instruction.filter_edit_box_3")
-				.withStyle(ChatFormatting.DARK_GRAY));
+				.formatted(Formatting.DARK_GRAY));
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	protected void modifyEditBox(EditBox box) {
-		box.setFilter(s -> StringUtils.countMatches(s, '*') <= 3);
+	protected void modifyEditBox(TextFieldWidget box) {
+		box.setTextPredicate(s -> StringUtils.countMatches(s, '*') <= 3);
 	}
 
 }

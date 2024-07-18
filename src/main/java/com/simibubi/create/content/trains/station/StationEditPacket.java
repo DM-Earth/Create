@@ -2,13 +2,12 @@ package com.simibubi.create.content.trains.station;
 
 import com.simibubi.create.content.decoration.slidingDoor.DoorControl;
 import com.simibubi.create.foundation.networking.BlockEntityConfigurationPacket;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 
 public class StationEditPacket extends BlockEntityConfigurationPacket<StationBlockEntity> {
 
@@ -45,7 +44,7 @@ public class StationEditPacket extends BlockEntityConfigurationPacket<StationBlo
 		return packet;
 	}
 
-	public StationEditPacket(FriendlyByteBuf buffer) {
+	public StationEditPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
@@ -54,7 +53,7 @@ public class StationEditPacket extends BlockEntityConfigurationPacket<StationBlo
 	}
 
 	@Override
-	protected void writeSettings(FriendlyByteBuf buffer) {
+	protected void writeSettings(PacketByteBuf buffer) {
 		buffer.writeBoolean(dropSchedule);
 		if (dropSchedule)
 			return;
@@ -67,30 +66,30 @@ public class StationEditPacket extends BlockEntityConfigurationPacket<StationBlo
 			return;
 		}
 		buffer.writeBoolean(assemblyMode);
-		buffer.writeUtf(name);
+		buffer.writeString(name);
 	}
 
 	@Override
-	protected void readSettings(FriendlyByteBuf buffer) {
+	protected void readSettings(PacketByteBuf buffer) {
 		if (buffer.readBoolean()) {
 			dropSchedule = true;
 			return;
 		}
 		if (buffer.readBoolean())
-			doorControl = DoorControl.values()[Mth.clamp(buffer.readVarInt(), 0, DoorControl.values().length)];
+			doorControl = DoorControl.values()[MathHelper.clamp(buffer.readVarInt(), 0, DoorControl.values().length)];
 		name = "";
 		if (buffer.readBoolean()) {
 			tryAssemble = buffer.readBoolean();
 			return;
 		}
 		assemblyMode = buffer.readBoolean();
-		name = buffer.readUtf(256);
+		name = buffer.readString(256);
 	}
 
 	@Override
-	protected void applySettings(ServerPlayer player, StationBlockEntity be) {
-		Level level = be.getLevel();
-		BlockPos blockPos = be.getBlockPos();
+	protected void applySettings(ServerPlayerEntity player, StationBlockEntity be) {
+		World level = be.getWorld();
+		BlockPos blockPos = be.getPos();
 		BlockState blockState = level.getBlockState(blockPos);
 
 		if (dropSchedule) {
@@ -107,14 +106,14 @@ public class StationEditPacket extends BlockEntityConfigurationPacket<StationBlo
 		if (!(blockState.getBlock() instanceof StationBlock))
 			return;
 
-		Boolean isAssemblyMode = blockState.getValue(StationBlock.ASSEMBLING);
+		Boolean isAssemblyMode = blockState.get(StationBlock.ASSEMBLING);
 		boolean assemblyComplete = false;
 
 		if (tryAssemble != null) {
 			if (!isAssemblyMode)
 				return;
 			if (tryAssemble) {
-				be.assemble(player.getUUID());
+				be.assemble(player.getUuid());
 				assemblyComplete = be.getStation() != null && be.getStation()
 					.getPresentTrain() != null;
 			} else {

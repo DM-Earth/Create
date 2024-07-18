@@ -3,14 +3,13 @@ package com.simibubi.create.foundation.utility;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import com.simibubi.create.Create;
 
 import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class Lang {
 
@@ -21,7 +20,7 @@ public class Lang {
 	 * @param args
 	 * @return
 	 */
-	public static MutableComponent translateDirect(String key, Object... args) {
+	public static MutableText translateDirect(String key, Object... args) {
 		return Components.translatable(Create.ID + "." + key, resolveBuilders(args));
 	}
 
@@ -34,8 +33,8 @@ public class Lang {
 		return asId.endsWith("s") ? asId.substring(0, asId.length() - 1) : asId;
 	}
 
-	public static List<Component> translatedOptions(String prefix, String... keys) {
-		List<Component> result = new ArrayList<>(keys.length);
+	public static List<Text> translatedOptions(String prefix, String... keys) {
+		List<Text> result = new ArrayList<>(keys.length);
 		for (String key : keys)
 			result.add(translate((prefix != null ? prefix + "." : "") + key).component());
 		return result;
@@ -59,7 +58,7 @@ public class Lang {
 	}
 
 	public static LangBuilder itemName(ItemStack stack) {
-		return builder().add(stack.getHoverName()
+		return builder().add(stack.getName()
 			.copy());
 	}
 

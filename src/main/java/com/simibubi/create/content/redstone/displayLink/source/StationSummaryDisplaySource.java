@@ -18,38 +18,37 @@ import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Mth;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.MathHelper;
 
 public class StationSummaryDisplaySource extends DisplaySource {
 
-	protected static final MutableComponent UNPREDICTABLE = Components.literal(" ~ ");
+	protected static final MutableText UNPREDICTABLE = Components.literal(" ~ ");
 
-	protected static final List<MutableComponent> EMPTY_ENTRY_4 =
+	protected static final List<MutableText> EMPTY_ENTRY_4 =
 		ImmutableList.of(WHITESPACE, Components.literal(" . "), WHITESPACE, WHITESPACE);
-	protected static final List<MutableComponent> EMPTY_ENTRY_5 =
+	protected static final List<MutableText> EMPTY_ENTRY_5 =
 		ImmutableList.of(WHITESPACE, Components.literal(" . "), WHITESPACE, WHITESPACE, WHITESPACE);
 
 	@Override
-	public List<MutableComponent> provideText(DisplayLinkContext context, DisplayTargetStats stats) {
+	public List<MutableText> provideText(DisplayLinkContext context, DisplayTargetStats stats) {
 		return EMPTY;
 	}
 
 	@Override
-	public List<List<MutableComponent>> provideFlapDisplayText(DisplayLinkContext context, DisplayTargetStats stats) {
+	public List<List<MutableText>> provideFlapDisplayText(DisplayLinkContext context, DisplayTargetStats stats) {
 		String filter = context.sourceConfig()
 			.getString("Filter");
 		boolean hasPlatform = filter.contains("*");
 
-		List<List<MutableComponent>> list = new ArrayList<>();
+		List<List<MutableText>> list = new ArrayList<>();
 		GlobalTrainDisplayData.prepare(filter, stats.maxRows())
 			.forEach(prediction -> {
-				List<MutableComponent> lines = new ArrayList<>();
+				List<MutableText> lines = new ArrayList<>();
 
 				if (prediction.ticks == -1 || prediction.ticks >= 12000 - 15 * 20) {
 					lines.add(WHITESPACE);
@@ -62,7 +61,7 @@ public class StationSummaryDisplaySource extends DisplaySource {
 				} else {
 					int min = prediction.ticks / 1200;
 					int sec = (prediction.ticks / 20) % 60;
-					sec = Mth.ceil(sec / 15f) * 15;
+					sec = MathHelper.ceil(sec / 15f) * 15;
 					if (sec == 60) {
 						min++;
 						sec = 0;
@@ -104,7 +103,7 @@ public class StationSummaryDisplaySource extends DisplaySource {
 	@Override
 	public void loadFlapDisplayLayout(DisplayLinkContext context, FlapDisplayBlockEntity flapDisplay,
 		FlapDisplayLayout layout) {
-		CompoundTag conf = context.sourceConfig();
+		NbtCompound conf = context.sourceConfig();
 		int columnWidth = conf.getInt("NameColumn");
 		int columnWidth2 = conf.getInt("PlatformColumn");
 		boolean hasPlatform = conf.getString("Filter")
@@ -163,7 +162,7 @@ public class StationSummaryDisplaySource extends DisplaySource {
 
 	@Override
 	public void populateData(DisplayLinkContext context) {
-		CompoundTag conf = context.sourceConfig();
+		NbtCompound conf = context.sourceConfig();
 
 		if (!conf.contains("PlatformColumn"))
 			conf.putInt("PlatformColumn", 3);
@@ -186,11 +185,11 @@ public class StationSummaryDisplaySource extends DisplaySource {
 		boolean isFirstLine) {
 		if (isFirstLine) {
 			builder.addTextInput(0, 137, (e, t) -> {
-				e.setValue("");
+				e.setText("");
 				t.withTooltip(ImmutableList.of(Lang.translateDirect("display_source.station_summary.filter")
-					.withStyle(s -> s.withColor(0x5391E1)),
+					.styled(s -> s.withColor(0x5391E1)),
 					Lang.translateDirect("gui.schedule.lmb_edit")
-						.withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC)));
+						.formatted(Formatting.DARK_GRAY, Formatting.ITALIC)));
 			}, "Filter");
 			return;
 		}

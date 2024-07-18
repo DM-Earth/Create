@@ -2,8 +2,14 @@ package com.simibubi.create.foundation.ponder.element;
 
 import java.util.List;
 import java.util.function.Supplier;
-
-import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.StringVisitable;
+import net.minecraft.text.Style;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec2f;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.foundation.gui.Theme;
 import com.simibubi.create.foundation.gui.element.BoxElement;
 import com.simibubi.create.foundation.ponder.PonderLocalization;
@@ -13,14 +19,6 @@ import com.simibubi.create.foundation.ponder.PonderScene.SceneTransform;
 import com.simibubi.create.foundation.ponder.ui.PonderUI;
 import com.simibubi.create.foundation.utility.Color;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.network.chat.Style;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec2;
-import net.minecraft.world.phys.Vec3;
-
 public class TextWindowElement extends AnimatedOverlayElement {
 
 	Supplier<String> textGetter = () -> "(?) No text was provided";
@@ -29,7 +27,7 @@ public class TextWindowElement extends AnimatedOverlayElement {
 	// from 0 to 200
 	int y;
 
-	Vec3 vec;
+	Vec3d vec;
 
 	boolean nearScene = false;
 	int color = PonderPalette.WHITE.getColor();
@@ -47,7 +45,7 @@ public class TextWindowElement extends AnimatedOverlayElement {
 			return this;
 		}
 
-		public Builder pointAt(Vec3 vec) {
+		public Builder pointAt(Vec3d vec) {
 			TextWindowElement.this.vec = vec;
 			return this;
 		}
@@ -66,13 +64,13 @@ public class TextWindowElement extends AnimatedOverlayElement {
 			return this;
 		}
 
-		public Builder sharedText(ResourceLocation key) {
+		public Builder sharedText(Identifier key) {
 			textGetter = () -> PonderLocalization.getShared(key);
 			return this;
 		}
 
 		public Builder sharedText(String key) {
-			return sharedText(new ResourceLocation(scene.getNamespace(), key));
+			return sharedText(new Identifier(scene.getNamespace(), key));
 		}
 
 		public Builder placeNearTarget() {
@@ -89,20 +87,20 @@ public class TextWindowElement extends AnimatedOverlayElement {
 	}
 
 	@Override
-	protected void render(PonderScene scene, PonderUI screen, GuiGraphics graphics, float partialTicks, float fade) {
+	protected void render(PonderScene scene, PonderUI screen, DrawContext graphics, float partialTicks, float fade) {
 		if (bakedText == null)
 			bakedText = textGetter.get();
 		if (fade < 1 / 16f)
 			return;
 		SceneTransform transform = scene.getTransform();
-		Vec2 sceneToScreen = vec != null ? transform.sceneToScreen(vec, partialTicks)
-			: new Vec2(screen.width / 2, (screen.height - 200) / 2 + y - 8);
+		Vec2f sceneToScreen = vec != null ? transform.sceneToScreen(vec, partialTicks)
+			: new Vec2f(screen.width / 2, (screen.height - 200) / 2 + y - 8);
 
 		boolean settled = transform.xRotation.settled() && transform.yRotation.settled();
 		float pY = settled ? (int) sceneToScreen.y : sceneToScreen.y;
 
 		float yDiff = (screen.height / 2f - sceneToScreen.y - 10) / 100f;
-		float targetX = (screen.width * Mth.lerp(yDiff * yDiff, 6f / 8, 5f / 8));
+		float targetX = (screen.width * MathHelper.lerp(yDiff * yDiff, 6f / 8, 5f / 8));
 
 		if (nearScene)
 			targetX = Math.min(targetX, sceneToScreen.x + 50);
@@ -112,20 +110,20 @@ public class TextWindowElement extends AnimatedOverlayElement {
 
 		int textWidth = (int) Math.min(screen.width - targetX, 180);
 
-		List<FormattedText> lines = screen.getFontRenderer()
-			.getSplitter()
-			.splitLines(bakedText, textWidth, Style.EMPTY);
+		List<StringVisitable> lines = screen.getFontRenderer()
+			.getTextHandler()
+			.wrapLines(bakedText, textWidth, Style.EMPTY);
 
 		int boxWidth = 0;
-		for (FormattedText line : lines)
+		for (StringVisitable line : lines)
 			boxWidth = Math.max(boxWidth, screen.getFontRenderer()
-				.width(line));
+				.getWidth(line));
 
 		int boxHeight = screen.getFontRenderer()
-			.wordWrapHeight(bakedText, boxWidth);
+			.getWrappedLinesHeight(bakedText, boxWidth);
 
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(0, pY, 400);
 
 		new BoxElement().withBackground(Theme.c(Theme.Key.PONDER_BACKGROUND_FLAT))
@@ -139,24 +137,24 @@ public class TextWindowElement extends AnimatedOverlayElement {
 		int brighterColor = Color.mixColors(color, 0xFFffffdd, 1 / 2f);
 		brighterColor = (0x00ffffff & brighterColor) | 0xff000000;
 		if (vec != null) {
-			ms.pushPose();
+			ms.push();
 			ms.translate(sceneToScreen.x, 0, 0);
 			double lineTarget = (targetX - sceneToScreen.x) * fade;
 			ms.scale((float) lineTarget, 1, 1);
 			graphics.fillGradient(0, 0, 1, 1, -100, brighterColor, brighterColor);
 			graphics.fillGradient(0, 1, 1, 2, -100, 0xFF494949, 0xFF393939);
-			ms.popPose();
+			ms.pop();
 		}
 
 		ms.translate(0, 0, 400);
 		for (int i = 0; i < lines.size(); i++) {
-			graphics.drawString(screen.getFontRenderer(), lines.get(i)
+			graphics.drawText(screen.getFontRenderer(), lines.get(i)
 				.getString(), (int) (targetX - 10), 3 + 9 * i,
 				new Color(brighterColor).scaleAlpha(fade)
 					.getRGB(),
 				false);
 		}
-		ms.popPose();
+		ms.pop();
 	}
 
 	public int getColor() {

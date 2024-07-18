@@ -2,11 +2,12 @@ package com.simibubi.create;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import net.minecraft.core.Registry;
-
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.content.contraptions.behaviour.BellMovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.CampfireMovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementBehaviour;
@@ -15,17 +16,11 @@ import com.simibubi.create.content.contraptions.behaviour.dispenser.DropperMovem
 import com.simibubi.create.foundation.utility.AttachedRegistry;
 import com.tterrag.registrate.util.nullness.NonNullConsumer;
 
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-
 public class AllMovementBehaviours {
-	private static final AttachedRegistry<Block, MovementBehaviour> BLOCK_BEHAVIOURS = new AttachedRegistry<>(BuiltInRegistries.BLOCK);
+	private static final AttachedRegistry<Block, MovementBehaviour> BLOCK_BEHAVIOURS = new AttachedRegistry<>(Registries.BLOCK);
 	private static final List<BehaviourProvider> GLOBAL_BEHAVIOURS = new ArrayList<>();
 
-	public static void registerBehaviour(ResourceLocation block, MovementBehaviour behaviour) {
+	public static void registerBehaviour(Identifier block, MovementBehaviour behaviour) {
 		BLOCK_BEHAVIOURS.register(block, behaviour);
 	}
 

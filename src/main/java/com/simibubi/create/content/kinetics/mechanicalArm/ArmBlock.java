@@ -9,59 +9,58 @@ import com.simibubi.create.content.kinetics.base.KineticBlock;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity.Phase;
 import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
 import com.simibubi.create.foundation.block.IBE;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 
 public class ArmBlock extends KineticBlock implements IBE<ArmBlockEntity>, ICogWheel {
 
-	public static final BooleanProperty CEILING = BooleanProperty.create("ceiling");
+	public static final BooleanProperty CEILING = BooleanProperty.of("ceiling");
 
-	public ArmBlock(Properties properties) {
+	public ArmBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(CEILING, false));
+		setDefaultState(getDefaultState().with(CEILING, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> p_206840_1_) {
-		super.createBlockStateDefinition(p_206840_1_.add(CEILING));
+	protected void appendProperties(Builder<Block, BlockState> p_206840_1_) {
+		super.appendProperties(p_206840_1_.add(CEILING));
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext ctx) {
-		return defaultBlockState().setValue(CEILING, ctx.getClickedFace() == Direction.DOWN);
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return getDefaultState().with(CEILING, ctx.getSide() == Direction.DOWN);
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter p_220053_2_, BlockPos p_220053_3_,
-		CollisionContext p_220053_4_) {
-		return state.getValue(CEILING) ? AllShapes.MECHANICAL_ARM_CEILING : AllShapes.MECHANICAL_ARM;
+	public VoxelShape getOutlineShape(BlockState state, BlockView p_220053_2_, BlockPos p_220053_3_,
+		ShapeContext p_220053_4_) {
+		return state.get(CEILING) ? AllShapes.MECHANICAL_ARM_CEILING : AllShapes.MECHANICAL_ARM;
 	}
 	
 	@Override
-	public void onPlace(BlockState state, Level world, BlockPos pos, BlockState oldState, boolean isMoving) {
-		super.onPlace(state, world, pos, oldState, isMoving);
+	public void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean isMoving) {
+		super.onBlockAdded(state, world, pos, oldState, isMoving);
 		withBlockEntityDo(world, pos, ArmBlockEntity::redstoneUpdate);
 	}
 	
 	@Override
-	public void neighborChanged(BlockState state, Level world, BlockPos pos, Block p_220069_4_,
+	public void neighborUpdate(BlockState state, World world, BlockPos pos, Block p_220069_4_,
 		BlockPos p_220069_5_, boolean p_220069_6_) {
 		withBlockEntityDo(world, pos, ArmBlockEntity::redstoneUpdate);
 	}
@@ -82,19 +81,19 @@ public class ArmBlock extends KineticBlock implements IBE<ArmBlockEntity>, ICogW
 	}
 	
 	@Override
-	public InteractionResult use(BlockState p_225533_1_, Level world, BlockPos pos, Player player,
-		InteractionHand hand, BlockHitResult p_225533_6_) {
-		ItemStack heldItem = player.getItemInHand(hand);
+	public ActionResult onUse(BlockState p_225533_1_, World world, BlockPos pos, PlayerEntity player,
+		Hand hand, BlockHitResult p_225533_6_) {
+		ItemStack heldItem = player.getStackInHand(hand);
 
 		if (AllItems.GOGGLES.isIn(heldItem)) {
-			InteractionResult gogglesResult = onBlockEntityUse(world, pos, ate -> {
+			ActionResult gogglesResult = onBlockEntityUse(world, pos, ate -> {
 				if (ate.goggles)
-					return InteractionResult.PASS;
+					return ActionResult.PASS;
 				ate.goggles = true;
 				ate.notifyUpdate();
-				return InteractionResult.SUCCESS;
+				return ActionResult.SUCCESS;
 			});
-			if (gogglesResult.consumesAction())
+			if (gogglesResult.isAccepted())
 				return gogglesResult;
 		}
 
@@ -103,16 +102,16 @@ public class ArmBlock extends KineticBlock implements IBE<ArmBlockEntity>, ICogW
 			if (be.heldItem.isEmpty())
 				return;
 			success.setTrue();
-			if (world.isClientSide)
+			if (world.isClient)
 				return;
-			player.getInventory().placeItemBackInInventory(be.heldItem);
+			player.getInventory().offerOrDrop(be.heldItem);
 			be.heldItem = ItemStack.EMPTY;
 			be.phase = Phase.SEARCH_INPUTS;
-			be.setChanged();
+			be.markDirty();
 			be.sendData();
 		});
 		
-		return success.booleanValue() ? InteractionResult.SUCCESS : InteractionResult.PASS;
+		return success.booleanValue() ? ActionResult.SUCCESS : ActionResult.PASS;
 	}
 
 }

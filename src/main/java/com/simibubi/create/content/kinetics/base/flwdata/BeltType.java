@@ -13,8 +13,7 @@ import com.simibubi.create.content.kinetics.KineticDebugger;
 import com.simibubi.create.foundation.render.AllInstanceFormats;
 import com.simibubi.create.foundation.render.AllProgramSpecs;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 public class BeltType implements Instanced<BeltData>, Batched<BeltData> {
 	@Override
@@ -33,7 +32,7 @@ public class BeltType implements Instanced<BeltData>, Batched<BeltData> {
 	}
 
 	@Override
-	public ResourceLocation getProgramSpec() {
+	public Identifier getProgramSpec() {
 		return AllProgramSpecs.BELT;
 	}
 
@@ -49,7 +48,7 @@ public class BeltType implements Instanced<BeltData>, Batched<BeltData> {
 			float targetU = u - d.sourceU + d.minU;
 			float targetV = v - d.sourceV + d.minV
 					+ finalScroll;
-			builder.uv(targetU, targetV);
+			builder.texture(targetU, targetV);
 		});
 
 		b.translate(d.x + 0.5, d.y + 0.5, d.z + 0.5)

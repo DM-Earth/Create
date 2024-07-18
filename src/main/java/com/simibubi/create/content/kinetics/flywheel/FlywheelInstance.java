@@ -4,13 +4,12 @@ import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
 
 public class FlywheelInstance extends KineticBlockEntityInstance<FlywheelBlockEntity> implements DynamicInstance {
 
@@ -46,7 +45,7 @@ public class FlywheelInstance extends KineticBlockEntityInstance<FlywheelBlockEn
 	}
 
 	private void animate(float angle) {
-		PoseStack ms = new PoseStack();
+		MatrixStack ms = new MatrixStack();
 		TransformStack msr = TransformStack.cast(ms);
 
 		msr.translate(getInstancePosition());

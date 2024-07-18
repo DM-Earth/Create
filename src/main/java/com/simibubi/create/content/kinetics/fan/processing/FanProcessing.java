@@ -2,56 +2,54 @@ package com.simibubi.create.content.kinetics.fan.processing;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.world.World;
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour.TransportedResult;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 
 public class FanProcessing {
 	public static boolean canProcess(ItemEntity entity, FanProcessingType type) {
 		if (entity.getCustomData()
 			.contains("CreateData")) {
-			CompoundTag compound = entity.getCustomData()
+			NbtCompound compound = entity.getCustomData()
 				.getCompound("CreateData");
 			if (compound.contains("Processing")) {
-				CompoundTag processing = compound.getCompound("Processing");
+				NbtCompound processing = compound.getCompound("Processing");
 
 				if (AllFanProcessingTypes.parseLegacy(processing.getString("Type")) != type)
-					return type.canProcess(entity.getItem(), entity.level());
+					return type.canProcess(entity.getStack(), entity.getWorld());
 				else if (processing.getInt("Time") >= 0)
 					return true;
 				else if (processing.getInt("Time") == -1)
 					return false;
 			}
 		}
-		return type.canProcess(entity.getItem(), entity.level());
+		return type.canProcess(entity.getStack(), entity.getWorld());
 	}
 
 	public static boolean applyProcessing(ItemEntity entity, FanProcessingType type) {
 		if (decrementProcessingTime(entity, type) != 0)
 			return false;
-		List<ItemStack> stacks = type.process(entity.getItem(), entity.level());
+		List<ItemStack> stacks = type.process(entity.getStack(), entity.getWorld());
 		if (stacks == null)
 			return false;
 		if (stacks.isEmpty()) {
 			entity.discard();
 			return false;
 		}
-		entity.setItem(stacks.remove(0));
+		entity.setStack(stacks.remove(0));
 		for (ItemStack additional : stacks) {
-			ItemEntity entityIn = new ItemEntity(entity.level(), entity.getX(), entity.getY(), entity.getZ(), additional);
-			entityIn.setDeltaMovement(entity.getDeltaMovement());
-			entity.level().addFreshEntity(entityIn);
+			ItemEntity entityIn = new ItemEntity(entity.getWorld(), entity.getX(), entity.getY(), entity.getZ(), additional);
+			entityIn.setVelocity(entity.getVelocity());
+			entity.getWorld().spawnEntity(entityIn);
 		}
 		return true;
 	}
 
-	public static TransportedResult applyProcessing(TransportedItemStack transported, Level world, FanProcessingType type) {
+	public static TransportedResult applyProcessing(TransportedItemStack transported, World world, FanProcessingType type) {
 		TransportedResult ignore = TransportedResult.doNothing();
 		if (transported.processedBy != type) {
 			transported.processedBy = type;
@@ -82,19 +80,19 @@ public class FanProcessing {
 	}
 
 	private static int decrementProcessingTime(ItemEntity entity, FanProcessingType type) {
-		CompoundTag nbt = entity.getCustomData();
+		NbtCompound nbt = entity.getCustomData();
 
 		if (!nbt.contains("CreateData"))
-			nbt.put("CreateData", new CompoundTag());
-		CompoundTag createData = nbt.getCompound("CreateData");
+			nbt.put("CreateData", new NbtCompound());
+		NbtCompound createData = nbt.getCompound("CreateData");
 
 		if (!createData.contains("Processing"))
-			createData.put("Processing", new CompoundTag());
-		CompoundTag processing = createData.getCompound("Processing");
+			createData.put("Processing", new NbtCompound());
+		NbtCompound processing = createData.getCompound("Processing");
 
 		if (!processing.contains("Type") || AllFanProcessingTypes.parseLegacy(processing.getString("Type")) != type) {
 			processing.putString("Type", FanProcessingTypeRegistry.getIdOrThrow(type).toString());
-			int timeModifierForStackSize = ((entity.getItem()
+			int timeModifierForStackSize = ((entity.getStack()
 				.getCount() - 1) / 16) + 1;
 			int processingTime =
 				(int) (AllConfigs.server().kinetics.fanProcessingTime.get() * timeModifierForStackSize) + 1;

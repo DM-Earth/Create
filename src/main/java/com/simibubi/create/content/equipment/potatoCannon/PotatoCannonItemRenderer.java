@@ -2,24 +2,23 @@ package com.simibubi.create.content.equipment.potatoCannon;
 
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.item.ItemRenderer;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Arm;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 
 public class PotatoCannonItemRenderer extends CustomRenderedItemModelRenderer {
 
@@ -27,14 +26,14 @@ public class PotatoCannonItemRenderer extends CustomRenderedItemModelRenderer {
 
 	@Override
 	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
-		ItemDisplayContext transformType, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
-		Minecraft mc = Minecraft.getInstance();
+		ModelTransformationMode transformType, MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay) {
+		MinecraftClient mc = MinecraftClient.getInstance();
 		ItemRenderer itemRenderer = mc.getItemRenderer();
 		renderer.render(model.getOriginalModel(), light);
-		LocalPlayer player = mc.player;
-		boolean mainHand = player.getMainHandItem() == stack;
-		boolean offHand = player.getOffhandItem() == stack;
-		boolean leftHanded = player.getMainArm() == HumanoidArm.LEFT;
+		ClientPlayerEntity player = mc.player;
+		boolean mainHand = player.getMainHandStack() == stack;
+		boolean offHand = player.getOffHandStack() == stack;
+		boolean leftHanded = player.getMainArm() == Arm.LEFT;
 
 		float offset = .5f / 16;
 		float worldTime = AnimationTickHolder.getRenderTime() / 10;
@@ -43,26 +42,26 @@ public class PotatoCannonItemRenderer extends CustomRenderedItemModelRenderer {
 			AnimationTickHolder.getPartialTicks());
 
 		if (mainHand || offHand)
-			angle += 360 * Mth.clamp(speed * 5, 0, 1);
+			angle += 360 * MathHelper.clamp(speed * 5, 0, 1);
 		angle %= 360;
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(0, offset, 0);
-		ms.mulPose(Axis.ZP.rotationDegrees(angle));
+		ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle));
 		ms.translate(0, -offset, 0);
 		renderer.render(COG.get(), light);
-		ms.popPose();
+		ms.pop();
 
-		if (transformType == ItemDisplayContext.GUI) {
+		if (transformType == ModelTransformationMode.GUI) {
 			PotatoCannonItem.getAmmoforPreview(stack)
 				.ifPresent(ammo -> {
-					PoseStack localMs = new PoseStack();
+					MatrixStack localMs = new MatrixStack();
 					localMs.translate(-1 / 4f, -1 / 4f, 1);
 					localMs.scale(.5f, .5f, .5f);
 					TransformStack.cast(localMs)
 						.rotateY(-34);
-					itemRenderer.renderStatic(ammo, ItemDisplayContext.GUI, light, OverlayTexture.NO_OVERLAY, localMs,
-						buffer, mc.level, 0);
+					itemRenderer.renderItem(ammo, ModelTransformationMode.GUI, light, OverlayTexture.DEFAULT_UV, localMs,
+						buffer, mc.world, 0);
 				});
 		}
 

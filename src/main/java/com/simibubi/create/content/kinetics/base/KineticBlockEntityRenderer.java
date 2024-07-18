@@ -1,8 +1,6 @@
 package com.simibubi.create.content.kinetics.base;
 
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.KineticDebugger;
 import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
@@ -12,62 +10,63 @@ import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.render.SuperByteBufferCache;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Color;
-
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
 
 public class KineticBlockEntityRenderer<T extends KineticBlockEntity> extends SafeBlockEntityRenderer<T> {
 
 	public static final SuperByteBufferCache.Compartment<BlockState> KINETIC_BLOCK = new SuperByteBufferCache.Compartment<>();
 	public static boolean rainbowMode = false;
 
-	public KineticBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
+	public KineticBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
 	}
 
 	@Override
-	protected void renderSafe(T be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	protected void renderSafe(T be, float partialTicks, MatrixStack ms, VertexConsumerProvider buffer,
 		int light, int overlay) {
-		if (Backend.canUseInstancing(be.getLevel())) return;
+		if (Backend.canUseInstancing(be.getWorld())) return;
 
 		BlockState state = getRenderedBlockState(be);
-		RenderType type = getRenderType(be, state);
+		RenderLayer type = getRenderType(be, state);
 		if (type != null)
 			renderRotatingBuffer(be, getRotatedModel(be, state), ms, buffer.getBuffer(type), light);
 	}
 
 	protected BlockState getRenderedBlockState(T be) {
-		return be.getBlockState();
+		return be.getCachedState();
 	}
 
-	protected RenderType getRenderType(T be, BlockState state) {
-		return ItemBlockRenderTypes.getChunkRenderType(state);
+	protected RenderLayer getRenderType(T be, BlockState state) {
+		return RenderLayers.getBlockLayer(state);
 	}
 
 	protected SuperByteBuffer getRotatedModel(T be, BlockState state) {
 		return CachedBufferer.block(KINETIC_BLOCK, state);
 	}
 
-	public static void renderRotatingKineticBlock(KineticBlockEntity be, BlockState renderedState, PoseStack ms,
+	public static void renderRotatingKineticBlock(KineticBlockEntity be, BlockState renderedState, MatrixStack ms,
 		VertexConsumer buffer, int light) {
 		SuperByteBuffer superByteBuffer = CachedBufferer.block(KINETIC_BLOCK, renderedState);
 		renderRotatingBuffer(be, superByteBuffer, ms, buffer, light);
 	}
 
-	public static void renderRotatingBuffer(KineticBlockEntity be, SuperByteBuffer superBuffer, PoseStack ms,
+	public static void renderRotatingBuffer(KineticBlockEntity be, SuperByteBuffer superBuffer, MatrixStack ms,
 		VertexConsumer buffer, int light) {
 		standardKineticRotationTransform(superBuffer, be, light).renderInto(ms, buffer);
 	}
 
 	public static float getAngleForTe(KineticBlockEntity be, final BlockPos pos, Axis axis) {
-		float time = AnimationTickHolder.getRenderTime(be.getLevel());
+		float time = AnimationTickHolder.getRenderTime(be.getWorld());
 		float offset = getRotationOffsetForPosition(be, pos, axis);
 		float angle = ((time * be.getSpeed() * 3f / 10 + offset) % 360) / 180 * (float) Math.PI;
 		return angle;
@@ -75,9 +74,9 @@ public class KineticBlockEntityRenderer<T extends KineticBlockEntity> extends Sa
 
 	public static SuperByteBuffer standardKineticRotationTransform(SuperByteBuffer buffer, KineticBlockEntity be,
 		int light) {
-		final BlockPos pos = be.getBlockPos();
-		Axis axis = ((IRotate) be.getBlockState()
-			.getBlock()).getRotationAxis(be.getBlockState());
+		final BlockPos pos = be.getPos();
+		Axis axis = ((IRotate) be.getCachedState()
+			.getBlock()).getRotationAxis(be.getCachedState());
 		return kineticRotationTransform(buffer, be, axis, getAngleForTe(be, pos, axis), light);
 	}
 
@@ -104,7 +103,7 @@ public class KineticBlockEntityRenderer<T extends KineticBlockEntity> extends Sa
 	}
 
 	public static float getRotationOffsetForPosition(KineticBlockEntity be, final BlockPos pos, final Axis axis) {
-		float offset = ICogWheel.isLargeCog(be.getBlockState()) ? 11.25f : 0;
+		float offset = ICogWheel.isLargeCog(be.getCachedState()) ? 11.25f : 0;
 		double d = (((axis == Axis.X) ? 0 : pos.getX()) + ((axis == Axis.Y) ? 0 : pos.getY())
 			+ ((axis == Axis.Z) ? 0 : pos.getZ())) % 2;
 		if (d == 0)
@@ -114,12 +113,12 @@ public class KineticBlockEntityRenderer<T extends KineticBlockEntity> extends Sa
 
 	public static BlockState shaft(Axis axis) {
 		return AllBlocks.SHAFT.getDefaultState()
-			.setValue(BlockStateProperties.AXIS, axis);
+			.with(Properties.AXIS, axis);
 	}
 
 	public static Axis getRotationAxisOf(KineticBlockEntity be) {
-		return ((IRotate) be.getBlockState()
-			.getBlock()).getRotationAxis(be.getBlockState());
+		return ((IRotate) be.getCachedState()
+			.getBlock()).getRotationAxis(be.getCachedState());
 	}
 
 }

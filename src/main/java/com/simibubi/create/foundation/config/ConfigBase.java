@@ -1,8 +1,12 @@
 package com.simibubi.create.foundation.config;
 
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec;
+import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec.BooleanValue;
+import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec.Builder;
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec.ConfigValue;
-
+import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec.DoubleValue;
+import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec.EnumValue;
+import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec.IntValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;

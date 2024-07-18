@@ -1,16 +1,14 @@
 package com.simibubi.create.compat.emi;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import com.simibubi.create.foundation.gui.element.GuiGameElement;
 
 import dev.emi.emi.api.render.EmiRenderable;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ItemLike;
-
 import java.util.Objects;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.ItemStack;
 
 // based on ItemEmiStack
 public final class DoubleItemIcon implements EmiRenderable {
@@ -23,8 +21,8 @@ public final class DoubleItemIcon implements EmiRenderable {
 		this.secondaryStack = secondaryStack;
 	}
 
-	public static DoubleItemIcon of(ItemLike first, ItemLike second) {
-		return of(first.asItem().getDefaultInstance(), second.asItem().getDefaultInstance());
+	public static DoubleItemIcon of(ItemConvertible first, ItemConvertible second) {
+		return of(first.asItem().getDefaultStack(), second.asItem().getDefaultStack());
 	}
 
 	public static DoubleItemIcon of(ItemStack first, ItemStack second) {
@@ -32,26 +30,26 @@ public final class DoubleItemIcon implements EmiRenderable {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int xOffset, int yOffset, float delta) {
-		PoseStack matrixStack = graphics.pose();
+	public void render(DrawContext graphics, int xOffset, int yOffset, float delta) {
+		MatrixStack matrixStack = graphics.getMatrices();
 		RenderSystem.enableDepthTest();
-		matrixStack.pushPose(); // note: this -1 is specific to EMI
+		matrixStack.push(); // note: this -1 is specific to EMI
 		matrixStack.translate(xOffset - 1, yOffset, 0);
 
-		matrixStack.pushPose();
+		matrixStack.push();
 		matrixStack.translate(1, 1, 0);
 		GuiGameElement.of(primaryStack)
 				.render(graphics);
-		matrixStack.popPose();
+		matrixStack.pop();
 
-		matrixStack.pushPose();
+		matrixStack.push();
 		matrixStack.translate(10, 10, 100);
 		matrixStack.scale(.5f, .5f, .5f);
 		GuiGameElement.of(secondaryStack)
 				.render(graphics);
-		matrixStack.popPose();
+		matrixStack.pop();
 
-		matrixStack.popPose();
+		matrixStack.pop();
 	}
 
 	@Override

@@ -6,42 +6,42 @@ import com.simibubi.create.content.equipment.zapper.ShootableGadgetRenderHandler
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.Vec3d;
 
 public class PotatoCannonPacket extends ShootGadgetPacket {
 
 	private float pitch;
-	private Vec3 motion;
+	private Vec3d motion;
 	private ItemStack item;
 
-	public PotatoCannonPacket(Vec3 location, Vec3 motion, ItemStack item, InteractionHand hand, float pitch, boolean self) {
+	public PotatoCannonPacket(Vec3d location, Vec3d motion, ItemStack item, Hand hand, float pitch, boolean self) {
 		super(location, hand, self);
 		this.motion = motion;
 		this.item = item;
 		this.pitch = pitch;
 	}
 
-	public PotatoCannonPacket(FriendlyByteBuf buffer) {
+	public PotatoCannonPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
 	@Override
-	protected void readAdditional(FriendlyByteBuf buffer) {
+	protected void readAdditional(PacketByteBuf buffer) {
 		pitch = buffer.readFloat();
-		motion = new Vec3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
-		item = buffer.readItem();
+		motion = new Vec3d(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+		item = buffer.readItemStack();
 	}
 
 	@Override
-	protected void writeAdditional(FriendlyByteBuf buffer) {
+	protected void writeAdditional(PacketByteBuf buffer) {
 		buffer.writeFloat(pitch);
 		buffer.writeFloat((float) motion.x);
 		buffer.writeFloat((float) motion.y);
 		buffer.writeFloat((float) motion.z);
-		buffer.writeItem(item);
+		buffer.writeItemStack(item);
 	}
 
 	@Override

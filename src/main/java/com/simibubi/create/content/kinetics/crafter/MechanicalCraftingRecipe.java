@@ -2,37 +2,36 @@ package com.simibubi.create.content.kinetics.crafter;
 
 import com.google.gson.JsonObject;
 import com.simibubi.create.AllRecipeTypes;
-
-import net.minecraft.core.NonNullList;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.ShapedRecipe;
-import net.minecraft.world.level.Level;
+import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.recipe.book.CraftingRecipeCategory;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.JsonHelper;
+import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.world.World;
 
 public class MechanicalCraftingRecipe extends ShapedRecipe {
 
 	private boolean acceptMirrored;
 
-	public MechanicalCraftingRecipe(ResourceLocation idIn, String groupIn, int recipeWidthIn, int recipeHeightIn,
-		NonNullList<Ingredient> recipeItemsIn, ItemStack recipeOutputIn, boolean acceptMirrored) {
-		super(idIn, groupIn, CraftingBookCategory.MISC, recipeWidthIn, recipeHeightIn, recipeItemsIn, recipeOutputIn);
+	public MechanicalCraftingRecipe(Identifier idIn, String groupIn, int recipeWidthIn, int recipeHeightIn,
+		DefaultedList<Ingredient> recipeItemsIn, ItemStack recipeOutputIn, boolean acceptMirrored) {
+		super(idIn, groupIn, CraftingRecipeCategory.MISC, recipeWidthIn, recipeHeightIn, recipeItemsIn, recipeOutputIn);
 		this.acceptMirrored = acceptMirrored;
 	}
 
 	private static MechanicalCraftingRecipe fromShaped(ShapedRecipe recipe, boolean acceptMirrored) {
 		return new MechanicalCraftingRecipe(recipe.getId(), recipe.getGroup(), recipe.getWidth(), recipe.getHeight(),
-			recipe.getIngredients(), recipe.getResultItem(null), acceptMirrored);
+			recipe.getIngredients(), recipe.getOutput(null), acceptMirrored);
 	}
 
 	@Override
-	public boolean matches(CraftingContainer inv, Level worldIn) {
+	public boolean matches(RecipeInputInventory inv, World worldIn) {
 		if (!(inv instanceof MechanicalCraftingInventory))
 			return false;
 		if (acceptsMirrored())
@@ -47,8 +46,8 @@ public class MechanicalCraftingRecipe extends ShapedRecipe {
 	}
 
 	// From ShapedRecipe
-	private boolean matchesSpecific(CraftingContainer inv, int p_77573_2_, int p_77573_3_) {
-		NonNullList<Ingredient> ingredients = getIngredients();
+	private boolean matchesSpecific(RecipeInputInventory inv, int p_77573_2_, int p_77573_3_) {
+		DefaultedList<Ingredient> ingredients = getIngredients();
 		int width = getWidth();
 		int height = getHeight();
 		for (int i = 0; i < inv.getWidth(); ++i) {
@@ -58,7 +57,7 @@ public class MechanicalCraftingRecipe extends ShapedRecipe {
 				Ingredient ingredient = Ingredient.EMPTY;
 				if (k >= 0 && l >= 0 && k < width && l < height)
 					ingredient = ingredients.get(k + l * width);
-				if (!ingredient.test(inv.getItem(i + j * inv.getWidth())))
+				if (!ingredient.test(inv.getStack(i + j * inv.getWidth())))
 					return false;
 			}
 		}
@@ -71,7 +70,7 @@ public class MechanicalCraftingRecipe extends ShapedRecipe {
 	}
 
 	@Override
-	public boolean isSpecial() {
+	public boolean isIgnoredInRecipeBook() {
 		return true;
 	}
 
@@ -87,18 +86,18 @@ public class MechanicalCraftingRecipe extends ShapedRecipe {
 	public static class Serializer extends ShapedRecipe.Serializer {
 
 		@Override
-		public ShapedRecipe fromJson(ResourceLocation recipeId, JsonObject json) {
-			return fromShaped(super.fromJson(recipeId, json), GsonHelper.getAsBoolean(json, "acceptMirrored", true));
+		public ShapedRecipe read(Identifier recipeId, JsonObject json) {
+			return fromShaped(super.read(recipeId, json), JsonHelper.getBoolean(json, "acceptMirrored", true));
 		}
 
 		@Override
-		public ShapedRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
-			return fromShaped(super.fromNetwork(recipeId, buffer), buffer.readBoolean() && buffer.readBoolean());
+		public ShapedRecipe read(Identifier recipeId, PacketByteBuf buffer) {
+			return fromShaped(super.read(recipeId, buffer), buffer.readBoolean() && buffer.readBoolean());
 		}
 
 		@Override
-		public void toNetwork(FriendlyByteBuf p_199427_1_, ShapedRecipe p_199427_2_) {
-			super.toNetwork(p_199427_1_, p_199427_2_);
+		public void write(PacketByteBuf p_199427_1_, ShapedRecipe p_199427_2_) {
+			super.write(p_199427_1_, p_199427_2_);
 			if (p_199427_2_ instanceof MechanicalCraftingRecipe) {
 				p_199427_1_.writeBoolean(true);
 				p_199427_1_.writeBoolean(((MechanicalCraftingRecipe) p_199427_2_).acceptsMirrored());

@@ -2,8 +2,7 @@ package com.simibubi.create.infrastructure.worldgen;
 
 import com.simibubi.create.content.decoration.palettes.AllPaletteStoneTypes;
 import com.tterrag.registrate.util.nullness.NonNullSupplier;
-
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
 
 public class AllLayerPatterns {
 

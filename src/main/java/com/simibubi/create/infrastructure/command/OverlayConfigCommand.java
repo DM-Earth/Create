@@ -6,25 +6,25 @@ import com.simibubi.create.foundation.utility.Components;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
 
 public class OverlayConfigCommand {
 
-	public static ArgumentBuilder<CommandSourceStack, ?> register() {
-		return Commands.literal("overlay")
-				.requires(cs -> cs.hasPermission(0))
-				.then(Commands.literal("reset")
+	public static ArgumentBuilder<ServerCommandSource, ?> register() {
+		return CommandManager.literal("overlay")
+				.requires(cs -> cs.hasPermissionLevel(0))
+				.then(CommandManager.literal("reset")
 					.executes(ctx -> {
 						EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> SConfigureConfigPacket.Actions.overlayReset.performAction(""));
 
 						EnvExecutor.runWhenOn(EnvType.SERVER, () -> () ->
 								AllPackets.getChannel().sendToClient(new SConfigureConfigPacket(SConfigureConfigPacket.Actions.overlayReset.name(), ""),
-										(ServerPlayer) ctx.getSource().getEntity()));
+										(ServerPlayerEntity) ctx.getSource().getEntity()));
 
 					ctx.getSource()
-						.sendSuccess(() -> Components.literal("reset overlay offset"), true);
+						.sendFeedback(() -> Components.literal("reset overlay offset"), true);
 
 						return 1;
 					})
@@ -34,10 +34,10 @@ public class OverlayConfigCommand {
 
 					EnvExecutor.runWhenOn(EnvType.SERVER, () -> () ->
 							AllPackets.getChannel().sendToClient(new SConfigureConfigPacket(SConfigureConfigPacket.Actions.overlayScreen.name(), ""),
-									(ServerPlayer) ctx.getSource().getEntity()));
+									(ServerPlayerEntity) ctx.getSource().getEntity()));
 
 					ctx.getSource()
-							.sendSuccess(() -> Components.literal("window opened"), true);
+							.sendFeedback(() -> Components.literal("window opened"), true);
 
 				return 1;
 			});

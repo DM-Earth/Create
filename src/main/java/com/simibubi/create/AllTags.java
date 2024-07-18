@@ -7,43 +7,43 @@ import static com.simibubi.create.AllTags.NameSpace.TIC;
 
 import com.simibubi.create.foundation.utility.Lang;
 
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.FluidState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.util.Identifier;
 
 public class AllTags {
 	public static <T> TagKey<T> optionalTag(Registry<T> registry,
-											ResourceLocation id) {
-		return TagKey.create(registry.key(), id);
+											Identifier id) {
+		return TagKey.of(registry.getKey(), id);
 	}
 
 	public static <T> TagKey<T> forgeTag(Registry<T> registry, String path) {
-		return optionalTag(registry, new ResourceLocation("c", path));
+		return optionalTag(registry, new Identifier("c", path));
 	}
 
 	public static TagKey<Block> forgeBlockTag(String path) {
-		return forgeTag(BuiltInRegistries.BLOCK, path);
+		return forgeTag(Registries.BLOCK, path);
 	}
 
 	public static TagKey<Item> forgeItemTag(String path) {
-		return forgeTag(BuiltInRegistries.ITEM, path);
+		return forgeTag(Registries.ITEM, path);
 	}
 
 	public static TagKey<Fluid> forgeFluidTag(String path) {
-		return forgeTag(BuiltInRegistries.FLUID, path);
+		return forgeTag(Registries.FLUID, path);
 	}
 
 	public enum NameSpace {
@@ -124,15 +124,15 @@ public class AllTags {
 		}
 
 		AllBlockTags(NameSpace namespace, String path, boolean optional, boolean alwaysDatagen) {
-			ResourceLocation id = new ResourceLocation(namespace.id, path == null ? Lang.asId(name()) : path);
-			tag = optionalTag(BuiltInRegistries.BLOCK, id);
+			Identifier id = new Identifier(namespace.id, path == null ? Lang.asId(name()) : path);
+			tag = optionalTag(Registries.BLOCK, id);
 			this.alwaysDatagen = alwaysDatagen;
 		}
 
 		@SuppressWarnings("deprecation")
 		public boolean matches(Block block) {
-			return block.builtInRegistryHolder()
-				.is(tag);
+			return block.getRegistryEntry()
+				.isIn(tag);
 		}
 
 		public boolean matches(ItemStack stack) {
@@ -140,7 +140,7 @@ public class AllTags {
 		}
 
 		public boolean matches(BlockState state) {
-			return state.is(tag);
+			return state.isIn(tag);
 		}
 
 		private static void init() {}
@@ -195,20 +195,20 @@ public class AllTags {
 		}
 
 		AllItemTags(NameSpace namespace, String path, boolean optional, boolean alwaysDatagen) {
-			ResourceLocation id = new ResourceLocation(namespace.id, path == null ? Lang.asId(name()) : path);
-			tag = optionalTag(BuiltInRegistries.ITEM, id);
+			Identifier id = new Identifier(namespace.id, path == null ? Lang.asId(name()) : path);
+			tag = optionalTag(Registries.ITEM, id);
 
 			this.alwaysDatagen = alwaysDatagen;
 		}
 
 		@SuppressWarnings("deprecation")
 		public boolean matches(Item item) {
-			return item.builtInRegistryHolder()
-				.is(tag);
+			return item.getRegistryEntry()
+				.isIn(tag);
 		}
 
 		public boolean matches(ItemStack stack) {
-			return stack.is(tag);
+			return stack.isIn(tag);
 		}
 
 		private static void init() {}
@@ -251,18 +251,18 @@ public class AllTags {
 		}
 
 		AllFluidTags(NameSpace namespace, String path, boolean optional, boolean alwaysDatagen) {
-			ResourceLocation id = new ResourceLocation(namespace.id, path == null ? Lang.asId(name()) : path);
-			tag = optionalTag(BuiltInRegistries.FLUID, id);
+			Identifier id = new Identifier(namespace.id, path == null ? Lang.asId(name()) : path);
+			tag = optionalTag(Registries.FLUID, id);
 			this.alwaysDatagen = alwaysDatagen;
 		}
 
 		@SuppressWarnings("deprecation")
 		public boolean matches(Fluid fluid) {
-			return fluid.is(tag);
+			return fluid.isIn(tag);
 		}
 
 		public boolean matches(FluidState state) {
-			return state.is(tag);
+			return state.isIn(tag);
 		}
 
 		private static void init() {}
@@ -295,17 +295,17 @@ public class AllTags {
 		}
 
 		AllEntityTags(NameSpace namespace, String path, boolean optional, boolean alwaysDatagen) {
-			ResourceLocation id = new ResourceLocation(namespace.id, path == null ? Lang.asId(name()) : path);
+			Identifier id = new Identifier(namespace.id, path == null ? Lang.asId(name()) : path);
 			if (optional) {
-				tag = optionalTag(BuiltInRegistries.ENTITY_TYPE, id);
+				tag = optionalTag(Registries.ENTITY_TYPE, id);
 			} else {
-				tag = TagKey.create(Registries.ENTITY_TYPE, id);
+				tag = TagKey.of(RegistryKeys.ENTITY_TYPE, id);
 			}
 			this.alwaysDatagen = alwaysDatagen;
 		}
 
 		public boolean matches(EntityType<?> type) {
-			return type.is(tag);
+			return type.isIn(tag);
 		}
 
 		public boolean matches(Entity entity) {
@@ -342,18 +342,18 @@ public class AllTags {
 		}
 
 		AllRecipeSerializerTags(NameSpace namespace, String path, boolean optional, boolean alwaysDatagen) {
-			ResourceLocation id = new ResourceLocation(namespace.id, path == null ? Lang.asId(name()) : path);
+			Identifier id = new Identifier(namespace.id, path == null ? Lang.asId(name()) : path);
 			if (optional) {
-				tag = optionalTag(BuiltInRegistries.RECIPE_SERIALIZER, id);
+				tag = optionalTag(Registries.RECIPE_SERIALIZER, id);
 			} else {
-				tag = TagKey.create(Registries.RECIPE_SERIALIZER, id);
+				tag = TagKey.of(RegistryKeys.RECIPE_SERIALIZER, id);
 			}
 			this.alwaysDatagen = alwaysDatagen;
 		}
 
 		public boolean matches(RecipeSerializer<?> recipeSerializer) {
-			ResourceKey<RecipeSerializer<?>> key = BuiltInRegistries.RECIPE_SERIALIZER.getResourceKey(recipeSerializer).orElseThrow();
-			return BuiltInRegistries.RECIPE_SERIALIZER.getHolder(key).orElseThrow().is(tag);
+			RegistryKey<RecipeSerializer<?>> key = Registries.RECIPE_SERIALIZER.getKey(recipeSerializer).orElseThrow();
+			return Registries.RECIPE_SERIALIZER.getEntry(key).orElseThrow().isIn(tag);
 		}
 
 		private static void init() {}

@@ -1,7 +1,14 @@
 package com.simibubi.create.content.contraptions.elevator;
 
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.World;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -19,15 +26,6 @@ import com.simibubi.create.content.redstone.contact.RedstoneContactBlock;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.IntAttached;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 
 public class ElevatorContraption extends PulleyContraption {
 
@@ -57,11 +55,11 @@ public class ElevatorContraption extends PulleyContraption {
 	public void tickStorage(AbstractContraptionEntity entity) {
 		super.tickStorage(entity);
 
-		if (entity.tickCount % 10 != 0)
+		if (entity.age % 10 != 0)
 			return;
 
 		ColumnCoords coords = getGlobalColumn();
-		ElevatorColumn column = ElevatorColumn.get(entity.level(), coords);
+		ElevatorColumn column = ElevatorColumn.get(entity.getWorld(), coords);
 
 		if (column == null)
 			return;
@@ -80,7 +78,7 @@ public class ElevatorContraption extends PulleyContraption {
 		return column.relative(anchor);
 	}
 
-	public Integer getCurrentTargetY(Level level) {
+	public Integer getCurrentTargetY(World level) {
 		ColumnCoords coords = getGlobalColumn();
 		ElevatorColumn column = ElevatorColumn.get(level, coords);
 		if (column == null)
@@ -96,7 +94,7 @@ public class ElevatorContraption extends PulleyContraption {
 	}
 
 	@Override
-	public boolean assemble(Level world, BlockPos pos) throws AssemblyException {
+	public boolean assemble(World world, BlockPos pos) throws AssemblyException {
 		if (!searchMovedStructure(world, pos, null))
 			return false;
 		if (blocks.size() <= 0)
@@ -115,18 +113,18 @@ public class ElevatorContraption extends PulleyContraption {
 	}
 
 	@Override
-	protected Pair<StructureBlockInfo, BlockEntity> capture(Level world, BlockPos pos) {
+	protected Pair<StructureBlockInfo, BlockEntity> capture(World world, BlockPos pos) {
 		BlockState blockState = world.getBlockState(pos);
 
 		if (!AllBlocks.REDSTONE_CONTACT.has(blockState))
 			return super.capture(world, pos);
 
-		Direction facing = blockState.getValue(RedstoneContactBlock.FACING);
+		Direction facing = blockState.get(RedstoneContactBlock.FACING);
 		if (facing.getAxis() == Axis.Y)
 			return super.capture(world, pos);
 
 		contacts++;
-		BlockPos local = toLocalPos(pos.relative(facing));
+		BlockPos local = toLocalPos(pos.offset(facing));
 		column = new ColumnCoords(local.getX(), local.getZ(), facing.getOpposite());
 		contactYOffset = local.getY();
 
@@ -137,7 +135,7 @@ public class ElevatorContraption extends PulleyContraption {
 		return contactYOffset;
 	}
 
-	public void broadcastFloorData(Level level, BlockPos contactPos) {
+	public void broadcastFloorData(World level, BlockPos contactPos) {
 		ElevatorColumn column = ElevatorColumn.get(level, getGlobalColumn());
 		if (!(world.getBlockEntity(contactPos) instanceof ElevatorContactBlockEntity ecbe))
 			return;
@@ -146,8 +144,8 @@ public class ElevatorContraption extends PulleyContraption {
 	}
 
 	@Override
-	public CompoundTag writeNBT(boolean spawnPacket) {
-		CompoundTag tag = super.writeNBT(spawnPacket);
+	public NbtCompound writeNBT(boolean spawnPacket) {
+		NbtCompound tag = super.writeNBT(spawnPacket);
 		tag.putBoolean("Arrived", arrived);
 		tag.put("Column", column.write());
 		tag.putInt("ContactY", contactYOffset);
@@ -157,7 +155,7 @@ public class ElevatorContraption extends PulleyContraption {
 	}
 
 	@Override
-	public void readNBT(Level world, CompoundTag nbt, boolean spawnData) {
+	public void readNBT(World world, NbtCompound nbt, boolean spawnData) {
 		arrived = nbt.getBoolean("Arrived");
 		column = ColumnCoords.read(nbt.getCompound("Column"));
 		contactYOffset = nbt.getInt("ContactY");

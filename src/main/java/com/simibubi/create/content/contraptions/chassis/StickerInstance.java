@@ -7,10 +7,9 @@ import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 
 public class StickerInstance extends BlockEntityInstance<StickerBlockEntity> implements DynamicInstance {
 
@@ -26,9 +25,9 @@ public class StickerInstance extends BlockEntityInstance<StickerBlockEntity> imp
 
 		head = getTransformMaterial().getModel(AllPartialModels.STICKER_HEAD, blockState).createInstance();
 
-		fakeWorld = blockEntity.getLevel() != Minecraft.getInstance().level;
-		facing = blockState.getValue(StickerBlock.FACING);
-		offset = blockState.getValue(StickerBlock.EXTENDED) ? 1 : 0;
+		fakeWorld = blockEntity.getWorld() != MinecraftClient.getInstance().world;
+		facing = blockState.get(StickerBlock.FACING);
+		offset = blockState.get(StickerBlock.EXTENDED) ? 1 : 0;
 
 		animateHead(offset);
 	}
@@ -40,7 +39,7 @@ public class StickerInstance extends BlockEntityInstance<StickerBlockEntity> imp
 		if (fakeWorld)
 			offset = this.offset;
 
-		if (Mth.equal(offset, lastOffset))
+		if (MathHelper.approximatelyEquals(offset, lastOffset))
 			return;
 
 		animateHead(offset);

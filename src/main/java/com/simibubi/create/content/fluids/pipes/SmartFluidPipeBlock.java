@@ -9,51 +9,50 @@ import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.VoxelShaper;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.WallMountedBlock;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.enums.WallMountLocation;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.network.DebugInfoSender;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
+import net.minecraft.world.tick.TickPriority;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.network.protocol.game.DebugPackets;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.AttachFace;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraft.world.ticks.TickPriority;
-
-public class SmartFluidPipeBlock extends FaceAttachedHorizontalDirectionalBlock
+public class SmartFluidPipeBlock extends WallMountedBlock
 	implements IBE<SmartFluidPipeBlockEntity>, IAxisPipe, IWrenchable, ProperWaterloggedBlock {
 
-	public SmartFluidPipeBlock(Properties p_i48339_1_) {
+	public SmartFluidPipeBlock(Settings p_i48339_1_) {
 		super(p_i48339_1_);
-		registerDefaultState(defaultBlockState().setValue(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+	protected void appendProperties(Builder<Block, BlockState> builder) {
 		builder.add(FACE, FACING, WATERLOGGED);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext ctx) {
-		BlockState stateForPlacement = super.getStateForPlacement(ctx);
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockState stateForPlacement = super.getPlacementState(ctx);
 		Axis prefferedAxis = null;
-		BlockPos pos = ctx.getClickedPos();
-		Level world = ctx.getLevel();
+		BlockPos pos = ctx.getBlockPos();
+		World world = ctx.getWorld();
 		for (Direction side : Iterate.directions) {
 			if (!prefersConnectionTo(world, pos, side))
 				continue;
@@ -65,59 +64,59 @@ public class SmartFluidPipeBlock extends FaceAttachedHorizontalDirectionalBlock
 		}
 
 		if (prefferedAxis == Axis.Y)
-			stateForPlacement = stateForPlacement.setValue(FACE, AttachFace.WALL)
-				.setValue(FACING, stateForPlacement.getValue(FACING)
+			stateForPlacement = stateForPlacement.with(FACE, WallMountLocation.WALL)
+				.with(FACING, stateForPlacement.get(FACING)
 					.getOpposite());
 		else if (prefferedAxis != null) {
-			if (stateForPlacement.getValue(FACE) == AttachFace.WALL)
-				stateForPlacement = stateForPlacement.setValue(FACE, AttachFace.FLOOR);
-			for (Direction direction : ctx.getNearestLookingDirections()) {
+			if (stateForPlacement.get(FACE) == WallMountLocation.WALL)
+				stateForPlacement = stateForPlacement.with(FACE, WallMountLocation.FLOOR);
+			for (Direction direction : ctx.getPlacementDirections()) {
 				if (direction.getAxis() != prefferedAxis)
 					continue;
-				stateForPlacement = stateForPlacement.setValue(FACING, direction.getOpposite());
+				stateForPlacement = stateForPlacement.with(FACING, direction.getOpposite());
 			}
 		}
 
 		return withWater(stateForPlacement, ctx);
 	}
 
-	protected boolean prefersConnectionTo(LevelReader reader, BlockPos pos, Direction facing) {
-		BlockPos offset = pos.relative(facing);
+	protected boolean prefersConnectionTo(WorldView reader, BlockPos pos, Direction facing) {
+		BlockPos offset = pos.offset(facing);
 		BlockState blockState = reader.getBlockState(offset);
 		return FluidPipeBlock.canConnectTo(reader, offset, blockState, facing);
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level world, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean isMoving) {
 		boolean blockTypeChanged = state.getBlock() != newState.getBlock();
-		if (blockTypeChanged && !world.isClientSide)
+		if (blockTypeChanged && !world.isClient)
 			FluidPropagator.propagateChangedPipe(world, pos, state);
 		IBE.onRemove(state, world, pos, newState);
 	}
 
 	@Override
-	public boolean canSurvive(BlockState p_196260_1_, LevelReader p_196260_2_, BlockPos p_196260_3_) {
+	public boolean canPlaceAt(BlockState p_196260_1_, WorldView p_196260_2_, BlockPos p_196260_3_) {
 		return true;
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level world, BlockPos pos, BlockState oldState, boolean isMoving) {
-		if (world.isClientSide)
+	public void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean isMoving) {
+		if (world.isClient)
 			return;
 		if (state != oldState)
-			world.scheduleTick(pos, this, 1, TickPriority.HIGH);
+			world.scheduleBlockTick(pos, this, 1, TickPriority.HIGH);
 	}
 
 	@Override
-	public void neighborChanged(BlockState state, Level world, BlockPos pos, Block otherBlock, BlockPos neighborPos,
+	public void neighborUpdate(BlockState state, World world, BlockPos pos, Block otherBlock, BlockPos neighborPos,
 		boolean isMoving) {
-		DebugPackets.sendNeighborsUpdatePacket(world, pos);
+		DebugInfoSender.sendNeighborUpdate(world, pos);
 		Direction d = FluidPropagator.validateNeighbourChange(state, world, pos, otherBlock, neighborPos, isMoving);
 		if (d == null)
 			return;
 		if (!isOpenAt(state, d))
 			return;
-		world.scheduleTick(pos, this, 1, TickPriority.HIGH);
+		world.scheduleBlockTick(pos, this, 1, TickPriority.HIGH);
 	}
 
 	public static boolean isOpenAt(BlockState state, Direction d) {
@@ -125,28 +124,28 @@ public class SmartFluidPipeBlock extends FaceAttachedHorizontalDirectionalBlock
 	}
 
 	@Override
-	public void tick(BlockState state, ServerLevel world, BlockPos pos, RandomSource r) {
+	public void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random r) {
 		FluidPropagator.propagateChangedPipe(world, pos, state);
 	}
 
 	protected static Axis getPipeAxis(BlockState state) {
-		return state.getValue(FACE) == AttachFace.WALL ? Axis.Y
-			: state.getValue(FACING)
+		return state.get(FACE) == WallMountLocation.WALL ? Axis.Y
+			: state.get(FACING)
 				.getAxis();
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter p_220053_2_, BlockPos p_220053_3_,
-		CollisionContext p_220053_4_) {
-		AttachFace face = state.getValue(FACE);
-		VoxelShaper shape = face == AttachFace.FLOOR ? AllShapes.SMART_FLUID_PIPE_FLOOR
-			: face == AttachFace.CEILING ? AllShapes.SMART_FLUID_PIPE_CEILING : AllShapes.SMART_FLUID_PIPE_WALL;
-		return shape.get(state.getValue(FACING));
+	public VoxelShape getOutlineShape(BlockState state, BlockView p_220053_2_, BlockPos p_220053_3_,
+		ShapeContext p_220053_4_) {
+		WallMountLocation face = state.get(FACE);
+		VoxelShaper shape = face == WallMountLocation.FLOOR ? AllShapes.SMART_FLUID_PIPE_FLOOR
+			: face == WallMountLocation.CEILING ? AllShapes.SMART_FLUID_PIPE_CEILING : AllShapes.SMART_FLUID_PIPE_WALL;
+		return shape.get(state.get(FACING));
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		AdvancementBehaviour.setPlacedBy(pLevel, pPos, pPlacer);
 	}
 
@@ -156,12 +155,12 @@ public class SmartFluidPipeBlock extends FaceAttachedHorizontalDirectionalBlock
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel,
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pFacing, BlockState pFacingState, WorldAccess pLevel,
 		BlockPos pCurrentPos, BlockPos pFacingPos) {
 		updateWater(pLevel, pState, pCurrentPos);
 		return pState;

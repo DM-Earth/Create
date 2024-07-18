@@ -20,55 +20,55 @@ import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.model.HumanoidModel.ArmPose;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.UseAnim;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.ClipContext.Block;
-import net.minecraft.world.level.ClipContext.Fluid;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.render.entity.model.BipedEntityModel.ArmPose;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.UseAction;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
+import net.minecraft.world.RaycastContext.FluidHandling;
+import net.minecraft.world.RaycastContext.ShapeType;
+import net.minecraft.world.World;
 
 public abstract class ZapperItem extends Item implements CustomArmPoseItem, EntitySwingListenerItem, ReequipAnimationItem {
 
-	public ZapperItem(Properties properties) {
-		super(properties.stacksTo(1));
+	public ZapperItem(Settings properties) {
+		super(properties.maxCount(1));
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public void appendHoverText(ItemStack stack, Level worldIn, List<Component> tooltip, TooltipFlag flagIn) {
-		if (stack.hasTag() && stack.getTag()
+	public void appendTooltip(ItemStack stack, World worldIn, List<Text> tooltip, TooltipContext flagIn) {
+		if (stack.hasNbt() && stack.getNbt()
 			.contains("BlockUsed")) {
-			MutableComponent usedBlock = NbtUtils.readBlockState(worldIn.holderLookup(Registries.BLOCK), stack.getTag()
+			MutableText usedBlock = NbtHelper.toBlockState(worldIn.createCommandRegistryWrapper(RegistryKeys.BLOCK), stack.getNbt()
 				.getCompound("BlockUsed"))
 				.getBlock()
 				.getName();
 			tooltip.add(Lang.translateDirect("terrainzapper.usingBlock",
-				usedBlock.withStyle(ChatFormatting.GRAY))
-					.withStyle(ChatFormatting.DARK_GRAY));
+				usedBlock.formatted(Formatting.GRAY))
+					.formatted(Formatting.DARK_GRAY));
 		}
 	}
 
@@ -76,13 +76,13 @@ public abstract class ZapperItem extends Item implements CustomArmPoseItem, Enti
 	@Override
 	public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
 		boolean differentBlock = false;
-		if (oldStack.hasTag() && newStack.hasTag() && oldStack.getTag()
+		if (oldStack.hasNbt() && newStack.hasNbt() && oldStack.getNbt()
 			.contains("BlockUsed")
-			&& newStack.getTag()
+			&& newStack.getNbt()
 				.contains("BlockUsed"))
-			differentBlock = NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(), oldStack.getTag()
-				.getCompound("BlockUsed")) != NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(),
-					newStack.getTag()
+			differentBlock = NbtHelper.toBlockState(Registries.BLOCK.getReadOnlyWrapper(), oldStack.getNbt()
+				.getCompound("BlockUsed")) != NbtHelper.toBlockState(Registries.BLOCK.getReadOnlyWrapper(),
+					newStack.getNbt()
 						.getCompound("BlockUsed"));
 		return slotChanged || !isZapper(newStack) || differentBlock;
 	}
@@ -93,110 +93,110 @@ public abstract class ZapperItem extends Item implements CustomArmPoseItem, Enti
 
 	@Nonnull
 	@Override
-	public InteractionResult useOn(UseOnContext context) {
+	public ActionResult useOnBlock(ItemUsageContext context) {
 		// Shift -> open GUI
 		if (context.getPlayer() != null && context.getPlayer()
-			.isShiftKeyDown()) {
-			if (context.getLevel().isClientSide) {
+			.isSneaking()) {
+			if (context.getWorld().isClient) {
 				EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> {
-					openHandgunGUI(context.getItemInHand(), context.getHand());
+					openHandgunGUI(context.getStack(), context.getHand());
 				});
 				context.getPlayer()
-					.getCooldowns()
-					.addCooldown(context.getItemInHand()
+					.getItemCooldownManager()
+					.set(context.getStack()
 						.getItem(), 10);
 			}
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
-		return super.useOn(context);
+		return super.useOnBlock(context);
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
-		ItemStack item = player.getItemInHand(hand);
-		CompoundTag nbt = item.getOrCreateTag();
-		boolean mainHand = hand == InteractionHand.MAIN_HAND;
+	public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
+		ItemStack item = player.getStackInHand(hand);
+		NbtCompound nbt = item.getOrCreateNbt();
+		boolean mainHand = hand == Hand.MAIN_HAND;
 
 		// Shift -> Open GUI
-		if (player.isShiftKeyDown()) {
-			if (world.isClientSide) {
+		if (player.isSneaking()) {
+			if (world.isClient) {
 				EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> {
 					openHandgunGUI(item, hand);
 				});
-				player.getCooldowns()
-					.addCooldown(item.getItem(), 10);
+				player.getItemCooldownManager()
+					.set(item.getItem(), 10);
 			}
-			return new InteractionResultHolder<>(InteractionResult.SUCCESS, item);
+			return new TypedActionResult<>(ActionResult.SUCCESS, item);
 		}
 
 		if (ShootableGadgetItemMethods.shouldSwap(player, item, hand, this::isZapper))
-			return new InteractionResultHolder<>(InteractionResult.FAIL, item);
+			return new TypedActionResult<>(ActionResult.FAIL, item);
 
 		// Check if can be used
-		Component msg = validateUsage(item);
+		Text msg = validateUsage(item);
 		if (msg != null) {
-			AllSoundEvents.DENY.play(world, player, player.blockPosition());
-			player.displayClientMessage(msg.plainCopy()
-				.withStyle(ChatFormatting.RED), true);
-			return new InteractionResultHolder<>(InteractionResult.FAIL, item);
+			AllSoundEvents.DENY.play(world, player, player.getBlockPos());
+			player.sendMessage(msg.copyContentOnly()
+				.formatted(Formatting.RED), true);
+			return new TypedActionResult<>(ActionResult.FAIL, item);
 		}
 
-		BlockState stateToUse = Blocks.AIR.defaultBlockState();
+		BlockState stateToUse = Blocks.AIR.getDefaultState();
 		if (nbt.contains("BlockUsed"))
-			stateToUse = NbtUtils.readBlockState(world.holderLookup(Registries.BLOCK), nbt.getCompound("BlockUsed"));
+			stateToUse = NbtHelper.toBlockState(world.createCommandRegistryWrapper(RegistryKeys.BLOCK), nbt.getCompound("BlockUsed"));
 		stateToUse = BlockHelper.setZeroAge(stateToUse);
-		CompoundTag data = null;
-		if (AllBlockTags.SAFE_NBT.matches(stateToUse) && nbt.contains("BlockData", Tag.TAG_COMPOUND)) {
+		NbtCompound data = null;
+		if (AllBlockTags.SAFE_NBT.matches(stateToUse) && nbt.contains("BlockData", NbtElement.COMPOUND_TYPE)) {
 			data = nbt.getCompound("BlockData");
 		}
 
 		// Raytrace - Find the target
-		Vec3 start = player.position()
-			.add(0, player.getEyeHeight(), 0);
-		Vec3 range = player.getLookAngle()
-			.scale(getZappingRange(item));
+		Vec3d start = player.getPos()
+			.add(0, player.getStandingEyeHeight(), 0);
+		Vec3d range = player.getRotationVector()
+			.multiply(getZappingRange(item));
 		BlockHitResult raytrace =
-			world.clip(new ClipContext(start, start.add(range), Block.OUTLINE, Fluid.NONE, player));
+			world.raycast(new RaycastContext(start, start.add(range), ShapeType.OUTLINE, FluidHandling.NONE, player));
 		BlockPos pos = raytrace.getBlockPos();
 		BlockState stateReplaced = world.getBlockState(pos);
 
 		// No target
 		if (pos == null || stateReplaced.getBlock() == Blocks.AIR) {
 			ShootableGadgetItemMethods.applyCooldown(player, item, hand, this::isZapper, getCooldownDelay(item));
-			return new InteractionResultHolder<>(InteractionResult.SUCCESS, item);
+			return new TypedActionResult<>(ActionResult.SUCCESS, item);
 		}
 
 		// Find exact position of gun barrel for VFX
-		Vec3 barrelPos = ShootableGadgetItemMethods.getGunBarrelVec(player, mainHand, new Vec3(.35f, -0.1f, 1));
+		Vec3d barrelPos = ShootableGadgetItemMethods.getGunBarrelVec(player, mainHand, new Vec3d(.35f, -0.1f, 1));
 
 		// Client side
-		if (world.isClientSide) {
+		if (world.isClient) {
 			CreateClient.ZAPPER_RENDER_HANDLER.dontAnimateItem(hand);
-			return new InteractionResultHolder<>(InteractionResult.SUCCESS, item);
+			return new TypedActionResult<>(ActionResult.SUCCESS, item);
 		}
 
 		// Server side
 		if (activate(world, player, item, stateToUse, raytrace, data)) {
 			ShootableGadgetItemMethods.applyCooldown(player, item, hand, this::isZapper, getCooldownDelay(item));
 			ShootableGadgetItemMethods.sendPackets(player,
-				b -> new ZapperBeamPacket(barrelPos, raytrace.getLocation(), hand, b));
+				b -> new ZapperBeamPacket(barrelPos, raytrace.getPos(), hand, b));
 		}
 
-		return new InteractionResultHolder<>(InteractionResult.SUCCESS, item);
+		return new TypedActionResult<>(ActionResult.SUCCESS, item);
 	}
 
-	public Component validateUsage(ItemStack item) {
-		CompoundTag tag = item.getOrCreateTag();
+	public Text validateUsage(ItemStack item) {
+		NbtCompound tag = item.getOrCreateNbt();
 		if (!canActivateWithoutSelectedBlock(item) && !tag.contains("BlockUsed"))
 			return Lang.translateDirect("terrainzapper.leftClickToSet");
 		return null;
 	}
 
-	protected abstract boolean activate(Level world, Player player, ItemStack item, BlockState stateToUse,
-		BlockHitResult raytrace, CompoundTag data);
+	protected abstract boolean activate(World world, PlayerEntity player, ItemStack item, BlockState stateToUse,
+		BlockHitResult raytrace, NbtCompound data);
 
 	@Environment(EnvType.CLIENT)
-	protected abstract void openHandgunGUI(ItemStack item, InteractionHand hand);
+	protected abstract void openHandgunGUI(ItemStack item, Hand hand);
 
 	protected abstract int getCooldownDelay(ItemStack item);
 
@@ -212,30 +212,30 @@ public abstract class ZapperItem extends Item implements CustomArmPoseItem, Enti
 	}
 
 	@Override
-	public boolean canAttackBlock(BlockState state, Level worldIn, BlockPos pos, Player player) {
+	public boolean canMine(BlockState state, World worldIn, BlockPos pos, PlayerEntity player) {
 		return false;
 	}
 
 	@Override
-	public UseAnim getUseAnimation(ItemStack stack) {
-		return UseAnim.NONE;
+	public UseAction getUseAction(ItemStack stack) {
+		return UseAction.NONE;
 	}
 
 	@Override
 	@Nullable
-	public ArmPose getArmPose(ItemStack stack, AbstractClientPlayer player, InteractionHand hand) {
-		if (!player.swinging) {
+	public ArmPose getArmPose(ItemStack stack, AbstractClientPlayerEntity player, Hand hand) {
+		if (!player.handSwinging) {
 			return ArmPose.CROSSBOW_HOLD;
 		}
 		return null;
 	}
 
 	public static void configureSettings(ItemStack stack, PlacementPatterns pattern) {
-		CompoundTag nbt = stack.getOrCreateTag();
+		NbtCompound nbt = stack.getOrCreateNbt();
 		NBTHelper.writeEnum(nbt, "Pattern", pattern);
 	}
 
-	public static void setBlockEntityData(Level world, BlockPos pos, BlockState state, CompoundTag data, Player player) {
+	public static void setBlockEntityData(World world, BlockPos pos, BlockState state, NbtCompound data, PlayerEntity player) {
 		if (data != null && AllBlockTags.SAFE_NBT.matches(state)) {
 			BlockEntity blockEntity = world.getBlockEntity(pos);
 			if (blockEntity != null) {
@@ -245,7 +245,7 @@ public abstract class ZapperItem extends Item implements CustomArmPoseItem, Enti
 				data.putInt("x", pos.getX());
 				data.putInt("y", pos.getY());
 				data.putInt("z", pos.getZ());
-				blockEntity.load(data);
+				blockEntity.readNbt(data);
 			}
 		}
 	}

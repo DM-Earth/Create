@@ -2,7 +2,19 @@ package com.simibubi.create.content.schematics.cannon;
 
 import java.util.Arrays;
 import java.util.Optional;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.RegistryEntryLookup;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.belt.BeltBlock;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
@@ -13,20 +25,6 @@ import com.simibubi.create.content.kinetics.belt.item.BeltConnectorItem;
 import com.simibubi.create.content.kinetics.simpleRelays.AbstractSimpleShaftBlock;
 import com.simibubi.create.foundation.utility.BlockHelper;
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.HolderGetter;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 
 public abstract class LaunchedItem {
 
@@ -40,7 +38,7 @@ public abstract class LaunchedItem {
 	}
 
 	private static int ticksForDistance(BlockPos start, BlockPos target) {
-		return (int) (Math.max(10, Math.sqrt(Math.sqrt(target.distSqr(start))) * 4f));
+		return (int) (Math.max(10, Math.sqrt(Math.sqrt(target.getSquaredDistance(start))) * 4f));
 	}
 
 	LaunchedItem() {}
@@ -52,59 +50,59 @@ public abstract class LaunchedItem {
 		this.ticksRemaining = ticksLeft;
 	}
 
-	public boolean update(Level world) {
+	public boolean update(World world) {
 		if (ticksRemaining > 0) {
 			ticksRemaining--;
 			return false;
 		}
-		if (world.isClientSide)
+		if (world.isClient)
 			return false;
 
 		place(world);
 		return true;
 	}
 
-	public CompoundTag serializeNBT() {
-		CompoundTag c = new CompoundTag();
+	public NbtCompound serializeNBT() {
+		NbtCompound c = new NbtCompound();
 		c.putInt("TotalTicks", totalTicks);
 		c.putInt("TicksLeft", ticksRemaining);
 		c.put("Stack", NBTSerializer.serializeNBT(stack));
-		c.put("Target", NbtUtils.writeBlockPos(target));
+		c.put("Target", NbtHelper.fromBlockPos(target));
 		return c;
 	}
 
-	public static LaunchedItem fromNBT(CompoundTag c, HolderGetter<Block> holderGetter) {
+	public static LaunchedItem fromNBT(NbtCompound c, RegistryEntryLookup<Block> holderGetter) {
 		LaunchedItem launched = c.contains("Length") ? new LaunchedItem.ForBelt()
 			: c.contains("BlockState") ? new LaunchedItem.ForBlockState() : new LaunchedItem.ForEntity();
 		launched.readNBT(c, holderGetter);
 		return launched;
 	}
 
-	abstract void place(Level world);
+	abstract void place(World world);
 
-	void readNBT(CompoundTag c, HolderGetter<Block> holderGetter) {
-		target = NbtUtils.readBlockPos(c.getCompound("Target"));
+	void readNBT(NbtCompound c, RegistryEntryLookup<Block> holderGetter) {
+		target = NbtHelper.toBlockPos(c.getCompound("Target"));
 		ticksRemaining = c.getInt("TicksLeft");
 		totalTicks = c.getInt("TotalTicks");
-		stack = ItemStack.of(c.getCompound("Stack"));
+		stack = ItemStack.fromNbt(c.getCompound("Stack"));
 	}
 
 	public static class ForBlockState extends LaunchedItem {
 		public BlockState state;
-		public CompoundTag data;
+		public NbtCompound data;
 
 		ForBlockState() {}
 
-		public ForBlockState(BlockPos start, BlockPos target, ItemStack stack, BlockState state, CompoundTag data) {
+		public ForBlockState(BlockPos start, BlockPos target, ItemStack stack, BlockState state, NbtCompound data) {
 			super(start, target, stack);
 			this.state = state;
 			this.data = data;
 		}
 
 		@Override
-		public CompoundTag serializeNBT() {
-			CompoundTag serializeNBT = super.serializeNBT();
-			serializeNBT.put("BlockState", NbtUtils.writeBlockState(state));
+		public NbtCompound serializeNBT() {
+			NbtCompound serializeNBT = super.serializeNBT();
+			serializeNBT.put("BlockState", NbtHelper.fromBlockState(state));
 			if (data != null) {
 				data.remove("x");
 				data.remove("y");
@@ -116,16 +114,16 @@ public abstract class LaunchedItem {
 		}
 
 		@Override
-		void readNBT(CompoundTag nbt, HolderGetter<Block> holderGetter) {
+		void readNBT(NbtCompound nbt, RegistryEntryLookup<Block> holderGetter) {
 			super.readNBT(nbt, holderGetter);
-			state = NbtUtils.readBlockState(holderGetter, nbt.getCompound("BlockState"));
-			if (nbt.contains("Data", Tag.TAG_COMPOUND)) {
+			state = NbtHelper.toBlockState(holderGetter, nbt.getCompound("BlockState"));
+			if (nbt.contains("Data", NbtElement.COMPOUND_TYPE)) {
 				data = nbt.getCompound("Data");
 			}
 		}
 
 		@Override
-		void place(Level world) {
+		void place(World world) {
 			BlockHelper.placeSchematicBlock(world, state, target, stack, data);
 		}
 
@@ -138,8 +136,8 @@ public abstract class LaunchedItem {
 		public ForBelt() {}
 
 		@Override
-		public CompoundTag serializeNBT() {
-			CompoundTag serializeNBT = super.serializeNBT();
+		public NbtCompound serializeNBT() {
+			NbtCompound serializeNBT = super.serializeNBT();
 			serializeNBT.putInt("Length", length);
 			serializeNBT.putIntArray("Casing", Arrays.stream(casings)
 				.map(CasingType::ordinal)
@@ -148,13 +146,13 @@ public abstract class LaunchedItem {
 		}
 
 		@Override
-		void readNBT(CompoundTag nbt, HolderGetter<Block> holderGetter) {
+		void readNBT(NbtCompound nbt, RegistryEntryLookup<Block> holderGetter) {
 			length = nbt.getInt("Length");
 			int[] intArray = nbt.getIntArray("Casing");
 			casings = new CasingType[length];
 			for (int i = 0; i < casings.length; i++)
 				casings[i] = i >= intArray.length ? CasingType.NONE
-					: CasingType.values()[Mth.clamp(intArray[i], 0, CasingType.values().length - 1)];
+					: CasingType.values()[MathHelper.clamp(intArray[i], 0, CasingType.values().length - 1)];
 			super.readNBT(nbt, holderGetter);
 		}
 
@@ -165,24 +163,24 @@ public abstract class LaunchedItem {
 		}
 
 		@Override
-		void place(Level world) {
-			boolean isStart = state.getValue(BeltBlock.PART) == BeltPart.START;
-			BlockPos offset = BeltBlock.nextSegmentPosition(state, BlockPos.ZERO, isStart);
+		void place(World world) {
+			boolean isStart = state.get(BeltBlock.PART) == BeltPart.START;
+			BlockPos offset = BeltBlock.nextSegmentPosition(state, BlockPos.ORIGIN, isStart);
 			int i = length - 1;
-			Axis axis = state.getValue(BeltBlock.SLOPE) == BeltSlope.SIDEWAYS ? Axis.Y
-				: state.getValue(BeltBlock.HORIZONTAL_FACING)
-					.getClockWise()
+			Axis axis = state.get(BeltBlock.SLOPE) == BeltSlope.SIDEWAYS ? Axis.Y
+				: state.get(BeltBlock.HORIZONTAL_FACING)
+					.rotateYClockwise()
 					.getAxis();
-			world.setBlockAndUpdate(target, AllBlocks.SHAFT.getDefaultState()
-				.setValue(AbstractSimpleShaftBlock.AXIS, axis));
+			world.setBlockState(target, AllBlocks.SHAFT.getDefaultState()
+				.with(AbstractSimpleShaftBlock.AXIS, axis));
 			BeltConnectorItem.createBelts(world, target,
-				target.offset(offset.getX() * i, offset.getY() * i, offset.getZ() * i));
+				target.add(offset.getX() * i, offset.getY() * i, offset.getZ() * i));
 
 			for (int segment = 0; segment < length; segment++) {
 				if (casings[segment] == CasingType.NONE)
 					continue;
 				BlockPos casingTarget =
-					target.offset(offset.getX() * segment, offset.getY() * segment, offset.getZ() * segment);
+					target.add(offset.getX() * segment, offset.getY() * segment, offset.getZ() * segment);
 				if (world.getBlockEntity(casingTarget) instanceof BeltBlockEntity bbe)
 					bbe.setCasingType(casings[segment]);
 			}
@@ -192,7 +190,7 @@ public abstract class LaunchedItem {
 
 	public static class ForEntity extends LaunchedItem {
 		public Entity entity;
-		private CompoundTag deferredTag;
+		private NbtCompound deferredTag;
 
 		ForEntity() {}
 
@@ -202,10 +200,10 @@ public abstract class LaunchedItem {
 		}
 
 		@Override
-		public boolean update(Level world) {
+		public boolean update(World world) {
 			if (deferredTag != null && entity == null) {
 				try {
-					Optional<Entity> loadEntityUnchecked = EntityType.create(deferredTag, world);
+					Optional<Entity> loadEntityUnchecked = EntityType.getEntityFromNbt(deferredTag, world);
 					if (!loadEntityUnchecked.isPresent())
 						return true;
 					entity = loadEntityUnchecked.get();
@@ -218,24 +216,24 @@ public abstract class LaunchedItem {
 		}
 
 		@Override
-		public CompoundTag serializeNBT() {
-			CompoundTag serializeNBT = super.serializeNBT();
+		public NbtCompound serializeNBT() {
+			NbtCompound serializeNBT = super.serializeNBT();
 			if (entity != null)
 				serializeNBT.put("Entity", NBTSerializer.serializeNBT(entity));
 			return serializeNBT;
 		}
 
 		@Override
-		void readNBT(CompoundTag nbt, HolderGetter<Block> holderGetter) {
+		void readNBT(NbtCompound nbt, RegistryEntryLookup<Block> holderGetter) {
 			super.readNBT(nbt, holderGetter);
 			if (nbt.contains("Entity"))
 				deferredTag = nbt.getCompound("Entity");
 		}
 
 		@Override
-		void place(Level world) {
+		void place(World world) {
 			if (entity != null)
-				world.addFreshEntity(entity);
+				world.spawnEntity(entity);
 		}
 
 	}

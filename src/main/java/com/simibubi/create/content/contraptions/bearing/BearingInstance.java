@@ -6,27 +6,26 @@ import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.core.materials.oriented.OrientedData;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.BackHalfShaftInstance;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.RotationAxis;
 
 public class BearingInstance<B extends KineticBlockEntity & IBearingBlockEntity> extends BackHalfShaftInstance<B> implements DynamicInstance {
 	final OrientedData topInstance;
 
-	final Axis rotationAxis;
+	final RotationAxis rotationAxis;
 	final Quaternionf blockOrientation;
 
 	public BearingInstance(MaterialManager materialManager, B blockEntity) {
 		super(materialManager, blockEntity);
 
-		Direction facing = blockState.getValue(BlockStateProperties.FACING);
-		rotationAxis = Axis.of(Direction.get(Direction.AxisDirection.POSITIVE, axis).step());
+		Direction facing = blockState.get(Properties.FACING);
+		rotationAxis = RotationAxis.of(Direction.get(Direction.AxisDirection.POSITIVE, axis).getUnitVector());
 
 		blockOrientation = getBlockStateOrientation(facing);
 
@@ -64,12 +63,12 @@ public class BearingInstance<B extends KineticBlockEntity & IBearingBlockEntity>
 		Quaternionf orientation;
 
 		if (facing.getAxis().isHorizontal()) {
-			orientation = Axis.YP.rotationDegrees(AngleHelper.horizontalAngle(facing.getOpposite()));
+			orientation = RotationAxis.POSITIVE_Y.rotationDegrees(AngleHelper.horizontalAngle(facing.getOpposite()));
 		} else {
 			orientation = new Quaternionf();
 		}
 
-		orientation.mul(Axis.XP.rotationDegrees(-90 - AngleHelper.verticalAngle(facing)));
+		orientation.mul(RotationAxis.POSITIVE_X.rotationDegrees(-90 - AngleHelper.verticalAngle(facing)));
 		return orientation;
 	}
 }

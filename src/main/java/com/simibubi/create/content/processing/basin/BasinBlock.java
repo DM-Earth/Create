@@ -22,118 +22,118 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.EntityCollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.EntityShapeContext;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.item.Items;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.DirectionProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldView;
 
 public class BasinBlock extends Block implements IBE<BasinBlockEntity>, IWrenchable {
 
-	public static final DirectionProperty FACING = BlockStateProperties.FACING_HOPPER;
+	public static final DirectionProperty FACING = Properties.HOPPER_FACING;
 
-	public BasinBlock(Properties p_i48440_1_) {
+	public BasinBlock(Settings p_i48440_1_) {
 		super(p_i48440_1_);
-		registerDefaultState(defaultBlockState().setValue(FACING, Direction.DOWN));
+		setDefaultState(getDefaultState().with(FACING, Direction.DOWN));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> p_206840_1_) {
-		super.createBlockStateDefinition(p_206840_1_.add(FACING));
+	protected void appendProperties(Builder<Block, BlockState> p_206840_1_) {
+		super.appendProperties(p_206840_1_.add(FACING));
 	}
 
 	@Override
-	public boolean canSurvive(BlockState state, LevelReader world, BlockPos pos) {
-		BlockEntity blockEntity = world.getBlockEntity(pos.above());
+	public boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		BlockEntity blockEntity = world.getBlockEntity(pos.up());
 		if (blockEntity instanceof BasinOperatingBlockEntity)
 			return false;
 		return true;
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		if (!context.getLevel().isClientSide)
-			withBlockEntityDo(context.getLevel(), context.getClickedPos(),
-				bte -> bte.onWrenched(context.getClickedFace()));
-		return InteractionResult.SUCCESS;
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		if (!context.getWorld().isClient)
+			withBlockEntityDo(context.getWorld(), context.getBlockPos(),
+				bte -> bte.onWrenched(context.getSide()));
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
-		ItemStack heldItem = player.getItemInHand(handIn);
+		ItemStack heldItem = player.getStackInHand(handIn);
 
 		return onBlockEntityUse(worldIn, pos, be -> {
 			if (!heldItem.isEmpty()) {
-				Direction direction = hit.getDirection();
+				Direction direction = hit.getSide();
 				if (FluidHelper.tryEmptyItemIntoBE(worldIn, player, handIn, heldItem, be, direction))
-					return InteractionResult.SUCCESS;
+					return ActionResult.SUCCESS;
 				if (FluidHelper.tryFillItemFromBE(worldIn, player, handIn, heldItem, be, direction))
-					return InteractionResult.SUCCESS;
+					return ActionResult.SUCCESS;
 
 				if (GenericItemEmptying.canItemBeEmptied(worldIn, heldItem)
 					|| GenericItemFilling.canItemBeFilled(worldIn, heldItem))
-					return InteractionResult.SUCCESS;
+					return ActionResult.SUCCESS;
 				if (heldItem.getItem()
 					.equals(Items.SPONGE)) {
 					Storage<FluidVariant> storage = be.getFluidStorage(direction);
 					if (storage != null && !TransferUtil.extractAnyFluid(storage, Long.MAX_VALUE).isEmpty()) {
-						return InteractionResult.SUCCESS;
+						return ActionResult.SUCCESS;
 					}
 				}
-				return InteractionResult.PASS;
+				return ActionResult.PASS;
 			}
 
 			Storage<ItemVariant> inv = be.itemCapability;
-			if (inv == null) return InteractionResult.PASS;
+			if (inv == null) return ActionResult.PASS;
 			List<ItemStack> extracted = TransferUtil.extractAllAsStacks(inv);
 			if (extracted.size() > 0) {
-				extracted.forEach(s -> player.getInventory().placeItemBackInInventory(s));
-				worldIn.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, .2f,
+				extracted.forEach(s -> player.getInventory().offerOrDrop(s));
+				worldIn.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, .2f,
 						1f + Create.RANDOM.nextFloat());
 			}
 			be.onEmptied();
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		});
 	}
 
 	@Override
-	public void updateEntityAfterFallOn(BlockGetter worldIn, Entity entityIn) {
-		super.updateEntityAfterFallOn(worldIn, entityIn);
-		if (!AllBlocks.BASIN.has(worldIn.getBlockState(entityIn.blockPosition())))
+	public void onEntityLand(BlockView worldIn, Entity entityIn) {
+		super.onEntityLand(worldIn, entityIn);
+		if (!AllBlocks.BASIN.has(worldIn.getBlockState(entityIn.getBlockPos())))
 			return;
 		if (!(entityIn instanceof ItemEntity))
 			return;
 		if (!entityIn.isAlive())
 			return;
 		ItemEntity itemEntity = (ItemEntity) entityIn;
-		withBlockEntityDo(worldIn, entityIn.blockPosition(), be -> {
+		withBlockEntityDo(worldIn, entityIn.getBlockPos(), be -> {
 
 			// Tossed items bypass the quarter-stack limit
 			be.inputInventory.withMaxStackSize(64);
-			ItemStack stack = itemEntity.getItem().copy();
+			ItemStack stack = itemEntity.getStack().copy();
 			try (Transaction t = TransferUtil.getTransaction()) {
 				long inserted = be.inputInventory.insert(ItemVariant.of(stack), stack.getCount(), t);
 				be.inputInventory.withMaxStackSize(16);
@@ -146,40 +146,40 @@ public class BasinBlock extends Block implements IBE<BasinBlockEntity>, IWrencha
 				}
 
 				stack.setCount((int) (stack.getCount() - inserted));
-				itemEntity.setItem(stack);
+				itemEntity.setStack(stack);
 			}
 		});
 	}
 
 	@Override
-	public VoxelShape getInteractionShape(BlockState p_199600_1_, BlockGetter p_199600_2_, BlockPos p_199600_3_) {
+	public VoxelShape getRaycastShape(BlockState p_199600_1_, BlockView p_199600_2_, BlockPos p_199600_3_) {
 		return AllShapes.BASIN_RAYTRACE_SHAPE;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
 		return AllShapes.BASIN_BLOCK_SHAPE;
 	}
 
 	@Override
-	public VoxelShape getCollisionShape(BlockState state, BlockGetter reader, BlockPos pos, CollisionContext ctx) {
-		if (ctx instanceof EntityCollisionContext && ((EntityCollisionContext) ctx).getEntity() instanceof ItemEntity)
+	public VoxelShape getCollisionShape(BlockState state, BlockView reader, BlockPos pos, ShapeContext ctx) {
+		if (ctx instanceof EntityShapeContext && ((EntityShapeContext) ctx).getEntity() instanceof ItemEntity)
 			return AllShapes.BASIN_COLLISION_SHAPE;
-		return getShape(state, reader, pos, ctx);
+		return getOutlineShape(state, reader, pos, ctx);
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		IBE.onRemove(state, worldIn, pos, newState);
 	}
 
 	@Override
-	public boolean hasAnalogOutputSignal(BlockState state) {
+	public boolean hasComparatorOutput(BlockState state) {
 		return true;
 	}
 
 	@Override
-	public int getAnalogOutputSignal(BlockState blockState, Level worldIn, BlockPos pos) {
+	public int getComparatorOutput(BlockState blockState, World worldIn, BlockPos pos) {
 		return getBlockEntityOptional(worldIn, pos).map(BasinBlockEntity::getInputInventory)
 				.filter(basin -> !Transaction.isOpen()) // fabric: hack fix for comparators updating when they shouldn't
 			.map(ItemHelper::calcRedstoneFromInventory)
@@ -196,9 +196,9 @@ public class BasinBlock extends Block implements IBE<BasinBlockEntity>, IWrencha
 		return AllBlockEntityTypes.BASIN.get();
 	}
 
-	public static boolean canOutputTo(BlockGetter world, BlockPos basinPos, Direction direction) {
-		BlockPos neighbour = basinPos.relative(direction);
-		BlockPos output = neighbour.below();
+	public static boolean canOutputTo(BlockView world, BlockPos basinPos, Direction direction) {
+		BlockPos neighbour = basinPos.offset(direction);
+		BlockPos output = neighbour.down();
 		BlockState blockState = world.getBlockState(neighbour);
 
 		if (FunnelBlock.isFunnel(blockState)) {
@@ -223,7 +223,7 @@ public class BasinBlock extends Block implements IBE<BasinBlockEntity>, IWrencha
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

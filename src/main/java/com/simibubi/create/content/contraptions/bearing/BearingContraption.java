@@ -13,13 +13,13 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class BearingContraption extends Contraption {
 
@@ -36,8 +36,8 @@ public class BearingContraption extends Contraption {
 	}
 
 	@Override
-	public boolean assemble(Level world, BlockPos pos) throws AssemblyException {
-		BlockPos offset = pos.relative(facing);
+	public boolean assemble(World world, BlockPos pos) throws AssemblyException {
+		BlockPos offset = pos.offset(facing);
 		if (!searchMovedStructure(world, offset, null))
 			return false;
 		startMoving(world);
@@ -56,7 +56,7 @@ public class BearingContraption extends Contraption {
 
 	@Override
 	protected boolean isAnchoringBlockAt(BlockPos pos) {
-		return pos.equals(anchor.relative(facing.getOpposite()));
+		return pos.equals(anchor.offset(facing.getOpposite()));
 	}
 
 	@Override
@@ -75,17 +75,17 @@ public class BearingContraption extends Contraption {
 	}
 
 	@Override
-	public CompoundTag writeNBT(boolean spawnPacket) {
-		CompoundTag tag = super.writeNBT(spawnPacket);
+	public NbtCompound writeNBT(boolean spawnPacket) {
+		NbtCompound tag = super.writeNBT(spawnPacket);
 		tag.putInt("Sails", sailBlocks);
-		tag.putInt("Facing", facing.get3DDataValue());
+		tag.putInt("Facing", facing.getId());
 		return tag;
 	}
 
 	@Override
-	public void readNBT(Level world, CompoundTag tag, boolean spawnData) {
+	public void readNBT(World world, NbtCompound tag, boolean spawnData) {
 		sailBlocks = tag.getInt("Sails");
-		facing = Direction.from3DDataValue(tag.getInt("Facing"));
+		facing = Direction.byId(tag.getInt("Facing"));
 		super.readNBT(world, tag, spawnData);
 	}
 
@@ -99,7 +99,7 @@ public class BearingContraption extends Contraption {
 
 	@Override
 	public boolean canBeStabilized(Direction facing, BlockPos localPos) {
-		if (facing.getOpposite() == this.facing && BlockPos.ZERO.equals(localPos))
+		if (facing.getOpposite() == this.facing && BlockPos.ORIGIN.equals(localPos))
 			return false;
 		return facing.getAxis() == this.facing.getAxis();
 	}

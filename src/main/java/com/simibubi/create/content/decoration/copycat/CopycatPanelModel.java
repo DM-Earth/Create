@@ -14,46 +14,46 @@ import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.model.SpriteFinder;
 import net.fabricmc.fabric.api.renderer.v1.model.WrapperBakedModel;
 import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.inventory.InventoryMenu;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.DirectionalBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.FacingBlock;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.block.BlockRenderManager;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.screen.PlayerScreenHandler;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
 public class CopycatPanelModel extends CopycatModel {
 
-	protected static final AABB CUBE_AABB = new AABB(BlockPos.ZERO);
+	protected static final Box CUBE_AABB = new Box(BlockPos.ORIGIN);
 
 	public CopycatPanelModel(BakedModel originalModel) {
 		super(originalModel);
 	}
 
 	@Override
-	protected void emitBlockQuadsInner(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context, BlockState material, CullFaceRemovalData cullFaceRemovalData, OcclusionData occlusionData) {
-		Direction facing = state.getOptionalValue(CopycatPanelBlock.FACING)
+	protected void emitBlockQuadsInner(BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, RenderContext context, BlockState material, CullFaceRemovalData cullFaceRemovalData, OcclusionData occlusionData) {
+		Direction facing = state.getOrEmpty(CopycatPanelBlock.FACING)
 			.orElse(Direction.UP);
-		BlockRenderDispatcher blockRenderer = Minecraft.getInstance()
-			.getBlockRenderer();
+		BlockRenderManager blockRenderer = MinecraftClient.getInstance()
+			.getBlockRenderManager();
 
 		BlockState specialCopycatModelState = null;
 		if (CopycatSpecialCases.isBarsMaterial(material))
 			specialCopycatModelState = AllBlocks.COPYCAT_BARS.getDefaultState();
 		if (CopycatSpecialCases.isTrapdoorMaterial(material)) {
-			((FabricBakedModel) blockRenderer.getBlockModel(material))
+			((FabricBakedModel) blockRenderer.getModel(material))
 				.emitBlockQuads(blockView, material, pos, randomSupplier, context);
 			return;
 		}
 
 		if (specialCopycatModelState != null) {
 			BakedModel blockModel = blockRenderer
-				.getBlockModel(specialCopycatModelState.setValue(DirectionalBlock.FACING, facing));
+				.getModel(specialCopycatModelState.with(FacingBlock.FACING, facing));
 
 			// fabric: extra handling for wrapped models, see: #1176
 			while (blockModel instanceof WrapperBakedModel wbm) {
@@ -69,10 +69,10 @@ public class CopycatPanelModel extends CopycatModel {
 
 		BakedModel model = getModelOf(material);
 
-		Vec3 normal = Vec3.atLowerCornerOf(facing.getNormal());
-		Vec3 normalScaled14 = normal.scale(14 / 16f);
+		Vec3d normal = Vec3d.of(facing.getVector());
+		Vec3d normalScaled14 = normal.multiply(14 / 16f);
 
-		SpriteFinder spriteFinder = SpriteFinder.get(Minecraft.getInstance().getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS));
+		SpriteFinder spriteFinder = SpriteFinder.get(MinecraftClient.getInstance().getBakedModelManager().getAtlas(PlayerScreenHandler.BLOCK_ATLAS_TEXTURE));
 
 		// Use a mesh to defer quad emission since quads cannot be emitted inside a transform
 		MeshBuilder meshBuilder = RendererAccess.INSTANCE.getRenderer().meshBuilder();
@@ -92,11 +92,11 @@ public class CopycatPanelModel extends CopycatModel {
 
 			// 2 Pieces
 			for (boolean front : Iterate.trueAndFalse) {
-				Vec3 normalScaledN13 = normal.scale(front ? 0 : -13 / 16f);
+				Vec3d normalScaledN13 = normal.multiply(front ? 0 : -13 / 16f);
 				float contract = 16 - (front ? 1 : 2);
-				AABB bb = CUBE_AABB.contract(normal.x * contract / 16, normal.y * contract / 16, normal.z * contract / 16);
+				Box bb = CUBE_AABB.shrink(normal.x * contract / 16, normal.y * contract / 16, normal.z * contract / 16);
 				if (!front)
-					bb = bb.move(normalScaled14);
+					bb = bb.offset(normalScaled14);
 
 				Direction direction = quad.lightFace();
 

@@ -35,12 +35,12 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.PotionItem;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.item.PotionItem;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.Identifier;
 
 @ParametersAreNonnullByDefault
 public class SpoutCategory extends CreateRecipeCategory<FillingRecipe> {
@@ -56,7 +56,7 @@ public class SpoutCategory extends CreateRecipeCategory<FillingRecipe> {
 		for (ItemStack stack : ingredientManager.getAllIngredients(VanillaTypes.ITEM_STACK)) {
 			if (stack.getItem() instanceof PotionItem) {
 				FluidStack fluidFromPotionItem = PotionFluidHandler.getFluidFromPotionItem(stack);
-				Ingredient bottle = Ingredient.of(Items.GLASS_BOTTLE);
+				Ingredient bottle = Ingredient.ofItems(Items.GLASS_BOTTLE);
 				consumer.accept(new ProcessingRecipeBuilder<>(FillingRecipe::new, Create.asResource("potions"))
 					.withItemIngredients(bottle)
 					.withFluidIngredients(FluidIngredient.fromFluidStack(fluidFromPotionItem))
@@ -81,15 +81,15 @@ public class SpoutCategory extends CreateRecipeCategory<FillingRecipe> {
 				fluidCopy.setAmount(FluidConstants.BUCKET);
 				TransferUtil.insertFluid(storage, fluidCopy);
 				ItemVariant container = ctx.getItemVariant();
-				if (copy.is(container.getItem()))
+				if (copy.isOf(container.getItem()))
 					continue;
 				if (container.isBlank())
 					continue;
 
-				Ingredient bucket = Ingredient.of(stack);
-				ResourceLocation itemName = RegisteredObjects.getKeyOrThrow(stack.getItem()
+				Ingredient bucket = Ingredient.ofStacks(stack);
+				Identifier itemName = RegisteredObjects.getKeyOrThrow(stack.getItem()
 						);
-				ResourceLocation fluidName = RegisteredObjects.getKeyOrThrow(fluidCopy.getFluid()
+				Identifier fluidName = RegisteredObjects.getKeyOrThrow(fluidCopy.getFluid()
 						);
 				consumer.accept(new ProcessingRecipeBuilder<>(FillingRecipe::new,
 						Create.asResource("fill_" + itemName.getNamespace() + "_" + itemName.getPath()
@@ -120,7 +120,7 @@ public class SpoutCategory extends CreateRecipeCategory<FillingRecipe> {
 	}
 
 	@Override
-	public void draw(FillingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(FillingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SHADOW.render(graphics, 62, 57);
 		AllGuiTextures.JEI_DOWN_ARROW.render(graphics, 126, 29);
 		spout.withFluids(recipe.getRequiredFluid()

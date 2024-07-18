@@ -18,67 +18,66 @@ import io.github.fabricators_of_create.porting_lib.block.CustomDestroyEffectsBlo
 import io.github.fabricators_of_create.porting_lib.block.CustomLandingEffectsBlock;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DirectionalBlock;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.FacingBlock;
+import net.minecraft.client.particle.ParticleManager;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
-public class WaterWheelStructuralBlock extends DirectionalBlock implements IWrenchable, IProxyHoveringInformation, MultiPosDestructionHandler, CustomLandingEffectsBlock, CustomDestroyEffectsBlock, CustomHitEffectsBlock {
+public class WaterWheelStructuralBlock extends FacingBlock implements IWrenchable, IProxyHoveringInformation, MultiPosDestructionHandler, CustomLandingEffectsBlock, CustomDestroyEffectsBlock, CustomHitEffectsBlock {
 
-	public WaterWheelStructuralBlock(Properties p_52591_) {
+	public WaterWheelStructuralBlock(Settings p_52591_) {
 		super(p_52591_);
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
-		super.createBlockStateDefinition(pBuilder.add(FACING));
+	protected void appendProperties(Builder<Block, BlockState> pBuilder) {
+		super.appendProperties(pBuilder.add(FACING));
 	}
 
 	@Override
-	public RenderShape getRenderShape(BlockState pState) {
-		return RenderShape.INVISIBLE;
+	public BlockRenderType getRenderType(BlockState pState) {
+		return BlockRenderType.INVISIBLE;
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		return InteractionResult.PASS;
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		return ActionResult.PASS;
 	}
 
 	@Override
-	public ItemStack getCloneItemStack(BlockGetter pLevel, BlockPos pPos, BlockState pState) {
+	public ItemStack getPickStack(BlockView pLevel, BlockPos pPos, BlockState pState) {
 		return AllBlocks.LARGE_WATER_WHEEL.asStack();
 	}
 
 	@Override
-	public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
-		BlockPos clickedPos = context.getClickedPos();
-		Level level = context.getLevel();
+	public ActionResult onSneakWrenched(BlockState state, ItemUsageContext context) {
+		BlockPos clickedPos = context.getBlockPos();
+		World level = context.getWorld();
 
 		if (stillValid(level, clickedPos, state, false)) {
 			BlockPos masterPos = getMaster(level, clickedPos, state);
-			context = new UseOnContext(level, context.getPlayer(), context.getHand(), context.getItemInHand(),
-				new BlockHitResult(context.getClickLocation(), context.getClickedFace(), masterPos,
-					context.isInside()));
+			context = new ItemUsageContext(level, context.getPlayer(), context.getHand(), context.getStack(),
+				new BlockHitResult(context.getHitPos(), context.getSide(), masterPos,
+					context.hitsInsideBlock()));
 			state = level.getBlockState(masterPos);
 		}
 
@@ -86,100 +85,100 @@ public class WaterWheelStructuralBlock extends DirectionalBlock implements IWren
 	}
 
 	@Override
-	public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand,
+	public ActionResult onUse(BlockState pState, World pLevel, BlockPos pPos, PlayerEntity pPlayer, Hand pHand,
 		BlockHitResult pHit) {
 		if (AdventureUtil.isAdventure(pPlayer))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		if (!stillValid(pLevel, pPos, pState, false))
-			return InteractionResult.FAIL;
+			return ActionResult.FAIL;
 		if (!(pLevel.getBlockEntity(getMaster(pLevel, pPos, pState))instanceof WaterWheelBlockEntity wwt))
-			return InteractionResult.FAIL;
-		return wwt.applyMaterialIfValid(pPlayer.getItemInHand(pHand));
+			return ActionResult.FAIL;
+		return wwt.applyMaterialIfValid(pPlayer.getStackInHand(pHand));
 	}
 
 	@Override
-	public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
+	public void onStateReplaced(BlockState pState, World pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
 		if (stillValid(pLevel, pPos, pState, false))
-			pLevel.destroyBlock(getMaster(pLevel, pPos, pState), true);
+			pLevel.breakBlock(getMaster(pLevel, pPos, pState), true);
 	}
 
-	public void playerWillDestroy(Level pLevel, BlockPos pPos, BlockState pState, Player pPlayer) {
+	public void onBreak(World pLevel, BlockPos pPos, BlockState pState, PlayerEntity pPlayer) {
 		if (stillValid(pLevel, pPos, pState, false)) {
 			BlockPos masterPos = getMaster(pLevel, pPos, pState);
-			pLevel.destroyBlockProgress(masterPos.hashCode(), masterPos, -1);
-			if (!pLevel.isClientSide() && pPlayer.isCreative())
-				pLevel.destroyBlock(masterPos, false);
+			pLevel.setBlockBreakingInfo(masterPos.hashCode(), masterPos, -1);
+			if (!pLevel.isClient() && pPlayer.isCreative())
+				pLevel.breakBlock(masterPos, false);
 		}
-		super.playerWillDestroy(pLevel, pPos, pState, pPlayer);
+		super.onBreak(pLevel, pPos, pState, pPlayer);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pFacing, BlockState pFacingState, LevelAccessor pLevel,
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pFacing, BlockState pFacingState, WorldAccess pLevel,
 		BlockPos pCurrentPos, BlockPos pFacingPos) {
 		if (stillValid(pLevel, pCurrentPos, pState, false)) {
 			BlockPos masterPos = getMaster(pLevel, pCurrentPos, pState);
-			if (!pLevel.getBlockTicks()
-				.hasScheduledTick(masterPos, AllBlocks.LARGE_WATER_WHEEL.get()))
-				pLevel.scheduleTick(masterPos, AllBlocks.LARGE_WATER_WHEEL.get(), 1);
+			if (!pLevel.getBlockTickScheduler()
+				.isQueued(masterPos, AllBlocks.LARGE_WATER_WHEEL.get()))
+				pLevel.scheduleBlockTick(masterPos, AllBlocks.LARGE_WATER_WHEEL.get(), 1);
 			return pState;
 		}
-		if (!(pLevel instanceof Level level) || level.isClientSide())
+		if (!(pLevel instanceof World level) || level.isClient())
 			return pState;
-		if (!level.getBlockTicks()
-			.hasScheduledTick(pCurrentPos, this))
-			level.scheduleTick(pCurrentPos, this, 1);
+		if (!level.getBlockTickScheduler()
+			.isQueued(pCurrentPos, this))
+			level.scheduleBlockTick(pCurrentPos, this, 1);
 		return pState;
 	}
 
-	public static BlockPos getMaster(BlockGetter level, BlockPos pos, BlockState state) {
-		Direction direction = state.getValue(FACING);
-		BlockPos targetedPos = pos.relative(direction);
+	public static BlockPos getMaster(BlockView level, BlockPos pos, BlockState state) {
+		Direction direction = state.get(FACING);
+		BlockPos targetedPos = pos.offset(direction);
 		BlockState targetedState = level.getBlockState(targetedPos);
-		if (targetedState.is(AllBlocks.WATER_WHEEL_STRUCTURAL.get()))
+		if (targetedState.isOf(AllBlocks.WATER_WHEEL_STRUCTURAL.get()))
 			return getMaster(level, targetedPos, targetedState);
 		return targetedPos;
 	}
 
-	public boolean stillValid(BlockGetter level, BlockPos pos, BlockState state, boolean directlyAdjacent) {
-		if (!state.is(this))
+	public boolean stillValid(BlockView level, BlockPos pos, BlockState state, boolean directlyAdjacent) {
+		if (!state.isOf(this))
 			return false;
 
-		Direction direction = state.getValue(FACING);
-		BlockPos targetedPos = pos.relative(direction);
+		Direction direction = state.get(FACING);
+		BlockPos targetedPos = pos.offset(direction);
 		BlockState targetedState = level.getBlockState(targetedPos);
 
 		if (!directlyAdjacent && stillValid(level, targetedPos, targetedState, true))
 			return true;
 		return targetedState.getBlock() instanceof LargeWaterWheelBlock
-			&& targetedState.getValue(LargeWaterWheelBlock.AXIS) != direction.getAxis();
+			&& targetedState.get(LargeWaterWheelBlock.AXIS) != direction.getAxis();
 	}
 
 	@Override
-	public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
+	public void scheduledTick(BlockState pState, ServerWorld pLevel, BlockPos pPos, Random pRandom) {
 		if (!stillValid(pLevel, pPos, pState, false))
-			pLevel.setBlockAndUpdate(pPos, Blocks.AIR.defaultBlockState());
+			pLevel.setBlockState(pPos, Blocks.AIR.getDefaultState());
 	}
 
 	@Override
-	public boolean addLandingEffects(BlockState state1, ServerLevel level, BlockPos pos, BlockState state2,
+	public boolean addLandingEffects(BlockState state1, ServerWorld level, BlockPos pos, BlockState state2,
 		LivingEntity entity, int numberOfParticles) {
 		return true;
 	}
 
 	// fabric: Don't add destroy effects, it'll create missingno particles
 	@Override
-	public boolean addDestroyEffects(BlockState state, ClientLevel Level, BlockPos pos, ParticleEngine manager) {
+	public boolean addDestroyEffects(BlockState state, ClientWorld Level, BlockPos pos, ParticleManager manager) {
 		return false;
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public boolean addHitEffects(BlockState state, Level level, HitResult target, ParticleEngine engine) {
+	public boolean addHitEffects(BlockState state, World level, HitResult target, ParticleManager engine) {
 		if (target instanceof BlockHitResult bhr) {
 			BlockPos targetPos = bhr.getBlockPos();
 			WaterWheelStructuralBlock waterWheelStructuralBlock = AllBlocks.WATER_WHEEL_STRUCTURAL.get();
 			if (waterWheelStructuralBlock.stillValid(level, targetPos, state, false))
-				engine.crack(WaterWheelStructuralBlock.getMaster(level, targetPos, state), bhr.getDirection());
+				engine.addBlockBreakingParticles(WaterWheelStructuralBlock.getMaster(level, targetPos, state), bhr.getSide());
 			return true;
 		}
 		return false;
@@ -188,7 +187,7 @@ public class WaterWheelStructuralBlock extends DirectionalBlock implements IWren
 	@Override
 	@Nullable
 	@Environment(EnvType.CLIENT)
-	public Set<BlockPos> getExtraPositions(ClientLevel level, BlockPos pos, BlockState blockState, int progress) {
+	public Set<BlockPos> getExtraPositions(ClientWorld level, BlockPos pos, BlockState blockState, int progress) {
 		WaterWheelStructuralBlock waterWheelStructuralBlock = AllBlocks.WATER_WHEEL_STRUCTURAL.get();
 		if (!waterWheelStructuralBlock.stillValid(level, pos, blockState, false))
 			return null;
@@ -198,7 +197,7 @@ public class WaterWheelStructuralBlock extends DirectionalBlock implements IWren
 	}
 
 	@Override
-	public BlockPos getInformationSource(Level level, BlockPos pos, BlockState state) {
+	public BlockPos getInformationSource(World level, BlockPos pos, BlockState state) {
 		return stillValid(level, pos, state, false) ? getMaster(level, pos, state) : pos;
 	}
 

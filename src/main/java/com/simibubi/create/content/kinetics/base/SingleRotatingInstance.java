@@ -3,8 +3,7 @@ package com.simibubi.create.content.kinetics.base;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
-
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
 
 public class SingleRotatingInstance<T extends KineticBlockEntity> extends KineticBlockEntityInstance<T> {
 

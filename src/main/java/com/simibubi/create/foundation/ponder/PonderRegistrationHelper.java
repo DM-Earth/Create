@@ -2,11 +2,9 @@ package com.simibubi.create.foundation.ponder;
 
 import java.util.Arrays;
 import java.util.function.Consumer;
-
+import net.minecraft.util.Identifier;
 import com.simibubi.create.foundation.ponder.PonderStoryBoardEntry.PonderStoryBoard;
 import com.tterrag.registrate.util.entry.ItemProviderEntry;
-
-import net.minecraft.resources.ResourceLocation;
 
 public class PonderRegistrationHelper {
 
@@ -16,21 +14,21 @@ public class PonderRegistrationHelper {
 		this.namespace = namespace;
 	}
 
-	public PonderStoryBoardEntry addStoryBoard(ResourceLocation component,
-		ResourceLocation schematicLocation, PonderStoryBoard storyBoard, PonderTag... tags) {
+	public PonderStoryBoardEntry addStoryBoard(Identifier component,
+		Identifier schematicLocation, PonderStoryBoard storyBoard, PonderTag... tags) {
 		PonderStoryBoardEntry entry = this.createStoryBoardEntry(storyBoard, schematicLocation, component);
 		entry.highlightTags(tags);
 		PonderRegistry.addStoryBoard(entry);
 		return entry;
 	}
 
-	public PonderStoryBoardEntry addStoryBoard(ResourceLocation component,
+	public PonderStoryBoardEntry addStoryBoard(Identifier component,
 		String schematicPath, PonderStoryBoard storyBoard, PonderTag... tags) {
 		return addStoryBoard(component, asLocation(schematicPath), storyBoard, tags);
 	}
 
 	public PonderStoryBoardEntry addStoryBoard(ItemProviderEntry<?> component,
-		ResourceLocation schematicLocation, PonderStoryBoard storyBoard, PonderTag... tags) {
+		Identifier schematicLocation, PonderStoryBoard storyBoard, PonderTag... tags) {
 		return addStoryBoard(component.getId(), schematicLocation, storyBoard, tags);
 	}
 
@@ -47,11 +45,11 @@ public class PonderRegistrationHelper {
 		return new MultiSceneBuilder(components);
 	}
 
-	public PonderStoryBoardEntry createStoryBoardEntry(PonderStoryBoard storyBoard, ResourceLocation schematicLocation, ResourceLocation component) {
+	public PonderStoryBoardEntry createStoryBoardEntry(PonderStoryBoard storyBoard, Identifier schematicLocation, Identifier component) {
 		return new PonderStoryBoardEntry(storyBoard, namespace, schematicLocation, component);
 	}
 
-	public PonderStoryBoardEntry createStoryBoardEntry(PonderStoryBoard storyBoard, String schematicPath, ResourceLocation component) {
+	public PonderStoryBoardEntry createStoryBoardEntry(PonderStoryBoard storyBoard, String schematicPath, Identifier component) {
 		return createStoryBoardEntry(storyBoard, asLocation(schematicPath), component);
 	}
 
@@ -63,8 +61,8 @@ public class PonderRegistrationHelper {
 		return PonderChapter.of(asLocation(name));
 	}
 
-	public ResourceLocation asLocation(String path) {
-		return new ResourceLocation(namespace, path);
+	public Identifier asLocation(String path) {
+		return new Identifier(namespace, path);
 	}
 
 	public class MultiSceneBuilder {
@@ -75,16 +73,16 @@ public class PonderRegistrationHelper {
 			this.components = components;
 		}
 
-		public MultiSceneBuilder addStoryBoard(ResourceLocation schematicLocation, PonderStoryBoard storyBoard) {
+		public MultiSceneBuilder addStoryBoard(Identifier schematicLocation, PonderStoryBoard storyBoard) {
 			return addStoryBoard(schematicLocation, storyBoard, $ -> {
 			});
 		}
 
-		public MultiSceneBuilder addStoryBoard(ResourceLocation schematicLocation, PonderStoryBoard storyBoard, PonderTag... tags) {
+		public MultiSceneBuilder addStoryBoard(Identifier schematicLocation, PonderStoryBoard storyBoard, PonderTag... tags) {
 			return addStoryBoard(schematicLocation, storyBoard, sb -> sb.highlightTags(tags));
 		}
 
-		public MultiSceneBuilder addStoryBoard(ResourceLocation schematicLocation, PonderStoryBoard storyBoard,
+		public MultiSceneBuilder addStoryBoard(Identifier schematicLocation, PonderStoryBoard storyBoard,
 			Consumer<PonderStoryBoardEntry> extras) {
 			components.forEach(c -> extras.accept(PonderRegistrationHelper.this.addStoryBoard(c, schematicLocation, storyBoard)));
 			return this;

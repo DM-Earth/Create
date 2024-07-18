@@ -12,56 +12,56 @@ import io.github.fabricators_of_create.porting_lib.block.ConnectableRedstoneBloc
 import io.github.fabricators_of_create.porting_lib.transfer.TransferUtil;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.AttachFace;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.enums.WallMountLocation;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.IntProperty;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldView;
 
 public class ThresholdSwitchBlock extends DirectedDirectionalBlock implements IBE<ThresholdSwitchBlockEntity>, ConnectableRedstoneBlock {
 
-	public static final IntegerProperty LEVEL = IntegerProperty.create("level", 0, 5);
+	public static final IntProperty LEVEL = IntProperty.of("level", 0, 5);
 
-	public ThresholdSwitchBlock(Properties p_i48377_1_) {
+	public ThresholdSwitchBlock(Settings p_i48377_1_) {
 		super(p_i48377_1_);
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
+	public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
 		updateObservedInventory(state, worldIn, pos);
 	}
 
-	private void updateObservedInventory(BlockState state, LevelReader world, BlockPos pos) {
+	private void updateObservedInventory(BlockState state, WorldView world, BlockPos pos) {
 		withBlockEntityDo(world, pos, ThresholdSwitchBlockEntity::updateCurrentLevel);
 	}
 
 	@Override
-	public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, Direction side) {
+	public boolean canConnectRedstone(BlockState state, BlockView world, BlockPos pos, Direction side) {
 		return side != null && side.getOpposite() != getTargetDirection(state);
 	}
 
 	@Override
-	public boolean isSignalSource(BlockState state) {
+	public boolean emitsRedstonePower(BlockState state) {
 		return true;
 	}
 
 	@Override
-	public int getSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
+	public int getWeakRedstonePower(BlockState blockState, BlockView blockAccess, BlockPos pos, Direction side) {
 		if (side == getTargetDirection(blockState)
 			.getOpposite())
 			return 0;
@@ -71,41 +71,41 @@ public class ThresholdSwitchBlock extends DirectedDirectionalBlock implements IB
 	}
 
 	@Override
-	public void tick(BlockState blockState, ServerLevel world, BlockPos pos, RandomSource random) {
+	public void scheduledTick(BlockState blockState, ServerWorld world, BlockPos pos, Random random) {
 		getBlockEntityOptional(world, pos).ifPresent(ThresholdSwitchBlockEntity::updatePowerAfterDelay);
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(LEVEL));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(LEVEL));
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
 		if (AdventureUtil.isAdventure(player))
-			return InteractionResult.PASS;
-		if (player != null && AllItems.WRENCH.isIn(player.getItemInHand(handIn)))
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
+		if (player != null && AllItems.WRENCH.isIn(player.getStackInHand(handIn)))
+			return ActionResult.PASS;
 		EnvExecutor.runWhenOn(EnvType.CLIENT,
 			() -> () -> withBlockEntityDo(worldIn, pos, be -> this.displayScreen(be, player)));
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Environment(value = EnvType.CLIENT)
-	protected void displayScreen(ThresholdSwitchBlockEntity be, Player player) {
-		if (player instanceof LocalPlayer)
+	protected void displayScreen(ThresholdSwitchBlockEntity be, PlayerEntity player) {
+		if (player instanceof ClientPlayerEntity)
 			ScreenOpener.open(new ThresholdSwitchScreen(be));
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState state = defaultBlockState();
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState state = getDefaultState();
 
 		Direction preferredFacing = null;
-		for (Direction face : context.getNearestLookingDirections()) {
-			BlockPos offsetPos = context.getClickedPos().relative(face);
-			Level world = context.getLevel();
+		for (Direction face : context.getPlacementDirections()) {
+			BlockPos offsetPos = context.getBlockPos().offset(face);
+			World world = context.getWorld();
 			if (TransferUtil.getItemStorage(world, offsetPos, face.getOpposite()) != null
 					|| TransferUtil.getFluidStorage(world, offsetPos, face.getOpposite()) != null) {
 				preferredFacing = face;
@@ -114,17 +114,17 @@ public class ThresholdSwitchBlock extends DirectedDirectionalBlock implements IB
 		}
 
 		if (preferredFacing == null) {
-			Direction facing = context.getNearestLookingDirection();
+			Direction facing = context.getPlayerLookDirection();
 			preferredFacing = context.getPlayer() != null && context.getPlayer()
-				.isShiftKeyDown() ? facing : facing.getOpposite();
+				.isSneaking() ? facing : facing.getOpposite();
 		}
 
 		if (preferredFacing.getAxis() == Axis.Y) {
-			state = state.setValue(TARGET, preferredFacing == Direction.UP ? AttachFace.CEILING : AttachFace.FLOOR);
-			preferredFacing = context.getHorizontalDirection();
+			state = state.with(TARGET, preferredFacing == Direction.UP ? WallMountLocation.CEILING : WallMountLocation.FLOOR);
+			preferredFacing = context.getHorizontalPlayerFacing();
 		}
 
-		return state.setValue(FACING, preferredFacing);
+		return state.with(FACING, preferredFacing);
 	}
 
 	@Override

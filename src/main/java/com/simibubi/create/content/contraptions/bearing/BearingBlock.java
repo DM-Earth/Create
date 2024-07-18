@@ -1,30 +1,29 @@
 package com.simibubi.create.content.contraptions.bearing;
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.world.WorldView;
 
 public abstract class BearingBlock extends DirectionalKineticBlock {
 
-	public BearingBlock(Properties properties) {
+	public BearingBlock(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return face == state.getValue(FACING).getOpposite();
+	public boolean hasShaftTowards(WorldView world, BlockPos pos, BlockState state, Direction face) {
+		return face == state.get(FACING).getOpposite();
 	}
 	
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(FACING).getAxis();
+		return state.get(FACING).getAxis();
 	}
 
 	@Override
@@ -33,10 +32,10 @@ public abstract class BearingBlock extends DirectionalKineticBlock {
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		InteractionResult resultType = super.onWrenched(state, context);
-		if (!context.getLevel().isClientSide && resultType.consumesAction()) {
-			BlockEntity be = context.getLevel().getBlockEntity(context.getClickedPos());
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		ActionResult resultType = super.onWrenched(state, context);
+		if (!context.getWorld().isClient && resultType.isAccepted()) {
+			BlockEntity be = context.getWorld().getBlockEntity(context.getBlockPos());
 			if (be instanceof MechanicalBearingBlockEntity) {
 				((MechanicalBearingBlockEntity) be).disassemble();
 			}

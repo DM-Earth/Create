@@ -2,9 +2,9 @@ package com.simibubi.create.content.redstone.diodes;
 
 import static com.simibubi.create.content.redstone.diodes.BrassDiodeBlock.POWERING;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
 
 public class PulseExtenderBlockEntity extends BrassDiodeBlockEntity {
 
@@ -17,14 +17,14 @@ public class PulseExtenderBlockEntity extends BrassDiodeBlockEntity {
 		if (atMin && !powered)
 			return;
 		if (atMin || powered) {
-			level.setBlockAndUpdate(worldPosition, getBlockState().setValue(POWERING, true));
+			world.setBlockState(pos, getCachedState().with(POWERING, true));
 			state = maxState.getValue();
 			return;
 		}
 		
 		if (state == 1) {
-			if (powering && !level.isClientSide)
-				level.setBlockAndUpdate(worldPosition, getBlockState().setValue(POWERING, false));
+			if (powering && !world.isClient)
+				world.setBlockState(pos, getCachedState().with(POWERING, false));
 			if (!powered)
 				state = 0;
 			return;

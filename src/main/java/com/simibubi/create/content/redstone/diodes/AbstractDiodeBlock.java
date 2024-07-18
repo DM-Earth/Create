@@ -1,18 +1,17 @@
 package com.simibubi.create.content.redstone.diodes;
 
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import net.minecraft.block.AbstractRedstoneGateBlock;
+import net.minecraft.block.BlockState;
 
-import net.minecraft.world.level.block.DiodeBlock;
-import net.minecraft.world.level.block.state.BlockState;
+public abstract class AbstractDiodeBlock extends AbstractRedstoneGateBlock implements IWrenchable {
 
-public abstract class AbstractDiodeBlock extends DiodeBlock implements IWrenchable {
-
-	public AbstractDiodeBlock(Properties builder) {
+	public AbstractDiodeBlock(Settings builder) {
 		super(builder);
 	}
 
 	@Override
-	public boolean isSignalSource(BlockState state) {
+	public boolean emitsRedstonePower(BlockState state) {
 		return true;
 	}
 }

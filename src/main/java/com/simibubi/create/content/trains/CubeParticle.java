@@ -2,47 +2,46 @@ package com.simibubi.create.content.trains;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.simibubi.create.AllSpecialTextures;
 import io.github.fabricators_of_create.porting_lib.util.ParticleHelper;
-
-import net.minecraft.client.Camera;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.ParticleProvider;
-import net.minecraft.client.particle.ParticleRenderType;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.particle.ParticleFactory;
+import net.minecraft.client.particle.ParticleTextureSheet;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.texture.TextureManager;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class CubeParticle extends Particle {
 
-	public static final Vec3[] CUBE = {
+	public static final Vec3d[] CUBE = {
 		// TOP
-		new Vec3(1, 1, -1), new Vec3(1, 1, 1), new Vec3(-1, 1, 1), new Vec3(-1, 1, -1),
+		new Vec3d(1, 1, -1), new Vec3d(1, 1, 1), new Vec3d(-1, 1, 1), new Vec3d(-1, 1, -1),
 
 		// BOTTOM
-		new Vec3(-1, -1, -1), new Vec3(-1, -1, 1), new Vec3(1, -1, 1), new Vec3(1, -1, -1),
+		new Vec3d(-1, -1, -1), new Vec3d(-1, -1, 1), new Vec3d(1, -1, 1), new Vec3d(1, -1, -1),
 
 		// FRONT
-		new Vec3(-1, -1, 1), new Vec3(-1, 1, 1), new Vec3(1, 1, 1), new Vec3(1, -1, 1),
+		new Vec3d(-1, -1, 1), new Vec3d(-1, 1, 1), new Vec3d(1, 1, 1), new Vec3d(1, -1, 1),
 
 		// BACK
-		new Vec3(1, -1, -1), new Vec3(1, 1, -1), new Vec3(-1, 1, -1), new Vec3(-1, -1, -1),
+		new Vec3d(1, -1, -1), new Vec3d(1, 1, -1), new Vec3d(-1, 1, -1), new Vec3d(-1, -1, -1),
 
 		// LEFT
-		new Vec3(-1, -1, -1), new Vec3(-1, 1, -1), new Vec3(-1, 1, 1), new Vec3(-1, -1, 1),
+		new Vec3d(-1, -1, -1), new Vec3d(-1, 1, -1), new Vec3d(-1, 1, 1), new Vec3d(-1, -1, 1),
 
 		// RIGHT
-		new Vec3(1, -1, 1), new Vec3(1, 1, 1), new Vec3(1, 1, -1), new Vec3(1, -1, -1) };
+		new Vec3d(1, -1, 1), new Vec3d(1, 1, 1), new Vec3d(1, 1, -1), new Vec3d(1, -1, -1) };
 
-	private static final ParticleRenderType RENDER_TYPE = new ParticleRenderType() {
+	private static final ParticleTextureSheet RENDER_TYPE = new ParticleTextureSheet() {
 		@Override
 		public void begin(BufferBuilder builder, TextureManager textureManager) {
 			AllSpecialTextures.BLANK.bind();
@@ -50,43 +49,43 @@ public class CubeParticle extends Particle {
 			// transparent, additive blending
 			RenderSystem.depthMask(false);
 			RenderSystem.enableBlend();
-			RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
+			RenderSystem.blendFunc(GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ONE);
 
 			// opaque
 //			RenderSystem.depthMask(true);
 //			RenderSystem.disableBlend();
 //			RenderSystem.enableLighting();
 
-			builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+			builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR_LIGHT);
 		}
 
 		@Override
-		public void end(Tesselator tessellator) {
-			tessellator.end();
-			RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
-				GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+		public void draw(Tessellator tessellator) {
+			tessellator.draw();
+			RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA,
+				GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
 		}
 	};
 
 	protected float scale;
 	protected boolean hot;
 
-	public CubeParticle(ClientLevel world, double x, double y, double z, double motionX, double motionY, double motionZ) {
+	public CubeParticle(ClientWorld world, double x, double y, double z, double motionX, double motionY, double motionZ) {
 		super(world, x, y, z);
-		this.xd = motionX;
-		this.yd = motionY;
-		this.zd = motionZ;
+		this.velocityX = motionX;
+		this.velocityY = motionY;
+		this.velocityZ = motionZ;
 
 		setScale(0.2F);
 	}
 
 	public void setScale(float scale) {
 		this.scale = scale;
-		this.setSize(scale * 0.5f, scale * 0.5f);
+		this.setBoundingBoxSpacing(scale * 0.5f, scale * 0.5f);
 	}
 
 	public void averageAge(int age) {
-		this.lifetime = (int) (age + (random.nextDouble() * 2D - 1D) * 8);
+		this.maxAge = (int) (age + (random.nextDouble() * 2D - 1D) * 8);
 	}
 
 	public void setHot(boolean hot) {
@@ -98,64 +97,64 @@ public class CubeParticle extends Particle {
 	@Override
 	public void tick() {
 		if (this.hot && this.age > 0) {
-			if (this.yo == this.y) {
+			if (this.prevPosY == this.y) {
 				billowing = true;
 				ParticleHelper.setStoppedByCollision(this, false); // Prevent motion being ignored due to vertical collision
-				if (this.xd == 0 && this.zd == 0) {
-					Vec3 diff = Vec3.atLowerCornerOf(BlockPos.containing(x, y, z))
+				if (this.velocityX == 0 && this.velocityZ == 0) {
+					Vec3d diff = Vec3d.of(BlockPos.ofFloored(x, y, z))
 						.add(0.5, 0.5, 0.5)
 						.subtract(x, y, z);
-					this.xd = -diff.x * 0.1;
-					this.zd = -diff.z * 0.1;
+					this.velocityX = -diff.x * 0.1;
+					this.velocityZ = -diff.z * 0.1;
 				}
-				this.xd *= 1.1;
-				this.yd *= 0.9;
-				this.zd *= 1.1;
+				this.velocityX *= 1.1;
+				this.velocityY *= 0.9;
+				this.velocityZ *= 1.1;
 			} else if (billowing) {
-				this.yd *= 1.2;
+				this.velocityY *= 1.2;
 			}
 		}
 		super.tick();
 	}
 
 	@Override
-	public void render(VertexConsumer builder, Camera renderInfo, float p_225606_3_) {
-		Vec3 projectedView = renderInfo.getPosition();
-		float lerpedX = (float) (Mth.lerp(p_225606_3_, this.xo, this.x) - projectedView.x());
-		float lerpedY = (float) (Mth.lerp(p_225606_3_, this.yo, this.y) - projectedView.y());
-		float lerpedZ = (float) (Mth.lerp(p_225606_3_, this.zo, this.z) - projectedView.z());
+	public void buildGeometry(VertexConsumer builder, Camera renderInfo, float p_225606_3_) {
+		Vec3d projectedView = renderInfo.getPos();
+		float lerpedX = (float) (MathHelper.lerp(p_225606_3_, this.prevPosX, this.x) - projectedView.getX());
+		float lerpedY = (float) (MathHelper.lerp(p_225606_3_, this.prevPosY, this.y) - projectedView.getY());
+		float lerpedZ = (float) (MathHelper.lerp(p_225606_3_, this.prevPosZ, this.z) - projectedView.getZ());
 
 		// int light = getBrightnessForRender(p_225606_3_);
-		int light = LightTexture.FULL_BRIGHT;
-		double ageMultiplier = 1 - Math.pow(Mth.clamp(age + p_225606_3_, 0, lifetime), 3) / Math.pow(lifetime, 3);
+		int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
+		double ageMultiplier = 1 - Math.pow(MathHelper.clamp(age + p_225606_3_, 0, maxAge), 3) / Math.pow(maxAge, 3);
 
 		for (int i = 0; i < 6; i++) {
 			// 6 faces to a cube
 			for (int j = 0; j < 4; j++) {
-				Vec3 vec = CUBE[i * 4 + j].scale(-1);
+				Vec3d vec = CUBE[i * 4 + j].multiply(-1);
 				vec = vec
 					/* .rotate(?) */
-					.scale(scale * ageMultiplier)
+					.multiply(scale * ageMultiplier)
 					.add(lerpedX, lerpedY, lerpedZ);
 
 				builder.vertex(vec.x, vec.y, vec.z)
-					.uv(j / 2, j % 2)
-					.color(rCol, gCol, bCol, alpha)
-					.uv2(light)
-					.endVertex();
+					.texture(j / 2, j % 2)
+					.color(red, green, blue, alpha)
+					.light(light)
+					.next();
 			}
 		}
 	}
 
 	@Override
-	public ParticleRenderType getRenderType() {
+	public ParticleTextureSheet getType() {
 		return RENDER_TYPE;
 	}
 
-	public static class Factory implements ParticleProvider<CubeParticleData> {
+	public static class Factory implements ParticleFactory<CubeParticleData> {
 
 		@Override
-		public Particle createParticle(CubeParticleData data, ClientLevel world, double x, double y, double z, double motionX,
+		public Particle createParticle(CubeParticleData data, ClientWorld world, double x, double y, double z, double motionX,
 			double motionY, double motionZ) {
 			CubeParticle particle = new CubeParticle(world, x, y, z, motionX, motionY, motionZ);
 			particle.setColor(data.r, data.g, data.b);

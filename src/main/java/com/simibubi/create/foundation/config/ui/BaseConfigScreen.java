@@ -7,7 +7,8 @@ import java.util.function.UnaryOperator;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
 import io.github.fabricators_of_create.porting_lib.config.ConfigType;
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec;
 
@@ -25,9 +26,6 @@ import com.simibubi.create.foundation.item.TooltipHelper;
 import com.simibubi.create.foundation.item.TooltipHelper.Palette;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 
 public class BaseConfigScreen extends ConfigScreen {
 
@@ -147,8 +145,8 @@ public class BaseConfigScreen extends ConfigScreen {
 		super.init();
 		returnOnClose = true;
 
-		TextStencilElement clientText = new TextStencilElement(font, Components.literal(clientTitle)).centered(true, true);
-		addRenderableWidget(clientConfigWidget = new BoxWidget(width / 2 - 100, height / 2 - 15 - 30, 200, 16).showingElement(clientText));
+		TextStencilElement clientText = new TextStencilElement(textRenderer, Components.literal(clientTitle)).centered(true, true);
+		addDrawableChild(clientConfigWidget = new BoxWidget(width / 2 - 100, height / 2 - 15 - 30, 200, 16).showingElement(clientText));
 
 		if (clientSpec != null) {
 			clientConfigWidget.withCallback(() -> linkTo(new SubMenuConfigScreen(this, ConfigType.CLIENT, clientSpec)));
@@ -159,8 +157,8 @@ public class BaseConfigScreen extends ConfigScreen {
 			clientText.withElementRenderer(DISABLED_RENDERER);
 		}
 
-		TextStencilElement commonText = new TextStencilElement(font, Components.literal(commonTitle)).centered(true, true);
-		addRenderableWidget(commonConfigWidget = new BoxWidget(width / 2 - 100, height / 2 - 15, 200, 16).showingElement(commonText));
+		TextStencilElement commonText = new TextStencilElement(textRenderer, Components.literal(commonTitle)).centered(true, true);
+		addDrawableChild(commonConfigWidget = new BoxWidget(width / 2 - 100, height / 2 - 15, 200, 16).showingElement(commonText));
 
 		if (commonSpec != null) {
 			commonConfigWidget.withCallback(() -> linkTo(new SubMenuConfigScreen(this, ConfigType.COMMON, commonSpec)));
@@ -171,14 +169,14 @@ public class BaseConfigScreen extends ConfigScreen {
 			commonText.withElementRenderer(DISABLED_RENDERER);
 		}
 
-		TextStencilElement serverText = new TextStencilElement(font, Components.literal(serverTitle)).centered(true, true);
-		addRenderableWidget(serverConfigWidget = new BoxWidget(width / 2 - 100, height / 2 - 15 + 30, 200, 16).showingElement(serverText));
+		TextStencilElement serverText = new TextStencilElement(textRenderer, Components.literal(serverTitle)).centered(true, true);
+		addDrawableChild(serverConfigWidget = new BoxWidget(width / 2 - 100, height / 2 - 15 + 30, 200, 16).showingElement(serverText));
 
 		if (serverSpec == null) {
 			serverConfigWidget.active = false;
 			serverConfigWidget.updateColorsFromState();
 			serverText.withElementRenderer(DISABLED_RENDERER);
-		} else if (minecraft.level == null) {
+		} else if (client.world == null) {
 			serverText.withElementRenderer(DISABLED_RENDERER);
 			serverConfigWidget.getToolTip()
 					.add(Components.literal("Stored individually per World"));
@@ -192,7 +190,7 @@ public class BaseConfigScreen extends ConfigScreen {
 			serverText.withElementRenderer(BoxWidget.gradientFactory.apply(serverConfigWidget));
 		}
 
-		TextStencilElement titleText = new TextStencilElement(font, modID.toUpperCase(Locale.ROOT))
+		TextStencilElement titleText = new TextStencilElement(textRenderer, modID.toUpperCase(Locale.ROOT))
 				.centered(true, true)
 				.withElementRenderer((ms, w, h, alpha) -> {
 					UIRenderHelper.angledGradient(ms, 0, 0, h / 2, h, w / 2, Theme.p(Theme.Key.CONFIG_TITLE_A));
@@ -209,7 +207,7 @@ public class BaseConfigScreen extends ConfigScreen {
 				.showingElement(titleText.at(0, 7));
 		title.active = false;
 
-		addRenderableWidget(title);
+		addDrawableChild(title);
 
 
 		ConfigScreen.modID = this.modID;
@@ -220,18 +218,18 @@ public class BaseConfigScreen extends ConfigScreen {
 				.withElementRenderer(BoxWidget.gradientFactory.apply(goBack)));
 		goBack.getToolTip()
 				.add(Components.literal("Go Back"));
-		addRenderableWidget(goBack);
+		addDrawableChild(goBack);
 
-		TextStencilElement othersText = new TextStencilElement(font, Components.literal("Access Configs of other Mods")).centered(true, true);
+		TextStencilElement othersText = new TextStencilElement(textRenderer, Components.literal("Access Configs of other Mods")).centered(true, true);
 		others = new BoxWidget(width / 2 - 100, height / 2 - 15 + 90, 200, 16).showingElement(othersText);
 		othersText.withElementRenderer(BoxWidget.gradientFactory.apply(others));
 		others.withCallback(() -> linkTo(new ConfigModListScreen(this)));
-		addRenderableWidget(others);
+		addDrawableChild(others);
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-		graphics.drawCenteredString(font, "Access Configs for Mod:", width / 2, height / 2 - 105, Theme.i(Theme.Key.TEXT_ACCENT_STRONG));
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
+		graphics.drawCenteredTextWithShadow(textRenderer, "Access Configs for Mod:", width / 2, height / 2 - 105, Theme.i(Theme.Key.TEXT_ACCENT_STRONG));
 	}
 
 	protected  void linkTo(Screen screen) {

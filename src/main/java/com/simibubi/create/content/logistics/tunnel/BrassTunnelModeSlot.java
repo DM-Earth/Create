@@ -1,8 +1,7 @@
 package com.simibubi.create.content.logistics.tunnel;
 
 import com.simibubi.create.foundation.blockEntity.behaviour.CenteredSideValueBoxTransform;
-
-import net.minecraft.core.Direction;
+import net.minecraft.util.math.Direction;
 
 public class BrassTunnelModeSlot extends CenteredSideValueBoxTransform {
 

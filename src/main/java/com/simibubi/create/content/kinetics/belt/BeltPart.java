@@ -1,14 +1,13 @@
 package com.simibubi.create.content.kinetics.belt;
 
 import com.simibubi.create.foundation.utility.Lang;
+import net.minecraft.util.StringIdentifiable;
 
-import net.minecraft.util.StringRepresentable;
-
-public enum BeltPart implements StringRepresentable {
+public enum BeltPart implements StringIdentifiable {
 	START, MIDDLE, END, PULLEY;
 
 	@Override
-	public String getSerializedName() {
+	public String asString() {
 		return Lang.asId(name());
 	}
 }

@@ -2,24 +2,23 @@ package com.simibubi.create.content.contraptions;
 
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
 
 public class AssemblyException extends Exception {
 
 	private static final long serialVersionUID = 1L;
-	public final Component component;
+	public final Text component;
 	private BlockPos position = null;
 
-	public static void write(CompoundTag compound, AssemblyException exception) {
+	public static void write(NbtCompound compound, AssemblyException exception) {
 		if (exception == null)
 			return;
 
-		CompoundTag nbt = new CompoundTag();
-		nbt.putString("Component", Component.Serializer.toJson(exception.component));
+		NbtCompound nbt = new NbtCompound();
+		nbt.putString("Component", Text.Serializer.toJson(exception.component));
 		if (exception.hasPosition())
 			nbt.putLong("Position", exception.getPosition()
 				.asLong());
@@ -27,20 +26,20 @@ public class AssemblyException extends Exception {
 		compound.put("LastException", nbt);
 	}
 
-	public static AssemblyException read(CompoundTag compound) {
+	public static AssemblyException read(NbtCompound compound) {
 		if (!compound.contains("LastException"))
 			return null;
 
-		CompoundTag nbt = compound.getCompound("LastException");
+		NbtCompound nbt = compound.getCompound("LastException");
 		String string = nbt.getString("Component");
-		AssemblyException exception = new AssemblyException(Component.Serializer.fromJson(string));
+		AssemblyException exception = new AssemblyException(Text.Serializer.fromJson(string));
 		if (nbt.contains("Position"))
-			exception.position = BlockPos.of(nbt.getLong("Position"));
+			exception.position = BlockPos.fromLong(nbt.getLong("Position"));
 
 		return exception;
 	}
 
-	public AssemblyException(Component component) {
+	public AssemblyException(Text component) {
 		this.component = component;
 	}
 

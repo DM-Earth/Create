@@ -16,42 +16,41 @@ import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelp
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
 
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ItemParticleOption;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.DamageTypeTags;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.boss.wither.WitherBoss;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.AbstractHurtingProjectile;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.Enchantments;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityDimensions;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.SpawnGroup;
+import net.minecraft.entity.boss.WitherEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.projectile.ExplosiveProjectileEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.listener.ClientPlayPacketListener;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
+import net.minecraft.particle.ItemStackParticleEffect;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.tag.DamageTypeTags;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
-public class PotatoProjectileEntity extends AbstractHurtingProjectile implements IEntityAdditionalSpawnData {
+public class PotatoProjectileEntity extends ExplosiveProjectileEntity implements IEntityAdditionalSpawnData {
 
 	protected PotatoCannonProjectileType type;
 	protected ItemStack stack = ItemStack.EMPTY;
 
 	protected Entity stuckEntity;
-	protected Vec3 stuckOffset;
+	protected Vec3d stuckOffset;
 	protected PotatoProjectileRenderMode stuckRenderer;
 	protected double stuckFallSpeed;
 
@@ -59,7 +58,7 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 	protected float additionalKnockback = 0;
 	protected float recoveryChance = 0;
 
-	public PotatoProjectileEntity(EntityType<? extends AbstractHurtingProjectile> type, Level world) {
+	public PotatoProjectileEntity(EntityType<? extends ExplosiveProjectileEntity> type, World world) {
 		super(type, world);
 	}
 
@@ -79,37 +78,37 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 	}
 
 	public void setEnchantmentEffectsFromCannon(ItemStack cannon) {
-		int power = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.POWER_ARROWS, cannon);
-		int punch = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.PUNCH_ARROWS, cannon);
-		int flame = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FLAMING_ARROWS, cannon);
-		int recovery = EnchantmentHelper.getItemEnchantmentLevel(AllEnchantments.POTATO_RECOVERY.get(), cannon);
+		int power = EnchantmentHelper.getLevel(Enchantments.POWER, cannon);
+		int punch = EnchantmentHelper.getLevel(Enchantments.PUNCH, cannon);
+		int flame = EnchantmentHelper.getLevel(Enchantments.FLAME, cannon);
+		int recovery = EnchantmentHelper.getLevel(AllEnchantments.POTATO_RECOVERY.get(), cannon);
 
 		if (power > 0)
 			additionalDamageMult = 1 + power * .2f;
 		if (punch > 0)
 			additionalKnockback = punch * .5f;
 		if (flame > 0)
-			setSecondsOnFire(100);
+			setOnFireFor(100);
 		if (recovery > 0)
 			recoveryChance = .125f + recovery * .125f;
 	}
 
 	@Override
-	public void readAdditionalSaveData(CompoundTag nbt) {
-		stack = ItemStack.of(nbt.getCompound("Item"));
+	public void readCustomDataFromNbt(NbtCompound nbt) {
+		stack = ItemStack.fromNbt(nbt.getCompound("Item"));
 		additionalDamageMult = nbt.getFloat("AdditionalDamage");
 		additionalKnockback = nbt.getFloat("AdditionalKnockback");
 		recoveryChance = nbt.getFloat("Recovery");
-		super.readAdditionalSaveData(nbt);
+		super.readCustomDataFromNbt(nbt);
 	}
 
 	@Override
-	public void addAdditionalSaveData(CompoundTag nbt) {
+	public void writeCustomDataToNbt(NbtCompound nbt) {
 		nbt.put("Item", NBTSerializer.serializeNBT(stack));
 		nbt.putFloat("AdditionalDamage", additionalDamageMult);
 		nbt.putFloat("AdditionalKnockback", additionalKnockback);
 		nbt.putFloat("Recovery", recoveryChance);
-		super.addAdditionalSaveData(nbt);
+		super.writeCustomDataToNbt(nbt);
 	}
 
 	public Entity getStuckEntity() {
@@ -122,10 +121,10 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 
 	public void setStuckEntity(Entity stuckEntity) {
 		this.stuckEntity = stuckEntity;
-		this.stuckOffset = position().subtract(stuckEntity.position());
+		this.stuckOffset = getPos().subtract(stuckEntity.getPos());
 		this.stuckRenderer = new PotatoProjectileRenderMode.StuckToEntity(stuckOffset);
 		this.stuckFallSpeed = 0.0;
-		setDeltaMovement(Vec3.ZERO);
+		setVelocity(Vec3d.ZERO);
 	}
 
 	public PotatoProjectileRenderMode getRenderMode() {
@@ -141,46 +140,46 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 		Entity stuckEntity = getStuckEntity();
 		if (stuckEntity != null) {
 			if (getY() < stuckEntity.getY() - 0.1) {
-				pop(position());
+				pop(getPos());
 				kill();
 			} else {
 				stuckFallSpeed += 0.007 * projectileType.getGravityMultiplier();
 				stuckOffset = stuckOffset.add(0, -stuckFallSpeed, 0);
-				Vec3 pos = stuckEntity.position()
+				Vec3d pos = stuckEntity.getPos()
 					.add(stuckOffset);
-				setPos(pos.x, pos.y, pos.z);
+				setPosition(pos.x, pos.y, pos.z);
 			}
 		} else {
-			setDeltaMovement(getDeltaMovement().add(0, -0.05 * projectileType.getGravityMultiplier(), 0)
-				.scale(projectileType.getDrag()));
+			setVelocity(getVelocity().add(0, -0.05 * projectileType.getGravityMultiplier(), 0)
+				.multiply(projectileType.getDrag()));
 		}
 
 		super.tick();
 	}
 
 	@Override
-	protected float getInertia() {
+	protected float getDrag() {
 		return 1;
 	}
 
 	@Override
-	protected ParticleOptions getTrailParticle() {
+	protected ParticleEffect getParticleType() {
 		return new AirParticleData(1, 10);
 	}
 
 	@Override
-	protected boolean shouldBurn() {
+	protected boolean isBurning() {
 		return false;
 	}
 
 	@Override
-	protected void onHitEntity(EntityHitResult ray) {
-		super.onHitEntity(ray);
+	protected void onEntityHit(EntityHitResult ray) {
+		super.onEntityHit(ray);
 
 		if (getStuckEntity() != null)
 			return;
 
-		Vec3 hit = ray.getLocation();
+		Vec3d hit = ray.getPos();
 		Entity target = ray.getEntity();
 		PotatoCannonProjectileType projectileType = getProjectileType();
 		float damage = projectileType.getDamage() * additionalDamageMult;
@@ -190,34 +189,34 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 		if (!target.isAlive())
 			return;
 		if (owner instanceof LivingEntity)
-			((LivingEntity) owner).setLastHurtMob(target);
+			((LivingEntity) owner).onAttacking(target);
 
 		if (target instanceof PotatoProjectileEntity ppe) {
-			if (tickCount < 10 && target.tickCount < 10)
+			if (age < 10 && target.age < 10)
 				return;
 			if (ppe.getProjectileType() != getProjectileType()) {
-				if (owner instanceof Player p)
+				if (owner instanceof PlayerEntity p)
 					AllAdvancements.POTATO_CANNON_COLLIDE.awardTo(p);
-				if (ppe.getOwner() instanceof Player p)
+				if (ppe.getOwner() instanceof PlayerEntity p)
 					AllAdvancements.POTATO_CANNON_COLLIDE.awardTo(p);
 			}
 		}
 
 		pop(hit);
 
-		if (target instanceof WitherBoss && ((WitherBoss) target).isPowered())
+		if (target instanceof WitherEntity && ((WitherEntity) target).shouldRenderOverlay())
 			return;
 		if (projectileType.preEntityHit(ray))
 			return;
 
 		boolean targetIsEnderman = target.getType() == EntityType.ENDERMAN;
-		int k = target.getRemainingFireTicks();
+		int k = target.getFireTicks();
 		if (this.isOnFire() && !targetIsEnderman)
-			target.setSecondsOnFire(5);
+			target.setOnFireFor(5);
 
-		boolean onServer = !level().isClientSide;
-		if (onServer && !target.hurt(causePotatoDamage(), damage)) {
-			target.setRemainingFireTicks(k);
+		boolean onServer = !getWorld().isClient;
+		if (onServer && !target.damage(causePotatoDamage(), damage)) {
+			target.setFireTicks(k);
 			kill();
 			return;
 		}
@@ -230,7 +229,7 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 				recoverItem();
 
 		if (!(target instanceof LivingEntity)) {
-			playHitSound(level(), position());
+			playHitSound(getWorld(), getPos());
 			kill();
 			return;
 		}
@@ -238,32 +237,32 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 		LivingEntity livingentity = (LivingEntity) target;
 
 		if (type.getReloadTicks() < 10)
-			livingentity.invulnerableTime = type.getReloadTicks() + 10;
+			livingentity.timeUntilRegen = type.getReloadTicks() + 10;
 
 		if (onServer && knockback > 0) {
-			Vec3 appliedMotion = this.getDeltaMovement()
+			Vec3d appliedMotion = this.getVelocity()
 				.multiply(1.0D, 0.0D, 1.0D)
 				.normalize()
-				.scale(knockback * 0.6);
-			if (appliedMotion.lengthSqr() > 0.0D)
-				livingentity.push(appliedMotion.x, 0.1D, appliedMotion.z);
+				.multiply(knockback * 0.6);
+			if (appliedMotion.lengthSquared() > 0.0D)
+				livingentity.addVelocity(appliedMotion.x, 0.1D, appliedMotion.z);
 		}
 
 		if (onServer && owner instanceof LivingEntity) {
-			EnchantmentHelper.doPostHurtEffects(livingentity, owner);
-			EnchantmentHelper.doPostDamageEffects((LivingEntity) owner, livingentity);
+			EnchantmentHelper.onUserDamaged(livingentity, owner);
+			EnchantmentHelper.onTargetDamaged((LivingEntity) owner, livingentity);
 		}
 
-		if (livingentity != owner && livingentity instanceof Player && owner instanceof ServerPlayer
+		if (livingentity != owner && livingentity instanceof PlayerEntity && owner instanceof ServerPlayerEntity
 			&& !this.isSilent()) {
-			((ServerPlayer) owner).connection
-				.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.ARROW_HIT_PLAYER, 0.0F));
+			((ServerPlayerEntity) owner).networkHandler
+				.sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.PROJECTILE_HIT_PLAYER, 0.0F));
 		}
 
-		if (onServer && owner instanceof ServerPlayer) {
-			ServerPlayer serverplayerentity = (ServerPlayer) owner;
+		if (onServer && owner instanceof ServerPlayerEntity) {
+			ServerPlayerEntity serverplayerentity = (ServerPlayerEntity) owner;
 			if (!target.isAlive() && target.getType()
-				.getCategory() == MobCategory.MONSTER || (target instanceof Player && target != owner))
+				.getSpawnGroup() == SpawnGroup.MONSTER || (target instanceof PlayerEntity && target != owner))
 				AllAdvancements.POTATO_CANNON.awardTo(serverplayerentity);
 		}
 
@@ -277,53 +276,53 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 
 	private void recoverItem() {
 		if (!stack.isEmpty())
-			spawnAtLocation(ItemHandlerHelper.copyStackWithSize(stack, 1));
+			dropStack(ItemHandlerHelper.copyStackWithSize(stack, 1));
 	}
 
-	public static void playHitSound(Level world, Vec3 location) {
-		AllSoundEvents.POTATO_HIT.playOnServer(world, BlockPos.containing(location));
+	public static void playHitSound(World world, Vec3d location) {
+		AllSoundEvents.POTATO_HIT.playOnServer(world, BlockPos.ofFloored(location));
 	}
 
-	public static void playLaunchSound(Level world, Vec3 location, float pitch) {
+	public static void playLaunchSound(World world, Vec3d location, float pitch) {
 		AllSoundEvents.FWOOMP.playAt(world, location, 1, pitch, true);
 	}
 
 	@Override
-	protected void onHitBlock(BlockHitResult ray) {
-		Vec3 hit = ray.getLocation();
+	protected void onBlockHit(BlockHitResult ray) {
+		Vec3d hit = ray.getPos();
 		pop(hit);
-		if (!getProjectileType().onBlockHit(level(), ray) && !level().isClientSide)
+		if (!getProjectileType().onBlockHit(getWorld(), ray) && !getWorld().isClient)
 			if (random.nextDouble() <= recoveryChance)
 				recoverItem();
-		super.onHitBlock(ray);
+		super.onBlockHit(ray);
 		kill();
 	}
 
 	@Override
-	public boolean hurt(@NotNull DamageSource source, float amt) {
-		if (source.is(DamageTypeTags.IS_FIRE))
+	public boolean damage(@NotNull DamageSource source, float amt) {
+		if (source.isIn(DamageTypeTags.IS_FIRE))
 			return false;
 		if (this.isInvulnerableTo(source))
 			return false;
-		pop(position());
+		pop(getPos());
 		kill();
 		return true;
 	}
 
-	private void pop(Vec3 hit) {
+	private void pop(Vec3d hit) {
 		if (!stack.isEmpty()) {
 			for (int i = 0; i < 7; i++) {
-				Vec3 m = VecHelper.offsetRandomly(Vec3.ZERO, this.random, .25f);
-				level().addParticle(new ItemParticleOption(ParticleTypes.ITEM, stack), hit.x, hit.y, hit.z, m.x, m.y,
+				Vec3d m = VecHelper.offsetRandomly(Vec3d.ZERO, this.random, .25f);
+				getWorld().addParticle(new ItemStackParticleEffect(ParticleTypes.ITEM, stack), hit.x, hit.y, hit.z, m.x, m.y,
 					m.z);
 			}
 		}
-		if (!level().isClientSide)
-			playHitSound(level(), position());
+		if (!getWorld().isClient)
+			playHitSound(getWorld(), getPos());
 	}
 
 	private DamageSource causePotatoDamage() {
-		return CreateDamageSources.potatoCannon(level(), getOwner(), this);
+		return CreateDamageSources.potatoCannon(getWorld(), getOwner(), this);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -333,20 +332,20 @@ public class PotatoProjectileEntity extends AbstractHurtingProjectile implements
 	}
 
 	@Override
-	public Packet<ClientGamePacketListener> getAddEntityPacket() {
+	public Packet<ClientPlayPacketListener> createSpawnPacket() {
 		return PortingLibEntity.getEntitySpawningPacket(this);
 	}
 
 	@Override
-	public void writeSpawnData(FriendlyByteBuf buffer) {
-		CompoundTag compound = new CompoundTag();
-		addAdditionalSaveData(compound);
+	public void writeSpawnData(PacketByteBuf buffer) {
+		NbtCompound compound = new NbtCompound();
+		writeCustomDataToNbt(compound);
 		buffer.writeNbt(compound);
 	}
 
 	@Override
-	public void readSpawnData(FriendlyByteBuf additionalData) {
-		readAdditionalSaveData(additionalData.readNbt());
+	public void readSpawnData(PacketByteBuf additionalData) {
+		readCustomDataFromNbt(additionalData.readNbt());
 	}
 
 }

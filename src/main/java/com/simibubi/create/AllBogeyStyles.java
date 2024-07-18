@@ -17,21 +17,20 @@ import com.simibubi.create.content.trains.bogey.StandardBogeyRenderer.SmallStand
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.tterrag.registrate.util.entry.BlockEntry;
-
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 public class AllBogeyStyles {
-	public static final Map<ResourceLocation, BogeyStyle> BOGEY_STYLES = new HashMap<>();
-	public static final Map<ResourceLocation, Map<ResourceLocation, BogeyStyle>> CYCLE_GROUPS = new HashMap<>();
-	private static final Map<ResourceLocation, BogeyStyle> EMPTY_GROUP = ImmutableMap.of();
+	public static final Map<Identifier, BogeyStyle> BOGEY_STYLES = new HashMap<>();
+	public static final Map<Identifier, Map<Identifier, BogeyStyle>> CYCLE_GROUPS = new HashMap<>();
+	private static final Map<Identifier, BogeyStyle> EMPTY_GROUP = ImmutableMap.of();
 
-	public static Map<ResourceLocation, BogeyStyle> getCycleGroup(ResourceLocation cycleGroup) {
+	public static Map<Identifier, BogeyStyle> getCycleGroup(Identifier cycleGroup) {
 		return CYCLE_GROUPS.getOrDefault(cycleGroup, EMPTY_GROUP);
 	}
 
@@ -48,7 +47,7 @@ public class AllBogeyStyles {
 		return create(Create.asResource(name), Create.asResource(cycleGroup));
 	}
 
-	public static BogeyStyleBuilder create(ResourceLocation name, ResourceLocation cycleGroup) {
+	public static BogeyStyleBuilder create(Identifier name, Identifier cycleGroup) {
 		return new BogeyStyleBuilder(name, cycleGroup);
 	}
 
@@ -56,33 +55,33 @@ public class AllBogeyStyles {
 
 	public static class BogeyStyleBuilder {
 		protected final Map<BogeySizes.BogeySize, Supplier<BogeyStyle.SizeRenderData>> sizeRenderers = new HashMap<>();
-		protected final Map<BogeySizes.BogeySize, ResourceLocation> sizes = new HashMap<>();
-		protected final ResourceLocation name;
-		protected final ResourceLocation cycleGroup;
+		protected final Map<BogeySizes.BogeySize, Identifier> sizes = new HashMap<>();
+		protected final Identifier name;
+		protected final Identifier cycleGroup;
 
-		protected Component displayName = Lang.translateDirect("bogey.style.invalid");
-		protected ResourceLocation soundType = AllSoundEvents.TRAIN2.getId();
-		protected CompoundTag defaultData = new CompoundTag();
-		protected ParticleOptions contactParticle = ParticleTypes.CRIT;
-		protected ParticleOptions smokeParticle = ParticleTypes.POOF;
+		protected Text displayName = Lang.translateDirect("bogey.style.invalid");
+		protected Identifier soundType = AllSoundEvents.TRAIN2.getId();
+		protected NbtCompound defaultData = new NbtCompound();
+		protected ParticleEffect contactParticle = ParticleTypes.CRIT;
+		protected ParticleEffect smokeParticle = ParticleTypes.POOF;
 		protected Optional<Supplier<? extends CommonRenderer>> commonRenderer = Optional.empty();
 
-		public BogeyStyleBuilder(ResourceLocation name, ResourceLocation cycleGroup) {
+		public BogeyStyleBuilder(Identifier name, Identifier cycleGroup) {
 			this.name = name;
 			this.cycleGroup = cycleGroup;
 		}
 
-		public BogeyStyleBuilder displayName(Component displayName) {
+		public BogeyStyleBuilder displayName(Text displayName) {
 			this.displayName = displayName;
 			return this;
 		}
 
-		public BogeyStyleBuilder soundType(ResourceLocation soundType) {
+		public BogeyStyleBuilder soundType(Identifier soundType) {
 			this.soundType = soundType;
 			return this;
 		}
 
-		public BogeyStyleBuilder defaultData(CompoundTag defaultData) {
+		public BogeyStyleBuilder defaultData(NbtCompound defaultData) {
 			this.defaultData = defaultData;
 			return this;
 		}
@@ -94,7 +93,7 @@ public class AllBogeyStyles {
 		}
 
 		public BogeyStyleBuilder size(BogeySizes.BogeySize size, Supplier<Supplier<? extends BogeyRenderer>> renderer,
-			ResourceLocation location) {
+			Identifier location) {
 			this.sizes.put(size, location);
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> {
 				this.sizeRenderers.put(size, () -> new BogeyStyle.SizeRenderData(renderer.get(), renderer.get()
@@ -103,12 +102,12 @@ public class AllBogeyStyles {
 			return this;
 		}
 
-		public BogeyStyleBuilder contactParticle(ParticleOptions contactParticle) {
+		public BogeyStyleBuilder contactParticle(ParticleEffect contactParticle) {
 			this.contactParticle = contactParticle;
 			return this;
 		}
 
-		public BogeyStyleBuilder smokeParticle(ParticleOptions smokeParticle) {
+		public BogeyStyleBuilder smokeParticle(ParticleEffect smokeParticle) {
 			this.smokeParticle = smokeParticle;
 			return this;
 		}

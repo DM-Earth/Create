@@ -8,9 +8,9 @@ import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandle
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 
-public class SmartInventory extends ItemStackHandlerContainer implements INBTSerializable<CompoundTag> {
+public class SmartInventory extends ItemStackHandlerContainer implements INBTSerializable<NbtCompound> {
 
 	protected boolean extractionAllowed;
 	protected boolean insertionAllowed;
@@ -75,8 +75,8 @@ public class SmartInventory extends ItemStackHandlerContainer implements INBTSer
 			try (Transaction t = transaction.openNested()) {
 				long extracted = super.extract(resource, maxAmount, t);
 				t.abort();
-				if (extracted != 0 && resource.getItem().getMaxStackSize() < extracted)
-					maxAmount = resource.getItem().getMaxStackSize();
+				if (extracted != 0 && resource.getItem().getMaxCount() < extracted)
+					maxAmount = resource.getItem().getMaxCount();
 			}
 		}
 		return super.extract(resource, maxAmount, transaction);
@@ -101,7 +101,7 @@ public class SmartInventory extends ItemStackHandlerContainer implements INBTSer
 	}
 
 	@Override
-	public int getMaxStackSize() {
+	public int getMaxCountPerStack() {
 		return Math.min(64, stackSize);
 	}
 }

@@ -14,7 +14,7 @@ public class DrainEmiRecipe extends CreateEmiRecipe<EmptyingRecipe> {
 
 	public DrainEmiRecipe(EmptyingRecipe recipe) {
 		super(CreateEmiPlugin.DRAINING, recipe, 134, 52, c -> {});
-		input = List.of(EmiStack.of(recipe.getIngredients().get(0).getItems()[0]));
+		input = List.of(EmiStack.of(recipe.getIngredients().get(0).getMatchingStacks()[0]));
 		output = List.of(fluidStack(recipe.getFluidResults().get(0)), EmiStack.of(recipe.getRollableResults().get(0).getStack()));
 	}
 

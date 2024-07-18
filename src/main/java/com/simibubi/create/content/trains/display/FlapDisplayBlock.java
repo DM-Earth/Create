@@ -1,10 +1,47 @@
 package com.simibubi.create.content.trains.display;
 
-import static net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED;
+import static net.minecraft.state.property.Properties.WATERLOGGED;
 
 import java.util.List;
 import java.util.function.Predicate;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.Waterloggable;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Hand;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.tick.QueryableTickScheduler;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllShapes;
@@ -22,56 +59,18 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Iterate;
 
 import io.github.fabricators_of_create.porting_lib.util.TagUtil;
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SimpleWaterloggedBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraft.world.ticks.LevelTickAccess;
 
 public class FlapDisplayBlock extends HorizontalKineticBlock
-	implements IBE<FlapDisplayBlockEntity>, IWrenchable, ICogWheel, SimpleWaterloggedBlock {
+	implements IBE<FlapDisplayBlockEntity>, IWrenchable, ICogWheel, Waterloggable {
 
-	public static final BooleanProperty UP = BooleanProperty.create("up");
-	public static final BooleanProperty DOWN = BooleanProperty.create("down");
+	public static final BooleanProperty UP = BooleanProperty.of("up");
+	public static final BooleanProperty DOWN = BooleanProperty.of("down");
 
-	public FlapDisplayBlock(Properties p_49795_) {
+	public FlapDisplayBlock(Settings p_49795_) {
 		super(p_49795_);
-		registerDefaultState(defaultBlockState().setValue(UP, false)
-			.setValue(DOWN, false)
-			.setValue(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(UP, false)
+			.with(DOWN, false)
+			.with(WATERLOGGED, false));
 	}
 
 	@Override
@@ -81,13 +80,13 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
-		return state.getValue(HORIZONTAL_FACING)
+		return state.get(HORIZONTAL_FACING)
 			.getAxis();
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(UP, DOWN, WATERLOGGED));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(UP, DOWN, WATERLOGGED));
 	}
 
 	@Override
@@ -96,36 +95,36 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		Direction face = context.getClickedFace();
-		BlockPos clickedPos = context.getClickedPos();
-		BlockPos placedOnPos = clickedPos.relative(face.getOpposite());
-		Level level = context.getLevel();
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		Direction face = context.getSide();
+		BlockPos clickedPos = context.getBlockPos();
+		BlockPos placedOnPos = clickedPos.offset(face.getOpposite());
+		World level = context.getWorld();
 		BlockState blockState = level.getBlockState(placedOnPos);
-		BlockState stateForPlacement = defaultBlockState();
-		FluidState ifluidstate = context.getLevel()
-			.getFluidState(context.getClickedPos());
+		BlockState stateForPlacement = getDefaultState();
+		FluidState ifluidstate = context.getWorld()
+			.getFluidState(context.getBlockPos());
 
 		if ((blockState.getBlock() != this) || (context.getPlayer() != null && context.getPlayer()
-			.isShiftKeyDown()))
-			stateForPlacement = super.getStateForPlacement(context);
+			.isSneaking()))
+			stateForPlacement = super.getPlacementState(context);
 		else {
-			Direction otherFacing = blockState.getValue(HORIZONTAL_FACING);
-			stateForPlacement = stateForPlacement.setValue(HORIZONTAL_FACING, otherFacing);
+			Direction otherFacing = blockState.get(HORIZONTAL_FACING);
+			stateForPlacement = stateForPlacement.with(HORIZONTAL_FACING, otherFacing);
 		}
 
 		return updateColumn(level, clickedPos,
-			stateForPlacement.setValue(WATERLOGGED, Boolean.valueOf(ifluidstate.getType() == Fluids.WATER)), true);
+			stateForPlacement.with(WATERLOGGED, Boolean.valueOf(ifluidstate.getFluid() == Fluids.WATER)), true);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult ray) {
 
-		if (player.isShiftKeyDown() || AdventureUtil.isAdventure(player))
-			return InteractionResult.PASS;
+		if (player.isSneaking() || AdventureUtil.isAdventure(player))
+			return ActionResult.PASS;
 
-		ItemStack heldItem = player.getItemInHand(hand);
+		ItemStack heldItem = player.getStackInHand(hand);
 
 		IPlacementHelper placementHelper = PlacementHelpers.get(placementHelperId);
 		if (placementHelper.matchesItem(heldItem))
@@ -135,47 +134,47 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 		FlapDisplayBlockEntity flapBE = getBlockEntity(world, pos);
 
 		if (flapBE == null)
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		flapBE = flapBE.getController();
 		if (flapBE == null)
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
-		double yCoord = ray.getLocation()
-			.add(Vec3.atLowerCornerOf(ray.getDirection()
+		double yCoord = ray.getPos()
+			.add(Vec3d.of(ray.getSide()
 				.getOpposite()
-				.getNormal())
-				.scale(.125f)).y;
+				.getVector())
+				.multiply(.125f)).y;
 
 		int lineIndex = flapBE.getLineIndexAt(yCoord);
 
 		if (heldItem.isEmpty()) {
 			if (!flapBE.isSpeedRequirementFulfilled())
-				return InteractionResult.PASS;
+				return ActionResult.PASS;
 			flapBE.applyTextManually(lineIndex, null);
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
 
 		if (heldItem.getItem() == Items.GLOW_INK_SAC) {
-			if (!world.isClientSide) {
-				world.playSound(null, pos, SoundEvents.INK_SAC_USE, SoundSource.BLOCKS, 1.0F, 1.0F);
+			if (!world.isClient) {
+				world.playSound(null, pos, SoundEvents.ITEM_INK_SAC_USE, SoundCategory.BLOCKS, 1.0F, 1.0F);
 				flapBE.setGlowing(lineIndex);
 			}
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		}
 
 		boolean display =
-			heldItem.getItem() == Items.NAME_TAG && heldItem.hasCustomHoverName() || AllBlocks.CLIPBOARD.isIn(heldItem);
+			heldItem.getItem() == Items.NAME_TAG && heldItem.hasCustomName() || AllBlocks.CLIPBOARD.isIn(heldItem);
 		DyeColor dye = TagUtil.getColorFromStack(heldItem);
 
 		if (!display && dye == null)
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 		if (dye == null && !flapBE.isSpeedRequirementFulfilled())
-			return InteractionResult.PASS;
-		if (world.isClientSide)
-			return InteractionResult.SUCCESS;
+			return ActionResult.PASS;
+		if (world.isClient)
+			return ActionResult.SUCCESS;
 
-		CompoundTag tag = heldItem.getTagElement("display");
-		String tagElement = tag != null && tag.contains("Name", Tag.TAG_STRING) ? tag.getString("Name") : null;
+		NbtCompound tag = heldItem.getSubNbt("display");
+		String tagElement = tag != null && tag.contains("Name", NbtElement.STRING_TYPE) ? tag.getString("Name") : null;
 
 		if (display) {
 			if (AllBlocks.CLIPBOARD.isIn(heldItem)) {
@@ -184,24 +183,24 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 				for (int i = 0; i < entries.size(); i++) {
 					for (String string : entries.get(i).text.getString()
 						.split("\n"))
-						flapBE.applyTextManually(line++, Component.Serializer.toJson(Components.literal(string)));
+						flapBE.applyTextManually(line++, Text.Serializer.toJson(Components.literal(string)));
 				}
-				return InteractionResult.SUCCESS;
+				return ActionResult.SUCCESS;
 			}
 
 			flapBE.applyTextManually(lineIndex, tagElement);
 		}
 		if (dye != null) {
-			world.playSound(null, pos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1.0F, 1.0F);
+			world.playSound(null, pos, SoundEvents.ITEM_DYE_USE, SoundCategory.BLOCKS, 1.0F, 1.0F);
 			flapBE.setColour(lineIndex, dye);
 		}
 
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		return AllShapes.FLAP_DISPLAY.get(pState.getValue(HORIZONTAL_FACING));
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
+		return AllShapes.FLAP_DISPLAY.get(pState.get(HORIZONTAL_FACING));
 	}
 
 	@Override
@@ -224,8 +223,8 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 		return .75f;
 	}
 
-	private BlockState updateColumn(Level level, BlockPos pos, BlockState state, boolean present) {
-		MutableBlockPos currentPos = new MutableBlockPos();
+	private BlockState updateColumn(World level, BlockPos pos, BlockState state, boolean present) {
+		Mutable currentPos = new Mutable();
 		Axis axis = getConnectionAxis(state);
 
 		for (Direction connection : Iterate.directionsInAxis(Axis.Y)) {
@@ -234,11 +233,11 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 			Move: for (Direction movement : Iterate.directionsInAxis(axis)) {
 				currentPos.set(pos);
 				for (int i = 0; i < 1000; i++) {
-					if (!level.isLoaded(currentPos))
+					if (!level.canSetBlock(currentPos))
 						break;
 
 					BlockState other1 = currentPos.equals(pos) ? state : level.getBlockState(currentPos);
-					BlockState other2 = level.getBlockState(currentPos.relative(connection));
+					BlockState other2 = level.getBlockState(currentPos.offset(connection));
 					boolean col1 = canConnect(state, other1);
 					boolean col2 = canConnect(state, other2);
 					currentPos.move(movement);
@@ -258,21 +257,21 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 	}
 
 	@Override
-	public void onPlace(BlockState pState, Level pLevel, BlockPos pPos, BlockState pOldState, boolean pIsMoving) {
-		super.onPlace(pState, pLevel, pPos, pOldState, pIsMoving);
+	public void onBlockAdded(BlockState pState, World pLevel, BlockPos pPos, BlockState pOldState, boolean pIsMoving) {
+		super.onBlockAdded(pState, pLevel, pPos, pOldState, pIsMoving);
 		if (pOldState.getBlock() == this)
 			return;
-		LevelTickAccess<Block> blockTicks = pLevel.getBlockTicks();
-		if (!blockTicks.hasScheduledTick(pPos, this))
-			pLevel.scheduleTick(pPos, this, 1);
+		QueryableTickScheduler<Block> blockTicks = pLevel.getBlockTickScheduler();
+		if (!blockTicks.isQueued(pPos, this))
+			pLevel.scheduleBlockTick(pPos, this, 1);
 	}
 
 	@Override
-	public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRandom) {
+	public void scheduledTick(BlockState pState, ServerWorld pLevel, BlockPos pPos, Random pRandom) {
 		if (pState.getBlock() != this)
 			return;
 		BlockPos belowPos =
-			pPos.relative(Direction.fromAxisAndDirection(getConnectionAxis(pState), AxisDirection.NEGATIVE));
+			pPos.offset(Direction.from(getConnectionAxis(pState), AxisDirection.NEGATIVE));
 		BlockState belowState = pLevel.getBlockState(belowPos);
 		if (!canConnect(pState, belowState))
 			KineticBlockEntity.switchToBlockState(pLevel, pPos, updateColumn(pLevel, pPos, pState, true));
@@ -280,57 +279,57 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction pDirection, BlockState pNeighborState,
+		WorldAccess pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
 		return updatedShapeInner(state, pDirection, pNeighborState, pLevel, pCurrentPos);
 	}
 
 	private BlockState updatedShapeInner(BlockState state, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor pLevel, BlockPos pCurrentPos) {
-		if (state.getValue(BlockStateProperties.WATERLOGGED))
-			pLevel.scheduleTick(pCurrentPos, Fluids.WATER, Fluids.WATER.getTickDelay(pLevel));
+		WorldAccess pLevel, BlockPos pCurrentPos) {
+		if (state.get(Properties.WATERLOGGED))
+			pLevel.scheduleFluidTick(pCurrentPos, Fluids.WATER, Fluids.WATER.getTickRate(pLevel));
 		if (!canConnect(state, pNeighborState))
 			return setConnection(state, pDirection, false);
 		if (pDirection.getAxis() == getConnectionAxis(state))
-			return withPropertiesOf(pNeighborState).setValue(WATERLOGGED, state.getValue(WATERLOGGED));
+			return getStateWithProperties(pNeighborState).with(WATERLOGGED, state.get(WATERLOGGED));
 		return setConnection(state, pDirection, getConnection(pNeighborState, pDirection.getOpposite()));
 	}
 
 	@Override
 	public FluidState getFluidState(BlockState state) {
-		return state.getValue(BlockStateProperties.WATERLOGGED) ? Fluids.WATER.getSource(false)
-			: Fluids.EMPTY.defaultFluidState();
+		return state.get(Properties.WATERLOGGED) ? Fluids.WATER.getStill(false)
+			: Fluids.EMPTY.getDefaultState();
 	}
 
 	protected boolean canConnect(BlockState state, BlockState other) {
-		return other.getBlock() == this && state.getValue(HORIZONTAL_FACING) == other.getValue(HORIZONTAL_FACING);
+		return other.getBlock() == this && state.get(HORIZONTAL_FACING) == other.get(HORIZONTAL_FACING);
 	}
 
 	protected Axis getConnectionAxis(BlockState state) {
-		return state.getValue(HORIZONTAL_FACING)
-			.getClockWise()
+		return state.get(HORIZONTAL_FACING)
+			.rotateYClockwise()
 			.getAxis();
 	}
 
 	public static boolean getConnection(BlockState state, Direction side) {
 		BooleanProperty property = side == Direction.DOWN ? DOWN : side == Direction.UP ? UP : null;
-		return property != null && state.getValue(property);
+		return property != null && state.get(property);
 	}
 
 	public static BlockState setConnection(BlockState state, Direction side, boolean connect) {
 		BooleanProperty property = side == Direction.DOWN ? DOWN : side == Direction.UP ? UP : null;
 		if (property != null)
-			state = state.setValue(property, connect);
+			state = state.with(property, connect);
 		return state;
 	}
 
 	@Override
-	public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
-		super.onRemove(pState, pLevel, pPos, pNewState, pIsMoving);
+	public void onStateReplaced(BlockState pState, World pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
+		super.onStateReplaced(pState, pLevel, pPos, pNewState, pIsMoving);
 		if (pIsMoving || pNewState.getBlock() == this)
 			return;
 		for (Direction d : Iterate.directionsInAxis(getConnectionAxis(pState))) {
-			BlockPos relative = pPos.relative(d);
+			BlockPos relative = pPos.offset(d);
 			BlockState adjacent = pLevel.getBlockState(relative);
 			if (canConnect(pState, adjacent))
 				KineticBlockEntity.switchToBlockState(pLevel, relative,
@@ -353,18 +352,18 @@ public class FlapDisplayBlock extends HorizontalKineticBlock
 		}
 
 		@Override
-		public PlacementOffset getOffset(Player player, Level world, BlockState state, BlockPos pos,
+		public PlacementOffset getOffset(PlayerEntity player, World world, BlockState state, BlockPos pos,
 			BlockHitResult ray) {
-			List<Direction> directions = IPlacementHelper.orderedByDistanceExceptAxis(pos, ray.getLocation(),
-				state.getValue(FlapDisplayBlock.HORIZONTAL_FACING)
+			List<Direction> directions = IPlacementHelper.orderedByDistanceExceptAxis(pos, ray.getPos(),
+				state.get(FlapDisplayBlock.HORIZONTAL_FACING)
 					.getAxis(),
-				dir -> world.getBlockState(pos.relative(dir))
-					.canBeReplaced());
+				dir -> world.getBlockState(pos.offset(dir))
+					.isReplaceable());
 
 			return directions.isEmpty() ? PlacementOffset.fail()
-				: PlacementOffset.success(pos.relative(directions.get(0)), s -> AllBlocks.DISPLAY_BOARD.get()
-					.updateColumn(world, pos.relative(directions.get(0)),
-						s.setValue(HORIZONTAL_FACING, state.getValue(FlapDisplayBlock.HORIZONTAL_FACING)), true));
+				: PlacementOffset.success(pos.offset(directions.get(0)), s -> AllBlocks.DISPLAY_BOARD.get()
+					.updateColumn(world, pos.offset(directions.get(0)),
+						s.with(HORIZONTAL_FACING, state.get(FlapDisplayBlock.HORIZONTAL_FACING)), true));
 		}
 	}
 

@@ -3,28 +3,26 @@ package com.simibubi.create.content.kinetics.fan;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
+import net.minecraft.world.RaycastContext.FluidHandling;
+import net.minecraft.world.RaycastContext.ShapeType;
+import net.minecraft.world.World.ExplosionSourceType;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.VecHelper;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.ClipContext.Block;
-import net.minecraft.world.level.ClipContext.Fluid;
-import net.minecraft.world.level.Level.ExplosionInteraction;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 public class NozzleBlockEntity extends SmartBlockEntity {
 
@@ -42,7 +40,7 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
 
 	@Override
-	protected void write(CompoundTag compound, boolean clientPacket) {
+	protected void write(NbtCompound compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		if (!clientPacket)
 			return;
@@ -51,7 +49,7 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		if (!clientPacket)
 			return;
@@ -61,7 +59,7 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 
 	@Override
 	public void initialize() {
-		fanPos = worldPosition.relative(getBlockState().getValue(NozzleBlock.FACING)
+		fanPos = pos.offset(getCachedState().get(NozzleBlock.FACING)
 			.getOpposite());
 		super.initialize();
 	}
@@ -74,28 +72,28 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 		if (this.range != range)
 			setRange(range);
 
-		Vec3 center = VecHelper.getCenterOf(worldPosition);
-		if (level.isClientSide && range != 0) {
-			if (level.random.nextInt(
-				Mth.clamp((AllConfigs.server().kinetics.fanPushDistance.get() - (int) range), 1, 10)) == 0) {
-				Vec3 start = VecHelper.offsetRandomly(center, level.random, pushing ? 1 : range / 2);
-				Vec3 motion = center.subtract(start)
+		Vec3d center = VecHelper.getCenterOf(pos);
+		if (world.isClient && range != 0) {
+			if (world.random.nextInt(
+				MathHelper.clamp((AllConfigs.server().kinetics.fanPushDistance.get() - (int) range), 1, 10)) == 0) {
+				Vec3d start = VecHelper.offsetRandomly(center, world.random, pushing ? 1 : range / 2);
+				Vec3d motion = center.subtract(start)
 					.normalize()
-					.scale(Mth.clamp(range * (pushing ? .025f : 1f), 0, .5f) * (pushing ? -1 : 1));
-				level.addParticle(ParticleTypes.POOF, start.x, start.y, start.z, motion.x, motion.y, motion.z);
+					.multiply(MathHelper.clamp(range * (pushing ? .025f : 1f), 0, .5f) * (pushing ? -1 : 1));
+				world.addParticle(ParticleTypes.POOF, start.x, start.y, start.z, motion.x, motion.y, motion.z);
 			}
 		}
 
 		for (Iterator<Entity> iterator = pushingEntities.iterator(); iterator.hasNext();) {
 			Entity entity = iterator.next();
-			Vec3 diff = entity.position()
+			Vec3d diff = entity.getPos()
 					.subtract(center);
 
-			if (!(entity instanceof Player) && level.isClientSide)
+			if (!(entity instanceof PlayerEntity) && world.isClient)
 				continue;
 
 			double distance = diff.length();
-			if (distance > range || entity.isShiftKeyDown() || AirCurrent.isPlayerCreativeFlying(entity)) {
+			if (distance > range || entity.isSneaking() || AirCurrent.isPlayerCreativeFlying(entity)) {
 				iterator.remove();
 				continue;
 			}
@@ -104,12 +102,12 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 				continue;
 
 			float factor = (entity instanceof ItemEntity) ? 1 / 128f : 1 / 32f;
-			Vec3 pushVec = diff.normalize()
-					.scale((range - distance) * (pushing ? 1 : -1));
-			entity.setDeltaMovement(entity.getDeltaMovement()
-				.add(pushVec.scale(factor)));
+			Vec3d pushVec = diff.normalize()
+					.multiply((range - distance) * (pushing ? 1 : -1));
+			entity.setVelocity(entity.getVelocity()
+				.add(pushVec.multiply(factor)));
 			entity.fallDistance = 0;
-			entity.hurtMarked = true;
+			entity.velocityModified = true;
 		}
 
 	}
@@ -122,7 +120,7 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 	}
 
 	private float calcRange() {
-		BlockEntity be = level.getBlockEntity(fanPos);
+		BlockEntity be = world.getBlockEntity(fanPos);
 		if (!(be instanceof IAirCurrentSource))
 			return 0;
 
@@ -142,15 +140,15 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 		if (range == 0)
 			return;
 
-		Vec3 center = VecHelper.getCenterOf(worldPosition);
-		AABB bb = new AABB(center, center).inflate(range / 2f);
+		Vec3d center = VecHelper.getCenterOf(pos);
+		Box bb = new Box(center, center).expand(range / 2f);
 
-		for (Entity entity : level.getEntitiesOfClass(Entity.class, bb)) {
-			Vec3 diff = entity.position()
+		for (Entity entity : world.getNonSpectatingEntities(Entity.class, bb)) {
+			Vec3d diff = entity.getPos()
 					.subtract(center);
 
 			double distance = diff.length();
-			if (distance > range || entity.isShiftKeyDown() || AirCurrent.isPlayerCreativeFlying(entity))
+			if (distance > range || entity.isSneaking() || AirCurrent.isPlayerCreativeFlying(entity))
 				continue;
 
 			boolean canSee = canSee(entity);
@@ -170,8 +168,8 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 			iterator.remove();
 		}
 
-		if (!pushing && pushingEntities.size() > 256 && !level.isClientSide) {
-			level.explode(null, center.x, center.y, center.z, 2, ExplosionInteraction.NONE);
+		if (!pushing && pushingEntities.size() > 256 && !world.isClient) {
+			world.createExplosion(null, center.x, center.y, center.z, 2, ExplosionSourceType.NONE);
 			for (Iterator<Entity> iterator = pushingEntities.iterator(); iterator.hasNext();) {
 				Entity entity = iterator.next();
 				entity.discard();
@@ -182,9 +180,9 @@ public class NozzleBlockEntity extends SmartBlockEntity {
 	}
 
 	private boolean canSee(Entity entity) {
-		ClipContext context = new ClipContext(entity.position(), VecHelper.getCenterOf(worldPosition),
-			Block.COLLIDER, Fluid.NONE, entity);
-		return worldPosition.equals(level.clip(context)
+		RaycastContext context = new RaycastContext(entity.getPos(), VecHelper.getCenterOf(pos),
+			ShapeType.COLLIDER, FluidHandling.NONE, entity);
+		return pos.equals(world.raycast(context)
 			.getBlockPos());
 	}
 

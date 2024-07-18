@@ -16,13 +16,13 @@ public class CTSpriteShiftEntry extends SpriteShiftEntry {
 
 	public float getTargetU(float localU, int index) {
 		float uOffset = (index % type.getSheetSize());
-		return getTarget().getU(
+		return getTarget().getFrameU(
 			(getUnInterpolatedU(getOriginal(), localU) + (uOffset * 16)) / ((float) type.getSheetSize()));
 	}
 
 	public float getTargetV(float localV, int index) {
 		float vOffset = (index / type.getSheetSize());
-		return getTarget().getV(
+		return getTarget().getFrameV(
 			(getUnInterpolatedV(getOriginal(), localV) + (vOffset * 16)) / ((float) type.getSheetSize()));
 	}
 

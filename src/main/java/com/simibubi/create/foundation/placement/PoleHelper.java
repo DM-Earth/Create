@@ -3,20 +3,18 @@ package com.simibubi.create.foundation.placement;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.state.property.Property;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import com.jamieswhiteshirt.reachentityattributes.ReachEntityAttributes;
 import com.simibubi.create.content.equipment.extendoGrip.ExtendoGripItem;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraft.world.phys.BlockHitResult;
 
 @MethodsReturnNonnullByDefault
 public abstract class PoleHelper<T extends Comparable<T>> implements IPlacementHelper {
@@ -38,13 +36,13 @@ public abstract class PoleHelper<T extends Comparable<T>> implements IPlacementH
 		return axisFunction.apply(state) == axis;
 	}
 
-	public int attachedPoles(Level world, BlockPos pos, Direction direction) {
-		BlockPos checkPos = pos.relative(direction);
+	public int attachedPoles(World world, BlockPos pos, Direction direction) {
+		BlockPos checkPos = pos.offset(direction);
 		BlockState state = world.getBlockState(checkPos);
 		int count = 0;
 		while (matchesAxis(state, direction.getAxis())) {
 			count++;
-			checkPos = checkPos.relative(direction);
+			checkPos = checkPos.offset(direction);
 			state = world.getBlockState(checkPos);
 		}
 		return count;
@@ -56,12 +54,12 @@ public abstract class PoleHelper<T extends Comparable<T>> implements IPlacementH
 	}
 
 	@Override
-	public PlacementOffset getOffset(Player player, Level world, BlockState state, BlockPos pos, BlockHitResult ray) {
-		List<Direction> directions = IPlacementHelper.orderedByDistance(pos, ray.getLocation(), dir -> dir.getAxis() == axisFunction.apply(state));
+	public PlacementOffset getOffset(PlayerEntity player, World world, BlockState state, BlockPos pos, BlockHitResult ray) {
+		List<Direction> directions = IPlacementHelper.orderedByDistance(pos, ray.getPos(), dir -> dir.getAxis() == axisFunction.apply(state));
 		for (Direction dir : directions) {
 			int range = AllConfigs.server().equipment.placementAssistRange.get();
 			if (player != null) {
-				AttributeInstance reach = player.getAttribute(ReachEntityAttributes.REACH);
+				EntityAttributeInstance reach = player.getAttributeInstance(ReachEntityAttributes.REACH);
 				if (reach != null && reach.hasModifier(ExtendoGripItem.singleRangeAttributeModifier))
 					range += 4;
 			}
@@ -69,11 +67,11 @@ public abstract class PoleHelper<T extends Comparable<T>> implements IPlacementH
 			if (poles >= range)
 				continue;
 
-			BlockPos newPos = pos.relative(dir, poles + 1);
+			BlockPos newPos = pos.offset(dir, poles + 1);
 			BlockState newState = world.getBlockState(newPos);
 
-			if (newState.canBeReplaced())
-				return PlacementOffset.success(newPos, bState -> bState.setValue(property, state.getValue(property)));
+			if (newState.isReplaceable())
+				return PlacementOffset.success(newPos, bState -> bState.with(property, state.get(property)));
 
 		}
 

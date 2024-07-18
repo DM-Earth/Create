@@ -1,21 +1,19 @@
 package com.simibubi.create.content.equipment.armor;
 
 import java.util.function.Supplier;
-
+import net.minecraft.item.ArmorItem.Type;
+import net.minecraft.item.ArmorMaterial;
+import net.minecraft.item.Items;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.sound.SoundEvent;
 import com.google.common.base.Suppliers;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.Create;
 
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.item.ArmorItem.Type;
-import net.minecraft.world.item.ArmorMaterial;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
-
 public enum AllArmorMaterials implements ArmorMaterial {
 
 	COPPER(Create.asResource("copper").toString(), 7, new int[] { 2, 4, 3, 1 }, 25, () -> AllSoundEvents.COPPER_ARMOR_EQUIP.getMainEvent(), 0.0F, 0.0F,
-		() -> Ingredient.of(Items.COPPER_INGOT))
+		() -> Ingredient.ofItems(Items.COPPER_INGOT))
 
 	;
 
@@ -42,7 +40,7 @@ public enum AllArmorMaterials implements ArmorMaterial {
 	}
 
 	@Override
-	public int getEnchantmentValue() {
+	public int getEnchantability() {
 		return this.enchantability;
 	}
 
@@ -72,12 +70,12 @@ public enum AllArmorMaterials implements ArmorMaterial {
 	}
 
 	@Override
-	public int getDurabilityForType(Type pType) {
+	public int getDurability(Type pType) {
 		return MAX_DAMAGE_ARRAY[pType.ordinal()] * this.maxDamageFactor;
 	}
 
 	@Override
-	public int getDefenseForType(Type pType) {
+	public int getProtection(Type pType) {
 		return this.damageReductionAmountArray[pType.ordinal()];
 	}
 

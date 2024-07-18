@@ -20,36 +20,36 @@ import com.simibubi.create.foundation.utility.Pair;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.NonNullList;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.world.World;
 
-public class SequencedAssemblyRecipe implements Recipe<Container> {
+public class SequencedAssemblyRecipe implements Recipe<Inventory> {
 
-	protected ResourceLocation id;
+	protected Identifier id;
 	protected SequencedAssemblyRecipeSerializer serializer;
 
 	protected Ingredient ingredient;
-	protected NonNullList<Ingredient> ingredientList;
+	protected DefaultedList<Ingredient> ingredientList;
 	protected List<SequencedRecipe<?>> sequence;
 	protected int loops;
 	protected ProcessingOutput transitionalItem;
 
 	public final List<ProcessingOutput> resultPool;
 
-	public SequencedAssemblyRecipe(ResourceLocation recipeId, SequencedAssemblyRecipeSerializer serializer) {
+	public SequencedAssemblyRecipe(Identifier recipeId, SequencedAssemblyRecipeSerializer serializer) {
 		this.id = recipeId;
 		this.serializer = serializer;
 		sequence = new ArrayList<>();
@@ -57,21 +57,21 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 		loops = 5;
 	}
 
-	public static <C extends Container, R extends ProcessingRecipe<C>> Optional<R> getRecipe(Level world, C inv,
+	public static <C extends Inventory, R extends ProcessingRecipe<C>> Optional<R> getRecipe(World world, C inv,
 		RecipeType<R> type, Class<R> recipeClass) {
 		return getRecipe(world, inv, type, recipeClass, r -> r.matches(inv, world));
 	}
 
-	public static <C extends Container, R extends ProcessingRecipe<C>> Optional<R> getRecipe(Level world, C inv,
+	public static <C extends Inventory, R extends ProcessingRecipe<C>> Optional<R> getRecipe(World world, C inv,
 		RecipeType<R> type, Class<R> recipeClass, Predicate<? super R> recipeFilter) {
-		return getRecipes(world, inv.getItem(0), type, recipeClass).filter(recipeFilter)
+		return getRecipes(world, inv.getStack(0), type, recipeClass).filter(recipeFilter)
 			.findFirst();
 	}
 
-	public static <R extends ProcessingRecipe<?>> Optional<R> getRecipe(Level world, ItemStack item,
+	public static <R extends ProcessingRecipe<?>> Optional<R> getRecipe(World world, ItemStack item,
 		RecipeType<R> type, Class<R> recipeClass) {
 		List<SequencedAssemblyRecipe> all = world.getRecipeManager()
-			.getAllRecipesFor(AllRecipeTypes.SEQUENCED_ASSEMBLY.getType());
+			.listAllOfType(AllRecipeTypes.SEQUENCED_ASSEMBLY.getType());
 		for (SequencedAssemblyRecipe sequencedAssemblyRecipe : all) {
 			if (!sequencedAssemblyRecipe.appliesTo(item))
 				continue;
@@ -85,10 +85,10 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 		return Optional.empty();
 	}
 
-	public static <R extends ProcessingRecipe<?>> Stream<R> getRecipes(Level world, ItemStack item,
+	public static <R extends ProcessingRecipe<?>> Stream<R> getRecipes(World world, ItemStack item,
 		RecipeType<R> type, Class<R> recipeClass) {
 		List<SequencedAssemblyRecipe> all = world.getRecipeManager()
-			.getAllRecipesFor(AllRecipeTypes.SEQUENCED_ASSEMBLY.getType());
+			.listAllOfType(AllRecipeTypes.SEQUENCED_ASSEMBLY.getType());
 
 		return all.stream()
 				.filter(it -> it.appliesTo(item))
@@ -109,13 +109,13 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 			return rollResult();
 
 		ItemStack advancedItem = ItemHandlerHelper.copyStackWithSize(getTransitionalItem(), 1);
-		CompoundTag itemTag = advancedItem.getOrCreateTag();
-		CompoundTag tag = new CompoundTag();
+		NbtCompound itemTag = advancedItem.getOrCreateNbt();
+		NbtCompound tag = new NbtCompound();
 		tag.putString("id", id.toString());
 		tag.putInt("Step", step + 1);
 		tag.putFloat("Progress", (step + 1f) / (sequence.size() * loops));
 		itemTag.put("SequencedAssembly", tag);
-		advancedItem.setTag(itemTag);
+		advancedItem.setNbt(itemTag);
 		return advancedItem;
 	}
 
@@ -126,11 +126,11 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 	public void addAdditionalIngredientsAndMachines(List<Ingredient> list) {
 		sequence.forEach(sr -> sr.getAsAssemblyRecipe()
 			.addAssemblyIngredients(list));
-		Set<ItemLike> machines = new HashSet<>();
+		Set<ItemConvertible> machines = new HashSet<>();
 		sequence.forEach(sr -> sr.getAsAssemblyRecipe()
 			.addRequiredMachines(machines));
 		machines.stream()
-			.map(Ingredient::of)
+			.map(Ingredient::ofItems)
 			.forEach(list::add);
 	}
 
@@ -156,10 +156,10 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 	private boolean appliesTo(ItemStack input) {
 		if (ingredient.test(input))
 			return true;
-		if (input.hasTag()) {
+		if (input.hasNbt()) {
 			if (getTransitionalItem().getItem() == input.getItem()) {
-				if (input.getTag().contains("SequencedAssembly")) {
-					CompoundTag tag = input.getTag().getCompound("SequencedAssembly");
+				if (input.getNbt().contains("SequencedAssembly")) {
+					NbtCompound tag = input.getNbt().getCompound("SequencedAssembly");
 					String id = tag.getString("id");
 					return id.equals(this.id.toString());
 				}
@@ -173,9 +173,9 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 	}
 
 	private int getStep(ItemStack input) {
-		if (!input.hasTag())
+		if (!input.hasNbt())
 			return 0;
-		CompoundTag tag = input.getTag();
+		NbtCompound tag = input.getNbt();
 		if (!tag.contains("SequencedAssembly"))
 			return 0;
 		int step = tag.getCompound("SequencedAssembly")
@@ -184,22 +184,22 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 	}
 
 	@Override
-	public boolean matches(Container inv, Level p_77569_2_) {
+	public boolean matches(Inventory inv, World p_77569_2_) {
 		return false;
 	}
 
 	@Override
-	public ItemStack assemble(Container inv, RegistryAccess registryAccess) {
+	public ItemStack craft(Inventory inv, DynamicRegistryManager registryAccess) {
 		return ItemStack.EMPTY;
 	}
 
 	@Override
-	public boolean canCraftInDimensions(int p_194133_1_, int p_194133_2_) {
+	public boolean fits(int p_194133_1_, int p_194133_2_) {
 		return false;
 	}
 
 	@Override
-	public ItemStack getResultItem(RegistryAccess registryAccess) {
+	public ItemStack getOutput(DynamicRegistryManager registryAccess) {
 		return resultPool.get(0)
 			.getStack();
 	}
@@ -213,7 +213,7 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return id;
 	}
 
@@ -223,7 +223,7 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 	}
 
 	@Override
-	public boolean isSpecial() {
+	public boolean isIgnoredInRecipeBook() {
 		return true;
 	}
 
@@ -233,15 +233,15 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 	}
 
 	@Environment(EnvType.CLIENT)
-	public static void addToTooltip(ItemStack stack, List<Component> tooltip) {
-		if (!stack.hasTag() || !stack.getTag()
+	public static void addToTooltip(ItemStack stack, List<Text> tooltip) {
+		if (!stack.hasNbt() || !stack.getNbt()
 			.contains("SequencedAssembly"))
 			return;
-		CompoundTag compound = stack.getTag()
+		NbtCompound compound = stack.getNbt()
 			.getCompound("SequencedAssembly");
-		ResourceLocation resourceLocation = new ResourceLocation(compound.getString("id"));
-		Optional<? extends Recipe<?>> optionalRecipe = Minecraft.getInstance().level.getRecipeManager()
-			.byKey(resourceLocation);
+		Identifier resourceLocation = new Identifier(compound.getString("id"));
+		Optional<? extends Recipe<?>> optionalRecipe = MinecraftClient.getInstance().world.getRecipeManager()
+			.get(resourceLocation);
 		if (!optionalRecipe.isPresent())
 			return;
 		Recipe<?> recipe = optionalRecipe.get();
@@ -254,23 +254,23 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 		int total = length * sequencedAssemblyRecipe.loops;
 		tooltip.add(Components.immutableEmpty());
 		tooltip.add(Lang.translateDirect("recipe.sequenced_assembly")
-			.withStyle(ChatFormatting.GRAY));
+			.formatted(Formatting.GRAY));
 		tooltip.add(Lang.translateDirect("recipe.assembly.progress", step, total)
-			.withStyle(ChatFormatting.DARK_GRAY));
+			.formatted(Formatting.DARK_GRAY));
 
 		int remaining = total - step;
 		for (int i = 0; i < length; i++) {
 			if (i >= remaining)
 				break;
 			SequencedRecipe<?> sequencedRecipe = sequencedAssemblyRecipe.sequence.get((i + step) % length);
-			Component textComponent = sequencedRecipe.getAsAssemblyRecipe()
+			Text textComponent = sequencedRecipe.getAsAssemblyRecipe()
 				.getDescriptionForAssembly();
 			if (i == 0)
 				tooltip.add(Lang.translateDirect("recipe.assembly.next", textComponent)
-					.withStyle(ChatFormatting.AQUA));
+					.formatted(Formatting.AQUA));
 			else
 				tooltip.add(Components.literal("-> ").append(textComponent)
-					.withStyle(ChatFormatting.DARK_AQUA));
+					.formatted(Formatting.DARK_AQUA));
 		}
 
 	}
@@ -280,9 +280,9 @@ public class SequencedAssemblyRecipe implements Recipe<Container> {
 	}
 
 	@Override
-	public NonNullList<Ingredient> getIngredients() {
+	public DefaultedList<Ingredient> getIngredients() {
 		if (ingredientList == null) {
-			ingredientList = NonNullList.create();
+			ingredientList = DefaultedList.of();
 			ingredientList.add(ingredient);
 			for (SequencedRecipe<?> recipe : this.sequence) {
 				ingredientList.addAll(recipe.getRecipe().getIngredients());

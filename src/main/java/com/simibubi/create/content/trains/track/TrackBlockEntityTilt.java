@@ -4,22 +4,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import com.simibubi.create.content.trains.graph.TrackNodeLocation;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Pair;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
-
 public class TrackBlockEntityTilt {
 
 	public Optional<Double> smoothingAngle;
-	private Couple<Pair<Vec3, Integer>> previousSmoothingHandles;
+	private Couple<Pair<Vec3d, Integer>> previousSmoothingHandles;
 
 	private TrackBlockEntity blockEntity;
 
@@ -33,15 +31,15 @@ public class TrackBlockEntityTilt {
 			return;
 
 		Couple<BezierConnection> discoveredSlopes = Couple.create(null, null);
-		Vec3 axis = null;
+		Vec3d axis = null;
 
-		BlockState blockState = blockEntity.getBlockState();
-		BlockPos worldPosition = blockEntity.getBlockPos();
-		Level level = blockEntity.getLevel();
+		BlockState blockState = blockEntity.getCachedState();
+		BlockPos worldPosition = blockEntity.getPos();
+		World level = blockEntity.getWorld();
 
 		if (!(blockState.getBlock()instanceof ITrackBlock itb))
 			return;
-		List<Vec3> axes = itb.getTrackAxes(level, worldPosition, blockState);
+		List<Vec3d> axes = itb.getTrackAxes(level, worldPosition, blockState);
 		if (axes.size() != 1)
 			return;
 		if (axes.get(0).y != 0)
@@ -52,13 +50,13 @@ public class TrackBlockEntityTilt {
 		for (BezierConnection bezierConnection : blockEntity.connections.values()) {
 			if (bezierConnection.starts.getFirst().y == bezierConnection.starts.getSecond().y)
 				continue;
-			Vec3 normedAxis = bezierConnection.axes.getFirst()
+			Vec3d normedAxis = bezierConnection.axes.getFirst()
 				.normalize();
 
 			if (axis != null) {
 				if (discoveredSlopes.getSecond() != null)
 					return;
-				if (normedAxis.dot(axis) > -1 + 1 / 64.0)
+				if (normedAxis.dotProduct(axis) > -1 + 1 / 64.0)
 					return;
 				discoveredSlopes.setSecond(bezierConnection);
 				continue;
@@ -73,10 +71,10 @@ public class TrackBlockEntityTilt {
 		if (discoveredSlopes.getFirst().starts.getSecond().y > discoveredSlopes.getSecond().starts.getSecond().y)
 			discoveredSlopes = discoveredSlopes.swap();
 
-		Couple<Vec3> lowStarts = discoveredSlopes.getFirst().starts;
-		Couple<Vec3> highStarts = discoveredSlopes.getSecond().starts;
-		Vec3 lowestPoint = lowStarts.getSecond();
-		Vec3 highestPoint = highStarts.getSecond();
+		Couple<Vec3d> lowStarts = discoveredSlopes.getFirst().starts;
+		Couple<Vec3d> highStarts = discoveredSlopes.getSecond().starts;
+		Vec3d lowestPoint = lowStarts.getSecond();
+		Vec3d highestPoint = highStarts.getSecond();
 
 		if (lowestPoint.y > lowStarts.getFirst().y)
 			return;
@@ -91,23 +89,23 @@ public class TrackBlockEntityTilt {
 			.getLength()
 			+ discoveredSlopes.getSecond()
 				.getLength();
-		Vec3 baseAxis = discoveredSlopes.getFirst().axes.getFirst();
+		Vec3d baseAxis = discoveredSlopes.getFirst().axes.getFirst();
 		double baseAxisLength = baseAxis.x != 0 && baseAxis.z != 0 ? Math.sqrt(2) : 1;
 		double vDistance = highestPoint.y - lowestPoint.y;
 		double m = vDistance / (hDistance);
 
-		Vec3 diff = highStarts.getFirst()
+		Vec3d diff = highStarts.getFirst()
 			.subtract(lowStarts.getFirst());
-		boolean flipRotation = diff.dot(new Vec3(1, 0, 2).normalize()) <= 0;
-		smoothingAngle = Optional.of(Math.toDegrees(Mth.atan2(m, 1)) * (flipRotation ? -1 : 1));
+		boolean flipRotation = diff.dotProduct(new Vec3d(1, 0, 2).normalize()) <= 0;
+		smoothingAngle = Optional.of(Math.toDegrees(MathHelper.atan2(m, 1)) * (flipRotation ? -1 : 1));
 
-		int smoothingParam = Mth.clamp((int) (m * baseAxisLength * 16), 0, 15);
+		int smoothingParam = MathHelper.clamp((int) (m * baseAxisLength * 16), 0, 15);
 
 		Couple<Integer> smoothingResult = Couple.create(0, smoothingParam);
-		Vec3 raisedOffset = diff.normalize()
-			.add(0, Mth.clamp(m, 0, 1 - 1 / 512.0), 0)
+		Vec3d raisedOffset = diff.normalize()
+			.add(0, MathHelper.clamp(m, 0, 1 - 1 / 512.0), 0)
 			.normalize()
-			.scale(baseAxisLength);
+			.multiply(baseAxisLength);
 
 		highStarts.setFirst(lowStarts.getFirst()
 			.add(raisedOffset));
@@ -128,7 +126,7 @@ public class TrackBlockEntityTilt {
 			BlockState otherState = level.getBlockState(otherPosition);
 			if (!(otherState.getBlock() instanceof TrackBlock))
 				continue;
-			level.setBlockAndUpdate(otherPosition, otherState.setValue(TrackBlock.HAS_BE, true));
+			level.setBlockState(otherPosition, otherState.with(TrackBlock.HAS_BE, true));
 			BlockEntity otherBE = level.getBlockEntity(otherPosition);
 			if (otherBE instanceof TrackBlockEntity tbe) {
 				blockEntity.addConnection(bezierConnection);
@@ -155,9 +153,9 @@ public class TrackBlockEntityTilt {
 		if (blockEntity.connections.size() == 2)
 			return;
 
-		BlockState blockState = blockEntity.getBlockState();
-		BlockPos worldPosition = blockEntity.getBlockPos();
-		Level level = blockEntity.getLevel();
+		BlockState blockState = blockEntity.getCachedState();
+		BlockPos worldPosition = blockEntity.getPos();
+		World level = blockEntity.getWorld();
 
 		List<BezierConnection> validConnections = new ArrayList<>();
 		for (BezierConnection bezierConnection : blockEntity.connections.values()) {
@@ -179,7 +177,7 @@ public class TrackBlockEntityTilt {
 			BlockState otherState = level.getBlockState(otherPosition);
 			if (!(otherState.getBlock() instanceof TrackBlock))
 				continue;
-			level.setBlockAndUpdate(otherPosition, otherState.setValue(TrackBlock.HAS_BE, true));
+			level.setBlockState(otherPosition, otherState.with(TrackBlock.HAS_BE, true));
 			BlockEntity otherBE = level.getBlockEntity(otherPosition);
 			if (otherBE instanceof TrackBlockEntity tbe)
 				tbe.addConnection(bezierConnection.secondary());
@@ -196,7 +194,7 @@ public class TrackBlockEntityTilt {
 			if (bezierConnection.smoothing.getFirst() == 0 && bezierConnection.smoothing.getSecond() == 0)
 				bezierConnection.smoothing = null;
 		}
-		Vec3 raisedStart = bezierConnection.starts.getFirst();
+		Vec3d raisedStart = bezierConnection.starts.getFirst();
 		bezierConnection.starts.setFirst(new TrackNodeLocation(raisedStart).getLocation());
 		bezierConnection.axes.setFirst(bezierConnection.axes.getFirst()
 			.multiply(1, 0, 1)
@@ -204,7 +202,7 @@ public class TrackBlockEntityTilt {
 		return bezierConnection;
 	}
 
-	public int getYOffsetForAxisEnd(Vec3 end) {
+	public int getYOffsetForAxisEnd(Vec3d end) {
 		if (smoothingAngle.isEmpty())
 			return 0;
 		for (BezierConnection bezierConnection : blockEntity.connections.values())
@@ -212,16 +210,16 @@ public class TrackBlockEntityTilt {
 				return bezierConnection.yOffsetAt(end);
 		if (previousSmoothingHandles == null)
 			return 0;
-		for (Pair<Vec3, Integer> handle : previousSmoothingHandles)
+		for (Pair<Vec3d, Integer> handle : previousSmoothingHandles)
 			if (handle != null && compareHandles(handle.getFirst(), end))
 				return handle.getSecond();
 		return 0;
 	}
 
-	public static boolean compareHandles(Vec3 handle1, Vec3 handle2) {
+	public static boolean compareHandles(Vec3d handle1, Vec3d handle2) {
 		return new TrackNodeLocation(handle1).getLocation()
 			.multiply(1, 0, 1)
-			.distanceToSqr(new TrackNodeLocation(handle2).getLocation()
+			.squaredDistanceTo(new TrackNodeLocation(handle2).getLocation()
 				.multiply(1, 0, 1)) < 1 / 512f;
 	}
 

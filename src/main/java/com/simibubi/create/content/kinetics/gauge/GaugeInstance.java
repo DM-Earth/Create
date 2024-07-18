@@ -1,27 +1,25 @@
 package com.simibubi.create.content.kinetics.gauge;
 
 import java.util.ArrayList;
-
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.api.instance.DynamicInstance;
 import com.jozufozu.flywheel.core.materials.model.ModelData;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.ShaftInstance;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Iterate;
 
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-
 public abstract class GaugeInstance extends ShaftInstance<GaugeBlockEntity> implements DynamicInstance {
 
     protected final ArrayList<DialFace> faces;
 
-    protected PoseStack ms;
+    protected MatrixStack ms;
 
     protected GaugeInstance(MaterialManager materialManager, GaugeBlockEntity blockEntity) {
         super(materialManager, blockEntity);
@@ -33,11 +31,11 @@ public abstract class GaugeInstance extends ShaftInstance<GaugeBlockEntity> impl
         Instancer<ModelData> dialModel = getTransformMaterial().getModel(AllPartialModels.GAUGE_DIAL, blockState);
         Instancer<ModelData> headModel = getHeadModel();
 
-        ms = new PoseStack();
+        ms = new MatrixStack();
         TransformStack msr = TransformStack.cast(ms);
         msr.translate(getInstancePosition());
 
-        float progress = Mth.lerp(AnimationTickHolder.getPartialTicks(), blockEntity.prevDialState, blockEntity.dialState);
+        float progress = MathHelper.lerp(AnimationTickHolder.getPartialTicks(), blockEntity.prevDialState, blockEntity.dialState);
 
         for (Direction facing : Iterate.directions) {
             if (!gaugeBlock.shouldRenderHeadOnFace(world, pos, blockState, facing))
@@ -59,10 +57,10 @@ public abstract class GaugeInstance extends ShaftInstance<GaugeBlockEntity> impl
     public void beginFrame() {
         GaugeBlockEntity gaugeBlockEntity = (GaugeBlockEntity) blockEntity;
 
-        if (Mth.equal(gaugeBlockEntity.prevDialState, gaugeBlockEntity.dialState))
+        if (MathHelper.approximatelyEquals(gaugeBlockEntity.prevDialState, gaugeBlockEntity.dialState))
             return;
 
-        float progress = Mth.lerp(AnimationTickHolder.getPartialTicks(), gaugeBlockEntity.prevDialState, gaugeBlockEntity.dialState);
+        float progress = MathHelper.lerp(AnimationTickHolder.getPartialTicks(), gaugeBlockEntity.prevDialState, gaugeBlockEntity.dialState);
 
         TransformStack msr = TransformStack.cast(ms);
 
@@ -131,7 +129,7 @@ public abstract class GaugeInstance extends ShaftInstance<GaugeBlockEntity> impl
 
         protected TransformStack rotateToFace(TransformStack msr) {
             return msr.centre()
-                      .rotate(Direction.UP, (float) ((-face.toYRot() - 90) / 180 * Math.PI))
+                      .rotate(Direction.UP, (float) ((-face.asRotation() - 90) / 180 * Math.PI))
                       .unCentre();
         }
 

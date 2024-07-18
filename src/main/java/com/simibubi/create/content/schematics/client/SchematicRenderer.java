@@ -2,38 +2,36 @@ package com.simibubi.create.content.schematics.client;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.render.block.BlockModelRenderer;
+import net.minecraft.client.render.block.BlockRenderManager;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.random.Random;
 import com.jozufozu.flywheel.core.model.ModelUtil;
 import com.jozufozu.flywheel.core.model.ShadeSeparatedBufferedData;
 import com.jozufozu.flywheel.core.model.ShadeSeparatingVertexConsumer;
 import com.jozufozu.flywheel.fabric.model.LayerFilteringBakedModel;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.simibubi.create.content.schematics.SchematicWorld;
 import com.simibubi.create.foundation.render.BlockEntityRenderHelper;
 import com.simibubi.create.foundation.render.SuperByteBuffer;
 import com.simibubi.create.foundation.render.SuperRenderTypeBuffer;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-
 public class SchematicRenderer {
 
 	private static final ThreadLocal<ThreadLocalObjects> THREAD_LOCAL_OBJECTS = ThreadLocal.withInitial(ThreadLocalObjects::new);
 
-	private final Map<RenderType, SuperByteBuffer> bufferCache = new LinkedHashMap<>();
+	private final Map<RenderLayer, SuperByteBuffer> bufferCache = new LinkedHashMap<>();
 	private boolean active;
 	private boolean changed;
 	protected SchematicWorld schematic;
@@ -61,15 +59,15 @@ public class SchematicRenderer {
 	public void tick() {
 		if (!active)
 			return;
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.level == null || mc.player == null || !changed)
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc.world == null || mc.player == null || !changed)
 			return;
 
 		redraw();
 		changed = false;
 	}
 
-	public void render(PoseStack ms, SuperRenderTypeBuffer buffers) {
+	public void render(MatrixStack ms, SuperRenderTypeBuffer buffers) {
 		if (!active)
 			return;
 		bufferCache.forEach((layer, buffer) -> {
@@ -82,7 +80,7 @@ public class SchematicRenderer {
 		bufferCache.forEach((layer, sbb) -> sbb.delete());
 		bufferCache.clear();
 
-		for (RenderType layer : RenderType.chunkBufferLayers()) {
+		for (RenderLayer layer : RenderLayer.getBlockLayers()) {
 			SuperByteBuffer buffer = drawLayer(layer);
 			if (!buffer.isEmpty())
 				bufferCache.put(layer, buffer);
@@ -91,37 +89,37 @@ public class SchematicRenderer {
 		}
 	}
 
-	protected SuperByteBuffer drawLayer(RenderType layer) {
-		BlockRenderDispatcher dispatcher = Minecraft.getInstance().getBlockRenderer();
-		ModelBlockRenderer renderer = dispatcher.getModelRenderer();
+	protected SuperByteBuffer drawLayer(RenderLayer layer) {
+		BlockRenderManager dispatcher = MinecraftClient.getInstance().getBlockRenderManager();
+		BlockModelRenderer renderer = dispatcher.getModelRenderer();
 		ThreadLocalObjects objects = THREAD_LOCAL_OBJECTS.get();
 
-		PoseStack poseStack = objects.poseStack;
-		RandomSource random = objects.random;
-		BlockPos.MutableBlockPos mutableBlockPos = objects.mutableBlockPos;
+		MatrixStack poseStack = objects.poseStack;
+		Random random = objects.random;
+		BlockPos.Mutable mutableBlockPos = objects.mutableBlockPos;
 		SchematicWorld renderWorld = schematic;
 		renderWorld.renderMode = true;
-		BoundingBox bounds = renderWorld.getBounds();
+		BlockBox bounds = renderWorld.getBounds();
 
 		ShadeSeparatingVertexConsumer shadeSeparatingWrapper = objects.shadeSeparatingWrapper;
 		BufferBuilder shadedBuilder = objects.shadedBuilder;
 		BufferBuilder unshadedBuilder = objects.unshadedBuilder;
 
-		shadedBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
-		unshadedBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+		shadedBuilder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL);
+		unshadedBuilder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL);
 		shadeSeparatingWrapper.prepare(shadedBuilder, unshadedBuilder);
 
-		ModelBlockRenderer.enableCaching();
-		for (BlockPos localPos : BlockPos.betweenClosed(bounds.minX(), bounds.minY(), bounds.minZ(), bounds.maxX(), bounds.maxY(), bounds.maxZ())) {
-			BlockPos pos = mutableBlockPos.setWithOffset(localPos, anchor);
+		BlockModelRenderer.enableBrightnessCache();
+		for (BlockPos localPos : BlockPos.iterate(bounds.getMinX(), bounds.getMinY(), bounds.getMinZ(), bounds.getMaxX(), bounds.getMaxY(), bounds.getMaxZ())) {
+			BlockPos pos = mutableBlockPos.set(localPos, anchor);
 			BlockState state = renderWorld.getBlockState(pos);
 
-			if (state.getRenderShape() == RenderShape.MODEL) {
-				BakedModel model = dispatcher.getBlockModel(state);
-				long seed = state.getSeed(pos);
+			if (state.getRenderType() == BlockRenderType.MODEL) {
+				BakedModel model = dispatcher.getModel(state);
+				long seed = state.getRenderingSeed(pos);
 				random.setSeed(seed);
 				if (model.isVanillaAdapter()) {
-					if (ItemBlockRenderTypes.getChunkRenderType(state) != layer) {
+					if (RenderLayers.getBlockLayer(state) != layer) {
 						continue;
 					}
 				} else {
@@ -129,16 +127,16 @@ public class SchematicRenderer {
 				}
 				model = shadeSeparatingWrapper.wrapModel(model);
 
-				poseStack.pushPose();
+				poseStack.push();
 				poseStack.translate(localPos.getX(), localPos.getY(), localPos.getZ());
 
-				renderer.tesselateBlock(renderWorld, model, state, pos, poseStack, shadeSeparatingWrapper, true, random,
-						seed, OverlayTexture.NO_OVERLAY);
+				renderer.render(renderWorld, model, state, pos, poseStack, shadeSeparatingWrapper, true, random,
+						seed, OverlayTexture.DEFAULT_UV);
 
-				poseStack.popPose();
+				poseStack.pop();
 			}
 		}
-		ModelBlockRenderer.clearCache();
+		BlockModelRenderer.disableBrightnessCache();
 
 		shadeSeparatingWrapper.clear();
 		ShadeSeparatedBufferedData bufferedData = ModelUtil.endAndCombine(shadedBuilder, unshadedBuilder);
@@ -157,9 +155,9 @@ public class SchematicRenderer {
 //	}
 
 	private static class ThreadLocalObjects {
-		public final PoseStack poseStack = new PoseStack();
-		public final RandomSource random = RandomSource.createNewThreadLocalInstance();
-		public final BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
+		public final MatrixStack poseStack = new MatrixStack();
+		public final Random random = Random.createLocal();
+		public final BlockPos.Mutable mutableBlockPos = new BlockPos.Mutable();
 		public final ShadeSeparatingVertexConsumer shadeSeparatingWrapper = new ShadeSeparatingVertexConsumer();
 		public final BufferBuilder shadedBuilder = new BufferBuilder(512);
 		public final BufferBuilder unshadedBuilder = new BufferBuilder(512);

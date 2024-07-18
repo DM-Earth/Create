@@ -7,9 +7,9 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
-import net.minecraft.core.Direction;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Unit;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.util.math.Direction;
 
 public class ItemDrainItemHandler extends SnapshotParticipant<Unit> implements SingleSlotStorage<ItemVariant> {
 
@@ -27,9 +27,9 @@ public class ItemDrainItemHandler extends SnapshotParticipant<Unit> implements S
 			return 0;
 
 		ItemStack stack = resource.toStack();
-		int toInsert = GenericItemEmptying.canItemBeEmptied(blockEntity.getLevel(), stack)
+		int toInsert = GenericItemEmptying.canItemBeEmptied(blockEntity.getWorld(), stack)
 				? 1
-				: Math.min((int) maxAmount, resource.getItem().getMaxStackSize());
+				: Math.min((int) maxAmount, resource.getItem().getMaxCount());
 		stack.setCount(toInsert);
 		TransportedItemStack heldItem = new TransportedItemStack(stack);
 		heldItem.prevBeltPosition = 0;
@@ -46,7 +46,7 @@ public class ItemDrainItemHandler extends SnapshotParticipant<Unit> implements S
 
 		int toExtract = Math.min((int) maxAmount, held.stack.getCount());
 		ItemStack stack = held.stack.copy();
-		stack.shrink(toExtract);
+		stack.decrement(toExtract);
 		blockEntity.snapshotParticipant.updateSnapshots(transaction);
 		blockEntity.heldItem.stack = stack;
 		if (stack.isEmpty())
@@ -72,7 +72,7 @@ public class ItemDrainItemHandler extends SnapshotParticipant<Unit> implements S
 
 	@Override
 	public long getCapacity() {
-		return getStack().getMaxStackSize();
+		return getStack().getMaxCount();
 	}
 
 	public ItemStack getStack() {

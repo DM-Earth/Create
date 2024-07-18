@@ -1,24 +1,24 @@
 package com.simibubi.create.content.legacy;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 
 public class RefinedRadianceItem extends NoGravMagicalDohickyItem {
 
-	public RefinedRadianceItem(Properties properties) {
+	public RefinedRadianceItem(Settings properties) {
 		super(properties);
 	}
 
 	@Override
-	public boolean isFoil(ItemStack stack) {
+	public boolean hasGlint(ItemStack stack) {
 		return true;
 	}
 
 	@Override
-	protected void onCreated(ItemEntity entity, CompoundTag persistentData) {
+	protected void onCreated(ItemEntity entity, NbtCompound persistentData) {
 		super.onCreated(entity, persistentData);
-		entity.setDeltaMovement(entity.getDeltaMovement()
+		entity.setVelocity(entity.getVelocity()
 			.add(0, .25f, 0));
 	}
 

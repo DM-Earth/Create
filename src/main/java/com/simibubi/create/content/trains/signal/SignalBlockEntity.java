@@ -3,7 +3,11 @@ package com.simibubi.create.content.trains.signal;
 import java.util.List;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import com.simibubi.create.content.contraptions.ITransformableBlockEntity;
 import com.simibubi.create.content.contraptions.StructureTransform;
 import com.simibubi.create.content.trains.graph.EdgePointType;
@@ -12,12 +16,6 @@ import com.simibubi.create.content.trains.track.TrackTargetingBehaviour;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 
 public class SignalBlockEntity extends SmartBlockEntity implements ITransformableBlockEntity {
 
@@ -56,7 +54,7 @@ public class SignalBlockEntity extends SmartBlockEntity implements ITransformabl
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 		NBTHelper.writeEnum(tag, "State", state);
 		NBTHelper.writeEnum(tag, "Overlay", overlay);
@@ -64,7 +62,7 @@ public class SignalBlockEntity extends SmartBlockEntity implements ITransformabl
 	}
 
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		super.read(tag, clientPacket);
 		state = NBTHelper.readEnum(tag, "State", SignalState.class);
 		overlay = NBTHelper.readEnum(tag, "Overlay", OverlayState.class);
@@ -90,7 +88,7 @@ public class SignalBlockEntity extends SmartBlockEntity implements ITransformabl
 	@Override
 	public void tick() {
 		super.tick();
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
 		SignalBoundary boundary = getSignal();
@@ -100,9 +98,9 @@ public class SignalBlockEntity extends SmartBlockEntity implements ITransformabl
 			return;
 		}
 
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 
-		blockState.getOptionalValue(SignalBlock.POWERED).ifPresent(powered -> {
+		blockState.getOrEmpty(SignalBlock.POWERED).ifPresent(powered -> {
 			if (lastReportedPower == powered)
 				return;
 			lastReportedPower = powered;
@@ -110,17 +108,17 @@ public class SignalBlockEntity extends SmartBlockEntity implements ITransformabl
 			notifyUpdate();
 		});
 		
-		blockState.getOptionalValue(SignalBlock.TYPE)
+		blockState.getOrEmpty(SignalBlock.TYPE)
 			.ifPresent(stateType -> {
-				SignalType targetType = boundary.getTypeFor(worldPosition);
+				SignalType targetType = boundary.getTypeFor(pos);
 				if (stateType != targetType) {
-					level.setBlock(worldPosition, blockState.setValue(SignalBlock.TYPE, targetType), 3);
+					world.setBlockState(pos, blockState.with(SignalBlock.TYPE, targetType), 3);
 					refreshBlockState();
 				}
 			});
 
-		enterState(boundary.getStateFor(worldPosition));
-		setOverlay(boundary.getOverlayFor(worldPosition));
+		enterState(boundary.getStateFor(pos));
+		setOverlay(boundary.getOverlayFor(pos));
 	}
 
 	public boolean getReportedPower() {
@@ -155,8 +153,8 @@ public class SignalBlockEntity extends SmartBlockEntity implements ITransformabl
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return new AABB(worldPosition, edgePoint.getGlobalPosition()).inflate(2);
+	protected Box createRenderBoundingBox() {
+		return new Box(pos, edgePoint.getGlobalPosition()).expand(2);
 	}
 
 	@Override

@@ -1,6 +1,6 @@
 package com.simibubi.create.foundation.utility;
 
-import net.minecraft.core.BlockPos;
+import net.minecraft.util.math.BlockPos;
 
 @FunctionalInterface
 public interface ICoordinate {

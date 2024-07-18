@@ -1,62 +1,59 @@
 package com.simibubi.create.content.decoration;
 
 import javax.annotation.Nullable;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ScaffoldingItem;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ChatType;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ScaffoldingBlockItem;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+public class MetalScaffoldingBlockItem extends ScaffoldingItem {
 
-public class MetalScaffoldingBlockItem extends ScaffoldingBlockItem {
-
-	public MetalScaffoldingBlockItem(Block pBlock, Properties pProperties) {
+	public MetalScaffoldingBlockItem(Block pBlock, Settings pProperties) {
 		super(pBlock, pProperties);
 	}
 
 	@Nullable
-	public BlockPlaceContext updatePlacementContext(BlockPlaceContext pContext) { // TODO replace with placement helper
-		BlockPos blockpos = pContext.getClickedPos();
-		Level level = pContext.getLevel();
+	public ItemPlacementContext getPlacementContext(ItemPlacementContext pContext) { // TODO replace with placement helper
+		BlockPos blockpos = pContext.getBlockPos();
+		World level = pContext.getWorld();
 		BlockState blockstate = level.getBlockState(blockpos);
 		Block block = this.getBlock();
-		if (!blockstate.is(block))
+		if (!blockstate.isOf(block))
 			return pContext;
 
 		Direction direction;
-		if (pContext.isSecondaryUseActive()) {
-			direction = pContext.isInside() ? pContext.getClickedFace()
-				.getOpposite() : pContext.getClickedFace();
+		if (pContext.shouldCancelInteraction()) {
+			direction = pContext.hitsInsideBlock() ? pContext.getSide()
+				.getOpposite() : pContext.getSide();
 		} else {
-			direction = pContext.getClickedFace() == Direction.UP ? pContext.getHorizontalDirection() : Direction.UP;
+			direction = pContext.getSide() == Direction.UP ? pContext.getHorizontalPlayerFacing() : Direction.UP;
 		}
 
 		int i = 0;
-		BlockPos.MutableBlockPos blockpos$mutableblockpos = blockpos.mutable()
+		BlockPos.Mutable blockpos$mutableblockpos = blockpos.mutableCopy()
 			.move(direction);
 
 		while (i < 7) {
-			if (!level.isClientSide && !level.isInWorldBounds(blockpos$mutableblockpos)) {
-				Player player = pContext.getPlayer();
-				int j = level.getMaxBuildHeight();
-				if (player instanceof ServerPlayer sp && blockpos$mutableblockpos.getY() >= j)
-					sp.sendSystemMessage(Component.translatable("build.tooHigh", j - 1)
-									.withStyle(ChatFormatting.RED), true);
+			if (!level.isClient && !level.isInBuildLimit(blockpos$mutableblockpos)) {
+				PlayerEntity player = pContext.getPlayer();
+				int j = level.getTopY();
+				if (player instanceof ServerPlayerEntity sp && blockpos$mutableblockpos.getY() >= j)
+					sp.sendMessageToClient(Text.translatable("build.tooHigh", j - 1)
+									.formatted(Formatting.RED), true);
 				break;
 			}
 
 			blockstate = level.getBlockState(blockpos$mutableblockpos);
-			if (!blockstate.is(this.getBlock())) {
-				if (blockstate.canBeReplaced(pContext)) {
-					return BlockPlaceContext.at(pContext, blockpos$mutableblockpos, direction);
+			if (!blockstate.isOf(this.getBlock())) {
+				if (blockstate.canReplace(pContext)) {
+					return ItemPlacementContext.offset(pContext, blockpos$mutableblockpos, direction);
 				}
 				break;
 			}

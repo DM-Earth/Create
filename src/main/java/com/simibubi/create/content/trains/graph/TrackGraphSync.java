@@ -7,7 +7,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.server.network.ServerPlayerEntity;
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.Create;
@@ -16,8 +16,6 @@ import com.simibubi.create.content.trains.signal.SignalEdgeGroupPacket;
 import com.simibubi.create.content.trains.signal.TrackEdgePoint;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.server.level.ServerPlayer;
 
 public class TrackGraphSync {
 
@@ -103,7 +101,7 @@ public class TrackGraphSync {
 
 	//
 
-	public void sendEdgeGroups(List<UUID> ids, List<EdgeGroupColor> colors, ServerPlayer player) {
+	public void sendEdgeGroups(List<UUID> ids, List<EdgeGroupColor> colors, ServerPlayerEntity player) {
 		AllPackets.getChannel().sendToClient(new SignalEdgeGroupPacket(ids, colors, true), player);
 	}
 
@@ -131,7 +129,7 @@ public class TrackGraphSync {
 		currentPayload++;
 	}
 
-	public void sendFullGraphTo(TrackGraph graph, ServerPlayer player) {
+	public void sendFullGraphTo(TrackGraph graph, ServerPlayerEntity player) {
 		TrackGraphSyncPacket packet = new TrackGraphSyncPacket(graph.id, graph.netId);
 		packet.fullWipe = true;
 		int sent = 0;
@@ -184,7 +182,7 @@ public class TrackGraphSync {
 		AllPackets.getChannel().sendToClientsInCurrentServer(new TrackGraphRollCallPacket());
 	}
 
-	private TrackGraphSyncPacket flushAndCreateNew(TrackGraph graph, ServerPlayer player, TrackGraphSyncPacket packet) {
+	private TrackGraphSyncPacket flushAndCreateNew(TrackGraph graph, ServerPlayerEntity player, TrackGraphSyncPacket packet) {
 		AllPackets.getChannel().sendToClient(packet, player);
 		packet = new TrackGraphSyncPacket(graph.id, graph.netId);
 		return packet;

@@ -7,24 +7,21 @@ import com.simibubi.create.content.schematics.requirement.ISpecialBlockItemRequi
 import com.simibubi.create.content.trains.track.TrackMaterial;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.BlockView;
 
 public class StandardBogeyBlock extends AbstractBogeyBlock<StandardBogeyBlockEntity>
 	implements IBE<StandardBogeyBlockEntity>, ProperWaterloggedBlock, ISpecialBlockItemRequirement {
 
-	public StandardBogeyBlock(Properties props, BogeySizes.BogeySize size) {
+	public StandardBogeyBlock(Settings props, BogeySizes.BogeySize size) {
 		super(props, size);
-		registerDefaultState(defaultBlockState().setValue(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override
@@ -43,8 +40,8 @@ public class StandardBogeyBlock extends AbstractBogeyBlock<StandardBogeyBlockEnt
 	}
 
 	@Override
-	public Vec3 getConnectorAnchorOffset() {
-		return new Vec3(0, 7 / 32f, 1);
+	public Vec3d getConnectorAnchorOffset() {
+		return new Vec3d(0, 7 / 32f, 1);
 	}
 
 	@Override
@@ -53,7 +50,7 @@ public class StandardBogeyBlock extends AbstractBogeyBlock<StandardBogeyBlockEnt
 	}
 
 	@Override
-	public ItemStack getCloneItemStack(BlockGetter level, BlockPos pos, BlockState state) {
+	public ItemStack getPickStack(BlockView level, BlockPos pos, BlockState state) {
 		return AllBlocks.RAILWAY_CASING.asStack();
 	}
 

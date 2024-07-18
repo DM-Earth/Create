@@ -1,23 +1,22 @@
 package com.simibubi.create.content.contraptions.render;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.culling.Frustum;
-import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.render.Frustum;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
 
 public class ContraptionEntityRenderer<C extends AbstractContraptionEntity> extends EntityRenderer<C> {
 
-	public ContraptionEntityRenderer(EntityRendererProvider.Context context) {
+	public ContraptionEntityRenderer(EntityRendererFactory.Context context) {
 		super(context);
 	}
 
 	@Override
-	public ResourceLocation getTextureLocation(C entity) {
+	public Identifier getTexture(C entity) {
 		return null;
 	}
 
@@ -35,7 +34,7 @@ public class ContraptionEntityRenderer<C extends AbstractContraptionEntity> exte
 	}
 
 	@Override
-	public void render(C entity, float yaw, float partialTicks, PoseStack ms, MultiBufferSource buffers,
+	public void render(C entity, float yaw, float partialTicks, MatrixStack ms, VertexConsumerProvider buffers,
 		int overlay) {
 		super.render(entity, yaw, partialTicks, ms, buffers, overlay);
 

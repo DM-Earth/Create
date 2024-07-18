@@ -13,111 +13,111 @@ import com.simibubi.create.foundation.fluid.FluidHelper;
 
 import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.Containers;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.ItemScatterer;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 
 public class ItemDrainBlock extends Block implements IWrenchable, IBE<ItemDrainBlockEntity> {
 
-	public ItemDrainBlock(Properties p_i48440_1_) {
+	public ItemDrainBlock(Settings p_i48440_1_) {
 		super(p_i48440_1_);
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
-		ItemStack heldItem = player.getItemInHand(handIn);
+		ItemStack heldItem = player.getStackInHand(handIn);
 
 		if (heldItem.getItem() instanceof BlockItem
 			&& ContainerItemContext.withConstant(heldItem).find(FluidStorage.ITEM) == null)
-			return InteractionResult.PASS;
+			return ActionResult.PASS;
 
 		return onBlockEntityUse(worldIn, pos, be -> {
 			if (!heldItem.isEmpty()) {
 				be.internalTank.allowInsertion();
-				InteractionResult tryExchange = tryExchange(worldIn, player, handIn, heldItem, be, Direction.DOWN); // up prohibits insertion
+				ActionResult tryExchange = tryExchange(worldIn, player, handIn, heldItem, be, Direction.DOWN); // up prohibits insertion
 				be.internalTank.forbidInsertion();
-				if (tryExchange.consumesAction())
+				if (tryExchange.isAccepted())
 					return tryExchange;
 			}
 
 			ItemStack heldItemStack = be.getHeldItemStack();
-			if (!worldIn.isClientSide && !heldItemStack.isEmpty()) {
+			if (!worldIn.isClient && !heldItemStack.isEmpty()) {
 				player.getInventory()
-					.placeItemBackInInventory(heldItemStack);
+					.offerOrDrop(heldItemStack);
 				be.heldItem = null;
 				be.notifyUpdate();
 			}
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		});
 	}
 
 	@Override
-	public void updateEntityAfterFallOn(BlockGetter worldIn, Entity entityIn) {
-		super.updateEntityAfterFallOn(worldIn, entityIn);
+	public void onEntityLand(BlockView worldIn, Entity entityIn) {
+		super.onEntityLand(worldIn, entityIn);
 		if (!(entityIn instanceof ItemEntity))
 			return;
 		if (!entityIn.isAlive())
 			return;
-		if (entityIn.level().isClientSide)
+		if (entityIn.getWorld().isClient)
 			return;
 
 		ItemEntity itemEntity = (ItemEntity) entityIn;
 		DirectBeltInputBehaviour inputBehaviour =
-			BlockEntityBehaviour.get(worldIn, entityIn.blockPosition(), DirectBeltInputBehaviour.TYPE);
+			BlockEntityBehaviour.get(worldIn, entityIn.getBlockPos(), DirectBeltInputBehaviour.TYPE);
 		if (inputBehaviour == null)
 			return;
-		Vec3 deltaMovement = entityIn.getDeltaMovement()
+		Vec3d deltaMovement = entityIn.getVelocity()
 			.multiply(1, 0, 1)
 			.normalize();
-		Direction nearest = Direction.getNearest(deltaMovement.x, deltaMovement.y, deltaMovement.z);
-		ItemStack remainder = inputBehaviour.handleInsertion(itemEntity.getItem(), nearest, false);
-		itemEntity.setItem(remainder);
+		Direction nearest = Direction.getFacing(deltaMovement.x, deltaMovement.y, deltaMovement.z);
+		ItemStack remainder = inputBehaviour.handleInsertion(itemEntity.getStack(), nearest, false);
+		itemEntity.setStack(remainder);
 		if (remainder.isEmpty())
 			itemEntity.discard();
 	}
 
-	protected InteractionResult tryExchange(Level worldIn, Player player, InteractionHand handIn, ItemStack heldItem,
+	protected ActionResult tryExchange(World worldIn, PlayerEntity player, Hand handIn, ItemStack heldItem,
 		ItemDrainBlockEntity be, Direction side) {
 		if (FluidHelper.tryEmptyItemIntoBE(worldIn, player, handIn, heldItem, be, side))
-			return InteractionResult.SUCCESS;
+			return ActionResult.SUCCESS;
 		if (GenericItemEmptying.canItemBeEmptied(worldIn, heldItem))
-			return InteractionResult.SUCCESS;
-		return InteractionResult.PASS;
+			return ActionResult.SUCCESS;
+		return ActionResult.PASS;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState p_220053_1_, BlockGetter p_220053_2_, BlockPos p_220053_3_,
-		CollisionContext p_220053_4_) {
+	public VoxelShape getOutlineShape(BlockState p_220053_1_, BlockView p_220053_2_, BlockPos p_220053_3_,
+		ShapeContext p_220053_4_) {
 		return AllShapes.CASING_13PX.get(Direction.UP);
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+	public void onStateReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		if (!state.hasBlockEntity() || state.getBlock() == newState.getBlock())
 			return;
 		withBlockEntityDo(worldIn, pos, be -> {
 			ItemStack heldItemStack = be.getHeldItemStack();
 			if (!heldItemStack.isEmpty())
-				Containers.dropItemStack(worldIn, pos.getX(), pos.getY(), pos.getZ(), heldItemStack);
+				ItemScatterer.spawn(worldIn, pos.getX(), pos.getY(), pos.getZ(), heldItemStack);
 		});
 		worldIn.removeBlockEntity(pos);
 	}
@@ -128,8 +128,8 @@ public class ItemDrainBlock extends Block implements IWrenchable, IBE<ItemDrainB
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		AdvancementBehaviour.setPlacedBy(pLevel, pPos, pPlacer);
 	}
 
@@ -139,17 +139,17 @@ public class ItemDrainBlock extends Block implements IWrenchable, IBE<ItemDrainB
 	}
 
 	@Override
-	public boolean hasAnalogOutputSignal(BlockState state) {
+	public boolean hasComparatorOutput(BlockState state) {
 		return true;
 	}
 
 	@Override
-	public int getAnalogOutputSignal(BlockState blockState, Level worldIn, BlockPos pos) {
+	public int getComparatorOutput(BlockState blockState, World worldIn, BlockPos pos) {
 		return ComparatorUtil.levelOfSmartFluidTank(worldIn, pos);
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

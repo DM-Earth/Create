@@ -1,9 +1,36 @@
 package com.simibubi.create.content.kinetics.steamEngine;
 
-import static net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED;
+import static net.minecraft.state.property.Properties.WATERLOGGED;
 
 import java.util.function.Predicate;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.WallMountedBlock;
+import net.minecraft.block.Waterloggable;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.enums.WallMountLocation;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllShapes;
@@ -18,148 +45,119 @@ import com.simibubi.create.foundation.placement.PlacementOffset;
 import com.simibubi.create.foundation.utility.BlockHelper;
 import com.simibubi.create.foundation.utility.Couple;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
-import net.minecraft.world.level.block.SimpleWaterloggedBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.AttachFace;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-
-public class SteamEngineBlock extends FaceAttachedHorizontalDirectionalBlock
-	implements SimpleWaterloggedBlock, IWrenchable, IBE<SteamEngineBlockEntity> {
+public class SteamEngineBlock extends WallMountedBlock
+	implements Waterloggable, IWrenchable, IBE<SteamEngineBlockEntity> {
 
 	private static final int placementHelperId = PlacementHelpers.register(new PlacementHelper());
 
-	public SteamEngineBlock(Properties properties) {
+	public SteamEngineBlock(Settings properties) {
 		super(properties);
-		registerDefaultState(stateDefinition.any().setValue(FACE, AttachFace.FLOOR).setValue(FACING, Direction.NORTH).setValue(WATERLOGGED, false));
+		setDefaultState(stateManager.getDefaultState().with(FACE, WallMountLocation.FLOOR).with(FACING, Direction.NORTH).with(WATERLOGGED, false));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
-		super.createBlockStateDefinition(pBuilder.add(FACE, FACING, WATERLOGGED));
+	protected void appendProperties(Builder<Block, BlockState> pBuilder) {
+		super.appendProperties(pBuilder.add(FACE, FACING, WATERLOGGED));
 	}
 
 	@Override
-	public void setPlacedBy(Level pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
-		super.setPlacedBy(pLevel, pPos, pState, pPlacer, pStack);
+	public void onPlaced(World pLevel, BlockPos pPos, BlockState pState, LivingEntity pPlacer, ItemStack pStack) {
+		super.onPlaced(pLevel, pPos, pState, pPlacer, pStack);
 		AdvancementBehaviour.setPlacedBy(pLevel, pPos, pPlacer);
 	}
 	
 	@Override
-	public boolean canSurvive(BlockState pState, LevelReader pLevel, BlockPos pPos) {
-		return canAttach(pLevel, pPos, getConnectedDirection(pState).getOpposite());
+	public boolean canPlaceAt(BlockState pState, WorldView pLevel, BlockPos pPos) {
+		return canPlaceAt(pLevel, pPos, getDirection(pState).getOpposite());
 	}
 
-	public static boolean canAttach(LevelReader pReader, BlockPos pPos, Direction pDirection) {
-		BlockPos blockpos = pPos.relative(pDirection);
+	public static boolean canPlaceAt(WorldView pReader, BlockPos pPos, Direction pDirection) {
+		BlockPos blockpos = pPos.offset(pDirection);
 		return pReader.getBlockState(blockpos)
 			.getBlock() instanceof FluidTankBlock;
 	}
 
 	@Override
 	public FluidState getFluidState(BlockState state) {
-		return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : Fluids.EMPTY.defaultFluidState();
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : Fluids.EMPTY.getDefaultState();
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
+	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 		BlockHitResult ray) {
-		ItemStack heldItem = player.getItemInHand(hand);
+		ItemStack heldItem = player.getStackInHand(hand);
 
 		IPlacementHelper placementHelper = PlacementHelpers.get(placementHelperId);
 		if (placementHelper.matchesItem(heldItem))
 			return placementHelper.getOffset(player, world, state, pos, ray)
 				.placeInWorld(world, (BlockItem) heldItem.getItem(), player, hand, ray);
-		return InteractionResult.PASS;
+		return ActionResult.PASS;
 	}
 
 	@Override
-	public BlockState updateShape(BlockState state, Direction direction, BlockState neighbourState, LevelAccessor world,
+	public BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState neighbourState, WorldAccess world,
 		BlockPos pos, BlockPos neighbourPos) {
-		if (state.getValue(WATERLOGGED))
-			world.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(world));
+		if (state.get(WATERLOGGED))
+			world.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		return state;
 	}
 
 	@Override
-	public void onPlace(BlockState pState, Level pLevel, BlockPos pPos, BlockState pOldState, boolean pIsMoving) {
-		FluidTankBlock.updateBoilerState(pState, pLevel, pPos.relative(getFacing(pState).getOpposite()));
+	public void onBlockAdded(BlockState pState, World pLevel, BlockPos pPos, BlockState pOldState, boolean pIsMoving) {
+		FluidTankBlock.updateBoilerState(pState, pLevel, pPos.offset(getFacing(pState).getOpposite()));
 		BlockPos shaftPos = getShaftPos(pState, pPos);
 		BlockState shaftState = pLevel.getBlockState(shaftPos);
 		if (isShaftValid(pState, shaftState))
-			pLevel.setBlock(shaftPos, PoweredShaftBlock.getEquivalent(shaftState), 3);
+			pLevel.setBlockState(shaftPos, PoweredShaftBlock.getEquivalent(shaftState), 3);
 	}
 
 	@Override
-	public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
-		if (pState.hasBlockEntity() && (!pState.is(pNewState.getBlock()) || !pNewState.hasBlockEntity()))
+	public void onStateReplaced(BlockState pState, World pLevel, BlockPos pPos, BlockState pNewState, boolean pIsMoving) {
+		if (pState.hasBlockEntity() && (!pState.isOf(pNewState.getBlock()) || !pNewState.hasBlockEntity()))
 			pLevel.removeBlockEntity(pPos);
-		FluidTankBlock.updateBoilerState(pState, pLevel, pPos.relative(getFacing(pState).getOpposite()));
+		FluidTankBlock.updateBoilerState(pState, pLevel, pPos.offset(getFacing(pState).getOpposite()));
 		BlockPos shaftPos = getShaftPos(pState, pPos);
 		BlockState shaftState = pLevel.getBlockState(shaftPos);
 		if (AllBlocks.POWERED_SHAFT.has(shaftState))
-			pLevel.scheduleTick(shaftPos, shaftState.getBlock(), 1);
+			pLevel.scheduleBlockTick(shaftPos, shaftState.getBlock(), 1);
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		AttachFace face = pState.getValue(FACE);
-		Direction direction = pState.getValue(FACING);
-		return face == AttachFace.CEILING ? AllShapes.STEAM_ENGINE_CEILING.get(direction.getAxis())
-			: face == AttachFace.FLOOR ? AllShapes.STEAM_ENGINE.get(direction.getAxis())
+	public VoxelShape getOutlineShape(BlockState pState, BlockView pLevel, BlockPos pPos, ShapeContext pContext) {
+		WallMountLocation face = pState.get(FACE);
+		Direction direction = pState.get(FACING);
+		return face == WallMountLocation.CEILING ? AllShapes.STEAM_ENGINE_CEILING.get(direction.getAxis())
+			: face == WallMountLocation.FLOOR ? AllShapes.STEAM_ENGINE.get(direction.getAxis())
 				: AllShapes.STEAM_ENGINE_WALL.get(direction);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		Level level = context.getLevel();
-		BlockPos pos = context.getClickedPos();
+	public BlockState getPlacementState(ItemPlacementContext context) {
+		World level = context.getWorld();
+		BlockPos pos = context.getBlockPos();
 		FluidState ifluidstate = level.getFluidState(pos);
-		BlockState state = super.getStateForPlacement(context);
+		BlockState state = super.getPlacementState(context);
 		if (state == null)
 			return null;
-		return state.setValue(WATERLOGGED, Boolean.valueOf(ifluidstate.getType() == Fluids.WATER));
+		return state.with(WATERLOGGED, Boolean.valueOf(ifluidstate.getFluid() == Fluids.WATER));
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 
 	public static Direction getFacing(BlockState sideState) {
-		return getConnectedDirection(sideState);
+		return getDirection(sideState);
 	}
 
 	public static BlockPos getShaftPos(BlockState sideState, BlockPos pos) {
-		return pos.relative(getConnectedDirection(sideState), 2);
+		return pos.offset(getDirection(sideState), 2);
 	}
 
 	public static boolean isShaftValid(BlockState state, BlockState shaft) {
 		return (AllBlocks.SHAFT.has(shaft) || AllBlocks.POWERED_SHAFT.has(shaft))
-			&& shaft.getValue(ShaftBlock.AXIS) != getFacing(state).getAxis();
+			&& shaft.get(ShaftBlock.AXIS) != getFacing(state).getAxis();
 	}
 
 	@Override
@@ -185,24 +183,24 @@ public class SteamEngineBlock extends FaceAttachedHorizontalDirectionalBlock
 		}
 
 		@Override
-		public PlacementOffset getOffset(Player player, Level world, BlockState state, BlockPos pos,
+		public PlacementOffset getOffset(PlayerEntity player, World world, BlockState state, BlockPos pos,
 			BlockHitResult ray) {
 			BlockPos shaftPos = SteamEngineBlock.getShaftPos(state, pos);
 			BlockState shaft = AllBlocks.SHAFT.getDefaultState();
-			for (Direction direction : Direction.orderedByNearest(player)) {
-				shaft = shaft.setValue(ShaftBlock.AXIS, direction.getAxis());
+			for (Direction direction : Direction.getEntityFacingOrder(player)) {
+				shaft = shaft.with(ShaftBlock.AXIS, direction.getAxis());
 				if (isShaftValid(state, shaft))
 					break;
 			}
 			
 			BlockState newState = world.getBlockState(shaftPos);
-			if (!newState.canBeReplaced())
+			if (!newState.isReplaceable())
 				return PlacementOffset.fail();
 
-			Axis axis = shaft.getValue(ShaftBlock.AXIS);
+			Axis axis = shaft.get(ShaftBlock.AXIS);
 			return PlacementOffset.success(shaftPos,
 				s -> BlockHelper.copyProperties(s, AllBlocks.POWERED_SHAFT.getDefaultState())
-					.setValue(PoweredShaftBlock.AXIS, axis));
+					.with(PoweredShaftBlock.AXIS, axis));
 		}
 	}
 	

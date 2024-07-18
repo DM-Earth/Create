@@ -9,8 +9,7 @@ import com.jozufozu.flywheel.core.virtual.VirtualRenderWorld;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.actors.harvester.HarvesterActorInstance;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.Vec3d;
 
 public class RollerActorInstance extends HarvesterActorInstance {
 
@@ -52,8 +51,8 @@ public class RollerActorInstance extends HarvesterActorInstance {
 	}
 
 	@Override
-	protected Vec3 getRotationOffset() {
-		return Vec3.ZERO;
+	protected Vec3d getRotationOffset() {
+		return Vec3d.ZERO;
 	}
 
 	@Override

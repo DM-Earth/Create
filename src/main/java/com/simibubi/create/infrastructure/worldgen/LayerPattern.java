@@ -4,23 +4,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.structure.rule.RuleTest;
+import net.minecraft.structure.rule.TagMatchRuleTest;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.gen.feature.OreFeatureConfig;
+import net.minecraft.world.gen.feature.OreFeatureConfig.Target;
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.simibubi.create.foundation.utility.Couple;
 import com.tterrag.registrate.util.nullness.NonNullConsumer;
 import com.tterrag.registrate.util.nullness.NonNullSupplier;
-
-import net.minecraft.tags.BlockTags;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
-import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration.TargetBlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.RuleTest;
-import net.minecraft.world.level.levelgen.structure.templatesystem.TagMatchTest;
 
 public class LayerPattern {
 	public static final Codec<LayerPattern> CODEC = Codec.list(Layer.CODEC)
@@ -32,7 +30,7 @@ public class LayerPattern {
 		this.layers = layers;
 	}
 
-	public Layer rollNext(@Nullable Layer previous, RandomSource random) {
+	public Layer rollNext(@Nullable Layer previous, Random random) {
 		int totalWeight = 0;
 		for (Layer layer : layers)
 			if (layer != previous)
@@ -78,7 +76,7 @@ public class LayerPattern {
 	public static class Layer {
 		public static final Codec<Layer> CODEC = RecordCodecBuilder.create(instance -> {
 			return instance.group(
-				Codec.list(Codec.list(TargetBlockState.CODEC))
+				Codec.list(Codec.list(Target.CODEC))
 					.fieldOf("targets")
 					.forGetter(layer -> layer.targets),
 				Codec.intRange(0, Integer.MAX_VALUE)
@@ -93,78 +91,78 @@ public class LayerPattern {
 			).apply(instance, Layer::new);
 		});
 
-		public final List<List<TargetBlockState>> targets;
+		public final List<List<Target>> targets;
 		public final int minSize;
 		public final int maxSize;
 		public final int weight;
 
-		public Layer(List<List<TargetBlockState>> targets, int minSize, int maxSize, int weight) {
+		public Layer(List<List<Target>> targets, int minSize, int maxSize, int weight) {
 			this.targets = targets;
 			this.minSize = minSize;
 			this.maxSize = maxSize;
 			this.weight = weight;
 		}
 
-		public List<TargetBlockState> rollBlock(RandomSource random) {
+		public List<Target> rollBlock(Random random) {
 			if (targets.size() == 1)
 				return targets.get(0);
 			return targets.get(random.nextInt(targets.size()));
 		}
 
 		public static class Builder {
-			private static final RuleTest STONE_ORE_REPLACEABLES = new TagMatchTest(BlockTags.STONE_ORE_REPLACEABLES);
-			private static final RuleTest DEEPSLATE_ORE_REPLACEABLES = new TagMatchTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES);
-			private static final RuleTest NETHER_ORE_REPLACEABLES = new TagMatchTest(BlockTags.BASE_STONE_NETHER);
+			private static final RuleTest STONE_ORE_REPLACEABLES = new TagMatchRuleTest(BlockTags.STONE_ORE_REPLACEABLES);
+			private static final RuleTest DEEPSLATE_ORE_REPLACEABLES = new TagMatchRuleTest(BlockTags.DEEPSLATE_ORE_REPLACEABLES);
+			private static final RuleTest NETHER_ORE_REPLACEABLES = new TagMatchRuleTest(BlockTags.BASE_STONE_NETHER);
 
-			private final List<List<TargetBlockState>> targets = new ArrayList<>();
+			private final List<List<Target>> targets = new ArrayList<>();
 			private int minSize = 1;
 			private int maxSize = 1;
 			private int weight = 1;
 			private boolean netherMode;
 
-			public Builder block(NonNullSupplier<? extends Block> block) {
+			public com.simibubi.create.infrastructure.worldgen.LayerPattern.Layer.Builder block(NonNullSupplier<? extends Block> block) {
 				return block(block.get());
 			}
 
-			public Builder passiveBlock() {
-				return blocks(Blocks.STONE.defaultBlockState(), Blocks.DEEPSLATE.defaultBlockState());
+			public com.simibubi.create.infrastructure.worldgen.LayerPattern.Layer.Builder passiveBlock() {
+				return blocks(Blocks.STONE.getDefaultState(), Blocks.DEEPSLATE.getDefaultState());
 			}
 
-			public Builder block(Block block) {
+			public com.simibubi.create.infrastructure.worldgen.LayerPattern.Layer.Builder block(Block block) {
 				if (netherMode) {
-					this.targets.add(ImmutableList.of(OreConfiguration
-						.target(NETHER_ORE_REPLACEABLES, block.defaultBlockState())));
+					this.targets.add(ImmutableList.of(OreFeatureConfig
+						.createTarget(NETHER_ORE_REPLACEABLES, block.getDefaultState())));
 					return this;
 				}
-				return blocks(block.defaultBlockState(), block.defaultBlockState());
+				return blocks(block.getDefaultState(), block.getDefaultState());
 			}
 
-			public Builder blocks(Block block, Block deepblock) {
-				return blocks(block.defaultBlockState(), deepblock.defaultBlockState());
+			public com.simibubi.create.infrastructure.worldgen.LayerPattern.Layer.Builder blocks(Block block, Block deepblock) {
+				return blocks(block.getDefaultState(), deepblock.getDefaultState());
 			}
 
-			public Builder blocks(Couple<NonNullSupplier<? extends Block>> blocksByDepth) {
+			public com.simibubi.create.infrastructure.worldgen.LayerPattern.Layer.Builder blocks(Couple<NonNullSupplier<? extends Block>> blocksByDepth) {
 				return blocks(blocksByDepth.getFirst()
 					.get()
-					.defaultBlockState(),
+					.getDefaultState(),
 					blocksByDepth.getSecond()
 						.get()
-						.defaultBlockState());
+						.getDefaultState());
 			}
 
-			private Builder blocks(BlockState stone, BlockState deepslate) {
+			private com.simibubi.create.infrastructure.worldgen.LayerPattern.Layer.Builder blocks(BlockState stone, BlockState deepslate) {
 				this.targets.add(
-					ImmutableList.of(OreConfiguration.target(STONE_ORE_REPLACEABLES, stone),
-						OreConfiguration.target(DEEPSLATE_ORE_REPLACEABLES, deepslate)));
+					ImmutableList.of(OreFeatureConfig.createTarget(STONE_ORE_REPLACEABLES, stone),
+						OreFeatureConfig.createTarget(DEEPSLATE_ORE_REPLACEABLES, deepslate)));
 				return this;
 			}
 
-			public Builder weight(int weight) {
+			public com.simibubi.create.infrastructure.worldgen.LayerPattern.Layer.Builder weight(int weight) {
 				this.weight = weight;
 				return this;
 			}
 
-			public Builder size(int min, int max) {
+			public com.simibubi.create.infrastructure.worldgen.LayerPattern.Layer.Builder size(int min, int max) {
 				this.minSize = min;
 				this.maxSize = max;
 				return this;

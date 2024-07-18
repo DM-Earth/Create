@@ -16,112 +16,111 @@ import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import com.simibubi.create.foundation.gui.ScreenOpener;
 import com.simibubi.create.foundation.utility.BlockHelper;
-
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.SignalGetter;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.phys.BlockHitResult;
 import io.github.fabricators_of_create.porting_lib.block.ConnectableRedstoneBlock;
 import io.github.fabricators_of_create.porting_lib.block.WeakPowerCheckingBlock;
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.state.property.BooleanProperty;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.RedstoneView;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 public class ElevatorContactBlock extends WrenchableDirectionalBlock
 	implements IBE<ElevatorContactBlockEntity>, ISpecialBlockItemRequirement, WeakPowerCheckingBlock, ConnectableRedstoneBlock {
 
-	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
-	public static final BooleanProperty CALLING = BooleanProperty.create("calling");
+	public static final BooleanProperty POWERED = Properties.POWERED;
+	public static final BooleanProperty CALLING = BooleanProperty.of("calling");
 	public static final BooleanProperty POWERING = BrassDiodeBlock.POWERING;
 
-	public ElevatorContactBlock(Properties pProperties) {
+	public ElevatorContactBlock(Settings pProperties) {
 		super(pProperties);
-		registerDefaultState(defaultBlockState().setValue(CALLING, false)
-			.setValue(POWERING, false)
-			.setValue(POWERED, false)
-			.setValue(FACING, Direction.SOUTH));
+		setDefaultState(getDefaultState().with(CALLING, false)
+			.with(POWERING, false)
+			.with(POWERED, false)
+			.with(FACING, Direction.SOUTH));
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(CALLING, POWERING, POWERED));
+	protected void appendProperties(Builder<Block, BlockState> builder) {
+		super.appendProperties(builder.add(CALLING, POWERING, POWERED));
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		InteractionResult onWrenched = super.onWrenched(state, context);
-		if (onWrenched != InteractionResult.SUCCESS)
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		ActionResult onWrenched = super.onWrenched(state, context);
+		if (onWrenched != ActionResult.SUCCESS)
 			return onWrenched;
 
-		Level level = context.getLevel();
-		if (level.isClientSide())
+		World level = context.getWorld();
+		if (level.isClient())
 			return onWrenched;
 
-		BlockPos pos = context.getClickedPos();
+		BlockPos pos = context.getBlockPos();
 		state = level.getBlockState(pos);
-		Direction facing = state.getValue(RedstoneContactBlock.FACING);
+		Direction facing = state.get(RedstoneContactBlock.FACING);
 		if (facing.getAxis() != Axis.Y
 			&& ElevatorColumn.get(level, new ColumnCoords(pos.getX(), pos.getZ(), facing)) != null)
 			return onWrenched;
 
-		level.setBlockAndUpdate(pos, BlockHelper.copyProperties(state, AllBlocks.REDSTONE_CONTACT.getDefaultState()));
+		level.setBlockState(pos, BlockHelper.copyProperties(state, AllBlocks.REDSTONE_CONTACT.getDefaultState()));
 
 		return onWrenched;
 	}
 
 	@Nullable
-	public static ColumnCoords getColumnCoords(LevelAccessor level, BlockPos pos) {
+	public static ColumnCoords getColumnCoords(WorldAccess level, BlockPos pos) {
 		BlockState blockState = level.getBlockState(pos);
 		if (!AllBlocks.ELEVATOR_CONTACT.has(blockState) && !AllBlocks.REDSTONE_CONTACT.has(blockState))
 			return null;
-		Direction facing = blockState.getValue(FACING);
+		Direction facing = blockState.get(FACING);
 		BlockPos target = pos;
 		return new ColumnCoords(target.getX(), target.getZ(), facing);
 	}
 
 	@Override
-	public void neighborChanged(BlockState pState, Level pLevel, BlockPos pPos, Block pBlock, BlockPos pFromPos,
+	public void neighborUpdate(BlockState pState, World pLevel, BlockPos pPos, Block pBlock, BlockPos pFromPos,
 		boolean pIsMoving) {
-		if (pLevel.isClientSide)
+		if (pLevel.isClient)
 			return;
 
-		boolean isPowered = pState.getValue(POWERED);
-		if (isPowered == pLevel.hasNeighborSignal(pPos))
+		boolean isPowered = pState.get(POWERED);
+		if (isPowered == pLevel.isReceivingRedstonePower(pPos))
 			return;
 
-		pLevel.setBlock(pPos, pState.cycle(POWERED), 2);
+		pLevel.setBlockState(pPos, pState.cycle(POWERED), 2);
 
 		if (isPowered)
 			return;
-		if (pState.getValue(CALLING))
+		if (pState.get(CALLING))
 			return;
 
 		ElevatorColumn elevatorColumn = ElevatorColumn.getOrCreate(pLevel, getColumnCoords(pLevel, pPos));
 		callToContactAndUpdate(elevatorColumn, pState, pLevel, pPos, true);
 	}
 
-	public void callToContactAndUpdate(ElevatorColumn elevatorColumn, BlockState pState, Level pLevel, BlockPos pPos,
+	public void callToContactAndUpdate(ElevatorColumn elevatorColumn, BlockState pState, World pLevel, BlockPos pPos,
 		boolean powered) {
-		pLevel.setBlock(pPos, pState.cycle(CALLING), 2);
+		pLevel.setBlockState(pPos, pState.cycle(CALLING), 2);
 
 		for (BlockPos otherPos : elevatorColumn.getContacts()) {
 			if (otherPos.equals(pPos))
@@ -129,87 +128,87 @@ public class ElevatorContactBlock extends WrenchableDirectionalBlock
 			BlockState otherState = pLevel.getBlockState(otherPos);
 			if (!AllBlocks.ELEVATOR_CONTACT.has(otherState))
 				continue;
-			pLevel.setBlock(otherPos, otherState.setValue(CALLING, false), 2 | 16);
+			pLevel.setBlockState(otherPos, otherState.with(CALLING, false), 2 | 16);
 			scheduleActivation(pLevel, otherPos);
 		}
 
 		if (powered)
-			pState = pState.setValue(POWERED, true);
-		pLevel.setBlock(pPos, pState.setValue(CALLING, true), 2);
-		pLevel.updateNeighborsAt(pPos, this);
+			pState = pState.with(POWERED, true);
+		pLevel.setBlockState(pPos, pState.with(CALLING, true), 2);
+		pLevel.updateNeighborsAlways(pPos, this);
 
 		elevatorColumn.target(pPos.getY());
 		elevatorColumn.markDirty();
 	}
 
-	public void scheduleActivation(LevelAccessor pLevel, BlockPos pPos) {
-		if (!pLevel.getBlockTicks()
-			.hasScheduledTick(pPos, this))
-			pLevel.scheduleTick(pPos, this, 1);
+	public void scheduleActivation(WorldAccess pLevel, BlockPos pPos) {
+		if (!pLevel.getBlockTickScheduler()
+			.isQueued(pPos, this))
+			pLevel.scheduleBlockTick(pPos, this, 1);
 	}
 
 	@Override
-	public void tick(BlockState pState, ServerLevel pLevel, BlockPos pPos, RandomSource pRand) {
-		boolean wasPowering = pState.getValue(POWERING);
+	public void scheduledTick(BlockState pState, ServerWorld pLevel, BlockPos pPos, Random pRand) {
+		boolean wasPowering = pState.get(POWERING);
 
 		Optional<ElevatorContactBlockEntity> optionalBE = getBlockEntityOptional(pLevel, pPos);
 		boolean shouldBePowering = optionalBE.map(be -> {
 			boolean activateBlock = be.activateBlock;
 			be.activateBlock = false;
-			be.setChanged();
+			be.markDirty();
 			return activateBlock;
 		})
 			.orElse(false);
 
-		shouldBePowering |= RedstoneContactBlock.hasValidContact(pLevel, pPos, pState.getValue(FACING));
+		shouldBePowering |= RedstoneContactBlock.hasValidContact(pLevel, pPos, pState.get(FACING));
 
 		if (wasPowering || shouldBePowering)
-			pLevel.setBlock(pPos, pState.setValue(POWERING, shouldBePowering), 2 | 16);
+			pLevel.setBlockState(pPos, pState.with(POWERING, shouldBePowering), 2 | 16);
 
-		pLevel.updateNeighborsAt(pPos, this);
+		pLevel.updateNeighborsAlways(pPos, this);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState stateIn, Direction facing, BlockState facingState, LevelAccessor worldIn,
+	public BlockState getStateForNeighborUpdate(BlockState stateIn, Direction facing, BlockState facingState, WorldAccess worldIn,
 		BlockPos currentPos, BlockPos facingPos) {
-		if (facing != stateIn.getValue(FACING))
+		if (facing != stateIn.get(FACING))
 			return stateIn;
 		boolean hasValidContact = RedstoneContactBlock.hasValidContact(worldIn, currentPos, facing);
-		if (stateIn.getValue(POWERING) != hasValidContact)
+		if (stateIn.get(POWERING) != hasValidContact)
 			scheduleActivation(worldIn, currentPos);
 		return stateIn;
 	}
 
 	@Override
-    public boolean shouldCheckWeakPower(BlockState state, SignalGetter level, BlockPos pos, Direction side) {
+    public boolean shouldCheckWeakPower(BlockState state, RedstoneView level, BlockPos pos, Direction side) {
         return false;
     }
 
 	@Override
-	public boolean isSignalSource(BlockState state) {
-		return state.getValue(POWERING);
+	public boolean emitsRedstonePower(BlockState state) {
+		return state.get(POWERING);
 	}
 
 	@Override
-	public ItemStack getCloneItemStack(BlockGetter pLevel, BlockPos pPos, BlockState pState) {
+	public ItemStack getPickStack(BlockView pLevel, BlockPos pPos, BlockState pState) {
 		return AllBlocks.REDSTONE_CONTACT.asStack();
 	}
 
 	@Override
-	public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, @Nullable Direction side) {
+	public boolean canConnectRedstone(BlockState state, BlockView world, BlockPos pos, @Nullable Direction side) {
 		if (side == null)
 			return true;
-		return state.getValue(FACING) != side.getOpposite();
+		return state.get(FACING) != side.getOpposite();
 	}
 
 	@Override
-	public int getSignal(BlockState state, BlockGetter blockAccess, BlockPos pos, Direction side) {
+	public int getWeakRedstonePower(BlockState state, BlockView blockAccess, BlockPos pos, Direction side) {
 		if (side == null)
 			return 0;
-		BlockState toState = blockAccess.getBlockState(pos.relative(side.getOpposite()));
-		if (toState.is(this))
+		BlockState toState = blockAccess.getBlockState(pos.offset(side.getOpposite()));
+		if (toState.isOf(this))
 			return 0;
-		return state.getValue(POWERING) ? 15 : 0;
+		return state.get(POWERING) ? 15 : 0;
 	}
 
 	@Override
@@ -228,24 +227,24 @@ public class ElevatorContactBlock extends WrenchableDirectionalBlock
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn,
+	public ActionResult onUse(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn,
 		BlockHitResult hit) {
-		if (player != null && AllItems.WRENCH.isIn(player.getItemInHand(handIn)))
-			return InteractionResult.PASS;
+		if (player != null && AllItems.WRENCH.isIn(player.getStackInHand(handIn)))
+			return ActionResult.PASS;
 		EnvExecutor.runWhenOn(EnvType.CLIENT,
 			() -> () -> withBlockEntityDo(worldIn, pos, be -> this.displayScreen(be, player)));
-		return InteractionResult.SUCCESS;
+		return ActionResult.SUCCESS;
 	}
 
 	@Environment(EnvType.CLIENT)
-	protected void displayScreen(ElevatorContactBlockEntity be, Player player) {
-		if (player instanceof LocalPlayer)
+	protected void displayScreen(ElevatorContactBlockEntity be, PlayerEntity player) {
+		if (player instanceof ClientPlayerEntity)
 			ScreenOpener
-				.open(new ElevatorContactScreen(be.getBlockPos(), be.shortName, be.longName, be.doorControls.mode));
+				.open(new ElevatorContactScreen(be.getPos(), be.shortName, be.longName, be.doorControls.mode));
 	}
 
 	public static int getLight(BlockState state) {
-		return state.getValue(POWERING) ? 10 : 0;
+		return state.get(POWERING) ? 10 : 0;
 	}
 
 }

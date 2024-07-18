@@ -8,10 +8,9 @@ import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.content.kinetics.base.ShaftInstance;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 
 public class GantryCarriageInstance extends ShaftInstance<GantryCarriageBlockEntity> implements DynamicInstance {
 
@@ -32,15 +31,15 @@ public class GantryCarriageInstance extends ShaftInstance<GantryCarriageBlockEnt
 								 .getModel(AllPartialModels.GANTRY_COGS, blockState)
 								 .createInstance();
 
-		facing = blockState.getValue(GantryCarriageBlock.FACING);
-		alongFirst = blockState.getValue(GantryCarriageBlock.AXIS_ALONG_FIRST_COORDINATE);
+		facing = blockState.get(GantryCarriageBlock.FACING);
+		alongFirst = blockState.get(GantryCarriageBlock.AXIS_ALONG_FIRST_COORDINATE);
 		rotationAxis = KineticBlockEntityRenderer.getRotationAxisOf(blockEntity);
 
 		rotationMult = getRotationMultiplier(getGantryAxis(), facing);
 
-		visualPos = facing.getAxisDirection() == Direction.AxisDirection.POSITIVE ? blockEntity.getBlockPos()
-				: blockEntity.getBlockPos()
-					  .relative(facing.getOpposite());
+		visualPos = facing.getDirection() == Direction.AxisDirection.POSITIVE ? blockEntity.getPos()
+				: blockEntity.getPos()
+					  .offset(facing.getOpposite());
 
 		animateCogs(getCogAngle());
 	}
@@ -49,7 +48,7 @@ public class GantryCarriageInstance extends ShaftInstance<GantryCarriageBlockEnt
 	public void beginFrame() {
 		float cogAngle = getCogAngle();
 
-		if (Mth.equal(cogAngle, lastAngle)) return;
+		if (MathHelper.approximatelyEquals(cogAngle, lastAngle)) return;
 
 		animateCogs(cogAngle);
 	}

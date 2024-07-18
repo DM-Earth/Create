@@ -30,12 +30,12 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.PotionItem;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.item.PotionItem;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.Identifier;
 
 @ParametersAreNonnullByDefault
 public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
@@ -50,7 +50,7 @@ public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
 		for (ItemStack stack : ingredientManager.getAllIngredients(VanillaTypes.ITEM_STACK)) {
 			if (stack.getItem() instanceof PotionItem) {
 				FluidStack fluidFromPotionItem = PotionFluidHandler.getFluidFromPotionItem(stack);
-				Ingredient potion = Ingredient.of(stack);
+				Ingredient potion = Ingredient.ofStacks(stack);
 				consumer.accept(new ProcessingRecipeBuilder<>(EmptyingRecipe::new, Create.asResource("potions"))
 					.withItemIngredients(potion)
 					.withFluidOutputs(fluidFromPotionItem)
@@ -74,9 +74,9 @@ public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
 			if (result.isBlank())
 				continue;
 
-			Ingredient ingredient = Ingredient.of(stack);
-			ResourceLocation itemName = RegisteredObjects.getKeyOrThrow(stack.getItem());
-			ResourceLocation fluidName = RegisteredObjects.getKeyOrThrow(extracted.getFluid());
+			Ingredient ingredient = Ingredient.ofStacks(stack);
+			Identifier itemName = RegisteredObjects.getKeyOrThrow(stack.getItem());
+			Identifier fluidName = RegisteredObjects.getKeyOrThrow(extracted.getFluid());
 
 			consumer.accept(new ProcessingRecipeBuilder<>(EmptyingRecipe::new,
 				Create.asResource("empty_" + itemName.getNamespace() + "_" + itemName.getPath() + "_of_"
@@ -105,7 +105,7 @@ public class ItemDrainCategory extends CreateRecipeCategory<EmptyingRecipe> {
 	}
 
 	@Override
-	public void draw(EmptyingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(EmptyingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SHADOW.render(graphics, 62, 37);
 		AllGuiTextures.JEI_DOWN_ARROW.render(graphics, 73, 4);
 		drain.withFluid(recipe.getResultingFluid())

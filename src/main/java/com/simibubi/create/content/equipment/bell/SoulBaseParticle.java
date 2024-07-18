@@ -1,29 +1,27 @@
 package com.simibubi.create.content.equipment.bell;
 
 import org.joml.Quaternionf;
-
-import com.mojang.math.Axis;
 import com.simibubi.create.AllParticleTypes;
 import io.github.fabricators_of_create.porting_lib.util.ParticleHelper;
-
-import net.minecraft.client.Camera;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.particle.SpriteSet;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleType;
+import net.minecraft.client.particle.SpriteProvider;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.particle.ParticleType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RotationAxis;
 
 public class SoulBaseParticle extends CustomRotationParticle {
 
-	private final SpriteSet animatedSprite;
+	private final SpriteProvider animatedSprite;
 
-	public SoulBaseParticle(ClientLevel worldIn, double x, double y, double z, double vx, double vy, double vz,
-                            SpriteSet spriteSet) {
+	public SoulBaseParticle(ClientWorld worldIn, double x, double y, double z, double vx, double vy, double vz,
+                            SpriteProvider spriteSet) {
 		super(worldIn, x, y, z, spriteSet, 0);
 		this.animatedSprite = spriteSet;
-		this.quadSize = 0.5f;
-		this.setSize(this.quadSize, this.quadSize);
+		this.scale = 0.5f;
+		this.setBoundingBoxSpacing(this.scale, this.scale);
 		this.loopLength = 16 + (int) (this.random.nextFloat() * 2f - 1f);
-		this.lifetime = (int) (90.0F / (this.random.nextFloat() * 0.36F + 0.64F));
+		this.maxAge = (int) (90.0F / (this.random.nextFloat() * 0.36F + 0.64F));
 		this.selectSpriteLoopingWithAge(animatedSprite);
 		ParticleHelper.setStoppedByCollision(this, true); // disable movement
 	}
@@ -32,14 +30,14 @@ public class SoulBaseParticle extends CustomRotationParticle {
 	public void tick() {
 		selectSpriteLoopingWithAge(animatedSprite);
 
-		BlockPos pos = BlockPos.containing(x, y, z);
-		if (age++ >= lifetime || !SoulPulseEffect.isDark(level, pos))
-			remove();
+		BlockPos pos = BlockPos.ofFloored(x, y, z);
+		if (age++ >= maxAge || !SoulPulseEffect.isDark(world, pos))
+			markDead();
 	}
 
 	@Override
 	public Quaternionf getCustomRotation(Camera camera, float partialTicks) {
-		return Axis.XP.rotationDegrees(90);
+		return RotationAxis.POSITIVE_X.rotationDegrees(90);
 	}
 
 	public static class Data extends BasicParticleData<SoulBaseParticle> {

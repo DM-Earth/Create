@@ -14,7 +14,10 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.graph.DimensionPalette;
 import com.simibubi.create.content.trains.graph.EdgeData;
@@ -26,11 +29,6 @@ import com.simibubi.create.content.trains.graph.TrackNodeLocation;
 import com.simibubi.create.content.trains.signal.TrackEdgePoint;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 
 public class TravellingPoint {
 
@@ -159,18 +157,18 @@ public class TravellingPoint {
 		};
 	}
 
-	public ITrackSelector steer(SteerDirection direction, Vec3 upNormal) {
+	public ITrackSelector steer(SteerDirection direction, Vec3d upNormal) {
 		return (graph, pair) -> {
 			List<Entry<TrackNode, TrackEdge>> validTargets = pair.getSecond();
 			double closest = Double.MAX_VALUE;
 			Entry<TrackNode, TrackEdge> best = null;
 
 			for (Entry<TrackNode, TrackEdge> entry : validTargets) {
-				Vec3 trajectory = edge.getDirection(false);
-				Vec3 entryTrajectory = entry.getValue()
+				Vec3d trajectory = edge.getDirection(false);
+				Vec3d entryTrajectory = entry.getValue()
 					.getDirection(true);
-				Vec3 normal = trajectory.cross(upNormal);
-				double dot = normal.dot(entryTrajectory);
+				Vec3d normal = trajectory.crossProduct(upNormal);
+				double dot = normal.dotProduct(entryTrajectory);
 				double diff = Math.abs(direction.targetDot - dot);
 				if (diff > closest)
 					continue;
@@ -208,7 +206,7 @@ public class TravellingPoint {
 		if (edge == null)
 			return 0;
 		double edgeLength = edge.getLength();
-		if (Mth.equal(distance, 0))
+		if (MathHelper.approximatelyEquals(distance, 0))
 			return 0;
 
 		double prevPos = position;
@@ -396,19 +394,19 @@ public class TravellingPoint {
 			.get(node2);
 	}
 
-	public Vec3 getPosition(@Nullable TrackGraph trackGraph) {
+	public Vec3d getPosition(@Nullable TrackGraph trackGraph) {
 		return getPosition(trackGraph, false);
 	}
 
-	public Vec3 getPosition(@Nullable TrackGraph trackGraph, boolean flipUpsideDown) {
+	public Vec3d getPosition(@Nullable TrackGraph trackGraph, boolean flipUpsideDown) {
 		return getPositionWithOffset(trackGraph, 0, flipUpsideDown);
 	}
 
-	public Vec3 getPositionWithOffset(@Nullable TrackGraph trackGraph, double offset, boolean flipUpsideDown) {
+	public Vec3d getPositionWithOffset(@Nullable TrackGraph trackGraph, double offset, boolean flipUpsideDown) {
 		double t = (position + offset) / edge.getLength();
 		return edge.getPosition(trackGraph, t)
 			.add(edge.getNormal(trackGraph, t)
-				.scale(upsideDown ^ flipUpsideDown ? -1 : 1));
+				.multiply(upsideDown ^ flipUpsideDown ? -1 : 1));
 	}
 
 	public void migrateTo(List<TrackGraphLocation> locations) {
@@ -421,8 +419,8 @@ public class TravellingPoint {
 			.get(node2);
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag tag = new CompoundTag();
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound tag = new NbtCompound();
 		Couple<TrackNode> nodes = Couple.create(node1, node2);
 		if (nodes.either(Objects::isNull))
 			return tag;
@@ -433,12 +431,12 @@ public class TravellingPoint {
 		return tag;
 	}
 
-	public static TravellingPoint read(CompoundTag tag, TrackGraph graph, DimensionPalette dimensions) {
+	public static TravellingPoint read(NbtCompound tag, TrackGraph graph, DimensionPalette dimensions) {
 		if (graph == null)
 			return new TravellingPoint(null, null, null, 0, false);
 
 		Couple<TrackNode> locs = tag.contains("Nodes")
-			? Couple.deserializeEach(tag.getList("Nodes", Tag.TAG_COMPOUND), c -> TrackNodeLocation.read(c, dimensions))
+			? Couple.deserializeEach(tag.getList("Nodes", NbtElement.COMPOUND_TYPE), c -> TrackNodeLocation.read(c, dimensions))
 				.map(graph::locateNode)
 			: Couple.create(null, null);
 

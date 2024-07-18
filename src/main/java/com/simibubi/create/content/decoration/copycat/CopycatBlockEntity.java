@@ -17,15 +17,15 @@ import com.simibubi.create.foundation.utility.Iterate;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
 import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
 import net.fabricmc.fabric.api.rendering.data.v1.RenderAttachmentBlockEntity;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.TrapDoorBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.TrapdoorBlock;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.state.property.Properties;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class CopycatBlockEntity extends SmartBlockEntity
 	implements ISpecialBlockEntityItemRequirement, ITransformableBlockEntity, IPartialSafeNBT, RenderAttachmentBlockEntity {
@@ -48,25 +48,25 @@ public class CopycatBlockEntity extends SmartBlockEntity
 	}
 
 	public void setMaterial(BlockState blockState) {
-		BlockState wrapperState = getBlockState();
+		BlockState wrapperState = getCachedState();
 
-		if (!material.is(blockState.getBlock()))
+		if (!material.isOf(blockState.getBlock()))
 			for (Direction side : Iterate.directions) {
-				BlockPos neighbour = worldPosition.relative(side);
-				BlockState neighbourState = level.getBlockState(neighbour);
+				BlockPos neighbour = pos.offset(side);
+				BlockState neighbourState = world.getBlockState(neighbour);
 				if (neighbourState != wrapperState)
 					continue;
-				if (!(level.getBlockEntity(neighbour)instanceof CopycatBlockEntity cbe))
+				if (!(world.getBlockEntity(neighbour)instanceof CopycatBlockEntity cbe))
 					continue;
 				BlockState otherMaterial = cbe.getMaterial();
-				if (!otherMaterial.is(blockState.getBlock()))
+				if (!otherMaterial.isOf(blockState.getBlock()))
 					continue;
 				blockState = otherMaterial;
 				break;
 			}
 
 		material = blockState;
-		if (!level.isClientSide()) {
+		if (!world.isClient()) {
 			notifyUpdate();
 			return;
 		}
@@ -74,22 +74,22 @@ public class CopycatBlockEntity extends SmartBlockEntity
 	}
 
 	public boolean cycleMaterial() {
-		if (material.hasProperty(TrapDoorBlock.HALF) && material.getOptionalValue(TrapDoorBlock.OPEN)
+		if (material.contains(TrapdoorBlock.HALF) && material.getOrEmpty(TrapdoorBlock.OPEN)
 			.orElse(false))
-			setMaterial(material.cycle(TrapDoorBlock.HALF));
-		else if (material.hasProperty(BlockStateProperties.FACING))
-			setMaterial(material.cycle(BlockStateProperties.FACING));
-		else if (material.hasProperty(BlockStateProperties.HORIZONTAL_FACING))
-			setMaterial(material.setValue(BlockStateProperties.HORIZONTAL_FACING,
-				material.getValue(BlockStateProperties.HORIZONTAL_FACING)
-					.getClockWise()));
-		else if (material.hasProperty(BlockStateProperties.AXIS))
-			setMaterial(material.cycle(BlockStateProperties.AXIS));
-		else if (material.hasProperty(BlockStateProperties.HORIZONTAL_AXIS))
-			setMaterial(material.cycle(BlockStateProperties.HORIZONTAL_AXIS));
-		else if (material.hasProperty(BlockStateProperties.LIT))
-			setMaterial(material.cycle(BlockStateProperties.LIT));
-		else if (material.hasProperty(RoseQuartzLampBlock.POWERING))
+			setMaterial(material.cycle(TrapdoorBlock.HALF));
+		else if (material.contains(Properties.FACING))
+			setMaterial(material.cycle(Properties.FACING));
+		else if (material.contains(Properties.HORIZONTAL_FACING))
+			setMaterial(material.with(Properties.HORIZONTAL_FACING,
+				material.get(Properties.HORIZONTAL_FACING)
+					.rotateYClockwise()));
+		else if (material.contains(Properties.AXIS))
+			setMaterial(material.cycle(Properties.AXIS));
+		else if (material.contains(Properties.HORIZONTAL_AXIS))
+			setMaterial(material.cycle(Properties.HORIZONTAL_AXIS));
+		else if (material.contains(Properties.LIT))
+			setMaterial(material.cycle(Properties.LIT));
+		else if (material.contains(RoseQuartzLampBlock.POWERING))
 			setMaterial(material.cycle(RoseQuartzLampBlock.POWERING));
 		else
 			return false;
@@ -103,16 +103,16 @@ public class CopycatBlockEntity extends SmartBlockEntity
 
 	public void setConsumedItem(ItemStack stack) {
 		consumedItem = ItemHandlerHelper.copyStackWithSize(stack, 1);
-		setChanged();
+		markDirty();
 	}
 
 	private void redraw() {
 		// fabric: no need for requestModelDataUpdate
-		if (hasLevel()) {
-			level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 16);
-			level.getChunkSource()
-				.getLightEngine()
-				.checkBlock(worldPosition);
+		if (hasWorld()) {
+			world.updateListeners(getPos(), getCachedState(), getCachedState(), 16);
+			world.getChunkManager()
+				.getLightingProvider()
+				.checkBlock(pos);
 		}
 	}
 
@@ -133,10 +133,10 @@ public class CopycatBlockEntity extends SmartBlockEntity
 	}
 
 	@Override
-	protected void read(CompoundTag tag, boolean clientPacket) {
+	protected void read(NbtCompound tag, boolean clientPacket) {
 		super.read(tag, clientPacket);
 
-		consumedItem = ItemStack.of(tag.getCompound("Item"));
+		consumedItem = ItemStack.fromNbt(tag.getCompound("Item"));
 
 		BlockState prevMaterial = material;
 		if (!tag.contains("Material")) {
@@ -144,17 +144,17 @@ public class CopycatBlockEntity extends SmartBlockEntity
 			return;
 		}
 
-		material = NbtUtils.readBlockState(blockHolderGetter(), tag.getCompound("Material"));
+		material = NbtHelper.toBlockState(blockHolderGetter(), tag.getCompound("Material"));
 
 		// Validate Material
 		if (material != null && !clientPacket) {
-			BlockState blockState = getBlockState();
+			BlockState blockState = getCachedState();
 			if (blockState == null)
 				return;
 			if (!(blockState.getBlock() instanceof CopycatBlock cb))
 				return;
-			BlockState acceptedBlockState = cb.getAcceptedBlockState(level, worldPosition, consumedItem, null);
-			if (acceptedBlockState != null && material.is(acceptedBlockState.getBlock()))
+			BlockState acceptedBlockState = cb.getAcceptedBlockState(world, pos, consumedItem, null);
+			if (acceptedBlockState != null && material.isOf(acceptedBlockState.getBlock()))
 				return;
 			consumedItem = ItemStack.EMPTY;
 			material = AllBlocks.COPYCAT_BASE.getDefaultState();
@@ -165,24 +165,24 @@ public class CopycatBlockEntity extends SmartBlockEntity
 	}
 
 	@Override
-	public void writeSafe(CompoundTag tag) {
+	public void writeSafe(NbtCompound tag) {
 		super.writeSafe(tag);
 
 		ItemStack stackWithoutNBT = consumedItem.copy();
-		stackWithoutNBT.setTag(null);
+		stackWithoutNBT.setNbt(null);
 
 		write(tag, stackWithoutNBT, material);
 	}
 
 	@Override
-	protected void write(CompoundTag tag, boolean clientPacket) {
+	protected void write(NbtCompound tag, boolean clientPacket) {
 		super.write(tag, clientPacket);
 		write(tag, consumedItem, material);
 	}
 
-	protected void write(CompoundTag tag, ItemStack stack, BlockState material) {
+	protected void write(NbtCompound tag, ItemStack stack, BlockState material) {
 		tag.put("Item", NBTSerializer.serializeNBT(stack));
-		tag.put("Material", NbtUtils.writeBlockState(material));
+		tag.put("Material", NbtHelper.fromBlockState(material));
 	}
 
 	@Override

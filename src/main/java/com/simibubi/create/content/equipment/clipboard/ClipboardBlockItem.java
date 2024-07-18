@@ -3,46 +3,45 @@ package com.simibubi.create.content.equipment.clipboard;
 import javax.annotation.Nonnull;
 
 import com.simibubi.create.foundation.gui.ScreenOpener;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class ClipboardBlockItem extends BlockItem {
 
-	public ClipboardBlockItem(Block pBlock, Properties pProperties) {
+	public ClipboardBlockItem(Block pBlock, Settings pProperties) {
 		super(pBlock, pProperties);
 	}
 
 	@Nonnull
 	@Override
-	public InteractionResult useOn(UseOnContext context) {
-		Player player = context.getPlayer();
+	public ActionResult useOnBlock(ItemUsageContext context) {
+		PlayerEntity player = context.getPlayer();
 		if (player == null)
-			return InteractionResult.PASS;
-		if (player.isShiftKeyDown())
-			return super.useOn(context);
-		return use(context.getLevel(), player, context.getHand()).getResult();
+			return ActionResult.PASS;
+		if (player.isSneaking())
+			return super.useOnBlock(context);
+		return use(context.getWorld(), player, context.getHand()).getResult();
 	}
 
 	@Override
-	protected boolean updateCustomBlockEntityTag(BlockPos pPos, Level pLevel, Player pPlayer, ItemStack pStack,
+	protected boolean postPlacement(BlockPos pPos, World pLevel, PlayerEntity pPlayer, ItemStack pStack,
 		BlockState pState) {
-		if (pLevel.isClientSide())
+		if (pLevel.isClient())
 			return false;
 		if (!(pLevel.getBlockEntity(pPos) instanceof ClipboardBlockEntity cbe))
 			return false;
@@ -52,26 +51,26 @@ public class ClipboardBlockItem extends BlockItem {
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
-		ItemStack heldItem = player.getItemInHand(hand);
-		if (hand == InteractionHand.OFF_HAND)
-			return InteractionResultHolder.pass(heldItem);
+	public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
+		ItemStack heldItem = player.getStackInHand(hand);
+		if (hand == Hand.OFF_HAND)
+			return TypedActionResult.pass(heldItem);
 
-		player.getCooldowns()
-			.addCooldown(heldItem.getItem(), 10);
-		if (world.isClientSide)
+		player.getItemCooldownManager()
+			.set(heldItem.getItem(), 10);
+		if (world.isClient)
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> openScreen(player, heldItem));
-		CompoundTag tag = heldItem.getOrCreateTag();
+		NbtCompound tag = heldItem.getOrCreateNbt();
 		tag.putInt("Type", ClipboardOverrides.ClipboardType.EDITING.ordinal());
-		heldItem.setTag(tag);
+		heldItem.setNbt(tag);
 
-		return InteractionResultHolder.success(heldItem);
+		return TypedActionResult.success(heldItem);
 	}
 
 	@Environment(EnvType.CLIENT)
-	private void openScreen(Player player, ItemStack stack) {
-		if (Minecraft.getInstance().player == player)
-			ScreenOpener.open(new ClipboardScreen(player.getInventory().selected, stack, null));
+	private void openScreen(PlayerEntity player, ItemStack stack) {
+		if (MinecraftClient.getInstance().player == player)
+			ScreenOpener.open(new ClipboardScreen(player.getInventory().selectedSlot, stack, null));
 	}
 
 	public void registerModelOverrides() {

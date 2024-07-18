@@ -8,18 +8,17 @@ import com.google.common.collect.ImmutableList;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.block.BlockState;
+import net.minecraft.text.Text;
+import net.minecraft.util.StringIdentifiable;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 public class TriplePlaneMirror extends SymmetryMirror {
 
-	public TriplePlaneMirror(Vec3 pos) {
+	public TriplePlaneMirror(Vec3d pos) {
 		super(pos);
 		orientationIndex = 0;
 	}
@@ -60,12 +59,12 @@ public class TriplePlaneMirror extends SymmetryMirror {
 	}
 
 	@Override
-	public StringRepresentable getOrientation() {
+	public StringIdentifiable getOrientation() {
 		return CrossPlaneMirror.Align.Y;
 	}
 
 	@Override
-	public List<Component> getAlignToolTips() {
+	public List<Text> getAlignToolTips() {
 		return ImmutableList.of(Lang.translateDirect("orientation.horizontal"));
 	}
 

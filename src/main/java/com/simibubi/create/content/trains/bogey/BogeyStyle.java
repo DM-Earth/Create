@@ -10,7 +10,13 @@ import java.util.stream.Stream;
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-
+import net.minecraft.block.Block;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.registry.Registries;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 
 import com.jozufozu.flywheel.api.MaterialManager;
@@ -19,28 +25,19 @@ import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.trains.bogey.BogeyRenderer.CommonRenderer;
 import com.simibubi.create.content.trains.entity.CarriageBogey;
 
-import net.minecraft.core.Registry;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.level.block.Block;
-
 
 public class BogeyStyle {
 
-	public final ResourceLocation name;
-	public final ResourceLocation cycleGroup;
-	public final Component displayName;
-	public final ResourceLocation soundType;
-	public final ParticleOptions contactParticle;
-	public final ParticleOptions smokeParticle;
-	public final CompoundTag defaultData;
+	public final Identifier name;
+	public final Identifier cycleGroup;
+	public final Text displayName;
+	public final Identifier soundType;
+	public final ParticleEffect contactParticle;
+	public final ParticleEffect smokeParticle;
+	public final NbtCompound defaultData;
 
 	private Optional<Supplier<? extends CommonRenderer>> commonRendererFactory;
-private Map<BogeySizes.BogeySize, ResourceLocation> sizes;
+private Map<BogeySizes.BogeySize, Identifier> sizes;
 
 	@Environment(EnvType.CLIENT)
 	private Map<BogeySizes.BogeySize, SizeRenderData> sizeRenderers;
@@ -48,9 +45,9 @@ private Map<BogeySizes.BogeySize, ResourceLocation> sizes;
 	@Environment(EnvType.CLIENT)
 	private Optional<CommonRenderer> commonRenderer;
 
-	public BogeyStyle(ResourceLocation name, ResourceLocation cycleGroup, Component displayName,
-		ResourceLocation soundType, ParticleOptions contactParticle, ParticleOptions smokeParticle,
-		CompoundTag defaultData, Map<BogeySizes.BogeySize, ResourceLocation> sizes,
+	public BogeyStyle(Identifier name, Identifier cycleGroup, Text displayName,
+		Identifier soundType, ParticleEffect contactParticle, ParticleEffect smokeParticle,
+		NbtCompound defaultData, Map<BogeySizes.BogeySize, Identifier> sizes,
 		Map<BogeySizes.BogeySize, Supplier<SizeRenderData>> sizeRenderers,
 		Optional<Supplier<? extends CommonRenderer>> commonRenderer) {
 
@@ -71,7 +68,7 @@ private Map<BogeySizes.BogeySize, ResourceLocation> sizes;
 		});
 	}
 
-	public Map<ResourceLocation, BogeyStyle> getCycleGroup() {
+	public Map<Identifier, BogeyStyle> getCycleGroup() {
 		return AllBogeyStyles.getCycleGroup(cycleGroup);
 	}
 
@@ -84,7 +81,7 @@ private Map<BogeySizes.BogeySize, ResourceLocation> sizes;
 	}
 
 	public Block getBlockOfSize(BogeySizes.BogeySize size) {
-		return BuiltInRegistries.BLOCK.get(sizes.get(size));
+		return Registries.BLOCK.get(sizes.get(size));
 	}
 
 	public Set<BogeySizes.BogeySize> validSizes() {

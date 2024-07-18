@@ -3,10 +3,9 @@ package com.simibubi.create.compat.jei.category;
 import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.gui.element.GuiGameElement;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.item.crafting.AbstractCookingRecipe;
-import net.minecraft.world.level.material.Fluids;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.recipe.AbstractCookingRecipe;
 
 public class FanBlastingCategory extends ProcessingViaFanCategory<AbstractCookingRecipe> {
 
@@ -20,7 +19,7 @@ public class FanBlastingCategory extends ProcessingViaFanCategory<AbstractCookin
 	}
 
 	@Override
-	protected void renderAttachedBlock(GuiGraphics graphics) {
+	protected void renderAttachedBlock(DrawContext graphics) {
 		GuiGameElement.of(Fluids.LAVA)
 			.scale(SCALE)
 			.atLocal(0, 0, 2)

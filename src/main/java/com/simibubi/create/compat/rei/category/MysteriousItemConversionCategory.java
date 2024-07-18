@@ -2,8 +2,6 @@ package com.simibubi.create.compat.rei.category;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.compat.rei.ConversionRecipe;
@@ -14,7 +12,7 @@ import com.simibubi.create.foundation.gui.AllGuiTextures;
 import me.shedaniel.math.Point;
 import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.common.util.EntryIngredients;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
 
 public class MysteriousItemConversionCategory extends CreateRecipeCategory<ConversionRecipe> {
 
@@ -43,7 +41,7 @@ public class MysteriousItemConversionCategory extends CreateRecipeCategory<Conve
 	}
 
 	@Override
-	public void draw(ConversionRecipe recipe, GuiGraphics graphics, double mouseX, double mouseY) {
+	public void draw(ConversionRecipe recipe, DrawContext graphics, double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SLOT.render(graphics, 26, 16);
 		AllGuiTextures.JEI_SLOT.render(graphics, 131, 16);
 		AllGuiTextures.JEI_LONG_ARROW.render(graphics, 52, 20);

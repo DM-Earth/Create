@@ -2,7 +2,11 @@ package com.simibubi.create.content.kinetics.belt;
 
 import java.util.ArrayList;
 import java.util.function.Supplier;
-
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.LightType;
 import org.joml.Quaternionf;
 
 import com.jozufozu.flywheel.api.InstanceData;
@@ -10,7 +14,6 @@ import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityInstance;
@@ -19,11 +22,6 @@ import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
 import com.simibubi.create.foundation.block.render.SpriteShiftEntry;
 import com.simibubi.create.foundation.render.AllMaterialSpecs;
 import com.simibubi.create.foundation.utility.Iterate;
-
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.LightLayer;
 
 public class BeltInstance extends KineticBlockEntityInstance<BeltBlockEntity> {
 
@@ -46,8 +44,8 @@ public class BeltInstance extends KineticBlockEntityInstance<BeltBlockEntity> {
 
         keys = new ArrayList<>(2);
 
-        beltSlope = blockState.getValue(BeltBlock.SLOPE);
-        facing = blockState.getValue(BeltBlock.HORIZONTAL_FACING);
+        beltSlope = blockState.get(BeltBlock.SLOPE);
+        facing = blockState.get(BeltBlock.HORIZONTAL_FACING);
         upward = beltSlope == BeltSlope.UPWARD;
         diagonal = beltSlope.isDiagonal();
         sideways = beltSlope == BeltSlope.SIDEWAYS;
@@ -55,7 +53,7 @@ public class BeltInstance extends KineticBlockEntityInstance<BeltBlockEntity> {
         alongX = facing.getAxis() == Direction.Axis.X;
         alongZ = facing.getAxis() == Direction.Axis.Z;
 
-        BeltPart part = blockState.getValue(BeltBlock.PART);
+        BeltPart part = blockState.get(BeltBlock.PART);
         boolean start = part == BeltPart.START;
         boolean end = part == BeltPart.END;
         DyeColor color = blockEntity.color.orElse(null);
@@ -116,7 +114,7 @@ public class BeltInstance extends KineticBlockEntityInstance<BeltBlockEntity> {
 
     private float getScrollSpeed() {
         float speed = blockEntity.getSpeed();
-        if (((facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE) ^ upward) ^
+        if (((facing.getDirection() == Direction.AxisDirection.NEGATIVE) ^ upward) ^
                 ((alongX && !diagonal) || (alongZ && diagonal))) {
             speed = -speed;
         }
@@ -131,8 +129,8 @@ public class BeltInstance extends KineticBlockEntityInstance<BeltBlockEntity> {
 
         Direction.Axis axis = dir.getAxis();
 
-        Supplier<PoseStack> ms = () -> {
-            PoseStack modelTransform = new PoseStack();
+        Supplier<MatrixStack> ms = () -> {
+            MatrixStack modelTransform = new MatrixStack();
             TransformStack msr = TransformStack.cast(modelTransform);
             msr.centre();
             if (axis == Direction.Axis.X)
@@ -149,8 +147,8 @@ public class BeltInstance extends KineticBlockEntityInstance<BeltBlockEntity> {
     }
 
     private Direction getOrientation() {
-        Direction dir = blockState.getValue(BeltBlock.HORIZONTAL_FACING)
-                                  .getClockWise();
+        Direction dir = blockState.get(BeltBlock.HORIZONTAL_FACING)
+                                  .rotateYClockwise();
         if (beltSlope == BeltSlope.SIDEWAYS)
             dir = Direction.UP;
 
@@ -160,10 +158,10 @@ public class BeltInstance extends KineticBlockEntityInstance<BeltBlockEntity> {
     private BeltData setup(BeltData key, boolean bottom, SpriteShiftEntry spriteShift) {
         boolean downward = beltSlope == BeltSlope.DOWNWARD;
         float rotX = (!diagonal && beltSlope != BeltSlope.HORIZONTAL ? 90 : 0) + (downward ? 180 : 0) + (sideways ? 90 : 0) + (vertical && alongZ ? 180 : 0);
-        float rotY = facing.toYRot() + ((diagonal ^ alongX) && !downward ? 180 : 0) + (sideways && alongZ ? 180 : 0) + (vertical && alongX ? 90 : 0);
+        float rotY = facing.asRotation() + ((diagonal ^ alongX) && !downward ? 180 : 0) + (sideways && alongZ ? 180 : 0) + (vertical && alongX ? 90 : 0);
         float rotZ = (sideways ? 90 : 0) + (vertical && alongX ? 90 : 0);
 
-        Quaternionf q = new Quaternionf().rotationXYZ(rotX * Mth.DEG_TO_RAD, rotY * Mth.DEG_TO_RAD, rotZ * Mth.DEG_TO_RAD);
+        Quaternionf q = new Quaternionf().rotationXYZ(rotX * MathHelper.RADIANS_PER_DEGREE, rotY * MathHelper.RADIANS_PER_DEGREE, rotZ * MathHelper.RADIANS_PER_DEGREE);
 
 		key.setScrollTexture(spriteShift)
 				.setScrollMult(diagonal ? 3f / 8f : 0.5f)
@@ -172,8 +170,8 @@ public class BeltInstance extends KineticBlockEntityInstance<BeltBlockEntity> {
 				.setRotationOffset(bottom ? 0.5f : 0f)
                 .setColor(blockEntity)
                 .setPosition(getInstancePosition())
-                .setBlockLight(world.getBrightness(LightLayer.BLOCK, pos))
-                .setSkyLight(world.getBrightness(LightLayer.SKY, pos));
+                .setBlockLight(world.getLightLevel(LightType.BLOCK, pos))
+                .setSkyLight(world.getLightLevel(LightType.SKY, pos));
 
         return key;
     }

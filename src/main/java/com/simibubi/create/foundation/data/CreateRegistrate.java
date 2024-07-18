@@ -38,28 +38,28 @@ import com.tterrag.registrate.util.nullness.NonNullUnaryOperator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockBehaviour.Properties;
+import net.minecraft.block.AbstractBlock.Settings;
+import net.minecraft.block.Block;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnGroup;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.util.Identifier;
 
 public class CreateRegistrate extends AbstractRegistrate<CreateRegistrate> {
-	private static final Map<RegistryEntry<?>, ResourceKey<CreativeModeTab>> TAB_LOOKUP = new IdentityHashMap<>();
+	private static final Map<RegistryEntry<?>, RegistryKey<ItemGroup>> TAB_LOOKUP = new IdentityHashMap<>();
 
 	@Nullable
 	protected Function<Item, TooltipModifier> currentTooltipModifierFactory;
 	@Nullable
-	protected ResourceKey<CreativeModeTab> currentTab;
+	protected RegistryKey<ItemGroup> currentTab;
 
 	protected CreateRegistrate(String modid) {
 		super(modid);
@@ -69,7 +69,7 @@ public class CreateRegistrate extends AbstractRegistrate<CreateRegistrate> {
 		return new CreateRegistrate(modid);
 	}
 
-	public static boolean isInCreativeTab(RegistryEntry<?> entry, ResourceKey<CreativeModeTab> tab) {
+	public static boolean isInCreativeTab(RegistryEntry<?> entry, RegistryKey<ItemGroup> tab) {
 		return TAB_LOOKUP.get(entry) == tab;
 	}
 
@@ -83,17 +83,17 @@ public class CreateRegistrate extends AbstractRegistrate<CreateRegistrate> {
 		return currentTooltipModifierFactory;
 	}
 
-	public CreateRegistrate setCreativeTab(ResourceKey<CreativeModeTab> tab) {
+	public CreateRegistrate setCreativeTab(RegistryKey<ItemGroup> tab) {
 		this.currentTab = tab;
 		return this;
 	}
 
 	@Override
-	protected <R, T extends R> RegistryEntry<T> accept(String name, ResourceKey<? extends Registry<R>> type,
+	protected <R, T extends R> RegistryEntry<T> accept(String name, RegistryKey<? extends Registry<R>> type,
 		Builder<R, T, ?, ?> builder, NonNullSupplier<? extends T> creator,
 		NonNullFunction<RegistryObject<T>, ? extends RegistryEntry<T>> entryFactory) {
 		RegistryEntry<T> entry = super.accept(name, type, builder, creator, entryFactory);
-		if (type.equals(Registries.ITEM)) {
+		if (type.equals(RegistryKeys.ITEM)) {
 			if (currentTooltipModifierFactory != null) {
 				TooltipModifier.REGISTRY.registerDeferred(entry.getId(), currentTooltipModifierFactory);
 			}
@@ -119,13 +119,13 @@ public class CreateRegistrate extends AbstractRegistrate<CreateRegistrate> {
 
 	@Override
 	public <T extends Entity> CreateEntityBuilder<T, CreateRegistrate> entity(String name,
-		EntityType.EntityFactory<T> factory, MobCategory classification) {
+		EntityType.EntityFactory<T> factory, SpawnGroup classification) {
 		return this.entity(self(), name, factory, classification);
 	}
 
 	@Override
 	public <T extends Entity, P> CreateEntityBuilder<T,  P> entity(P parent, String name,
-		EntityType.EntityFactory<T> factory, MobCategory classification) {
+		EntityType.EntityFactory<T> factory, SpawnGroup classification) {
 		return (CreateEntityBuilder<T, P>) this.entry(name, (callback) -> {
 			return CreateEntityBuilder.create(this, parent, name, callback, factory, classification);
 		});
@@ -134,7 +134,7 @@ public class CreateRegistrate extends AbstractRegistrate<CreateRegistrate> {
 	/* Palettes */
 
 	public <T extends Block> BlockBuilder<T, CreateRegistrate> paletteStoneBlock(String name,
-		NonNullFunction<Properties, T> factory, NonNullSupplier<Block> propertiesFrom, boolean worldGenStone,
+		NonNullFunction<Settings, T> factory, NonNullSupplier<Block> propertiesFrom, boolean worldGenStone,
 		boolean hasNaturalVariants) {
 		BlockBuilder<T, CreateRegistrate> builder = super.block(name, factory).initialProperties(propertiesFrom)
 			.transform(pickaxeOnly())
@@ -143,7 +143,7 @@ public class CreateRegistrate extends AbstractRegistrate<CreateRegistrate> {
 				p.simpleBlock(c.get(), p.models()
 					.cubeAll(c.getName(), p.modLoc(location)));
 			})
-			.tag(BlockTags.DRIPSTONE_REPLACEABLE)
+			.tag(BlockTags.DRIPSTONE_REPLACEABLE_BLOCKS)
 			.tag(BlockTags.AZALEA_ROOT_REPLACEABLE)
 			.tag(BlockTags.MOSS_REPLACEABLE)
 			.tag(BlockTags.LUSH_GROUND_REPLACEABLE)
@@ -166,11 +166,11 @@ public class CreateRegistrate extends AbstractRegistrate<CreateRegistrate> {
 //		BiFunction<FluidAttributes.Builder, Fluid, FluidAttributes> attributesFactory,
 		NonNullFunction<SimpleFlowableFluid.Properties, T> factory) {
 		return entry(name,
-			c -> new VirtualFluidBuilder<>(self(), self(), name, c, new ResourceLocation(getModid(), "fluid/" + name + "_still"),
-				new ResourceLocation(getModid(), "fluid/" + name + "_flow"), /*typeFactory, */factory));
+			c -> new VirtualFluidBuilder<>(self(), self(), name, c, new Identifier(getModid(), "fluid/" + name + "_still"),
+				new Identifier(getModid(), "fluid/" + name + "_flow"), /*typeFactory, */factory));
 	}
 
-	public <T extends SimpleFlowableFluid> FluidBuilder<T, CreateRegistrate> virtualFluid(String name, ResourceLocation still, ResourceLocation flow,
+	public <T extends SimpleFlowableFluid> FluidBuilder<T, CreateRegistrate> virtualFluid(String name, Identifier still, Identifier flow,
 //																						BiFunction<FluidAttributes.Builder, Fluid, FluidAttributes> attributesFactory,
 																						NonNullFunction<SimpleFlowableFluid.Properties, T> factory) {
 		return entry(name,
@@ -180,18 +180,18 @@ public class CreateRegistrate extends AbstractRegistrate<CreateRegistrate> {
 
 	public FluidBuilder<VirtualFluid, CreateRegistrate> virtualFluid(String name) {
 		return entry(name,
-			c -> new VirtualFluidBuilder<>(self(), self(), name, c, new ResourceLocation(getModid(), "fluid/" + name + "_still"),
-				new ResourceLocation(getModid(), "fluid/" + name + "_flow"), /*null, */VirtualFluid::new));
+			c -> new VirtualFluidBuilder<>(self(), self(), name, c, new Identifier(getModid(), "fluid/" + name + "_still"),
+				new Identifier(getModid(), "fluid/" + name + "_flow"), /*null, */VirtualFluid::new));
 	}
 
-	public FluidBuilder<VirtualFluid, CreateRegistrate> virtualFluid(String name, ResourceLocation still, ResourceLocation flow) {
+	public FluidBuilder<VirtualFluid, CreateRegistrate> virtualFluid(String name, Identifier still, Identifier flow) {
 		return entry(name,
 				c -> new VirtualFluidBuilder<>(self(), self(), name, c, still,
 						flow, VirtualFluid::new));
 	}
 
 	public FluidBuilder<SimpleFlowableFluid.Flowing, CreateRegistrate> standardFluid(String name) {
-		return fluid(name, new ResourceLocation(getModid(), "fluid/" + name + "_still"), new ResourceLocation(getModid(), "fluid/" + name + "_flow"));
+		return fluid(name, new Identifier(getModid(), "fluid/" + name + "_still"), new Identifier(getModid(), "fluid/" + name + "_flow"));
 	}
 
 /*

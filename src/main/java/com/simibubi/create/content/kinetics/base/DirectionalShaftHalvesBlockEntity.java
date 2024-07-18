@@ -1,9 +1,9 @@
 package com.simibubi.create.content.kinetics.base;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class DirectionalShaftHalvesBlockEntity extends KineticBlockEntity {
 
@@ -12,8 +12,8 @@ public class DirectionalShaftHalvesBlockEntity extends KineticBlockEntity {
 	}
 
 	public Direction getSourceFacing() {
-		BlockPos localSource = source.subtract(getBlockPos());
-		return Direction.getNearest(localSource.getX(), localSource.getY(), localSource.getZ());
+		BlockPos localSource = source.subtract(getPos());
+		return Direction.getFacing(localSource.getX(), localSource.getY(), localSource.getZ());
 	}
 
 }

@@ -24,11 +24,11 @@ import com.tterrag.registrate.util.nullness.NonNullFunction;
 import com.tterrag.registrate.util.nullness.NonNullSupplier;
 
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;
-import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType.EntityFactory;
-import net.minecraft.world.entity.MobCategory;
+import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType.EntityFactory;
+import net.minecraft.entity.SpawnGroup;
 
 public class AllEntityTypes {
 
@@ -45,32 +45,32 @@ public class AllEntityTypes {
 				.register();
 
 	public static final EntityEntry<SuperGlueEntity> SUPER_GLUE =
-		register("super_glue", SuperGlueEntity::new, () -> SuperGlueRenderer::new, MobCategory.MISC, 10,
+		register("super_glue", SuperGlueEntity::new, () -> SuperGlueRenderer::new, SpawnGroup.MISC, 10,
 			Integer.MAX_VALUE, false, true, SuperGlueEntity::build).register();
 
 	public static final EntityEntry<BlueprintEntity> CRAFTING_BLUEPRINT =
-		register("crafting_blueprint", BlueprintEntity::new, () -> BlueprintRenderer::new, MobCategory.MISC, 10,
+		register("crafting_blueprint", BlueprintEntity::new, () -> BlueprintRenderer::new, SpawnGroup.MISC, 10,
 			Integer.MAX_VALUE, false, true, BlueprintEntity::build).register();
 
 	public static final EntityEntry<PotatoProjectileEntity> POTATO_PROJECTILE =
 		register("potato_projectile", PotatoProjectileEntity::new, () -> PotatoProjectileRenderer::new,
-			MobCategory.MISC, 4, 20, true, false, PotatoProjectileEntity::build).register();
+			SpawnGroup.MISC, 4, 20, true, false, PotatoProjectileEntity::build).register();
 
 	public static final EntityEntry<SeatEntity> SEAT = register("seat", SeatEntity::new, () -> SeatEntity.Render::new,
-		MobCategory.MISC, 5, Integer.MAX_VALUE, false, true, SeatEntity::build).register();
+		SpawnGroup.MISC, 5, Integer.MAX_VALUE, false, true, SeatEntity::build).register();
 
 	//
 
 	private static <T extends Entity> CreateEntityBuilder<T, ?> contraption(String name, EntityFactory<T> factory,
-		NonNullSupplier<NonNullFunction<EntityRendererProvider.Context, EntityRenderer<? super T>>> renderer, int range,
+		NonNullSupplier<NonNullFunction<EntityRendererFactory.Context, EntityRenderer<? super T>>> renderer, int range,
 		int updateFrequency, boolean sendVelocity) {
-		return register(name, factory, renderer, MobCategory.MISC, range, updateFrequency, sendVelocity, true,
+		return register(name, factory, renderer, SpawnGroup.MISC, range, updateFrequency, sendVelocity, true,
 			AbstractContraptionEntity::build);
 	}
 
 	private static <T extends Entity> CreateEntityBuilder<T, ?> register(String name, EntityFactory<T> factory,
-		NonNullSupplier<NonNullFunction<EntityRendererProvider.Context, EntityRenderer<? super T>>> renderer,
-		MobCategory group, int range, int updateFrequency, boolean sendVelocity, boolean immuneToFire,
+		NonNullSupplier<NonNullFunction<EntityRendererFactory.Context, EntityRenderer<? super T>>> renderer,
+		SpawnGroup group, int range, int updateFrequency, boolean sendVelocity, boolean immuneToFire,
 		NonNullConsumer<FabricEntityTypeBuilder<T>> propertyBuilder) {
 		String id = Lang.asId(name);
 		return (CreateEntityBuilder<T, ?>) Create.REGISTRATE

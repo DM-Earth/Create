@@ -5,7 +5,11 @@ import java.util.Locale;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.text.MutableText;
 import com.simibubi.create.foundation.config.ui.ConfigTextField;
 import com.simibubi.create.foundation.gui.Theme;
 import com.simibubi.create.foundation.gui.UIRenderHelper;
@@ -13,18 +17,13 @@ import com.simibubi.create.foundation.gui.element.TextStencilElement;
 import com.simibubi.create.foundation.utility.Components;
 
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.network.chat.MutableComponent;
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.AbstractWidgetAccessor;
 
 public abstract class NumberEntry<T extends Number> extends ValueEntry<T> {
 
 	protected int minOffset = 0, maxOffset = 0;
 	protected TextStencilElement minText = null, maxText = null;
-	protected EditBox textField;
+	protected TextFieldWidget textField;
 
 	@Nullable
 	public static NumberEntry<? extends Number> create(Object type, String label, ModConfigSpec.ConfigValue<?> value, ModConfigSpec.ValueSpec spec) {
@@ -41,7 +40,7 @@ public abstract class NumberEntry<T extends Number> extends ValueEntry<T> {
 
 	public NumberEntry(String label, ModConfigSpec.ConfigValue<T> value, ModConfigSpec.ValueSpec spec) {
 		super(label, value, spec);
-		textField = new ConfigTextField(Minecraft.getInstance().font, 0, 0, 200, 20);
+		textField = new ConfigTextField(MinecraftClient.getInstance().textRenderer, 0, 0, 200, 20);
 		if (this instanceof IntegerEntry && annotations.containsKey("IntDisplay")) {
 			String intDisplay = annotations.get("IntDisplay");
 			int intValue = (Integer) getValue();
@@ -59,11 +58,11 @@ public abstract class NumberEntry<T extends Number> extends ValueEntry<T> {
 				default:
 					textValue = String.valueOf(intValue);
 			}
-			textField.setValue(textValue);
+			textField.setText(textValue);
 		} else {
-			textField.setValue(String.valueOf(getValue()));
+			textField.setText(String.valueOf(getValue()));
 		}
-		textField.setTextColor(Theme.i(Theme.Key.TEXT));
+		textField.setEditableColor(Theme.i(Theme.Key.TEXT));
 
 		Object range = spec.getRange();
 		try {
@@ -74,38 +73,38 @@ public abstract class NumberEntry<T extends Number> extends ValueEntry<T> {
 			T min = (T) minField.get(range);
 			T max = (T) maxField.get(range);
 
-			Font font = Minecraft.getInstance().font;
+			TextRenderer font = MinecraftClient.getInstance().textRenderer;
 			if (min.doubleValue() > getTypeMin().doubleValue()) {
-				MutableComponent t = Components.literal(formatBound(min) + " < ");
+				MutableText t = Components.literal(formatBound(min) + " < ");
 				minText = new TextStencilElement(font, t).centered(true, false);
 				minText.withElementRenderer((ms, width, height, alpha) -> UIRenderHelper.angledGradient(ms, 0 ,0, height/2, height, width, Theme.p(Theme.Key.TEXT_DARKER)));
-				minOffset = font.width(t);
+				minOffset = font.getWidth(t);
 			}
 			if (max.doubleValue() < getTypeMax().doubleValue()) {
-				MutableComponent t = Components.literal(" < " + formatBound(max));
+				MutableText t = Components.literal(" < " + formatBound(max));
 				maxText = new TextStencilElement(font, t).centered(true, false);
 				maxText.withElementRenderer((ms, width, height, alpha) -> UIRenderHelper.angledGradient(ms, 0 ,0, height/2, height, width, Theme.p(Theme.Key.TEXT_DARKER)));
-				maxOffset = font.width(t);
+				maxOffset = font.getWidth(t);
 			}
 		} catch (NoSuchFieldException | IllegalAccessException | ClassCastException | NullPointerException ignored) {
 
 		}
 
-		textField.setResponder(s -> {
+		textField.setChangedListener(s -> {
 			try {
 				T number = getParser().apply(s);
 				if (!spec.test(number))
 					throw new IllegalArgumentException();
 
-				textField.setTextColor(Theme.i(Theme.Key.TEXT));
+				textField.setEditableColor(Theme.i(Theme.Key.TEXT));
 				setValue(number);
 
 			} catch (IllegalArgumentException ignored) {
-				textField.setTextColor(Theme.i(Theme.Key.BUTTON_FAIL));
+				textField.setEditableColor(Theme.i(Theme.Key.BUTTON_FAIL));
 			}
 		});
 
-		textField.moveCursorToStart();
+		textField.setCursorToStart();
 		listeners.add(textField);
 		onReset();
 	}
@@ -133,9 +132,9 @@ public abstract class NumberEntry<T extends Number> extends ValueEntry<T> {
 		super.onValueChange(newValue);
 
 		try {
-			T current = getParser().apply(textField.getValue());
+			T current = getParser().apply(textField.getText());
 			if (!current.equals(newValue)) {
-				textField.setValue(String.valueOf(newValue));
+				textField.setText(String.valueOf(newValue));
 			}
 		} catch (IllegalArgumentException ignored) {}
 	}
@@ -147,7 +146,7 @@ public abstract class NumberEntry<T extends Number> extends ValueEntry<T> {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
+	public void render(DrawContext graphics, int index, int y, int x, int width, int height, int mouseX, int mouseY, boolean p_230432_9_, float partialTicks) {
 		super.render(graphics, index, y, x, width, height, mouseX, mouseY, p_230432_9_, partialTicks);
 
 		textField.setX(x + width - 82 - resetWidth);

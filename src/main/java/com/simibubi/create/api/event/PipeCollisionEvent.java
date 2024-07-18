@@ -3,13 +3,11 @@ package com.simibubi.create.api.event;
 import net.fabricmc.fabric.api.event.Event;
 
 import net.fabricmc.fabric.api.event.EventFactory;
-
+import net.minecraft.block.BlockState;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
 
 /**
  * This Event is fired when two fluids meet in a pipe ({@link Flow})<br>
@@ -31,14 +29,14 @@ public class PipeCollisionEvent {
 			callback.handleSpill(event);
 	});
 
-	private final Level level;
+	private final World level;
 	private final BlockPos pos;
 	protected final Fluid firstFluid, secondFluid;
 
 	@Nullable
 	private BlockState state;
 
-	protected PipeCollisionEvent(Level level, BlockPos pos, Fluid firstFluid, Fluid secondFluid,
+	protected PipeCollisionEvent(World level, BlockPos pos, Fluid firstFluid, Fluid secondFluid,
 		@Nullable BlockState defaultState) {
 		this.level = level;
 		this.pos = pos;
@@ -47,7 +45,7 @@ public class PipeCollisionEvent {
 		this.state = defaultState;
 	}
 
-	public Level getLevel() {
+	public World getLevel() {
 		return level;
 	}
 
@@ -66,7 +64,7 @@ public class PipeCollisionEvent {
 
 	public static class Flow extends PipeCollisionEvent {
 
-		public Flow(Level level, BlockPos pos, Fluid firstFluid, Fluid secondFluid, @Nullable BlockState defaultState) {
+		public Flow(World level, BlockPos pos, Fluid firstFluid, Fluid secondFluid, @Nullable BlockState defaultState) {
 			super(level, pos, firstFluid, secondFluid, defaultState);
 		}
 
@@ -81,7 +79,7 @@ public class PipeCollisionEvent {
 
 	public static class Spill extends PipeCollisionEvent {
 
-		public Spill(Level level, BlockPos pos, Fluid worldFluid, Fluid pipeFluid, @Nullable BlockState defaultState) {
+		public Spill(World level, BlockPos pos, Fluid worldFluid, Fluid pipeFluid, @Nullable BlockState defaultState) {
 			super(level, pos, worldFluid, pipeFluid, defaultState);
 		}
 

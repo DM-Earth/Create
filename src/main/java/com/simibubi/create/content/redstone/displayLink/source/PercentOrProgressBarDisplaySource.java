@@ -3,21 +3,19 @@ package com.simibubi.create.content.redstone.displayLink.source;
 import static com.simibubi.create.content.trains.display.FlapDisplaySection.WIDE_MONOSPACE;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.block.entity.SignBlockEntity;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.math.MathHelper;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 import com.simibubi.create.content.trains.display.FlapDisplayBlockEntity;
 import com.simibubi.create.content.trains.display.FlapDisplaySection;
 import com.simibubi.create.foundation.utility.Components;
 
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.SignBlockEntity;
-
 public abstract class PercentOrProgressBarDisplaySource extends NumericSingleLineDisplaySource {
 
 	@Override
-	protected MutableComponent provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
+	protected MutableText provideLine(DisplayLinkContext context, DisplayTargetStats stats) {
 		Float currentLevel = getProgress(context);
 		if (currentLevel == null)
 			return EMPTY_LINE;
@@ -50,8 +48,8 @@ public abstract class PercentOrProgressBarDisplaySource extends NumericSingleLin
 		return Components.literal(s.toString());
 	}
 
-	protected MutableComponent formatNumeric(DisplayLinkContext context, Float currentLevel) {
-		return Components.literal(Mth.clamp((int) (currentLevel * 100), 0, 100) + "%");
+	protected MutableText formatNumeric(DisplayLinkContext context, Float currentLevel) {
+		return Components.literal(MathHelper.clamp((int) (currentLevel * 100), 0, 100) + "%");
 	}
 
 	@Nullable

@@ -6,7 +6,13 @@ import static com.simibubi.create.foundation.gui.AllGuiTextures.SCHEMATIC_TABLE_
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
-
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.Rect2i;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.MathHelper;
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.CreateClient;
@@ -22,22 +28,14 @@ import com.simibubi.create.foundation.gui.widget.SelectionScrollInput;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 
-import net.minecraft.Util;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
-
 public class SchematicTableScreen extends AbstractSimiContainerScreen<SchematicTableMenu> {
 
-	private final Component uploading = Lang.translateDirect("gui.schematicTable.uploading");
-	private final Component finished = Lang.translateDirect("gui.schematicTable.finished");
-	private final Component refresh = Lang.translateDirect("gui.schematicTable.refresh");
-	private final Component folder = Lang.translateDirect("gui.schematicTable.open_folder");
-	private final Component noSchematics = Lang.translateDirect("gui.schematicTable.noSchematics");
-	private final Component availableSchematicsTitle = Lang.translateDirect("gui.schematicTable.availableSchematics");
+	private final Text uploading = Lang.translateDirect("gui.schematicTable.uploading");
+	private final Text finished = Lang.translateDirect("gui.schematicTable.finished");
+	private final Text refresh = Lang.translateDirect("gui.schematicTable.refresh");
+	private final Text folder = Lang.translateDirect("gui.schematicTable.open_folder");
+	private final Text noSchematics = Lang.translateDirect("gui.schematicTable.noSchematics");
+	private final Text availableSchematicsTitle = Lang.translateDirect("gui.schematicTable.availableSchematics");
 
 	protected AllGuiTextures background;
 
@@ -55,8 +53,8 @@ public class SchematicTableScreen extends AbstractSimiContainerScreen<SchematicT
 
 	private List<Rect2i> extraAreas = Collections.emptyList();
 
-	public SchematicTableScreen(SchematicTableMenu menu, Inventory playerInventory,
-		Component title) {
+	public SchematicTableScreen(SchematicTableMenu menu, PlayerInventory playerInventory,
+		Text title) {
 		super(menu, playerInventory, title);
 		background = AllGuiTextures.SCHEMATIC_TABLE;
 	}
@@ -68,37 +66,37 @@ public class SchematicTableScreen extends AbstractSimiContainerScreen<SchematicT
 		super.init();
 
 		CreateClient.SCHEMATIC_SENDER.refresh();
-		List<Component> availableSchematics = CreateClient.SCHEMATIC_SENDER.getAvailableSchematics();
+		List<Text> availableSchematics = CreateClient.SCHEMATIC_SENDER.getAvailableSchematics();
 
-		int x = leftPos;
-		int y = topPos;
+//		int x = x;
+//		int y = y;
 
 		schematicsLabel = new Label(x + 49, y + 26, Components.immutableEmpty()).withShadow();
 		schematicsLabel.text = Components.immutableEmpty();
 		if (!availableSchematics.isEmpty()) {
 			schematicsArea =
 				new SelectionScrollInput(x + 45, y + 21, 139, 18).forOptions(availableSchematics)
-					.titled(availableSchematicsTitle.plainCopy())
+					.titled(availableSchematicsTitle.copyContentOnly())
 					.writingTo(schematicsLabel);
-			addRenderableWidget(schematicsArea);
-			addRenderableWidget(schematicsLabel);
+			addDrawableChild(schematicsArea);
+			addDrawableChild(schematicsLabel);
 		}
 
 		confirmButton = new IconButton(x + 44, y + 56, AllIcons.I_CONFIRM);
 		confirmButton.withCallback(() -> {
-			if (menu.canWrite() && schematicsArea != null) {
+			if (handler.canWrite() && schematicsArea != null) {
 				ClientSchematicLoader schematicSender = CreateClient.SCHEMATIC_SENDER;
 				lastChasingProgress = chasingProgress = progress = 0;
-				List<Component> availableSchematics1 = schematicSender.getAvailableSchematics();
-				Component schematic = availableSchematics1.get(schematicsArea.getState());
+				List<Text> availableSchematics1 = schematicSender.getAvailableSchematics();
+				Text schematic = availableSchematics1.get(schematicsArea.getState());
 				schematicSender.startNewUpload(schematic.getString());
 			}
 		});
 
 		folderButton = new IconButton(x + 21, y + 21, AllIcons.I_OPEN_FOLDER);
 		folderButton.withCallback(() -> {
-			Util.getPlatform()
-				.openFile(Paths.get("schematics/")
+			Util.getOperatingSystem()
+				.open(Paths.get("schematics/")
 					.toFile());
 		});
 		folderButton.setToolTip(folder);
@@ -106,16 +104,16 @@ public class SchematicTableScreen extends AbstractSimiContainerScreen<SchematicT
 		refreshButton.withCallback(() -> {
 			ClientSchematicLoader schematicSender = CreateClient.SCHEMATIC_SENDER;
 			schematicSender.refresh();
-			List<Component> availableSchematics1 = schematicSender.getAvailableSchematics();
-			removeWidget(schematicsArea);
+			List<Text> availableSchematics1 = schematicSender.getAvailableSchematics();
+			remove(schematicsArea);
 
 			if (!availableSchematics1.isEmpty()) {
-				schematicsArea = new SelectionScrollInput(leftPos + 45, topPos + 21, 139, 18)
+				schematicsArea = new SelectionScrollInput(x + 45, y + 21, 139, 18)
 					.forOptions(availableSchematics1)
-					.titled(availableSchematicsTitle.plainCopy())
+					.titled(availableSchematicsTitle.copyContentOnly())
 					.writingTo(schematicsLabel);
 				schematicsArea.onChanged();
-				addRenderableWidget(schematicsArea);
+				addDrawableChild(schematicsArea);
 			} else {
 				schematicsArea = null;
 				schematicsLabel.text = Components.immutableEmpty();
@@ -123,9 +121,9 @@ public class SchematicTableScreen extends AbstractSimiContainerScreen<SchematicT
 		});
 		refreshButton.setToolTip(refresh);
 
-		addRenderableWidget(confirmButton);
-		addRenderableWidget(folderButton);
-		addRenderableWidget(refreshButton);
+		addDrawableChild(confirmButton);
+		addDrawableChild(folderButton);
+		addDrawableChild(refreshButton);
 
 		extraAreas = ImmutableList.of(
 			new Rect2i(x + background.width, y + background.height - 40, 48, 48),
@@ -134,61 +132,61 @@ public class SchematicTableScreen extends AbstractSimiContainerScreen<SchematicT
 	}
 
 	@Override
-	protected void renderBg(GuiGraphics graphics, float partialTicks, int mouseX, int mouseY) {
+	protected void drawBackground(DrawContext graphics, float partialTicks, int mouseX, int mouseY) {
 		int invX = getLeftOfCentered(PLAYER_INVENTORY.width);
-		int invY = topPos + background.height + 4;
+		int invY = y + background.height + 4;
 		renderPlayerInventory(graphics, invX, invY);
 
-		int x = leftPos;
-		int y = topPos;
+		int sx = x;
+		int sy = y;
 
-		background.render(graphics, x, y);
+		background.render(graphics, sx, sy);
 
-		Component titleText;
-		if (menu.contentHolder.isUploading)
+		Text titleText;
+		if (handler.contentHolder.isUploading)
 			titleText = uploading;
-		else if (menu.getSlot(1)
-			.hasItem())
+		else if (handler.getSlot(1)
+			.hasStack())
 			titleText = finished;
 		else
 			titleText = title;
-		graphics.drawCenteredString(font, titleText, x + (background.width - 8) / 2, y + 3, 0xFFFFFF);
+		graphics.drawCenteredTextWithShadow(textRenderer, titleText, sx + (background.width - 8) / 2, sy + 3, 0xFFFFFF);
 
 		if (schematicsArea == null)
-			graphics.drawString(font, noSchematics, x + 54, y + 26, 0xD3D3D3);
+			graphics.drawTextWithShadow(textRenderer, noSchematics, sx + 54, sy + 26, 0xD3D3D3);
 
 		GuiGameElement.of(renderedItem)
-			.<GuiGameElement.GuiRenderBuilder>at(x + background.width, y + background.height - 40, -200)
+			.<GuiGameElement.GuiRenderBuilder>at(sx + background.width, sy + background.height - 40, -200)
 			.scale(3)
 			.render(graphics);
 
 		int width = (int) (SCHEMATIC_TABLE_PROGRESS.width
-			* Mth.lerp(partialTicks, lastChasingProgress, chasingProgress));
+			* MathHelper.lerp(partialTicks, lastChasingProgress, chasingProgress));
 		int height = SCHEMATIC_TABLE_PROGRESS.height;
-		graphics.blit(SCHEMATIC_TABLE_PROGRESS.location, x + 70, y + 57, SCHEMATIC_TABLE_PROGRESS.startX,
+		graphics.drawTexture(SCHEMATIC_TABLE_PROGRESS.location, sx + 70, sy + 57, SCHEMATIC_TABLE_PROGRESS.startX,
 			SCHEMATIC_TABLE_PROGRESS.startY, width, height);
 	}
 
 	@Override
-	protected void containerTick() {
-		super.containerTick();
+	protected void handledScreenTick() {
+		super.handledScreenTick();
 
-		boolean finished = menu.getSlot(1)
-			.hasItem();
+		boolean finished = handler.getSlot(1)
+			.hasStack();
 
-		if (menu.contentHolder.isUploading || finished) {
+		if (handler.contentHolder.isUploading || finished) {
 			if (finished) {
 				chasingProgress = lastChasingProgress = progress = 1;
 			} else {
 				lastChasingProgress = chasingProgress;
-				progress = menu.contentHolder.uploadingProgress;
+				progress = handler.contentHolder.uploadingProgress;
 				chasingProgress += (progress - chasingProgress) * .5f;
 			}
 			confirmButton.active = false;
 
 			if (schematicsLabel != null) {
 				schematicsLabel.colored(0xCCDDFF);
-				String uploadingSchematic = menu.contentHolder.uploadingSchematic;
+				String uploadingSchematic = handler.contentHolder.uploadingSchematic;
 				schematicsLabel.text = uploadingSchematic == null ? null : Components.literal(uploadingSchematic);
 			}
 			if (schematicsArea != null)

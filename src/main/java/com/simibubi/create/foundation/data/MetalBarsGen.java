@@ -1,13 +1,20 @@
 package com.simibubi.create.foundation.data;
 
 import static com.simibubi.create.Create.REGISTRATE;
-import static net.minecraft.world.level.block.state.properties.BlockStateProperties.EAST;
-import static net.minecraft.world.level.block.state.properties.BlockStateProperties.NORTH;
-import static net.minecraft.world.level.block.state.properties.BlockStateProperties.SOUTH;
-import static net.minecraft.world.level.block.state.properties.BlockStateProperties.WEST;
+import static net.minecraft.state.property.Properties.EAST;
+import static net.minecraft.state.property.Properties.NORTH;
+import static net.minecraft.state.property.Properties.SOUTH;
+import static net.minecraft.state.property.Properties.WEST;
 
 import java.util.function.Supplier;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.MapColor;
+import net.minecraft.block.PaneBlock;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.recipe.book.RecipeCategory;
+import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.AllTags.AllBlockTags;
 import com.simibubi.create.Create;
 import com.tterrag.registrate.providers.DataGenContext;
@@ -18,18 +25,9 @@ import com.tterrag.registrate.util.nullness.NonNullBiConsumer;
 
 import io.github.fabricators_of_create.porting_lib.models.generators.ModelFile;
 
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.data.recipes.RecipeCategory;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.IronBarsBlock;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.material.MapColor;
-
 public class MetalBarsGen {
 
-	public static <P extends IronBarsBlock> NonNullBiConsumer<DataGenContext<Block, P>, RegistrateBlockstateProvider> barsBlockState(
+	public static <P extends PaneBlock> NonNullBiConsumer<DataGenContext<Block, P>, RegistrateBlockstateProvider> barsBlockState(
 		String name, boolean specialEdge) {
 		return (c, p) -> {
 
@@ -114,8 +112,8 @@ public class MetalBarsGen {
 
 	private static ModelFile barsSubModel(RegistrateBlockstateProvider p, String name, String suffix,
 		boolean specialEdge) {
-		ResourceLocation barsTexture = p.modLoc("block/bars/" + name + "_bars");
-		ResourceLocation edgeTexture = specialEdge ? p.modLoc("block/bars/" + name + "_bars_edge") : barsTexture;
+		Identifier barsTexture = p.modLoc("block/bars/" + name + "_bars");
+		Identifier edgeTexture = specialEdge ? p.modLoc("block/bars/" + name + "_bars_edge") : barsTexture;
 		return p.models()
 			.withExistingParent(name + "_" + suffix, p.modLoc("block/bars/" + suffix))
 			.texture("bars", barsTexture)
@@ -123,12 +121,12 @@ public class MetalBarsGen {
 			.texture("edge", edgeTexture);
 	}
 
-	public static BlockEntry<IronBarsBlock> createBars(String name, boolean specialEdge,
+	public static BlockEntry<PaneBlock> createBars(String name, boolean specialEdge,
 		Supplier<DataIngredient> ingredient, MapColor color) {
-		return REGISTRATE.block(name + "_bars", IronBarsBlock::new)
-			.addLayer(() -> RenderType::cutoutMipped)
+		return REGISTRATE.block(name + "_bars", PaneBlock::new)
+			.addLayer(() -> RenderLayer::getCutoutMipped)
 			.initialProperties(() -> Blocks.IRON_BARS)
-			.properties(p -> p.sound(SoundType.COPPER)
+			.properties(p -> p.sounds(BlockSoundGroup.COPPER)
 				.mapColor(color))
 			.tag(AllBlockTags.WRENCH_PICKUP.tag)
 			.tag(AllBlockTags.FAN_TRANSPARENT.tag)
@@ -136,7 +134,7 @@ public class MetalBarsGen {
 			.blockstate(barsBlockState(name, specialEdge))
 			.item()
 			.model((c, p) -> {
-				ResourceLocation barsTexture = p.modLoc("block/bars/" + name + "_bars");
+				Identifier barsTexture = p.modLoc("block/bars/" + name + "_bars");
 				p.withExistingParent(c.getName(), Create.asResource("item/bars"))
 					.texture("bars", barsTexture)
 					.texture("edge", specialEdge ? p.modLoc("block/bars/" + name + "_bars_edge") : barsTexture);

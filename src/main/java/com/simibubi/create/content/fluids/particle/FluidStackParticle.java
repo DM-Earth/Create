@@ -8,20 +8,20 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRenderHandler;
 import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.particle.ParticleRenderType;
-import net.minecraft.client.particle.TextureSheetParticle;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.client.particle.ParticleTextureSheet;
+import net.minecraft.client.particle.SpriteBillboardParticle;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.particle.ParticleType;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.BlockPos;
 
-public class FluidStackParticle extends TextureSheetParticle {
+public class FluidStackParticle extends SpriteBillboardParticle {
 	private final float uo;
 	private final float vo;
 	private FluidStack fluid;
 //	private IClientFluidTypeExtensions clientFluid; // fabric: replaced with FluidVariantRendering
 
-	public static FluidStackParticle create(ParticleType<FluidParticleData> type, ClientLevel world, FluidStack fluid,
+	public static FluidStackParticle create(ParticleType<FluidParticleData> type, ClientWorld world, FluidStack fluid,
 		double x, double y, double z, double vx, double vy, double vz) {
 		if (type == AllParticleTypes.BASIN_FLUID.get())
 			return new BasinFluidParticle(world, fluid, x, y, z, vx, vy, vz);
@@ -29,7 +29,7 @@ public class FluidStackParticle extends TextureSheetParticle {
 	}
 
 	@SuppressWarnings("UnstableApiUsage")
-	public FluidStackParticle(ClientLevel world, FluidStack fluid, double x, double y, double z, double vx, double vy,
+	public FluidStackParticle(ClientWorld world, FluidStack fluid, double x, double y, double z, double vx, double vy,
 							  double vz) {
 		super(world, x, y, z, vx, vy, vz);
 
@@ -37,25 +37,25 @@ public class FluidStackParticle extends TextureSheetParticle {
 		FluidVariantRenderHandler handler = FluidVariantRendering.getHandlerOrDefault(fluid.getFluid());
 		this.setSprite(handler.getSprites(fluid.getType())[0]);
 
-		this.gravity = 1.0F;
-		this.rCol = 0.8F;
-		this.gCol = 0.8F;
-		this.bCol = 0.8F;
-		int color = handler.getColor(fluid.getType(), world, BlockPos.containing(x, y, z));
+		this.gravityStrength = 1.0F;
+		this.red = 0.8F;
+		this.green = 0.8F;
+		this.blue = 0.8F;
+		int color = handler.getColor(fluid.getType(), world, BlockPos.ofFloored(x, y, z));
 		multiplyColor(color);
 
-		this.xd = vx;
-		this.yd = vy;
-		this.zd = vz;
+		this.velocityX = vx;
+		this.velocityY = vy;
+		this.velocityZ = vz;
 
-		this.quadSize /= 2.0F;
+		this.scale /= 2.0F;
 		this.uo = this.random.nextFloat() * 3.0F;
 		this.vo = this.random.nextFloat() * 3.0F;
 	}
 
 	@Override
-	protected int getLightColor(float p_189214_1_) {
-		int brightnessForRender = super.getLightColor(p_189214_1_);
+	protected int getBrightness(float p_189214_1_) {
+		int brightnessForRender = super.getBrightness(p_189214_1_);
 		int skyLight = brightnessForRender >> 20;
 		int blockLight = (brightnessForRender >> 4) & 0xf;
 		blockLight = Math.max(blockLight, FluidVariantAttributes.getLuminance(fluid.getType()));
@@ -63,25 +63,25 @@ public class FluidStackParticle extends TextureSheetParticle {
 	}
 
 	protected void multiplyColor(int color) {
-		this.rCol *= (float) (color >> 16 & 255) / 255.0F;
-		this.gCol *= (float) (color >> 8 & 255) / 255.0F;
-		this.bCol *= (float) (color & 255) / 255.0F;
+		this.red *= (float) (color >> 16 & 255) / 255.0F;
+		this.green *= (float) (color >> 8 & 255) / 255.0F;
+		this.blue *= (float) (color & 255) / 255.0F;
 	}
 
-	protected float getU0() {
-		return this.sprite.getU((double) ((this.uo + 1.0F) / 4.0F * 16.0F));
+	protected float getMinU() {
+		return this.sprite.getFrameU((double) ((this.uo + 1.0F) / 4.0F * 16.0F));
 	}
 
-	protected float getU1() {
-		return this.sprite.getU((double) (this.uo / 4.0F * 16.0F));
+	protected float getMaxU() {
+		return this.sprite.getFrameU((double) (this.uo / 4.0F * 16.0F));
 	}
 
-	protected float getV0() {
-		return this.sprite.getV((double) (this.vo / 4.0F * 16.0F));
+	protected float getMinV() {
+		return this.sprite.getFrameV((double) (this.vo / 4.0F * 16.0F));
 	}
 
-	protected float getV1() {
-		return this.sprite.getV((double) ((this.vo + 1.0F) / 4.0F * 16.0F));
+	protected float getMaxV() {
+		return this.sprite.getFrameV((double) ((this.vo + 1.0F) / 4.0F * 16.0F));
 	}
 
 	@Override
@@ -90,14 +90,14 @@ public class FluidStackParticle extends TextureSheetParticle {
 		if (!canEvaporate())
 			return;
 		if (onGround)
-			remove();
-		if (!removed)
+			markDead();
+		if (!dead)
 			return;
-		if (!onGround && level.random.nextFloat() < 1 / 8f)
+		if (!onGround && world.random.nextFloat() < 1 / 8f)
 			return;
 
-		Color color = new Color(rCol, gCol, bCol, 1);
-		level.addParticle(ParticleTypes.ENTITY_EFFECT, x, y, z, color.getRedAsFloat(), color.getGreenAsFloat(),
+		Color color = new Color(red, green, blue, 1);
+		world.addParticle(ParticleTypes.ENTITY_EFFECT, x, y, z, color.getRedAsFloat(), color.getGreenAsFloat(),
 			color.getBlueAsFloat());
 	}
 
@@ -106,8 +106,8 @@ public class FluidStackParticle extends TextureSheetParticle {
 	}
 
 	@Override
-	public ParticleRenderType getRenderType() {
-		return ParticleRenderType.TERRAIN_SHEET;
+	public ParticleTextureSheet getType() {
+		return ParticleTextureSheet.TERRAIN_SHEET;
 	}
 
 }

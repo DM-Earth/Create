@@ -3,7 +3,12 @@ package com.simibubi.create.infrastructure.command;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
-
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
 import com.google.common.collect.Lists;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.builder.ArgumentBuilder;
@@ -17,13 +22,6 @@ import com.simibubi.create.foundation.utility.Iterate;
 import io.github.fabricators_of_create.porting_lib.util.LazyOptional;
 import io.github.fabricators_of_create.porting_lib.util.MinecartAndRailUtil;
 
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.vehicle.AbstractMinecart;
-
 public class CouplingCommand {
 
 	public static final SimpleCommandExceptionType ONLY_MINECARTS_ALLOWED =
@@ -34,81 +32,81 @@ public class CouplingCommand {
 		new DynamicCommandExceptionType(a -> Components.literal(
 			"Your selector targeted " + a + " entities. You can only couple 2 Minecarts at a time."));
 
-	public static ArgumentBuilder<CommandSourceStack, ?> register() {
+	public static ArgumentBuilder<ServerCommandSource, ?> register() {
 
-		return Commands.literal("coupling")
-			.requires(cs -> cs.hasPermission(2))
-			.then(Commands.literal("add")
-				.then(Commands.argument("cart1", EntityArgument.entity())
-					.then(Commands.argument("cart2", EntityArgument.entity())
+		return CommandManager.literal("coupling")
+			.requires(cs -> cs.hasPermissionLevel(2))
+			.then(CommandManager.literal("add")
+				.then(CommandManager.argument("cart1", EntityArgumentType.entity())
+					.then(CommandManager.argument("cart2", EntityArgumentType.entity())
 						.executes(ctx -> {
-							Entity cart1 = EntityArgument.getEntity(ctx, "cart1");
-							if (!(cart1 instanceof AbstractMinecart))
+							Entity cart1 = EntityArgumentType.getEntity(ctx, "cart1");
+							if (!(cart1 instanceof AbstractMinecartEntity))
 								throw ONLY_MINECARTS_ALLOWED.create();
 
-							Entity cart2 = EntityArgument.getEntity(ctx, "cart2");
-							if (!(cart2 instanceof AbstractMinecart))
+							Entity cart2 = EntityArgumentType.getEntity(ctx, "cart2");
+							if (!(cart2 instanceof AbstractMinecartEntity))
 								throw ONLY_MINECARTS_ALLOWED.create();
 
-							if (!cart1.getCommandSenderWorld()
-								.equals(cart2.getCommandSenderWorld()))
+							if (!cart1.getEntityWorld()
+								.equals(cart2.getEntityWorld()))
 								throw SAME_DIMENSION.create();
 
 							Entity source = ctx.getSource()
 								.getEntity();
 
 							CouplingHandler.tryToCoupleCarts(
-								source instanceof Player ? (Player) source : null, cart1.getCommandSenderWorld(),
+								source instanceof PlayerEntity ? (PlayerEntity) source : null, cart1.getEntityWorld(),
 								cart1.getId(), cart2.getId());
 
 							return Command.SINGLE_SUCCESS;
 						})))
-				.then(Commands.argument("carts", EntityArgument.entities())
+				.then(CommandManager.argument("carts", EntityArgumentType.entities())
 					.executes(ctx -> {
-						Collection<? extends Entity> entities = EntityArgument.getEntities(ctx, "carts");
+						Collection<? extends Entity> entities = EntityArgumentType.getEntities(ctx, "carts");
 						if (entities.size() != 2)
 							throw TWO_CARTS.create(entities.size());
 
 						ArrayList<? extends Entity> eList = Lists.newArrayList(entities);
 						Entity cart1 = eList.get(0);
-						if (!(cart1 instanceof AbstractMinecart))
+						if (!(cart1 instanceof AbstractMinecartEntity))
 							throw ONLY_MINECARTS_ALLOWED.create();
 
 						Entity cart2 = eList.get(1);
-						if (!(cart2 instanceof AbstractMinecart))
+						if (!(cart2 instanceof AbstractMinecartEntity))
 							throw ONLY_MINECARTS_ALLOWED.create();
 
-						if (!cart1.getCommandSenderWorld()
-							.equals(cart2.getCommandSenderWorld()))
+						if (!cart1.getEntityWorld()
+							.equals(cart2.getEntityWorld()))
 							throw SAME_DIMENSION.create();
 
 						Entity source = ctx.getSource()
 							.getEntity();
 
-						CouplingHandler.tryToCoupleCarts(source instanceof Player ? (Player) source : null,
-							cart1.getCommandSenderWorld(), cart1.getId(), cart2.getId());
+						CouplingHandler.tryToCoupleCarts(source instanceof PlayerEntity ? (PlayerEntity) source : null,
+							cart1.getEntityWorld(), cart1.getId(), cart2.getId());
 
 						return Command.SINGLE_SUCCESS;
 					})))
-			.then(Commands.literal("remove")
-				.then(Commands.argument("cart1", EntityArgument.entity())
-					.then(Commands.argument("cart2", EntityArgument.entity())
+			.then(CommandManager.literal("remove")
+				.then(CommandManager.argument("cart1", EntityArgumentType.entity())
+					.then(CommandManager.argument("cart2", EntityArgumentType.entity())
 						.executes(ctx -> {
-							Entity cart1 = EntityArgument.getEntity(ctx, "cart1");
-							if (!(cart1 instanceof AbstractMinecart))
+							Entity cart1 = EntityArgumentType.getEntity(ctx, "cart1");
+							if (!(cart1 instanceof AbstractMinecartEntity))
 								throw ONLY_MINECARTS_ALLOWED.create();
 
-							Entity cart2 = EntityArgument.getEntity(ctx, "cart2");
-							if (!(cart2 instanceof AbstractMinecart))
+							Entity cart2 = EntityArgumentType.getEntity(ctx, "cart2");
+							if (!(cart2 instanceof AbstractMinecartEntity))
 								throw ONLY_MINECARTS_ALLOWED.create();
 
-							MinecartController cart1Controller = ((AbstractMinecart) cart1).create$getController();
+							MinecartController cart1Controller = ((AbstractMinecartEntity) cart1).create$getController();
 
 							int cart1Couplings = (cart1Controller.isConnectedToCoupling() ? 1 : 0)
 								+ (cart1Controller.isLeadingCoupling() ? 1 : 0);
 							if (cart1Couplings == 0) {
 								ctx.getSource()
-									.sendSuccess(() -> Components.literal("Minecart has no Couplings Attached"), true);
+									.sendFeedback(() -> Components.literal("Minecart has no Couplings Attached"), true);
 								return 0;
 							}
 
@@ -117,11 +115,11 @@ public class CouplingCommand {
 								if (coupledCart == null)
 									continue;
 
-								if (coupledCart != cart2.getUUID())
+								if (coupledCart != cart2.getUuid())
 									continue;
 
 								MinecartController cart2Controller =
-									CapabilityMinecartController.getIfPresent(cart1.getCommandSenderWorld(), coupledCart);
+									CapabilityMinecartController.getIfPresent(cart1.getEntityWorld(), coupledCart);
 								if (cart2Controller == null)
 									return 0;
 
@@ -131,31 +129,31 @@ public class CouplingCommand {
 							}
 
 							ctx.getSource()
-								.sendSuccess(() -> Components.literal("The specified Carts are not coupled"), true);
+								.sendFeedback(() -> Components.literal("The specified Carts are not coupled"), true);
 
 							return 0;
 						}))))
-			.then(Commands.literal("removeAll")
-				.then(Commands.argument("cart", EntityArgument.entity())
+			.then(CommandManager.literal("removeAll")
+				.then(CommandManager.argument("cart", EntityArgumentType.entity())
 					.executes(ctx -> {
-						Entity cart = EntityArgument.getEntity(ctx, "cart");
-						if (!(cart instanceof AbstractMinecart))
+						Entity cart = EntityArgumentType.getEntity(ctx, "cart");
+						if (!(cart instanceof AbstractMinecartEntity))
 							throw ONLY_MINECARTS_ALLOWED.create();
 
-						MinecartController controller = ((AbstractMinecart) cart).create$getController();
+						MinecartController controller = ((AbstractMinecartEntity) cart).create$getController();
 
 						int couplings =
 							(controller.isConnectedToCoupling() ? 1 : 0) + (controller.isLeadingCoupling() ? 1 : 0);
 						if (couplings == 0) {
 							ctx.getSource()
-								.sendSuccess(() -> Components.literal("Minecart has no Couplings Attached"), true);
+								.sendFeedback(() -> Components.literal("Minecart has no Couplings Attached"), true);
 							return 0;
 						}
 
 						controller.decouple();
 
 						ctx.getSource()
-							.sendSuccess(() ->
+							.sendFeedback(() ->
 								Components.literal("Removed " + couplings + " couplings from the Minecart"), true);
 
 						return couplings;

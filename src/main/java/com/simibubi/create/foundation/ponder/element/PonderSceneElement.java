@@ -1,17 +1,16 @@
 package com.simibubi.create.foundation.ponder.element;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.ponder.PonderWorld;
-
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
 
 public abstract class PonderSceneElement extends PonderElement {
 
-	public abstract void renderFirst(PonderWorld world, MultiBufferSource buffer, PoseStack ms, float pt);
+	public abstract void renderFirst(PonderWorld world, VertexConsumerProvider buffer, MatrixStack ms, float pt);
 	
-	public abstract void renderLayer(PonderWorld world, MultiBufferSource buffer, RenderType type, PoseStack ms, float pt);
+	public abstract void renderLayer(PonderWorld world, VertexConsumerProvider buffer, RenderLayer type, MatrixStack ms, float pt);
 	
-	public abstract void renderLast(PonderWorld world, MultiBufferSource buffer, PoseStack ms, float pt);
+	public abstract void renderLast(PonderWorld world, VertexConsumerProvider buffer, MatrixStack ms, float pt);
 	
 }

@@ -1,10 +1,9 @@
 package com.simibubi.create.content.trains.track;
 
 import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
 
 public class FakeTrackBlockEntity extends SyncedBlockEntity {
 
@@ -19,7 +18,7 @@ public class FakeTrackBlockEntity extends SyncedBlockEntity {
 		keepAlive--;
 		if (keepAlive > 0)
 			return;
-		level.removeBlock(worldPosition, false);
+		world.removeBlock(pos, false);
 	}
 	
 	public void keepAlive() {

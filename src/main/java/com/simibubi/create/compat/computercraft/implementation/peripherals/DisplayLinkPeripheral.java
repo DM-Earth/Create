@@ -1,7 +1,9 @@
 package com.simibubi.create.compat.computercraft.implementation.peripherals;
 
 import java.util.concurrent.atomic.AtomicInteger;
-
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtString;
 import org.jetbrains.annotations.NotNull;
 
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlockEntity;
@@ -9,9 +11,6 @@ import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 
 import dan200.computercraft.api.lua.LuaFunction;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
 
 public class DisplayLinkPeripheral extends SyncedPeripheral<DisplayLinkBlockEntity> {
 
@@ -36,7 +35,7 @@ public class DisplayLinkPeripheral extends SyncedPeripheral<DisplayLinkBlockEnti
 
 	@LuaFunction(mainThread = true)
 	public final Object[] getSize() {
-		DisplayTargetStats stats = blockEntity.activeTarget.provideStats(new DisplayLinkContext(blockEntity.getLevel(), blockEntity));
+		DisplayTargetStats stats = blockEntity.activeTarget.provideStats(new DisplayLinkContext(blockEntity.getWorld(), blockEntity));
 		return new Object[]{stats.maxRows(), stats.maxColumns()};
 	}
 
@@ -52,13 +51,13 @@ public class DisplayLinkPeripheral extends SyncedPeripheral<DisplayLinkBlockEnti
 
 	@LuaFunction
 	public final void write(String text) {
-		ListTag tag = blockEntity.getSourceConfig().getList(TAG_KEY, Tag.TAG_STRING);
+		NbtList tag = blockEntity.getSourceConfig().getList(TAG_KEY, NbtElement.STRING_TYPE);
 
 		int x = cursorX.get();
 		int y = cursorY.get();
 
 		for (int i = tag.size(); i <= y; i++) {
-			tag.add(StringTag.valueOf(""));
+			tag.add(NbtString.of(""));
 		}
 
 		StringBuilder builder = new StringBuilder(tag.getString(y));
@@ -66,7 +65,7 @@ public class DisplayLinkPeripheral extends SyncedPeripheral<DisplayLinkBlockEnti
 		builder.append(" ".repeat(Math.max(0, x - builder.length())));
 		builder.replace(x, x + text.length(), text);
 
-		tag.set(y, StringTag.valueOf(builder.toString()));
+		tag.set(y, NbtString.of(builder.toString()));
 
 		synchronized (blockEntity) {
 			blockEntity.getSourceConfig().put(TAG_KEY, tag);
@@ -77,10 +76,10 @@ public class DisplayLinkPeripheral extends SyncedPeripheral<DisplayLinkBlockEnti
 
 	@LuaFunction
 	public final void clearLine() {
-		ListTag tag = blockEntity.getSourceConfig().getList(TAG_KEY, Tag.TAG_STRING);
+		NbtList tag = blockEntity.getSourceConfig().getList(TAG_KEY, NbtElement.STRING_TYPE);
 
 		if (tag.size() > cursorY.get())
-			tag.set(cursorY.get(), StringTag.valueOf(""));
+			tag.set(cursorY.get(), NbtString.of(""));
 
 		synchronized (blockEntity) {
 			blockEntity.getSourceConfig().put(TAG_KEY, tag);
@@ -90,7 +89,7 @@ public class DisplayLinkPeripheral extends SyncedPeripheral<DisplayLinkBlockEnti
 	@LuaFunction
 	public final void clear() {
 		synchronized (blockEntity) {
-			blockEntity.getSourceConfig().put(TAG_KEY, new ListTag());
+			blockEntity.getSourceConfig().put(TAG_KEY, new NbtList());
 		}
 	}
 

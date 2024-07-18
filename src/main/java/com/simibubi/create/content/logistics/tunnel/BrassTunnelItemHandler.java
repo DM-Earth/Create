@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
 
 public class BrassTunnelItemHandler implements SingleSlotStorage<ItemVariant> {
 
@@ -27,7 +27,7 @@ public class BrassTunnelItemHandler implements SingleSlotStorage<ItemVariant> {
 
 		if (!blockEntity.canTakeItems())
 			return 0;
-		int toInsert = Math.min(ItemHelper.truncateLong(maxAmount), resource.getItem().getMaxStackSize());
+		int toInsert = Math.min(ItemHelper.truncateLong(maxAmount), resource.getItem().getMaxCount());
 
 		blockEntity.setStackToDistribute(resource.toStack(toInsert), null, transaction);
 		return toInsert;
@@ -59,7 +59,7 @@ public class BrassTunnelItemHandler implements SingleSlotStorage<ItemVariant> {
 
 	@Override
 	public long getCapacity() {
-		return getStack().getMaxStackSize();
+		return getStack().getMaxCount();
 	}
 
 	public ItemStack getStack() {

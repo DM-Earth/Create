@@ -17,23 +17,23 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import io.github.fabricators_of_create.porting_lib.util.FluidUtil;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.material.Fluid;
+import net.minecraft.fluid.Fluid;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.text.Text;
+import net.minecraft.world.World;
 
-public class FillingRecipe extends ProcessingRecipe<Container> implements IAssemblyRecipe {
+public class FillingRecipe extends ProcessingRecipe<Inventory> implements IAssemblyRecipe {
 
 	public FillingRecipe(ProcessingRecipeParams params) {
 		super(AllRecipeTypes.FILLING, params);
 	}
 
 	@Override
-	public boolean matches(Container inv, Level p_77569_2_) {
+	public boolean matches(Inventory inv, World p_77569_2_) {
 		return ingredients.get(0)
-				.test(inv.getItem(0));
+				.test(inv.getStack(0));
 	}
 
 	@Override
@@ -68,7 +68,7 @@ public class FillingRecipe extends ProcessingRecipe<Container> implements IAssem
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public Component getDescriptionForAssembly() {
+	public Text getDescriptionForAssembly() {
 		List<FluidStack> matchingFluidStacks = fluidIngredients.get(0).getMatchingFluidStacks();
 
 		if (matchingFluidStacks.size() == 0)
@@ -76,11 +76,11 @@ public class FillingRecipe extends ProcessingRecipe<Container> implements IAssem
 
 		Fluid fluid = matchingFluidStacks.get(0).getFluid();
 		String translationKey = FluidUtil.getTranslationKey(fluid);
-		return Lang.translateDirect("recipe.assembly.spout_filling_fluid", Component.translatable(translationKey).getString());
+		return Lang.translateDirect("recipe.assembly.spout_filling_fluid", Text.translatable(translationKey).getString());
 	}
 
 	@Override
-	public void addRequiredMachines(Set<ItemLike> list) {
+	public void addRequiredMachines(Set<ItemConvertible> list) {
 		list.add(AllBlocks.SPOUT.get());
 	}
 

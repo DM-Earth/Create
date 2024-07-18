@@ -2,8 +2,7 @@ package com.simibubi.create.content.equipment.bell;
 
 import com.simibubi.create.content.contraptions.behaviour.BellMovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-
-import net.minecraft.core.BlockPos;
+import net.minecraft.util.math.BlockPos;
 
 public class HauntedBellMovementBehaviour extends BellMovementBehaviour {
 
@@ -18,7 +17,7 @@ public class HauntedBellMovementBehaviour extends BellMovementBehaviour {
 
 	@Override
 	public void visitNewPosition(MovementContext context, BlockPos pos) {
-		if (!context.world.isClientSide && getRecharge(context) == 0) {
+		if (!context.world.isClient && getRecharge(context) == 0) {
 			HauntedBellPulser.sendPulse(context.world, pos, DISTANCE, false);
 			setRecharge(context, HauntedBellBlockEntity.RECHARGE_TICKS);
 			playSound(context);

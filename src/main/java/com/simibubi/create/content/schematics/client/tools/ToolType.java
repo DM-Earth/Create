@@ -3,12 +3,10 @@ package com.simibubi.create.content.schematics.client.tools;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 
 public enum ToolType {
 
@@ -31,7 +29,7 @@ public enum ToolType {
 		return tool;
 	}
 
-	public MutableComponent getDisplayName() {
+	public MutableText getDisplayName() {
 		return Lang.translateDirect("schematic.tool." + Lang.asId(name()));
 	}
 
@@ -47,7 +45,7 @@ public enum ToolType {
 		return tools;
 	}
 
-	public List<Component> getDescription() {
+	public List<Text> getDescription() {
 		return Lang.translatedOptions("schematic.tool." + Lang.asId(name()) + ".description", "0", "1", "2", "3");
 	}
 

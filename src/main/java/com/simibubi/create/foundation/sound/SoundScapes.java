@@ -9,16 +9,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.BiFunction;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.BlockPos;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
 import com.simibubi.create.foundation.utility.Pair;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.entity.Entity;
 
 public class SoundScapes {
 
@@ -48,7 +46,7 @@ public class SoundScapes {
 	}
 
 	private static SoundScape kinetic(float pitch, AmbienceGroup group) {
-		return new SoundScape(pitch, group).continuous(SoundEvents.MINECART_INSIDE, .25f, 1);
+		return new SoundScape(pitch, group).continuous(SoundEvents.ENTITY_MINECART_INSIDE, .25f, 1);
 	}
 
 	private static SoundScape cogwheel(float pitch, AmbienceGroup group) {
@@ -127,14 +125,14 @@ public class SoundScapes {
 	}
 
 	protected static boolean outOfRange(BlockPos pos) {
-		return !getCameraPos().closerThan(pos, MAX_AMBIENT_SOURCE_DISTANCE);
+		return !getCameraPos().isWithinDistance(pos, MAX_AMBIENT_SOURCE_DISTANCE);
 	}
 
 	protected static BlockPos getCameraPos() {
-		Entity renderViewEntity = Minecraft.getInstance().cameraEntity;
+		Entity renderViewEntity = MinecraftClient.getInstance().cameraEntity;
 		if (renderViewEntity == null)
-			return BlockPos.ZERO;
-		BlockPos playerLocation = renderViewEntity.blockPosition();
+			return BlockPos.ORIGIN;
+		BlockPos playerLocation = renderViewEntity.getBlockPos();
 		return playerLocation;
 	}
 

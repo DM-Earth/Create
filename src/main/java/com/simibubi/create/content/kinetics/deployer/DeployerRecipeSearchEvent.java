@@ -8,15 +8,15 @@ import javax.annotation.Nullable;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandlerContainer;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.recipe.Recipe;
 
 public class DeployerRecipeSearchEvent {
 	private boolean canceled = false;
 	private final DeployerBlockEntity blockEntity;
 	private final ItemStackHandlerContainer inventory;
 	@Nullable
-	Recipe<? extends Container> recipe = null;
+	Recipe<? extends Inventory> recipe = null;
 	private int maxPriority = 0;
 
 	public static final Event<DeployerRecipeSearchCallback> EVENT = EventFactory.createArrayBacked(DeployerRecipeSearchCallback.class, callbacks -> (event) -> {
@@ -58,13 +58,13 @@ public class DeployerRecipeSearchEvent {
 	}
 
 	@Nullable
-	public Recipe<? extends Container> getRecipe() {
+	public Recipe<? extends Inventory> getRecipe() {
 		if (canceled)
 			return null;
 		return recipe;
 	}
 
-	public void addRecipe(Supplier<Optional<? extends Recipe<? extends Container>>> recipeSupplier, int priority) {
+	public void addRecipe(Supplier<Optional<? extends Recipe<? extends Inventory>>> recipeSupplier, int priority) {
 		if (!shouldAddRecipeWithPriority(priority))
 			return;
 		recipeSupplier.get().ifPresent(newRecipe -> {

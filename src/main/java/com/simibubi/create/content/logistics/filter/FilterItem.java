@@ -19,26 +19,26 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import io.github.fabricators_of_create.porting_lib.util.NetworkHooks;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.world.World;
 
-public class FilterItem extends Item implements MenuProvider {
+public class FilterItem extends Item implements NamedScreenHandlerFactory {
 
 	private FilterType type;
 
@@ -46,32 +46,32 @@ public class FilterItem extends Item implements MenuProvider {
 		REGULAR, ATTRIBUTE;
 	}
 
-	public static FilterItem regular(Properties properties) {
+	public static FilterItem regular(Settings properties) {
 		return new FilterItem(FilterType.REGULAR, properties);
 	}
 
-	public static FilterItem attribute(Properties properties) {
+	public static FilterItem attribute(Settings properties) {
 		return new FilterItem(FilterType.ATTRIBUTE, properties);
 	}
 
-	private FilterItem(FilterType type, Properties properties) {
+	private FilterItem(FilterType type, Settings properties) {
 		super(properties);
 		this.type = type;
 	}
 
 	@Nonnull
 	@Override
-	public InteractionResult useOn(UseOnContext context) {
+	public ActionResult useOnBlock(ItemUsageContext context) {
 		if (context.getPlayer() == null)
-			return InteractionResult.PASS;
-		return use(context.getLevel(), context.getPlayer(), context.getHand()).getResult();
+			return ActionResult.PASS;
+		return use(context.getWorld(), context.getPlayer(), context.getHand()).getResult();
 	}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public void appendHoverText(ItemStack stack, Level worldIn, List<Component> tooltip, TooltipFlag flagIn) {
+	public void appendTooltip(ItemStack stack, World worldIn, List<Text> tooltip, TooltipContext flagIn) {
 		if (!AllKeys.shiftDown()) {
-			List<Component> makeSummary = makeSummary(stack);
+			List<Text> makeSummary = makeSummary(stack);
 			if (makeSummary.isEmpty())
 				return;
 			tooltip.add(Components.literal(" "));
@@ -79,23 +79,23 @@ public class FilterItem extends Item implements MenuProvider {
 		}
 	}
 
-	private List<Component> makeSummary(ItemStack filter) {
-		List<Component> list = new ArrayList<>();
-		if (!filter.hasTag())
+	private List<Text> makeSummary(ItemStack filter) {
+		List<Text> list = new ArrayList<>();
+		if (!filter.hasNbt())
 			return list;
 
 		if (type == FilterType.REGULAR) {
 			ItemStackHandler filterItems = getFilterItems(filter);
-			boolean blacklist = filter.getOrCreateTag()
+			boolean blacklist = filter.getOrCreateNbt()
 				.getBoolean("Blacklist");
 
 			list.add((blacklist ? Lang.translateDirect("gui.filter.deny_list")
-				: Lang.translateDirect("gui.filter.allow_list")).withStyle(ChatFormatting.GOLD));
+				: Lang.translateDirect("gui.filter.allow_list")).formatted(Formatting.GOLD));
 			int count = 0;
 			for (int i = 0; i < filterItems.getSlotCount(); i++) {
 				if (count > 3) {
 					list.add(Components.literal("- ...")
-						.withStyle(ChatFormatting.DARK_GRAY));
+						.formatted(Formatting.DARK_GRAY));
 					break;
 				}
 
@@ -103,8 +103,8 @@ public class FilterItem extends Item implements MenuProvider {
 				if (filterStack.isEmpty())
 					continue;
 				list.add(Components.literal("- ")
-					.append(filterStack.getHoverName())
-					.withStyle(ChatFormatting.GRAY));
+					.append(filterStack.getName())
+					.formatted(Formatting.GRAY));
 				count++;
 			}
 
@@ -113,26 +113,26 @@ public class FilterItem extends Item implements MenuProvider {
 		}
 
 		if (type == FilterType.ATTRIBUTE) {
-			WhitelistMode whitelistMode = WhitelistMode.values()[filter.getOrCreateTag()
+			WhitelistMode whitelistMode = WhitelistMode.values()[filter.getOrCreateNbt()
 				.getInt("WhitelistMode")];
 			list.add((whitelistMode == WhitelistMode.WHITELIST_CONJ
 				? Lang.translateDirect("gui.attribute_filter.allow_list_conjunctive")
 				: whitelistMode == WhitelistMode.WHITELIST_DISJ
 					? Lang.translateDirect("gui.attribute_filter.allow_list_disjunctive")
-					: Lang.translateDirect("gui.attribute_filter.deny_list")).withStyle(ChatFormatting.GOLD));
+					: Lang.translateDirect("gui.attribute_filter.deny_list")).formatted(Formatting.GOLD));
 
 			int count = 0;
-			ListTag attributes = filter.getOrCreateTag()
-				.getList("MatchedAttributes", Tag.TAG_COMPOUND);
-			for (Tag inbt : attributes) {
-				CompoundTag compound = (CompoundTag) inbt;
+			NbtList attributes = filter.getOrCreateNbt()
+				.getList("MatchedAttributes", NbtElement.COMPOUND_TYPE);
+			for (NbtElement inbt : attributes) {
+				NbtCompound compound = (NbtCompound) inbt;
 				ItemAttribute attribute = ItemAttribute.fromNBT(compound);
 				if (attribute == null)
 					continue;
 				boolean inverted = compound.getBoolean("Inverted");
 				if (count > 3) {
 					list.add(Components.literal("- ...")
-						.withStyle(ChatFormatting.DARK_GRAY));
+						.formatted(Formatting.DARK_GRAY));
 					break;
 				}
 				list.add(Components.literal("- ")
@@ -148,22 +148,22 @@ public class FilterItem extends Item implements MenuProvider {
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
-		ItemStack heldItem = player.getItemInHand(hand);
+	public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
+		ItemStack heldItem = player.getStackInHand(hand);
 
-		if (!player.isShiftKeyDown() && hand == InteractionHand.MAIN_HAND) {
-			if (!world.isClientSide && player instanceof ServerPlayer)
-				NetworkHooks.openScreen((ServerPlayer) player, this, buf -> {
-					buf.writeItem(heldItem);
+		if (!player.isSneaking() && hand == Hand.MAIN_HAND) {
+			if (!world.isClient && player instanceof ServerPlayerEntity)
+				NetworkHooks.openScreen((ServerPlayerEntity) player, this, buf -> {
+					buf.writeItemStack(heldItem);
 				});
-			return InteractionResultHolder.success(heldItem);
+			return TypedActionResult.success(heldItem);
 		}
-		return InteractionResultHolder.pass(heldItem);
+		return TypedActionResult.pass(heldItem);
 	}
 
 	@Override
-	public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) {
-		ItemStack heldItem = player.getMainHandItem();
+	public ScreenHandler createMenu(int id, PlayerInventory inv, PlayerEntity player) {
+		ItemStack heldItem = player.getMainHandStack();
 		if (type == FilterType.REGULAR)
 			return FilterMenu.create(id, inv, heldItem);
 		if (type == FilterType.ATTRIBUTE)
@@ -172,17 +172,17 @@ public class FilterItem extends Item implements MenuProvider {
 	}
 
 	@Override
-	public Component getDisplayName() {
-		return getDescription();
+	public Text getDisplayName() {
+		return getName();
 	}
 
 	public static ItemStackHandler getFilterItems(ItemStack stack) {
 		ItemStackHandler newInv = new ItemStackHandler(18);
 		if (AllItems.FILTER.get() != stack.getItem())
 			throw new IllegalArgumentException("Cannot get filter items from non-filter: " + stack);
-		if (!stack.hasTag())
+		if (!stack.hasNbt())
 			return newInv;
-		CompoundTag invNBT = stack.getOrCreateTagElement("Items");
+		NbtCompound invNBT = stack.getOrCreateSubNbt("Items");
 		if (!invNBT.isEmpty())
 			newInv.deserializeNBT(invNBT);
 		return newInv;

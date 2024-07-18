@@ -4,28 +4,28 @@ import com.simibubi.create.foundation.gui.menu.GhostItemMenu;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.screen.slot.SlotActionType;
 
 public abstract class AbstractFilterMenu extends GhostItemMenu<ItemStack> {
 
-	protected AbstractFilterMenu(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	protected AbstractFilterMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id, inv, extraData);
 	}
 
-	protected AbstractFilterMenu(MenuType<?> type, int id, Inventory inv, ItemStack contentHolder) {
+	protected AbstractFilterMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, ItemStack contentHolder) {
 		super(type, id, inv, contentHolder);
 	}
 
 	@Override
-	public void clicked(int slotId, int dragType, ClickType clickTypeIn, Player player) {
-		if (slotId == playerInventory.selected && clickTypeIn != ClickType.THROW)
+	public void onSlotClick(int slotId, int dragType, SlotActionType clickTypeIn, PlayerEntity player) {
+		if (slotId == playerInventory.selectedSlot && clickTypeIn != SlotActionType.THROW)
 			return;
-		super.clicked(slotId, dragType, clickTypeIn, player);
+		super.onSlotClick(slotId, dragType, clickTypeIn, player);
 	}
 
 	@Override
@@ -35,8 +35,8 @@ public abstract class AbstractFilterMenu extends GhostItemMenu<ItemStack> {
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	protected ItemStack createOnClient(FriendlyByteBuf extraData) {
-		return extraData.readItem();
+	protected ItemStack createOnClient(PacketByteBuf extraData) {
+		return extraData.readItemStack();
 	}
 
 	protected abstract int getPlayerInventoryXOffset();
@@ -53,13 +53,13 @@ public abstract class AbstractFilterMenu extends GhostItemMenu<ItemStack> {
 
 	@Override
 	protected void saveData(ItemStack contentHolder) {
-		contentHolder.getOrCreateTag()
+		contentHolder.getOrCreateNbt()
 				.put("Items", ghostInventory.serializeNBT());
 	}
 
 	@Override
-	public boolean stillValid(Player player) {
-		return playerInventory.getSelected() == contentHolder;
+	public boolean canUse(PlayerEntity player) {
+		return playerInventory.getMainHandStack() == contentHolder;
 	}
 
 }

@@ -6,13 +6,13 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class EjectorPlacementPacket extends SimplePacketBase {
 
@@ -27,36 +27,36 @@ public class EjectorPlacementPacket extends SimplePacketBase {
 		this.facing = facing;
 	}
 
-	public EjectorPlacementPacket(FriendlyByteBuf buffer) {
+	public EjectorPlacementPacket(PacketByteBuf buffer) {
 		h = buffer.readInt();
 		v = buffer.readInt();
 		pos = buffer.readBlockPos();
-		facing = Direction.from3DDataValue(buffer.readVarInt());
+		facing = Direction.byId(buffer.readVarInt());
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(h);
 		buffer.writeInt(v);
 		buffer.writeBlockPos(pos);
-		buffer.writeVarInt(facing.get3DDataValue());
+		buffer.writeVarInt(facing.getId());
 	}
 
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> {
-			ServerPlayer player = context.getSender();
+			ServerPlayerEntity player = context.getSender();
 			if (player == null)
 				return;
-			Level world = player.level();
-			if (world == null || !world.isLoaded(pos))
+			World world = player.getWorld();
+			if (world == null || !world.canSetBlock(pos))
 				return;
 			BlockEntity blockEntity = world.getBlockEntity(pos);
 			BlockState state = world.getBlockState(pos);
 			if (blockEntity instanceof EjectorBlockEntity)
 				((EjectorBlockEntity) blockEntity).setTarget(h, v);
 			if (AllBlocks.WEIGHTED_EJECTOR.has(state))
-				world.setBlockAndUpdate(pos, state.setValue(EjectorBlock.HORIZONTAL_FACING, facing));
+				world.setBlockState(pos, state.with(EjectorBlock.HORIZONTAL_FACING, facing));
 		});
 		return true;
 	}
@@ -69,12 +69,12 @@ public class EjectorPlacementPacket extends SimplePacketBase {
 			this.pos = pos;
 		}
 
-		public ClientBoundRequest(FriendlyByteBuf buffer) {
+		public ClientBoundRequest(PacketByteBuf buffer) {
 			this.pos = buffer.readBlockPos();
 		}
 
 		@Override
-		public void write(FriendlyByteBuf buffer) {
+		public void write(PacketByteBuf buffer) {
 			buffer.writeBlockPos(pos);
 		}
 

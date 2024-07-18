@@ -7,6 +7,7 @@ publishing {
     }
 
     repositories {
+        /*
         maven {
             url = "https://mvn.devos.one/${System.getenv("PUBLISH_SUFFIX")}/"
             credentials {
@@ -14,6 +15,16 @@ publishing {
                 password = System.getenv("MAVEN_PASS")
             }
             authentication { basic(BasicAuthentication) }
+        }
+         */
+
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/dm-earth/CreateFabricYarned")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
         }
     }
 }

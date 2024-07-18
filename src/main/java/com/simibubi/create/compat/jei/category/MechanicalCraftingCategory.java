@@ -8,7 +8,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import org.jetbrains.annotations.NotNull;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.compat.jei.category.animations.AnimatedCrafter;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.utility.Components;
@@ -19,18 +18,19 @@ import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.ingredients.IIngredientRenderer;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 @ParametersAreNonnullByDefault
 public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRecipe> {
@@ -92,10 +92,10 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 	}
 
 	@Override
-	public void draw(CraftingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, GuiGraphics graphics, double mouseX,
+	public void draw(CraftingRecipe recipe, IRecipeSlotsView iRecipeSlotsView, DrawContext graphics, double mouseX,
 		double mouseY) {
-		PoseStack matrixStack = graphics.pose();
-		matrixStack.pushPose();
+		MatrixStack matrixStack = graphics.getMatrices();
+		matrixStack.push();
 		float scale = getScale(recipe);
 		matrixStack.translate(getXPadding(recipe), getYPadding(recipe), 0);
 
@@ -104,20 +104,20 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 				if (!recipe.getIngredients()
 					.get(row * getWidth(recipe) + col)
 					.isEmpty()) {
-					matrixStack.pushPose();
+					matrixStack.push();
 					matrixStack.translate(col * 19 * scale, row * 19 * scale, 0);
 					matrixStack.scale(scale, scale, scale);
 					AllGuiTextures.JEI_SLOT.render(graphics, 0, 0);
-					matrixStack.popPose();
+					matrixStack.pop();
 				}
 
-		matrixStack.popPose();
+		matrixStack.pop();
 
 		AllGuiTextures.JEI_SLOT.render(graphics, 133, 80);
 		AllGuiTextures.JEI_DOWN_ARROW.render(graphics, 128, 59);
 		crafter.draw(graphics, 129, 25);
 
-		matrixStack.pushPose();
+		matrixStack.push();
 		matrixStack.translate(0, 0, 300);
 
 		int amount = 0;
@@ -127,8 +127,8 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 			amount++;
 		}
 
-		graphics.drawString(Minecraft.getInstance().font, amount + "", 142, 39, 0xFFFFFF);
-		matrixStack.popPose();
+		graphics.drawTextWithShadow(MinecraftClient.getInstance().textRenderer, amount + "", 142, 39, 0xFFFFFF);
+		matrixStack.pop();
 	}
 
 	private static final class CrafterIngredientRenderer implements IIngredientRenderer<ItemStack> {
@@ -142,27 +142,27 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 		}
 
 		@Override
-		public void render(GuiGraphics graphics, @NotNull ItemStack ingredient) {
-			PoseStack matrixStack = graphics.pose();
-			matrixStack.pushPose();
+		public void render(DrawContext graphics, @NotNull ItemStack ingredient) {
+			MatrixStack matrixStack = graphics.getMatrices();
+			matrixStack.push();
 			float scale = getScale(recipe);
 			matrixStack.scale(scale, scale, scale);
 
 			if (ingredient != null) {
-				PoseStack modelViewStack = RenderSystem.getModelViewStack();
-				modelViewStack.pushPose();
+				MatrixStack modelViewStack = RenderSystem.getModelViewStack();
+				modelViewStack.push();
 				RenderSystem.applyModelViewMatrix();
 				RenderSystem.enableDepthTest();
-				Minecraft minecraft = Minecraft.getInstance();
-				Font font = getFontRenderer(minecraft, ingredient);
-				graphics.renderItem(ingredient, 0, 0);
-				graphics.renderItemDecorations(font, ingredient, 0, 0, null);
+				MinecraftClient minecraft = MinecraftClient.getInstance();
+				TextRenderer font = getFontRenderer(minecraft, ingredient);
+				graphics.drawItem(ingredient, 0, 0);
+				graphics.drawItemInSlot(font, ingredient, 0, 0, null);
 				RenderSystem.disableBlend();
-				modelViewStack.popPose();
+				modelViewStack.pop();
 				RenderSystem.applyModelViewMatrix();
 			}
 
-			matrixStack.popPose();
+			matrixStack.pop();
 		}
 
 		@Override
@@ -176,15 +176,15 @@ public class MechanicalCraftingCategory extends CreateRecipeCategory<CraftingRec
 		}
 
 		@Override
-		public List<Component> getTooltip(ItemStack ingredient, TooltipFlag tooltipFlag) {
-			Minecraft minecraft = Minecraft.getInstance();
-			Player player = minecraft.player;
+		public List<Text> getTooltip(ItemStack ingredient, TooltipContext tooltipFlag) {
+			MinecraftClient minecraft = MinecraftClient.getInstance();
+			PlayerEntity player = minecraft.player;
 			try {
-				return ingredient.getTooltipLines(player, tooltipFlag);
+				return ingredient.getTooltip(player, tooltipFlag);
 			} catch (RuntimeException | LinkageError e) {
-				List<Component> list = new ArrayList<>();
-				MutableComponent crash = Components.translatable("jei.tooltip.error.crash");
-				list.add(crash.withStyle(ChatFormatting.RED));
+				List<Text> list = new ArrayList<>();
+				MutableText crash = Components.translatable("jei.tooltip.error.crash");
+				list.add(crash.formatted(Formatting.RED));
 				return list;
 			}
 		}

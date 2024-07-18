@@ -3,23 +3,21 @@ package com.simibubi.create.content.equipment.toolbox;
 import java.util.List;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
-
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.foundation.networking.ISyncPersistentData.PersistentDataPacket;
 import com.simibubi.create.foundation.utility.WorldAttached;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.phys.Vec3;
 
 public class ToolboxHandler {
 
@@ -27,45 +25,45 @@ public class ToolboxHandler {
 		new WorldAttached<>(w -> new WeakHashMap<>());
 
 	public static void onLoad(ToolboxBlockEntity be) {
-		toolboxes.get(be.getLevel())
-			.put(be.getBlockPos(), be);
+		toolboxes.get(be.getWorld())
+			.put(be.getPos(), be);
 	}
 
 	public static void onUnload(ToolboxBlockEntity be) {
-		toolboxes.get(be.getLevel())
-			.remove(be.getBlockPos());
+		toolboxes.get(be.getWorld())
+			.remove(be.getPos());
 	}
 
 	static int validationTimer = 20;
 
-	public static void entityTick(Entity entity, Level world) {
-		if (world.isClientSide)
+	public static void entityTick(Entity entity, World world) {
+		if (world.isClient)
 			return;
-		if (!(world instanceof ServerLevel))
+		if (!(world instanceof ServerWorld))
 			return;
-		if (!(entity instanceof ServerPlayer))
+		if (!(entity instanceof ServerPlayerEntity))
 			return;
-		if (entity.tickCount % validationTimer != 0)
+		if (entity.age % validationTimer != 0)
 			return;
 
-		ServerPlayer player = (ServerPlayer) entity;
+		ServerPlayerEntity player = (ServerPlayerEntity) entity;
 		if (!player.getCustomData()
 			.contains("CreateToolboxData"))
 			return;
 
 		boolean sendData = false;
-		CompoundTag compound = player.getCustomData()
+		NbtCompound compound = player.getCustomData()
 			.getCompound("CreateToolboxData");
 		for (int i = 0; i < 9; i++) {
 			String key = String.valueOf(i);
 			if (!compound.contains(key))
 				continue;
 
-			CompoundTag data = compound.getCompound(key);
-			BlockPos pos = NbtUtils.readBlockPos(data.getCompound("Pos"));
+			NbtCompound data = compound.getCompound(key);
+			BlockPos pos = NbtHelper.toBlockPos(data.getCompound("Pos"));
 			int slot = data.getInt("Slot");
 
-			if (!world.isLoaded(pos))
+			if (!world.canSetBlock(pos))
 				continue;
 			if (!(world.getBlockState(pos)
 				.getBlock() instanceof ToolboxBlock)) {
@@ -83,8 +81,8 @@ public class ToolboxHandler {
 			syncData(player);
 	}
 
-	public static void playerLogin(Player player) {
-		if (!(player instanceof ServerPlayer))
+	public static void playerLogin(PlayerEntity player) {
+		if (!(player instanceof ServerPlayerEntity))
 			return;
 		if (player.getCustomData()
 			.contains("CreateToolboxData")
@@ -95,12 +93,12 @@ public class ToolboxHandler {
 		}
 	}
 
-	public static void syncData(Player player) {
-		AllPackets.getChannel().sendToClient(new PersistentDataPacket(player), (ServerPlayer) player);
+	public static void syncData(PlayerEntity player) {
+		AllPackets.getChannel().sendToClient(new PersistentDataPacket(player), (ServerPlayerEntity) player);
 	}
 
-	public static List<ToolboxBlockEntity> getNearest(LevelAccessor world, Player player, int maxAmount) {
-		Vec3 location = player.position();
+	public static List<ToolboxBlockEntity> getNearest(WorldAccess world, PlayerEntity player, int maxAmount) {
+		Vec3d location = player.getPos();
 		double maxRange = getMaxRange(player);
 		return toolboxes.get(world)
 			.keySet()
@@ -113,16 +111,16 @@ public class ToolboxHandler {
 			.collect(Collectors.toList());
 	}
 
-	public static void unequip(Player player, int hotbarSlot, boolean keepItems) {
-		CompoundTag compound = player.getCustomData()
+	public static void unequip(PlayerEntity player, int hotbarSlot, boolean keepItems) {
+		NbtCompound compound = player.getCustomData()
 			.getCompound("CreateToolboxData");
-		Level world = player.level();
+		World world = player.getWorld();
 		String key = String.valueOf(hotbarSlot);
 		if (!compound.contains(key))
 			return;
 
-		CompoundTag prevData = compound.getCompound(key);
-		BlockPos prevPos = NbtUtils.readBlockPos(prevData.getCompound("Pos"));
+		NbtCompound prevData = compound.getCompound(key);
+		BlockPos prevPos = NbtHelper.toBlockPos(prevData.getCompound("Pos"));
 		int prevSlot = prevData.getInt("Slot");
 
 		BlockEntity prevBlockEntity = world.getBlockEntity(prevPos);
@@ -133,18 +131,18 @@ public class ToolboxHandler {
 		compound.remove(key);
 	}
 
-	public static boolean withinRange(Player player, ToolboxBlockEntity box) {
-		if (player.level() != box.getLevel())
+	public static boolean withinRange(PlayerEntity player, ToolboxBlockEntity box) {
+		if (player.getWorld() != box.getWorld())
 			return false;
 		double maxRange = getMaxRange(player);
-		return distance(player.position(), box.getBlockPos()) < maxRange * maxRange;
+		return distance(player.getPos(), box.getPos()) < maxRange * maxRange;
 	}
 
-	public static double distance(Vec3 location, BlockPos p) {
-		return location.distanceToSqr(p.getX() + 0.5f, p.getY(), p.getZ() + 0.5f);
+	public static double distance(Vec3d location, BlockPos p) {
+		return location.squaredDistanceTo(p.getX() + 0.5f, p.getY(), p.getZ() + 0.5f);
 	}
 
-	public static double getMaxRange(Player player) {
+	public static double getMaxRange(PlayerEntity player) {
 		return AllConfigs.server().equipment.toolboxRange.get()
 			.doubleValue();
 	}

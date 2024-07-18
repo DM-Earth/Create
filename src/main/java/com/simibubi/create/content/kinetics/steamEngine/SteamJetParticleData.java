@@ -8,32 +8,31 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.simibubi.create.AllParticleTypes;
 import com.simibubi.create.foundation.particle.ICustomParticleDataWithSprite;
-
-import net.minecraft.client.particle.ParticleEngine.SpriteParticleRegistration;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.network.FriendlyByteBuf;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.particle.ParticleManager.SpriteAwareFactory;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleType;
 
-public class SteamJetParticleData implements ParticleOptions, ICustomParticleDataWithSprite<SteamJetParticleData> {
+public class SteamJetParticleData implements ParticleEffect, ICustomParticleDataWithSprite<SteamJetParticleData> {
 
 	public static final Codec<SteamJetParticleData> CODEC = RecordCodecBuilder.create(i -> i
 		.group(Codec.FLOAT.fieldOf("speed")
 			.forGetter(p -> p.speed))
 		.apply(i, SteamJetParticleData::new));
 
-	public static final ParticleOptions.Deserializer<SteamJetParticleData> DESERIALIZER =
-		new ParticleOptions.Deserializer<SteamJetParticleData>() {
-			public SteamJetParticleData fromCommand(ParticleType<SteamJetParticleData> particleTypeIn,
+	public static final ParticleEffect.Factory<SteamJetParticleData> DESERIALIZER =
+		new ParticleEffect.Factory<SteamJetParticleData>() {
+			public SteamJetParticleData read(ParticleType<SteamJetParticleData> particleTypeIn,
 				StringReader reader) throws CommandSyntaxException {
 				reader.expect(' ');
 				float speed = reader.readFloat();
 				return new SteamJetParticleData(speed);
 			}
 
-			public SteamJetParticleData fromNetwork(ParticleType<SteamJetParticleData> particleTypeIn,
-				FriendlyByteBuf buffer) {
+			public SteamJetParticleData read(ParticleType<SteamJetParticleData> particleTypeIn,
+				PacketByteBuf buffer) {
 				return new SteamJetParticleData(buffer.readFloat());
 			}
 		};
@@ -54,17 +53,17 @@ public class SteamJetParticleData implements ParticleOptions, ICustomParticleDat
 	}
 
 	@Override
-	public void writeToNetwork(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeFloat(speed);
 	}
 
 	@Override
-	public String writeToString() {
+	public String asString() {
 		return String.format(Locale.ROOT, "%s %f", AllParticleTypes.STEAM_JET.parameter(), speed);
 	}
 
 	@Override
-	public Deserializer<SteamJetParticleData> getDeserializer() {
+	public Factory<SteamJetParticleData> getDeserializer() {
 		return DESERIALIZER;
 	}
 
@@ -75,7 +74,7 @@ public class SteamJetParticleData implements ParticleOptions, ICustomParticleDat
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public SpriteParticleRegistration<SteamJetParticleData> getMetaFactory() {
+	public SpriteAwareFactory<SteamJetParticleData> getMetaFactory() {
 		return SteamJetParticle.Factory::new;
 	}
 

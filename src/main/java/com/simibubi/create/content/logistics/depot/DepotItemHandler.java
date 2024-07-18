@@ -11,8 +11,8 @@ import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Unit;
-import net.minecraft.world.item.ItemStack;
 
 public class DepotItemHandler extends SnapshotParticipant<Unit> implements Storage<ItemVariant> {
 
@@ -29,7 +29,7 @@ public class DepotItemHandler extends SnapshotParticipant<Unit> implements Stora
 			return 0;
 		if (!behaviour.isOutputEmpty() && !behaviour.canMergeItems())
 			return 0;
-		int toInsert = Math.min(ItemHelper.truncateLong(maxAmount), resource.getItem().getMaxStackSize());
+		int toInsert = Math.min(ItemHelper.truncateLong(maxAmount), resource.getItem().getMaxCount());
 		ItemStack stack = resource.toStack(toInsert);
 		if (!behaviour.isItemValid(stack))
 			return 0;
@@ -55,7 +55,7 @@ public class DepotItemHandler extends SnapshotParticipant<Unit> implements Stora
 			return 0;
 		int toExtract = Math.min(ItemHelper.truncateLong(maxAmount), Math.min(stack.getCount(), behaviour.maxStackSize.get()));
 		stack = stack.copy();
-		stack.shrink(toExtract);
+		stack.decrement(toExtract);
 		if (stack.isEmpty())
 			stack = ItemStack.EMPTY;
 		behaviour.snapshotParticipant.updateSnapshots(transaction);
@@ -111,7 +111,7 @@ public class DepotItemHandler extends SnapshotParticipant<Unit> implements Stora
 		@Override
 		public long getCapacity() {
 			ItemStack stack = getStack();
-			return stack.isEmpty() ? behaviour.maxStackSize.get() : Math.min(stack.getMaxStackSize(), behaviour.maxStackSize.get());
+			return stack.isEmpty() ? behaviour.maxStackSize.get() : Math.min(stack.getMaxCount(), behaviour.maxStackSize.get());
 		}
 
 		public ItemStack getStack() {

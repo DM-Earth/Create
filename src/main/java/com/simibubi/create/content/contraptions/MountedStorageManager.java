@@ -22,21 +22,21 @@ import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.ChestBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.properties.ChestType;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.ChestBlock;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.enums.ChestType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class MountedStorageManager {
 
@@ -52,7 +52,7 @@ public class MountedStorageManager {
 	}
 
 	public void entityTick(AbstractContraptionEntity entity) {
-		fluidStorage.forEach((pos, mfs) -> mfs.tick(entity, pos, entity.level().isClientSide));
+		fluidStorage.forEach((pos, mfs) -> mfs.tick(entity, pos, entity.getWorld().isClient));
 	}
 
 	public void createHandlers() {
@@ -89,14 +89,14 @@ public class MountedStorageManager {
 			fluidStorage.put(localPos, new MountedFluidStorage(be));
 	}
 
-	public void read(CompoundTag nbt, Map<BlockPos, BlockEntity> presentBlockEntities, boolean clientPacket) {
+	public void read(NbtCompound nbt, Map<BlockPos, BlockEntity> presentBlockEntities, boolean clientPacket) {
 		storage.clear();
-		NBTHelper.iterateCompoundList(nbt.getList("Storage", Tag.TAG_COMPOUND), c -> storage
-			.put(NbtUtils.readBlockPos(c.getCompound("Pos")), MountedStorage.deserialize(c.getCompound("Data"))));
+		NBTHelper.iterateCompoundList(nbt.getList("Storage", NbtElement.COMPOUND_TYPE), c -> storage
+			.put(NbtHelper.toBlockPos(c.getCompound("Pos")), MountedStorage.deserialize(c.getCompound("Data"))));
 
 		fluidStorage.clear();
-		NBTHelper.iterateCompoundList(nbt.getList("FluidStorage", Tag.TAG_COMPOUND), c -> fluidStorage
-			.put(NbtUtils.readBlockPos(c.getCompound("Pos")), MountedFluidStorage.deserialize(c.getCompound("Data"))));
+		NBTHelper.iterateCompoundList(nbt.getList("FluidStorage", NbtElement.COMPOUND_TYPE), c -> fluidStorage
+			.put(NbtHelper.toBlockPos(c.getCompound("Pos")), MountedFluidStorage.deserialize(c.getCompound("Data"))));
 
 		if (clientPacket && presentBlockEntities != null)
 			bindTanks(presentBlockEntities);
@@ -134,26 +134,26 @@ public class MountedStorageManager {
 		});
 	}
 
-	public void write(CompoundTag nbt, boolean clientPacket) {
-		ListTag storageNBT = new ListTag();
+	public void write(NbtCompound nbt, boolean clientPacket) {
+		NbtList storageNBT = new NbtList();
 		if (!clientPacket)
 			for (BlockPos pos : storage.keySet()) {
-				CompoundTag c = new CompoundTag();
+				NbtCompound c = new NbtCompound();
 				MountedStorage mountedStorage = storage.get(pos);
 				if (!mountedStorage.isValid())
 					continue;
-				c.put("Pos", NbtUtils.writeBlockPos(pos));
+				c.put("Pos", NbtHelper.fromBlockPos(pos));
 				c.put("Data", mountedStorage.serialize());
 				storageNBT.add(c);
 			}
 
-		ListTag fluidStorageNBT = new ListTag();
+		NbtList fluidStorageNBT = new NbtList();
 		for (BlockPos pos : fluidStorage.keySet()) {
-			CompoundTag c = new CompoundTag();
+			NbtCompound c = new NbtCompound();
 			MountedFluidStorage mountedStorage = fluidStorage.get(pos);
 			if (!mountedStorage.isValid())
 				continue;
-			c.put("Pos", NbtUtils.writeBlockPos(pos));
+			c.put("Pos", NbtHelper.fromBlockPos(pos));
 			c.put("Data", mountedStorage.serialize());
 			fluidStorageNBT.add(c);
 		}
@@ -215,8 +215,8 @@ public class MountedStorageManager {
 		return fluidInventory;
 	}
 
-	public boolean handlePlayerStorageInteraction(Contraption contraption, Player player, BlockPos localPos) {
-		if (player.level().isClientSide()) {
+	public boolean handlePlayerStorageInteraction(Contraption contraption, PlayerEntity player, BlockPos localPos) {
+		if (player.getWorld().isClient()) {
 			BlockEntity localBE = contraption.presentBlockEntities.get(localPos);
 			return MountedStorage.canUseAsStorage(localBE);
 		}
@@ -230,15 +230,15 @@ public class MountedStorageManager {
 
 		StructureBlockInfo info = contraption.getBlocks()
 			.get(localPos);
-		if (info != null && info.state().hasProperty(ChestBlock.TYPE)) {
-			ChestType chestType = info.state().getValue(ChestBlock.TYPE);
-			Direction facing = info.state().getOptionalValue(ChestBlock.FACING)
+		if (info != null && info.state().contains(ChestBlock.CHEST_TYPE)) {
+			ChestType chestType = info.state().get(ChestBlock.CHEST_TYPE);
+			Direction facing = info.state().getOrEmpty(ChestBlock.FACING)
 				.orElse(Direction.SOUTH);
 			Direction connectedDirection =
-				chestType == ChestType.LEFT ? facing.getClockWise() : facing.getCounterClockWise();
+				chestType == ChestType.LEFT ? facing.rotateYClockwise() : facing.rotateYCounterclockwise();
 
 			if (chestType != ChestType.SINGLE) {
-				MountedStorage storage2 = storageManager.storage.get(localPos.relative(connectedDirection));
+				MountedStorage storage2 = storageManager.storage.get(localPos.offset(connectedDirection));
 				if (storage2 != null && storage2.getItemHandler() != null) {
 					secondary = storage2.getItemHandler();
 					if (chestType == ChestType.LEFT) {
@@ -258,13 +258,13 @@ public class MountedStorageManager {
 			return false;
 
 		Supplier<Boolean> stillValid = () -> contraption.entity.isAlive()
-			&& player.distanceToSqr(contraption.entity.toGlobalVector(Vec3.atCenterOf(localPos), 0)) < 64;
-		Component name = info != null ? info.state().getBlock()
+			&& player.squaredDistanceTo(contraption.entity.toGlobalVector(Vec3d.ofCenter(localPos), 0)) < 64;
+		Text name = info != null ? info.state().getBlock()
 			.getName() : Components.literal("Container");
-		player.openMenu(MountedStorageInteraction.createMenuProvider(name, primary, secondary, slotCount, stillValid));
+		player.openHandledScreen(MountedStorageInteraction.createMenuProvider(name, primary, secondary, slotCount, stillValid));
 
-		Vec3 soundPos = contraption.entity.toGlobalVector(Vec3.atCenterOf(localPos), 0);
-		player.level().playSound(null, BlockPos.containing(soundPos), SoundEvents.BARREL_OPEN, SoundSource.BLOCKS, 0.75f, 1f);
+		Vec3d soundPos = contraption.entity.toGlobalVector(Vec3d.ofCenter(localPos), 0);
+		player.getWorld().playSound(null, BlockPos.ofFloored(soundPos), SoundEvents.BLOCK_BARREL_OPEN, SoundCategory.BLOCKS, 0.75f, 1f);
 		return true;
 	}
 

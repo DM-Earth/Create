@@ -1,7 +1,11 @@
 package com.simibubi.create.infrastructure.ponder.scenes.trains;
 
 import java.util.List;
-
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import com.simibubi.create.foundation.ponder.ElementLink;
@@ -14,12 +18,6 @@ import com.simibubi.create.foundation.ponder.element.ParrotElement;
 import com.simibubi.create.foundation.ponder.element.ParrotElement.FacePointOfInterestPose;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 public class TrackScenes {
 
@@ -52,7 +50,7 @@ public class TrackScenes {
 		scene.world.moveSection(fgTrack, util.vector.of(0, -2, 0), 0);
 		scene.idle(20);
 
-		Vec3 startTrack = util.vector.topOf(3, 0, 5);
+		Vec3d startTrack = util.vector.topOf(3, 0, 5);
 		scene.overlay.showText(70)
 			.pointAt(startTrack)
 			.placeNearTarget()
@@ -65,8 +63,8 @@ public class TrackScenes {
 		scene.overlay.showControls(new InputWindowElement(startTrack, Pointing.DOWN).rightClick()
 			.withItem(trackStack), 40);
 		scene.idle(6);
-		AABB bb = new AABB(util.grid.at(3, 1, 5)).contract(0, .75f, 0)
-			.inflate(0, 0, .85f);
+		Box bb = new Box(util.grid.at(3, 1, 5)).shrink(0, .75f, 0)
+			.expand(0, 0, .85f);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, startTrack, bb, 32);
 		scene.idle(45);
 
@@ -79,7 +77,7 @@ public class TrackScenes {
 			.colored(PonderPalette.GREEN)
 			.text("Then place or select a second track");
 		scene.idle(20);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, startTrack, bb.expandTowards(9, 0, 0), 30);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, startTrack, bb.stretch(9, 0, 0), 30);
 
 		scene.world.showSectionAndMerge(util.select.fromTo(12, 3, 5, 4, 3, 5), Direction.WEST, fgTrack);
 		scene.idle(55);
@@ -135,12 +133,12 @@ public class TrackScenes {
 		scene.world.hideSection(util.select.fromTo(12, 1, 2, 12, 1, 5), Direction.NORTH);
 		scene.world.hideSection(util.select.fromTo(5, 1, 12, 2, 1, 12), Direction.WEST);
 
-		bb = new AABB(util.grid.at(5, 1, 5)).contract(0, .75f, 0)
-			.inflate(3, 0, 3)
-			.expandTowards(.85f, 0, .85f);
+		bb = new Box(util.grid.at(5, 1, 5)).shrink(0, .75f, 0)
+			.expand(3, 0, 3)
+			.stretch(.85f, 0, .85f);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, startTrack, bb, 32);
 		scene.idle(20);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, startTrack, bb.move(4, 0, 4), 32);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, startTrack, bb.offset(4, 0, 4), 32);
 		scene.idle(30);
 
 		scene.world.hideSection(util.select.fromTo(12, 1, 6, 6, 1, 12), Direction.UP);
@@ -408,7 +406,7 @@ public class TrackScenes {
 		scene.world.hideIndependentSection(trainElement, null);
 		scene.idle(5);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.BLUE, trainElement,
-			new AABB(util.grid.at(4, 2, 4)).inflate(1, .75f, .5f), 280);
+			new Box(util.grid.at(4, 2, 4)).expand(1, .75f, .5f), 280);
 
 		scene.idle(15);
 		scene.overlay.showText(60)

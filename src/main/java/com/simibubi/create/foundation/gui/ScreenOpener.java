@@ -7,12 +7,10 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
 import com.simibubi.create.foundation.ponder.ui.NavigatableSimiScreen;
 import com.simibubi.create.foundation.utility.animation.LerpedFloat;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 
 public class ScreenOpener {
 
@@ -20,7 +18,7 @@ public class ScreenOpener {
 	private static Screen backSteppedFrom = null;
 
 	public static void open(Screen screen) {
-		open(Minecraft.getInstance().screen, screen);
+		open(MinecraftClient.getInstance().currentScreen, screen);
 	}
 
 	public static void open(@Nullable Screen current, Screen toOpen) {
@@ -70,7 +68,7 @@ public class ScreenOpener {
 		if (!screen.isEquivalentTo((NavigatableSimiScreen) previouslyRenderedScreen))
 			return false;
 
-		openPreviousScreen(Minecraft.getInstance().screen, Optional.of(screen));
+		openPreviousScreen(MinecraftClient.getInstance().currentScreen, Optional.of(screen));
 		return true;
 	}
 
@@ -88,13 +86,13 @@ public class ScreenOpener {
 	}
 
 	private static void openScreen(Screen screen) {
-		Minecraft.getInstance()
-			.tell(() -> {
-				Minecraft.getInstance()
+		MinecraftClient.getInstance()
+			.send(() -> {
+				MinecraftClient.getInstance()
 					.setScreen(screen);
 				Screen previouslyRenderedScreen = getPreviouslyRenderedScreen();
 				if (previouslyRenderedScreen != null && screen instanceof NavigatableSimiScreen)
-					previouslyRenderedScreen.init(Minecraft.getInstance(), screen.width, screen.height);
+					previouslyRenderedScreen.init(MinecraftClient.getInstance(), screen.width, screen.height);
 			});
 	}
 

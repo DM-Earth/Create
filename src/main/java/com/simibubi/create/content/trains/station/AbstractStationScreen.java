@@ -2,10 +2,11 @@ package com.simibubi.create.content.trains.station;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
-
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.state.property.Properties;
 import com.jozufozu.flywheel.core.PartialModel;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.compat.computercraft.ComputerScreen;
 import com.simibubi.create.content.trains.entity.Carriage;
@@ -18,9 +19,6 @@ import com.simibubi.create.foundation.gui.element.GuiGameElement;
 import com.simibubi.create.foundation.gui.widget.IconButton;
 import com.simibubi.create.foundation.utility.Components;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-
 public abstract class AbstractStationScreen extends AbstractSimiScreen {
 
 	protected AllGuiTextures background;
@@ -32,7 +30,7 @@ public abstract class AbstractStationScreen extends AbstractSimiScreen {
 	private IconButton confirmButton;
 
 	public AbstractStationScreen(StationBlockEntity be, GlobalStation station) {
-		super(be.getBlockState()
+		super(be.getCachedState()
 			.getBlock()
 			.getName());
 		this.blockEntity = be;
@@ -43,19 +41,19 @@ public abstract class AbstractStationScreen extends AbstractSimiScreen {
 	@Override
 	protected void init() {
 		if (blockEntity.computerBehaviour.hasAttachedComputer())
-			minecraft.setScreen(new ComputerScreen(title, () -> Components.literal(station.name),
+			client.setScreen(new ComputerScreen(title, () -> Components.literal(station.name),
 					this::renderAdditional, this, blockEntity.computerBehaviour::hasAttachedComputer));
 
 		setWindowSize(background.width, background.height);
 		super.init();
-		clearWidgets();
+		clearChildren();
 
 		int x = guiLeft;
 		int y = guiTop;
 
 		confirmButton = new IconButton(x + background.width - 33, y + background.height - 24, AllIcons.I_CONFIRM);
-		confirmButton.withCallback(this::onClose);
-		addRenderableWidget(confirmButton);
+		confirmButton.withCallback(this::close);
+		addDrawableChild(confirmButton);
 	}
 
 	public int getTrainIconWidth(Train train) {
@@ -83,12 +81,12 @@ public abstract class AbstractStationScreen extends AbstractSimiScreen {
 		super.tick();
 
 		if (blockEntity.computerBehaviour.hasAttachedComputer())
-			minecraft.setScreen(new ComputerScreen(title, () -> Components.literal(station.name),
+			client.setScreen(new ComputerScreen(title, () -> Components.literal(station.name),
 					this::renderAdditional, this, blockEntity.computerBehaviour::hasAttachedComputer));
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		int x = guiLeft;
 		int y = guiTop;
 
@@ -96,17 +94,17 @@ public abstract class AbstractStationScreen extends AbstractSimiScreen {
 		renderAdditional(graphics, mouseX, mouseY, partialTicks, x, y, background);
 	}
 
-	private void renderAdditional(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, int guiLeft, int guiTop, AllGuiTextures background) {
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+	private void renderAdditional(DrawContext graphics, int mouseX, int mouseY, float partialTicks, int guiLeft, int guiTop, AllGuiTextures background) {
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		TransformStack msr = TransformStack.cast(ms);
 		msr.pushPose()
 			.translate(guiLeft + background.width + 4, guiTop + background.height + 4, 100)
 			.scale(40)
 			.rotateX(-22)
 			.rotateY(63);
-		GuiGameElement.of(blockEntity.getBlockState()
-			.setValue(BlockStateProperties.WATERLOGGED, false))
+		GuiGameElement.of(blockEntity.getCachedState()
+			.with(Properties.WATERLOGGED, false))
 			.render(graphics);
 
 		if (blockEntity.resolveFlagAngle()) {
@@ -116,7 +114,7 @@ public abstract class AbstractStationScreen extends AbstractSimiScreen {
 				.render(graphics);
 		}
 
-		ms.popPose();
+		ms.pop();
 	}
 
 	protected abstract PartialModel getFlag(float partialTicks);

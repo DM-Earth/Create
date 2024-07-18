@@ -2,8 +2,7 @@ package com.simibubi.create.foundation.utility;
 
 import java.util.Comparator;
 import java.util.function.Function;
-
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 
 /**
  * Fabric: {@link IntAttached} but elongated, for use with transfer and related things.
@@ -50,8 +49,8 @@ public class LongAttached<V> extends Pair<Long, V> {
 		return getSecond();
 	}
 
-	public CompoundTag serializeNBT(Function<V, CompoundTag> serializer) {
-		CompoundTag nbt = new CompoundTag();
+	public NbtCompound serializeNBT(Function<V, NbtCompound> serializer) {
+		NbtCompound nbt = new NbtCompound();
 		nbt.put("Item", serializer.apply(getValue()));
 		nbt.putLong("Location", getFirst());
 		return nbt;
@@ -61,7 +60,7 @@ public class LongAttached<V> extends Pair<Long, V> {
 		return (i1, i2) -> Long.compare(i2.getFirst(), i1.getFirst());
 	}
 
-	public static <T> LongAttached<T> read(CompoundTag nbt, Function<CompoundTag, T> deserializer) {
+	public static <T> LongAttached<T> read(NbtCompound nbt, Function<NbtCompound, T> deserializer) {
 		return LongAttached.with(nbt.getLong("Location"), deserializer.apply(nbt.getCompound("Item")));
 	}
 

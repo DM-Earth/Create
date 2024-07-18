@@ -1,94 +1,92 @@
 package com.simibubi.create.content.contraptions.actors;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.HorizontalFacingBlock;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.state.StateManager.Builder;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 import com.simibubi.create.foundation.utility.BlockHelper;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public abstract class AttachedActorBlock extends HorizontalDirectionalBlock
+public abstract class AttachedActorBlock extends HorizontalFacingBlock
 	implements IWrenchable, ProperWaterloggedBlock {
 
-	protected AttachedActorBlock(Properties p_i48377_1_) {
+	protected AttachedActorBlock(Settings p_i48377_1_) {
 		super(p_i48377_1_);
-		registerDefaultState(defaultBlockState().setValue(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		return InteractionResult.FAIL;
+	public ActionResult onWrenched(BlockState state, ItemUsageContext context) {
+		return ActionResult.FAIL;
 	}
 
 	@Override
-	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-		Direction direction = state.getValue(FACING);
+	public VoxelShape getOutlineShape(BlockState state, BlockView worldIn, BlockPos pos, ShapeContext context) {
+		Direction direction = state.get(FACING);
 		return AllShapes.HARVESTER_BASE.get(direction);
 	}
 
 	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+	protected void appendProperties(Builder<Block, BlockState> builder) {
 		builder.add(FACING, WATERLOGGED);
-		super.createBlockStateDefinition(builder);
+		super.appendProperties(builder);
 	}
 
 	@Override
-	public boolean canSurvive(BlockState state, LevelReader worldIn, BlockPos pos) {
-		Direction direction = state.getValue(FACING);
-		BlockPos offset = pos.relative(direction.getOpposite());
+	public boolean canPlaceAt(BlockState state, WorldView worldIn, BlockPos pos) {
+		Direction direction = state.get(FACING);
+		BlockPos offset = pos.offset(direction.getOpposite());
 		return BlockHelper.hasBlockSolidSide(worldIn.getBlockState(offset), worldIn, offset, direction);
 	}
 
 	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
+	public BlockState getPlacementState(ItemPlacementContext context) {
 		Direction facing;
-		if (context.getClickedFace()
+		if (context.getSide()
 			.getAxis()
 			.isVertical())
-			facing = context.getHorizontalDirection()
+			facing = context.getHorizontalPlayerFacing()
 				.getOpposite();
 		else {
-			BlockState blockState = context.getLevel()
-				.getBlockState(context.getClickedPos()
-					.relative(context.getClickedFace()
+			BlockState blockState = context.getWorld()
+				.getBlockState(context.getBlockPos()
+					.offset(context.getSide()
 						.getOpposite()));
 			if (blockState.getBlock() instanceof AttachedActorBlock)
-				facing = blockState.getValue(FACING);
+				facing = blockState.get(FACING);
 			else
-				facing = context.getClickedFace();
+				facing = context.getSide();
 		}
-		return withWater(defaultBlockState().setValue(FACING, facing), context);
+		return withWater(getDefaultState().with(FACING, facing), context);
 	}
 
 	@Override
-	public BlockState updateShape(BlockState pState, Direction pDirection, BlockState pNeighborState,
-		LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+	public BlockState getStateForNeighborUpdate(BlockState pState, Direction pDirection, BlockState pNeighborState,
+		WorldAccess pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
 		updateWater(pLevel, pState, pCurrentPos);
 		return pState;
 	}
 
 	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
+	public boolean canPathfindThrough(BlockState state, BlockView reader, BlockPos pos, NavigationType type) {
 		return false;
 	}
 

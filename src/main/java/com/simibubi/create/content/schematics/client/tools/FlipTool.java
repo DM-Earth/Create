@@ -1,20 +1,19 @@
 package com.simibubi.create.content.schematics.client.tools;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllSpecialTextures;
 import com.simibubi.create.foundation.outliner.AABBOutline;
 import com.simibubi.create.foundation.render.SuperRenderTypeBuffer;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.Vec3d;
 
 public class FlipTool extends PlacementToolBase {
 
-	private AABBOutline outline = new AABBOutline(new AABB(BlockPos.ZERO));
+	private AABBOutline outline = new AABBOutline(new Box(BlockPos.ORIGIN));
 
 	@Override
 	public void init() {
@@ -49,23 +48,23 @@ public class FlipTool extends PlacementToolBase {
 	}
 
 	@Override
-	public void renderOnSchematic(PoseStack ms, SuperRenderTypeBuffer buffer) {
+	public void renderOnSchematic(MatrixStack ms, SuperRenderTypeBuffer buffer) {
 		if (!schematicSelected || !selectedFace.getAxis()
 			.isHorizontal()) {
 			super.renderOnSchematic(ms, buffer);
 			return;
 		}
 
-		Direction facing = selectedFace.getClockWise();
-		AABB bounds = schematicHandler.getBounds();
+		Direction facing = selectedFace.rotateYClockwise();
+		Box bounds = schematicHandler.getBounds();
 
-		Vec3 directionVec = Vec3.atLowerCornerOf(Direction.get(AxisDirection.POSITIVE, facing.getAxis())
-			.getNormal());
-		Vec3 boundsSize = new Vec3(bounds.getXsize(), bounds.getYsize(), bounds.getZsize());
-		Vec3 vec = boundsSize.multiply(directionVec);
-		bounds = bounds.contract(vec.x, vec.y, vec.z)
-			.inflate(1 - directionVec.x, 1 - directionVec.y, 1 - directionVec.z);
-		bounds = bounds.move(directionVec.scale(.5f)
+		Vec3d directionVec = Vec3d.of(Direction.get(AxisDirection.POSITIVE, facing.getAxis())
+			.getVector());
+		Vec3d boundsSize = new Vec3d(bounds.getXLength(), bounds.getYLength(), bounds.getZLength());
+		Vec3d vec = boundsSize.multiply(directionVec);
+		bounds = bounds.shrink(vec.x, vec.y, vec.z)
+			.expand(1 - directionVec.x, 1 - directionVec.y, 1 - directionVec.z);
+		bounds = bounds.offset(directionVec.multiply(.5f)
 			.multiply(boundsSize));
 		
 		outline.setBounds(bounds);
@@ -75,7 +74,7 @@ public class FlipTool extends PlacementToolBase {
 			.disableLineNormals()
 			.colored(0xdddddd)
 			.withFaceTextures(tex, tex);
-		outline.render(ms, buffer, Vec3.ZERO, AnimationTickHolder.getPartialTicks());
+		outline.render(ms, buffer, Vec3d.ZERO, AnimationTickHolder.getPartialTicks());
 		
 		super.renderOnSchematic(ms, buffer);
 	}

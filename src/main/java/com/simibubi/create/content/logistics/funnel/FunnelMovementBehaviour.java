@@ -9,15 +9,15 @@ import com.simibubi.create.foundation.item.ItemHelper;
 
 import io.github.fabricators_of_create.porting_lib.transfer.TransferUtil;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class FunnelMovementBehaviour implements MovementBehaviour {
 
@@ -36,20 +36,20 @@ public class FunnelMovementBehaviour implements MovementBehaviour {
 	}
 
 	@Override
-	public Vec3 getActiveAreaOffset(MovementContext context) {
+	public Vec3d getActiveAreaOffset(MovementContext context) {
 		Direction facing = FunnelBlock.getFunnelFacing(context.state);
-		Vec3 vec = Vec3.atLowerCornerOf(facing.getNormal());
+		Vec3d vec = Vec3d.of(facing.getVector());
 		if (facing != Direction.UP)
-			return vec.scale(context.state.getValue(FunnelBlock.EXTRACTING) ? .15 : .65);
+			return vec.multiply(context.state.get(FunnelBlock.EXTRACTING) ? .15 : .65);
 
-		return vec.scale(.65);
+		return vec.multiply(.65);
 	}
 
 	@Override
 	public void visitNewPosition(MovementContext context, BlockPos pos) {
 		MovementBehaviour.super.visitNewPosition(context, pos);
 
-		if (context.state.getValue(FunnelBlock.EXTRACTING))
+		if (context.state.get(FunnelBlock.EXTRACTING))
 			extract(context, pos);
 		else
 			succ(context, pos);
@@ -57,10 +57,10 @@ public class FunnelMovementBehaviour implements MovementBehaviour {
 	}
 
 	private void extract(MovementContext context, BlockPos pos) {
-		Level world = context.world;
+		World world = context.world;
 
-		Vec3 entityPos = context.position;
-		if (context.state.getValue(FunnelBlock.FACING) != Direction.DOWN)
+		Vec3d entityPos = context.position;
+		if (context.state.get(FunnelBlock.FACING) != Direction.DOWN)
 			entityPos = entityPos.add(0, -.5f, 0);
 
 		if (!world.getBlockState(pos)
@@ -68,7 +68,7 @@ public class FunnelMovementBehaviour implements MovementBehaviour {
 			.isEmpty())
 			return;
 
-		if (!world.getEntitiesOfClass(ItemEntity.class, new AABB(BlockPos.containing(entityPos)))
+		if (!world.getNonSpectatingEntities(ItemEntity.class, new Box(BlockPos.ofFloored(entityPos)))
 			.isEmpty())
 			return;
 
@@ -85,39 +85,39 @@ public class FunnelMovementBehaviour implements MovementBehaviour {
 		if (extract.isEmpty())
 			return;
 
-		if (world.isClientSide)
+		if (world.isClient)
 			return;
 
 		ItemEntity entity = new ItemEntity(world, entityPos.x, entityPos.y, entityPos.z, extract);
-		entity.setDeltaMovement(Vec3.ZERO);
-		entity.setPickUpDelay(5);
-		world.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 1 / 16f, .1f);
-		world.addFreshEntity(entity);
+		entity.setVelocity(Vec3d.ZERO);
+		entity.setPickupDelay(5);
+		world.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 1 / 16f, .1f);
+		world.spawnEntity(entity);
 	}
 
 	private void succ(MovementContext context, BlockPos pos) {
-		Level world = context.world;
-		List<ItemEntity> items = world.getEntitiesOfClass(ItemEntity.class, new AABB(pos));
+		World world = context.world;
+		List<ItemEntity> items = world.getNonSpectatingEntities(ItemEntity.class, new Box(pos));
 		FilterItemStack filter = context.getFilterFromBE();
 
 		try (Transaction t = TransferUtil.getTransaction()) {
 			for (ItemEntity item : items) {
 				if (!item.isAlive())
 					continue;
-				ItemStack toInsert = item.getItem();
+				ItemStack toInsert = item.getStack();
 				if (toInsert.isEmpty() || (!filter.test(context.world, toInsert)))
 					continue;
 				long inserted = TransferUtil.insertItem(context.contraption.getSharedInventory(), toInsert);
 				if (inserted == 0)
 					continue;
 				if (inserted == toInsert.getCount()) {
-					item.setItem(ItemStack.EMPTY);
+					item.setStack(ItemStack.EMPTY);
 					item.discard();
 					continue;
 				}
-				ItemStack remainder = item.getItem().copy();
-				remainder.shrink(ItemHelper.truncateLong(inserted));
-				item.setItem(remainder);
+				ItemStack remainder = item.getStack().copy();
+				remainder.decrement(ItemHelper.truncateLong(inserted));
+				item.setStack(remainder);
 			}
 			t.commit();
 		}

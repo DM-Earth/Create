@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 import com.google.common.collect.ImmutableMap;
 import com.jozufozu.flywheel.Flywheel;
 import com.jozufozu.flywheel.backend.Backend;
-import com.mojang.blaze3d.platform.GlUtil;
+import com.mojang.blaze3d.platform.GlDebugInfo;
 import com.simibubi.create.Create;
 import com.simibubi.create.foundation.mixin.accessor.SystemReportAccessor;
 import com.simibubi.create.infrastructure.debugInfo.element.DebugInfoSection;
@@ -23,9 +23,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.minecraft.SharedConstants;
-import net.minecraft.SystemReport;
-import net.minecraft.Util;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.SystemDetails;
+import net.minecraft.util.Util;
 
 /**
  * Allows for providing easily accessible debugging information.
@@ -38,9 +38,9 @@ public class DebugInformation {
 	private static final List<DebugInfoSection> server = new ArrayList<>();
 
 	private static final ImmutableMap<String, String> mcSystemInfo = Util.make(() -> {
-		SystemReport systemReport = new SystemReport();
+		SystemDetails systemReport = new SystemDetails();
 		SystemReportAccessor access = (SystemReportAccessor) systemReport;
-		return ImmutableMap.copyOf(access.getEntries());
+		return ImmutableMap.copyOf(access.getSections());
 	});
 
 	public static void registerClientInfo(DebugInfoSection section) {
@@ -68,16 +68,16 @@ public class DebugInformation {
 		DebugInfoSection.builder(Create.NAME)
 				.put("Mod Version", Create.VERSION)
 				.put("Fabric API Version", getVersionOfMod("fabric-api"))
-				.put("Minecraft Version", SharedConstants.getCurrentVersion().getName())
+				.put("Minecraft Version", SharedConstants.getGameVersion().getName())
 				.buildTo(DebugInformation::registerBothInfo);
 
 		EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> {
 			DebugInfoSection.builder("Graphics")
 					.put("Flywheel Version", Flywheel.getVersion().toString())
 					.put("Flywheel Backend", () -> Backend.getBackendType().toString())
-					.put("OpenGL Renderer", GlUtil::getRenderer)
-					.put("OpenGL Version", GlUtil::getOpenGLVersion)
-					.put("Graphics Mode", () -> Minecraft.getInstance().options.graphicsMode().toString())
+					.put("OpenGL Renderer", GlDebugInfo::getRenderer)
+					.put("OpenGL Version", GlDebugInfo::getVersion)
+					.put("Graphics Mode", () -> MinecraftClient.getInstance().options.getGraphicsMode().toString())
 					.buildTo(DebugInformation::registerClientInfo);
 		});
 
@@ -141,7 +141,7 @@ public class DebugInformation {
 
 	/**
 	 * Get a system attribute provided by Minecraft.
-	 * They can be found in the constructor of {@link SystemReport}.
+	 * They can be found in the constructor of {@link SystemDetails}.
 	 */
 	@Nullable
 	public static String getMcSystemInfo(String key) {

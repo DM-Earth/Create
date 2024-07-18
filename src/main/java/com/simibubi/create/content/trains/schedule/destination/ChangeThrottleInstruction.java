@@ -12,11 +12,11 @@ import com.simibubi.create.foundation.utility.Pair;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 
 public class ChangeThrottleInstruction extends ScheduleInstruction {
 
@@ -26,16 +26,16 @@ public class ChangeThrottleInstruction extends ScheduleInstruction {
 	}
 
 	@Override
-	public Pair<ItemStack, Component> getSummary() {
+	public Pair<ItemStack, Text> getSummary() {
 		return Pair.of(icon(), formatted());
 	}
 
-	private MutableComponent formatted() {
+	private MutableText formatted() {
 		return Components.literal(intData("Value") + "%");
 	}
 
 	@Override
-	public ResourceLocation getId() {
+	public Identifier getId() {
 		return Create.asResource("throttle");
 	}
 
@@ -50,11 +50,11 @@ public class ChangeThrottleInstruction extends ScheduleInstruction {
 	}
 
 	@Override
-	public List<Component> getTitleAs(String type) {
+	public List<Text> getTitleAs(String type) {
 		return ImmutableList.of(Lang
 			.translateDirect("schedule." + type + "." + getId().getPath() + ".summary",
-				formatted().withStyle(ChatFormatting.WHITE))
-			.withStyle(ChatFormatting.GOLD));
+				formatted().formatted(Formatting.WHITE))
+			.formatted(Formatting.GOLD));
 	}
 
 	@Override
@@ -77,10 +77,10 @@ public class ChangeThrottleInstruction extends ScheduleInstruction {
 	}
 
 	@Override
-	public List<Component> getSecondLineTooltip(int slot) {
+	public List<Text> getSecondLineTooltip(int slot) {
 		return ImmutableList.of(Lang.translateDirect("schedule.instruction.throttle_edit_box"),
 			Lang.translateDirect("schedule.instruction.throttle_edit_box_1")
-				.withStyle(ChatFormatting.GRAY));
+				.formatted(Formatting.GRAY));
 	}
 
 }

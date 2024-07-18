@@ -7,10 +7,10 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 
 public class SymmetryEffectPacket extends SimplePacketBase {
@@ -23,7 +23,7 @@ public class SymmetryEffectPacket extends SimplePacketBase {
 		this.positions = positions;
 	}
 
-	public SymmetryEffectPacket(FriendlyByteBuf buffer) {
+	public SymmetryEffectPacket(PacketByteBuf buffer) {
 		mirror = buffer.readBlockPos();
 		int amt = buffer.readInt();
 		positions = new ArrayList<>(amt);
@@ -33,7 +33,7 @@ public class SymmetryEffectPacket extends SimplePacketBase {
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeBlockPos(mirror);
 		buffer.writeInt(positions.size());
 		for (BlockPos blockPos : positions) {
@@ -44,7 +44,7 @@ public class SymmetryEffectPacket extends SimplePacketBase {
 	@Override
 	public boolean handle(Context context) {
 		context.enqueueWork(() -> EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> {
-			if (Minecraft.getInstance().player.position().distanceTo(Vec3.atLowerCornerOf(mirror)) > 100)
+			if (MinecraftClient.getInstance().player.getPos().distanceTo(Vec3d.of(mirror)) > 100)
 				return;
 			for (BlockPos to : positions)
 				SymmetryHandler.drawEffect(mirror, to);

@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import net.minecraft.util.RandomSource;
-
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -19,7 +17,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.content.trains.graph.TrackNodeLocation.DiscoveredLocation;
@@ -33,14 +37,6 @@ import com.simibubi.create.foundation.utility.NBTHelper;
 import com.simibubi.create.foundation.utility.Pair;
 import com.simibubi.create.foundation.utility.VecHelper;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.phys.Vec3;
-
 public class TrackGraph {
 
 	public static final AtomicInteger graphNetIdGenerator = new AtomicInteger();
@@ -53,7 +49,7 @@ public class TrackGraph {
 	Map<Integer, TrackNode> nodesById;
 	Map<TrackNode, Map<TrackNode, TrackEdge>> connectionsByNode;
 	EdgePointStorage edgePoints;
-	Map<ResourceKey<Level>, TrackGraphBounds> bounds;
+	Map<RegistryKey<World>, TrackGraphBounds> bounds;
 
 	List<TrackEdge> deferredIntersectionUpdates;
 
@@ -108,8 +104,8 @@ public class TrackGraph {
 
 	//
 
-	public TrackGraphBounds getBounds(Level level) {
-		return bounds.computeIfAbsent(level.dimension(), dim -> new TrackGraphBounds(this, dim));
+	public TrackGraphBounds getBounds(World level) {
+		return bounds.computeIfAbsent(level.getRegistryKey(), dim -> new TrackGraphBounds(this, dim));
 	}
 
 	public void invalidateBounds() {
@@ -123,7 +119,7 @@ public class TrackGraph {
 		return nodes.keySet();
 	}
 
-	public TrackNode locateNode(Level level, Vec3 position) {
+	public TrackNode locateNode(World level, Vec3d position) {
 		return locateNode(new TrackNodeLocation(position).in(level));
 	}
 
@@ -145,7 +141,7 @@ public class TrackGraph {
 		return true;
 	}
 
-	public void loadNode(TrackNodeLocation location, int netId, Vec3 normal) {
+	public void loadNode(TrackNodeLocation location, int netId, Vec3d normal) {
 		addNode(new TrackNode(location, netId, normal));
 	}
 
@@ -164,7 +160,7 @@ public class TrackGraph {
 		return true;
 	}
 
-	public boolean removeNode(@Nullable LevelAccessor level, TrackNodeLocation location) {
+	public boolean removeNode(@Nullable WorldAccess level, TrackNodeLocation location) {
 		TrackNode removed = nodes.remove(location);
 		if (removed == null)
 			return false;
@@ -278,7 +274,7 @@ public class TrackGraph {
 		}
 	}
 
-	public Set<TrackGraph> findDisconnectedGraphs(@Nullable LevelAccessor level,
+	public Set<TrackGraph> findDisconnectedGraphs(@Nullable WorldAccess level,
 		@Nullable Map<Integer, Pair<Integer, UUID>> splitSubGraphs) {
 		Set<TrackGraph> dicovered = new HashSet<>();
 		Set<TrackNodeLocation> vertices = new HashSet<>(nodes.keySet());
@@ -338,7 +334,7 @@ public class TrackGraph {
 		return checksum;
 	}
 
-	public void transfer(LevelAccessor level, TrackNode node, TrackGraph target) {
+	public void transfer(WorldAccess level, TrackNode node, TrackGraph target) {
 		target.addNode(node);
 		target.invalidateBounds();
 
@@ -392,7 +388,7 @@ public class TrackGraph {
 		return connectionsFrom.get(nodes.getSecond());
 	}
 
-	public void connectNodes(LevelAccessor reader, DiscoveredLocation location, DiscoveredLocation location2,
+	public void connectNodes(WorldAccess reader, DiscoveredLocation location, DiscoveredLocation location2,
 		@Nullable BezierConnection turn) {
 		TrackNode node1 = nodes.get(location);
 		TrackNode node2 = nodes.get(location2);
@@ -466,13 +462,13 @@ public class TrackGraph {
 		return connections.put(node2, edge) == null;
 	}
 
-	public float distanceToLocationSqr(Level level, Vec3 location) {
+	public float distanceToLocationSqr(World level, Vec3d location) {
 		float nearest = Float.MAX_VALUE;
 		for (TrackNodeLocation tnl : nodes.keySet()) {
-			if (!Objects.equals(tnl.dimension, level.dimension()))
+			if (!Objects.equals(tnl.dimension, level.getRegistryKey()))
 				continue;
 			nearest = Math.min(nearest, (float) tnl.getLocation()
-				.distanceToSqr(location));
+				.squaredDistanceTo(location));
 		}
 		return nearest;
 	}
@@ -481,7 +477,7 @@ public class TrackGraph {
 		deferredIntersectionUpdates.add(edge);
 	}
 
-	public void resolveIntersectingEdgeGroups(Level level) {
+	public void resolveIntersectingEdgeGroups(World level) {
 		for (TrackEdge edge : deferredIntersectionUpdates) {
 			if (!connectionsByNode.containsKey(edge.node1) || edge != connectionsByNode.get(edge.node1)
 				.get(edge.node2))
@@ -522,18 +518,18 @@ public class TrackGraph {
 		Create.RAILWAYS.markTracksDirty();
 	}
 
-	public CompoundTag write(DimensionPalette dimensions) {
-		CompoundTag tag = new CompoundTag();
-		tag.putUUID("Id", id);
+	public NbtCompound write(DimensionPalette dimensions) {
+		NbtCompound tag = new NbtCompound();
+		tag.putUuid("Id", id);
 		tag.putInt("Color", color.getRGB());
 
 		Map<TrackNode, Integer> indexTracker = new HashMap<>();
-		ListTag nodesList = new ListTag();
+		NbtList nodesList = new NbtList();
 
 		int i = 0;
 		for (TrackNode railNode : nodes.values()) {
 			indexTracker.put(railNode, i);
-			CompoundTag nodeTag = new CompoundTag();
+			NbtCompound nodeTag = new NbtCompound();
 			nodeTag.put("Location", railNode.getLocation()
 				.write(dimensions));
 			nodeTag.put("Normal", VecHelper.writeNBT(railNode.getNormal()));
@@ -545,10 +541,10 @@ public class TrackGraph {
 			Integer index1 = indexTracker.get(node1);
 			if (index1 == null)
 				return;
-			CompoundTag nodeTag = (CompoundTag) nodesList.get(index1);
-			ListTag connectionsList = new ListTag();
+			NbtCompound nodeTag = (NbtCompound) nodesList.get(index1);
+			NbtList connectionsList = new NbtList();
 			map.forEach((node2, edge) -> {
-				CompoundTag connectionTag = new CompoundTag();
+				NbtCompound connectionTag = new NbtCompound();
 				Integer index2 = indexTracker.get(node2);
 				if (index2 == null)
 					return;
@@ -564,33 +560,33 @@ public class TrackGraph {
 		return tag;
 	}
 
-	public static TrackGraph read(CompoundTag tag, DimensionPalette dimensions) {
-		TrackGraph graph = new TrackGraph(tag.getUUID("Id"));
+	public static TrackGraph read(NbtCompound tag, DimensionPalette dimensions) {
+		TrackGraph graph = new TrackGraph(tag.getUuid("Id"));
 		graph.color = new Color(tag.getInt("Color"));
 		graph.edgePoints.read(tag.getCompound("Points"), dimensions);
 
 		Map<Integer, TrackNode> indexTracker = new HashMap<>();
-		ListTag nodesList = tag.getList("Nodes", Tag.TAG_COMPOUND);
+		NbtList nodesList = tag.getList("Nodes", NbtElement.COMPOUND_TYPE);
 
 		int i = 0;
-		for (Tag t : nodesList) {
-			CompoundTag nodeTag = (CompoundTag) t;
+		for (NbtElement t : nodesList) {
+			NbtCompound nodeTag = (NbtCompound) t;
 			TrackNodeLocation location = TrackNodeLocation.read(nodeTag.getCompound("Location"), dimensions);
-			Vec3 normal = VecHelper.readNBT(nodeTag.getList("Normal", Tag.TAG_DOUBLE));
+			Vec3d normal = VecHelper.readNBT(nodeTag.getList("Normal", NbtElement.DOUBLE_TYPE));
 			graph.loadNode(location, nextNodeId(), normal);
 			indexTracker.put(i, graph.locateNode(location));
 			i++;
 		}
 
 		i = 0;
-		for (Tag t : nodesList) {
-			CompoundTag nodeTag = (CompoundTag) t;
+		for (NbtElement t : nodesList) {
+			NbtCompound nodeTag = (NbtCompound) t;
 			TrackNode node1 = indexTracker.get(i);
 			i++;
 
 			if (!nodeTag.contains("Connections"))
 				continue;
-			NBTHelper.iterateCompoundList(nodeTag.getList("Connections", Tag.TAG_COMPOUND), c -> {
+			NBTHelper.iterateCompoundList(nodeTag.getList("Connections", NbtElement.COMPOUND_TYPE), c -> {
 				TrackNode node2 = indexTracker.get(c.getInt("To"));
 				TrackEdge edge = TrackEdge.read(node1, node2, c.getCompound("EdgeData"), graph, dimensions);
 				graph.putConnection(node1, node2, edge);

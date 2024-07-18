@@ -1,108 +1,108 @@
 package com.simibubi.create.content.trains.schedule;
 
-import net.minecraft.client.model.AgeableListModel;
-import net.minecraft.client.model.AxolotlModel;
-import net.minecraft.client.model.BeeModel;
-import net.minecraft.client.model.BlazeModel;
-import net.minecraft.client.model.ChickenModel;
-import net.minecraft.client.model.CowModel;
-import net.minecraft.client.model.EntityModel;
-import net.minecraft.client.model.FoxModel;
-import net.minecraft.client.model.FrogModel;
-import net.minecraft.client.model.GuardianModel;
-import net.minecraft.client.model.HierarchicalModel;
-import net.minecraft.client.model.HoglinModel;
-import net.minecraft.client.model.IronGolemModel;
-import net.minecraft.client.model.LavaSlimeModel;
-import net.minecraft.client.model.OcelotModel;
-import net.minecraft.client.model.PandaModel;
-import net.minecraft.client.model.ParrotModel;
-import net.minecraft.client.model.PigModel;
-import net.minecraft.client.model.QuadrupedModel;
-import net.minecraft.client.model.SheepModel;
-import net.minecraft.client.model.SlimeModel;
-import net.minecraft.client.model.SnowGolemModel;
-import net.minecraft.client.model.SpiderModel;
-import net.minecraft.client.model.WardenModel;
-import net.minecraft.client.model.WolfModel;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.render.entity.model.AnimalModel;
+import net.minecraft.client.render.entity.model.AxolotlEntityModel;
+import net.minecraft.client.render.entity.model.BeeEntityModel;
+import net.minecraft.client.render.entity.model.BlazeEntityModel;
+import net.minecraft.client.render.entity.model.ChickenEntityModel;
+import net.minecraft.client.render.entity.model.CowEntityModel;
+import net.minecraft.client.render.entity.model.EntityModel;
+import net.minecraft.client.render.entity.model.FoxEntityModel;
+import net.minecraft.client.render.entity.model.FrogEntityModel;
+import net.minecraft.client.render.entity.model.GuardianEntityModel;
+import net.minecraft.client.render.entity.model.HoglinEntityModel;
+import net.minecraft.client.render.entity.model.IronGolemEntityModel;
+import net.minecraft.client.render.entity.model.MagmaCubeEntityModel;
+import net.minecraft.client.render.entity.model.OcelotEntityModel;
+import net.minecraft.client.render.entity.model.PandaEntityModel;
+import net.minecraft.client.render.entity.model.ParrotEntityModel;
+import net.minecraft.client.render.entity.model.PigEntityModel;
+import net.minecraft.client.render.entity.model.QuadrupedEntityModel;
+import net.minecraft.client.render.entity.model.SheepEntityModel;
+import net.minecraft.client.render.entity.model.SinglePartEntityModel;
+import net.minecraft.client.render.entity.model.SlimeEntityModel;
+import net.minecraft.client.render.entity.model.SnowGolemEntityModel;
+import net.minecraft.client.render.entity.model.SpiderEntityModel;
+import net.minecraft.client.render.entity.model.WardenEntityModel;
+import net.minecraft.client.render.entity.model.WolfEntityModel;
+import net.minecraft.util.math.Vec3d;
 
 public class TrainHatOffsets {
 
 	// sorry
-	public static Vec3 getOffset(EntityModel<?> model) {
+	public static Vec3d getOffset(EntityModel<?> model) {
 
 		float x = 0;
 		float y = 0;
 		float z = 0;
 		
-		if (model instanceof AgeableListModel) {
-			if (model instanceof WolfModel) {
+		if (model instanceof AnimalModel) {
+			if (model instanceof WolfEntityModel) {
 				x += .5f;
 				y += 1.5f;
 				z += .25f;
-			} else if (model instanceof OcelotModel) {
+			} else if (model instanceof OcelotEntityModel) {
 				y += 1f;
 				z -= .25f;
-			} else if (model instanceof ChickenModel) {
+			} else if (model instanceof ChickenEntityModel) {
 				z -= .25f;
-			} else if (model instanceof FoxModel) {
+			} else if (model instanceof FoxEntityModel) {
 				x += .5f;
 				y += 2f;
 				z -= 1f;
-			} else if (model instanceof QuadrupedModel) {
+			} else if (model instanceof QuadrupedEntityModel) {
 				y += 2f;
 
-				if (model instanceof CowModel)
+				if (model instanceof CowEntityModel)
 					z -= 1.25f;
-				else if (model instanceof PandaModel)
+				else if (model instanceof PandaEntityModel)
 					z += .5f;
-				else if (model instanceof PigModel)
+				else if (model instanceof PigEntityModel)
 					z -= 2f;
-				else if (model instanceof SheepModel) {
+				else if (model instanceof SheepEntityModel) {
 					z -= .75f;
 					y -= 1.5f;
 
 				}
-			} else if (model instanceof HoglinModel)
+			} else if (model instanceof HoglinEntityModel)
 				z -= 4.5f;
-			else if (model instanceof BeeModel) {
+			else if (model instanceof BeeEntityModel) {
 				z -= .75f;
 				y -= 4f;
-			} else if (model instanceof AxolotlModel) {
+			} else if (model instanceof AxolotlEntityModel) {
 				z -= 5f;
 				y += .5f;
 			}
 		}
 		
-		if (model instanceof HierarchicalModel) {
-			if (model instanceof BlazeModel)
+		if (model instanceof SinglePartEntityModel) {
+			if (model instanceof BlazeEntityModel)
 				y += 4;
-			else if (model instanceof GuardianModel)
+			else if (model instanceof GuardianEntityModel)
 				y += 20;
-			else if (model instanceof IronGolemModel) {
+			else if (model instanceof IronGolemEntityModel) {
 				z -= 1.5f;
 				y -= 2f;
-			} else if (model instanceof SnowGolemModel) {
+			} else if (model instanceof SnowGolemEntityModel) {
 				z -= .75f;
 				y -= 3f;
-			} else if (model instanceof SlimeModel || model instanceof LavaSlimeModel) {
+			} else if (model instanceof SlimeEntityModel || model instanceof MagmaCubeEntityModel) {
 				y += 22;
-			} else if (model instanceof SpiderModel) {
+			} else if (model instanceof SpiderEntityModel) {
 				z -= 3.5f;
 				y += 2f;
-			} else if (model instanceof ParrotModel) {
+			} else if (model instanceof ParrotEntityModel) {
 				z -= 1.5f;
-			} else if (model instanceof WardenModel) {
+			} else if (model instanceof WardenEntityModel) {
 				y += 3.5f;
 				z += .5f;
-			} else if (model instanceof FrogModel) {
+			} else if (model instanceof FrogEntityModel) {
 				y += 16.75f;
 				z -= .25f;
 			}
 		}
 
-		return new Vec3(x, y, z);
+		return new Vec3d(x, y, z);
 
 	}
 

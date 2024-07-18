@@ -6,14 +6,14 @@ import com.simibubi.create.content.kinetics.crusher.AbstractCrushingRecipe;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 
 import dev.emi.emi.api.widget.WidgetHolder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 public class CrushingEmiRecipe extends CreateEmiRecipe<AbstractCrushingRecipe> {
 
 	public CrushingEmiRecipe(AbstractCrushingRecipe recipe) {
 		super(CreateEmiPlugin.CRUSHING, recipe, 134, 110);
-		ResourceLocation rid = recipe.getId();
-		this.id = new ResourceLocation("emi", "create/crushing/" + rid.getNamespace() + "/" + rid.getPath());
+		Identifier rid = recipe.getId();
+		this.id = new Identifier("emi", "create/crushing/" + rid.getNamespace() + "/" + rid.getPath());
 	}
 
 	@Override

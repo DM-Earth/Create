@@ -5,30 +5,30 @@ import com.simibubi.create.foundation.gui.menu.GhostItemMenu;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandler;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.SlotItemHandler;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.screen.slot.SlotActionType;
 
 public class LinkedControllerMenu extends GhostItemMenu<ItemStack> {
 
-	public LinkedControllerMenu(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	public LinkedControllerMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id, inv, extraData);
 	}
 
-	public LinkedControllerMenu(MenuType<?> type, int id, Inventory inv, ItemStack filterItem) {
+	public LinkedControllerMenu(ScreenHandlerType<?> type, int id, PlayerInventory inv, ItemStack filterItem) {
 		super(type, id, inv, filterItem);
 	}
 
-	public static LinkedControllerMenu create(int id, Inventory inv, ItemStack filterItem) {
+	public static LinkedControllerMenu create(int id, PlayerInventory inv, ItemStack filterItem) {
 		return new LinkedControllerMenu(AllMenuTypes.LINKED_CONTROLLER.get(), id, inv, filterItem);
 	}
 
 	@Override
-	protected ItemStack createOnClient(FriendlyByteBuf extraData) {
-		return extraData.readItem();
+	protected ItemStack createOnClient(PacketByteBuf extraData) {
+		return extraData.readItemStack();
 	}
 
 	@Override
@@ -55,7 +55,7 @@ public class LinkedControllerMenu extends GhostItemMenu<ItemStack> {
 
 	@Override
 	protected void saveData(ItemStack contentHolder) {
-		contentHolder.getOrCreateTag()
+		contentHolder.getOrCreateNbt()
 			.put("Items", ghostInventory.serializeNBT());
 	}
 
@@ -65,15 +65,15 @@ public class LinkedControllerMenu extends GhostItemMenu<ItemStack> {
 	}
 
 	@Override
-	public void clicked(int slotId, int dragType, ClickType clickTypeIn, Player player) {
-		if (slotId == playerInventory.selected && clickTypeIn != ClickType.THROW)
+	public void onSlotClick(int slotId, int dragType, SlotActionType clickTypeIn, PlayerEntity player) {
+		if (slotId == playerInventory.selectedSlot && clickTypeIn != SlotActionType.THROW)
 			return;
-		super.clicked(slotId, dragType, clickTypeIn, player);
+		super.onSlotClick(slotId, dragType, clickTypeIn, player);
 	}
 
 	@Override
-	public boolean stillValid(Player playerIn) {
-		return playerInventory.getSelected() == contentHolder;
+	public boolean canUse(PlayerEntity playerIn) {
+		return playerInventory.getMainHandStack() == contentHolder;
 	}
 
 }

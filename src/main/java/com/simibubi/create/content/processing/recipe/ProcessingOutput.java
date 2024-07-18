@@ -1,7 +1,12 @@
 package com.simibubi.create.content.processing.recipe;
 
 import java.util.Random;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.JsonHelper;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -11,14 +16,6 @@ import com.simibubi.create.Create;
 import com.simibubi.create.foundation.utility.Pair;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
 
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.item.ItemStack;
-
 public class ProcessingOutput {
 
 	public static final ProcessingOutput EMPTY = new ProcessingOutput(ItemStack.EMPTY, 1);
@@ -27,14 +24,14 @@ public class ProcessingOutput {
 	private final ItemStack stack;
 	private final float chance;
 
-	private Pair<ResourceLocation, Integer> compatDatagenOutput;
+	private Pair<Identifier, Integer> compatDatagenOutput;
 
 	public ProcessingOutput(ItemStack stack, float chance) {
 		this.stack = stack;
 		this.chance = chance;
 	}
 
-	public ProcessingOutput(Pair<ResourceLocation, Integer> item, float chance) {
+	public ProcessingOutput(Pair<Identifier, Integer> item, float chance) {
 		this.stack = ItemStack.EMPTY;
 		this.compatDatagenOutput = item;
 		this.chance = chance;
@@ -62,14 +59,14 @@ public class ProcessingOutput {
 
 	public JsonElement serialize() {
 		JsonObject json = new JsonObject();
-		ResourceLocation resourceLocation = compatDatagenOutput == null ? RegisteredObjects.getKeyOrThrow(stack
+		Identifier resourceLocation = compatDatagenOutput == null ? RegisteredObjects.getKeyOrThrow(stack
 			.getItem()) : compatDatagenOutput.getFirst();
 		json.addProperty("item", resourceLocation.toString());
 		int count = compatDatagenOutput == null ? stack.getCount() : compatDatagenOutput.getSecond();
 		if (count != 1)
 			json.addProperty("count", count);
-		if (stack.hasTag())
-			json.add("nbt", JsonParser.parseString(stack.getTag()
+		if (stack.hasNbt())
+			json.add("nbt", JsonParser.parseString(stack.getNbt()
 				.toString()));
 		if (chance != 1)
 			json.addProperty("chance", chance);
@@ -81,16 +78,16 @@ public class ProcessingOutput {
 			throw new JsonSyntaxException("ProcessingOutput must be a json object");
 
 		JsonObject json = je.getAsJsonObject();
-		String itemId = GsonHelper.getAsString(json, "item");
-		int count = GsonHelper.getAsInt(json, "count", 1);
-		float chance = GsonHelper.isValidNode(json, "chance") ? GsonHelper.getAsFloat(json, "chance") : 1;
-		ItemStack itemstack = new ItemStack(BuiltInRegistries.ITEM.get(new ResourceLocation(itemId)), count);
+		String itemId = JsonHelper.getString(json, "item");
+		int count = JsonHelper.getInt(json, "count", 1);
+		float chance = JsonHelper.hasElement(json, "chance") ? JsonHelper.getFloat(json, "chance") : 1;
+		ItemStack itemstack = new ItemStack(Registries.ITEM.get(new Identifier(itemId)), count);
 
-		if (GsonHelper.isValidNode(json, "nbt")) {
+		if (JsonHelper.hasElement(json, "nbt")) {
 			try {
 				JsonElement element = json.get("nbt");
-				itemstack.setTag(TagParser.parseTag(
-					element.isJsonObject() ? Create.GSON.toJson(element) : GsonHelper.convertToString(element, "nbt")));
+				itemstack.setNbt(StringNbtReader.parse(
+					element.isJsonObject() ? Create.GSON.toJson(element) : JsonHelper.asString(element, "nbt")));
 			} catch (CommandSyntaxException e) {
 				e.printStackTrace();
 			}
@@ -99,13 +96,13 @@ public class ProcessingOutput {
 		return new ProcessingOutput(itemstack, chance);
 	}
 
-	public void write(FriendlyByteBuf buf) {
-		buf.writeItem(getStack());
+	public void write(PacketByteBuf buf) {
+		buf.writeItemStack(getStack());
 		buf.writeFloat(getChance());
 	}
 
-	public static ProcessingOutput read(FriendlyByteBuf buf) {
-		return new ProcessingOutput(buf.readItem(), buf.readFloat());
+	public static ProcessingOutput read(PacketByteBuf buf) {
+		return new ProcessingOutput(buf.readItemStack(), buf.readFloat());
 	}
 
 }

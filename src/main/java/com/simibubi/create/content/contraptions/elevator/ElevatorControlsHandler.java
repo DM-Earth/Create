@@ -20,15 +20,15 @@ import com.simibubi.create.foundation.utility.Couple;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 public class ElevatorControlsHandler {
 
@@ -37,8 +37,8 @@ public class ElevatorControlsHandler {
 	private static class ElevatorControlsSlot extends ContraptionControlsBlockEntity.ControlsSlot {
 
 		@Override
-		public boolean testHit(BlockState state, Vec3 localHit) {
-			Vec3 offset = getLocalOffset(state);
+		public boolean testHit(BlockState state, Vec3d localHit) {
+			Vec3d offset = getLocalOffset(state);
 			if (offset == null)
 				return false;
 			return localHit.distanceTo(offset) < scale * .85;
@@ -48,23 +48,23 @@ public class ElevatorControlsHandler {
 
 	@Environment(EnvType.CLIENT)
 	public static boolean onScroll(double delta) {
-		Minecraft mc = Minecraft.getInstance();
-		LocalPlayer player = mc.player;
+		MinecraftClient mc = MinecraftClient.getInstance();
+		ClientPlayerEntity player = mc.player;
 
 		if (player == null)
 			return false;
 		if (player.isSpectator())
 			return false;
-		if (mc.level == null)
+		if (mc.world == null)
 			return false;
 
-		Couple<Vec3> rayInputs = ContraptionHandlerClient.getRayInputs(player);
-		Vec3 origin = rayInputs.getFirst();
-		Vec3 target = rayInputs.getSecond();
-		AABB aabb = new AABB(origin, target).inflate(16);
+		Couple<Vec3d> rayInputs = ContraptionHandlerClient.getRayInputs(player);
+		Vec3d origin = rayInputs.getFirst();
+		Vec3d target = rayInputs.getSecond();
+		Box aabb = new Box(origin, target).expand(16);
 
 		Collection<WeakReference<AbstractContraptionEntity>> contraptions =
-			ContraptionHandler.loadedContraptions.get(mc.level)
+			ContraptionHandler.loadedContraptions.get(mc.world)
 				.values();
 
 		for (WeakReference<AbstractContraptionEntity> ref : contraptions) {
@@ -94,8 +94,8 @@ public class ElevatorControlsHandler {
 			if (!AllBlocks.CONTRAPTION_CONTROLS.has(info.state()))
 				continue;
 
-			if (!slot.testHit(info.state(), rayTraceResult.getLocation()
-				.subtract(Vec3.atLowerCornerOf(pos))))
+			if (!slot.testHit(info.state(), rayTraceResult.getPos()
+				.subtract(Vec3d.of(pos))))
 				continue;
 
 			MovementContext ctx = null;
@@ -116,9 +116,9 @@ public class ElevatorControlsHandler {
 
 			if (prev != efs.currentIndex && !ec.namesList.isEmpty()) {
 				float pitch = (efs.currentIndex) / (float) (ec.namesList.size());
-				pitch = Mth.lerp(pitch, 1f, 1.5f);
-				AllSoundEvents.SCROLL_VALUE.play(mc.player.level(), mc.player,
-					BlockPos.containing(contraptionEntity.toGlobalVector(rayTraceResult.getLocation(), 1)), 1, pitch);
+				pitch = MathHelper.lerp(pitch, 1f, 1.5f);
+				AllSoundEvents.SCROLL_VALUE.play(mc.player.getWorld(), mc.player,
+					BlockPos.ofFloored(contraptionEntity.toGlobalVector(rayTraceResult.getPos(), 1)), 1, pitch);
 			}
 
 			return true;

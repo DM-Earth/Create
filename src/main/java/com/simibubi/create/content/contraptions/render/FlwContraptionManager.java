@@ -16,12 +16,11 @@ import com.jozufozu.flywheel.event.RenderLayerEvent;
 import com.jozufozu.flywheel.util.Textures;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.foundation.render.CreateContexts;
-
-import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.WorldAccess;
 
 public class FlwContraptionManager extends ContraptionRenderingWorld<FlwContraption> {
 
-	public FlwContraptionManager(LevelAccessor world) {
+	public FlwContraptionManager(WorldAccess world) {
 		super(world);
 	}
 
@@ -58,14 +57,14 @@ public class FlwContraptionManager extends ContraptionRenderingWorld<FlwContrapt
 		GlTextureUnit.T4.makeActive();
 		glBindTexture(GL_TEXTURE_3D, 0);
 
-		event.type.clearRenderState();
+		event.type.endDrawing();
 		active.makeActive();
 		restoreState.restore();
 	}
 
 	private void renderStructures(RenderLayerEvent event) {
 
-		event.type.setupRenderState();
+		event.type.startDrawing();
 		Textures.bindActiveTextures();
 
 		ContraptionProgram structureShader = CreateContexts.STRUCTURE.getProgram(ProgramContext.create(Materials.Names.PASSTHRU, Formats.BLOCK, RenderLayer.getLayer(event.type)));

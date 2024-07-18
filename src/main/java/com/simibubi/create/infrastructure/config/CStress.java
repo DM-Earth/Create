@@ -3,7 +3,8 @@ package com.simibubi.create.infrastructure.config;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
-
+import net.minecraft.block.Block;
+import net.minecraft.util.Identifier;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.kinetics.BlockStressDefaults;
 import com.simibubi.create.content.kinetics.BlockStressValues.IStressValueProvider;
@@ -13,13 +14,11 @@ import com.simibubi.create.foundation.utility.RegisteredObjects;
 
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec.Builder;
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec.ConfigValue;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
 
 public class CStress extends ConfigBase implements IStressValueProvider {
 
-	private final Map<ResourceLocation, ConfigValue<Double>> capacities = new HashMap<>();
-	private final Map<ResourceLocation, ConfigValue<Double>> impacts = new HashMap<>();
+	private final Map<Identifier, ConfigValue<Double>> capacities = new HashMap<>();
+	private final Map<Identifier, ConfigValue<Double>> impacts = new HashMap<>();
 
 	@Override
 	public void registerAll(Builder builder) {
@@ -45,7 +44,7 @@ public class CStress extends ConfigBase implements IStressValueProvider {
 	@Override
 	public double getImpact(Block block) {
 		block = redirectValues(block);
-		ResourceLocation key = RegisteredObjects.getKeyOrThrow(block);
+		Identifier key = RegisteredObjects.getKeyOrThrow(block);
 		ConfigValue<Double> value = getImpacts().get(key);
 		if (value != null)
 			return value.get();
@@ -55,7 +54,7 @@ public class CStress extends ConfigBase implements IStressValueProvider {
 	@Override
 	public double getCapacity(Block block) {
 		block = redirectValues(block);
-		ResourceLocation key = RegisteredObjects.getKeyOrThrow(block);
+		Identifier key = RegisteredObjects.getKeyOrThrow(block);
 		ConfigValue<Double> value = getCapacities().get(key);
 		if (value != null)
 			return value.get();
@@ -65,7 +64,7 @@ public class CStress extends ConfigBase implements IStressValueProvider {
 	@Override
 	public Couple<Integer> getGeneratedRPM(Block block) {
 		block = redirectValues(block);
-		ResourceLocation key = RegisteredObjects.getKeyOrThrow(block);
+		Identifier key = RegisteredObjects.getKeyOrThrow(block);
 		Supplier<Couple<Integer>> supplier = BlockStressDefaults.GENERATOR_SPEEDS.get(key);
 		if (supplier == null)
 			return null;
@@ -75,14 +74,14 @@ public class CStress extends ConfigBase implements IStressValueProvider {
 	@Override
 	public boolean hasImpact(Block block) {
 		block = redirectValues(block);
-		ResourceLocation key = RegisteredObjects.getKeyOrThrow(block);
+		Identifier key = RegisteredObjects.getKeyOrThrow(block);
 		return getImpacts().containsKey(key);
 	}
 
 	@Override
 	public boolean hasCapacity(Block block) {
 		block = redirectValues(block);
-		ResourceLocation key = RegisteredObjects.getKeyOrThrow(block);
+		Identifier key = RegisteredObjects.getKeyOrThrow(block);
 		return getCapacities().containsKey(key);
 	}
 
@@ -95,11 +94,11 @@ public class CStress extends ConfigBase implements IStressValueProvider {
 		return "stressValues.v" + BlockStressDefaults.FORCED_UPDATE_VERSION;
 	}
 
-	public Map<ResourceLocation, ConfigValue<Double>> getImpacts() {
+	public Map<Identifier, ConfigValue<Double>> getImpacts() {
 		return impacts;
 	}
 
-	public Map<ResourceLocation, ConfigValue<Double>> getCapacities() {
+	public Map<Identifier, ConfigValue<Double>> getCapacities() {
 		return capacities;
 	}
 

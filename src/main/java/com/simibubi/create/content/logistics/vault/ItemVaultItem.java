@@ -6,69 +6,68 @@ import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.api.connectivity.ConnectivityHandler;
 import com.simibubi.create.content.fluids.tank.FluidTankItem;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.world.World;
 
 public class ItemVaultItem extends BlockItem {
 	// fabric: see comment in FluidTankItem
 	@Internal
 	public static boolean IS_PLACING_NBT = false;
 
-	public ItemVaultItem(Block p_i48527_1_, Properties p_i48527_2_) {
+	public ItemVaultItem(Block p_i48527_1_, Settings p_i48527_2_) {
 		super(p_i48527_1_, p_i48527_2_);
 	}
 
 	@Override
-	public InteractionResult place(BlockPlaceContext ctx) {
+	public ActionResult place(ItemPlacementContext ctx) {
 		IS_PLACING_NBT = FluidTankItem.checkPlacingNbt(ctx);
-		InteractionResult initialResult = super.place(ctx);
+		ActionResult initialResult = super.place(ctx);
 		IS_PLACING_NBT = false;
-		if (!initialResult.consumesAction())
+		if (!initialResult.isAccepted())
 			return initialResult;
 		tryMultiPlace(ctx);
 		return initialResult;
 	}
 
 	@Override
-	protected boolean updateCustomBlockEntityTag(BlockPos p_195943_1_, Level p_195943_2_, Player p_195943_3_,
+	protected boolean postPlacement(BlockPos p_195943_1_, World p_195943_2_, PlayerEntity p_195943_3_,
 		ItemStack p_195943_4_, BlockState p_195943_5_) {
 		MinecraftServer minecraftserver = p_195943_2_.getServer();
 		if (minecraftserver == null)
 			return false;
-		CompoundTag nbt = p_195943_4_.getTagElement("BlockEntityTag");
+		NbtCompound nbt = p_195943_4_.getSubNbt("BlockEntityTag");
 		if (nbt != null) {
 			nbt.remove("Length");
 			nbt.remove("Size");
 			nbt.remove("Controller");
 			nbt.remove("LastKnownPos");
 		}
-		return super.updateCustomBlockEntityTag(p_195943_1_, p_195943_2_, p_195943_3_, p_195943_4_, p_195943_5_);
+		return super.postPlacement(p_195943_1_, p_195943_2_, p_195943_3_, p_195943_4_, p_195943_5_);
 	}
 
-	private void tryMultiPlace(BlockPlaceContext ctx) {
-		Player player = ctx.getPlayer();
+	private void tryMultiPlace(ItemPlacementContext ctx) {
+		PlayerEntity player = ctx.getPlayer();
 		if (player == null)
 			return;
-		if (player.isShiftKeyDown())
+		if (player.isSneaking())
 			return;
-		Direction face = ctx.getClickedFace();
-		ItemStack stack = ctx.getItemInHand();
-		Level world = ctx.getLevel();
-		BlockPos pos = ctx.getClickedPos();
-		BlockPos placedOnPos = pos.relative(face.getOpposite());
+		Direction face = ctx.getSide();
+		ItemStack stack = ctx.getStack();
+		World world = ctx.getWorld();
+		BlockPos pos = ctx.getBlockPos();
+		BlockPos placedOnPos = pos.offset(face.getOpposite());
 		BlockState placedOnState = world.getBlockState(placedOnPos);
 
 		if (!ItemVaultBlock.isVault(placedOnState))
@@ -91,23 +90,23 @@ public class ItemVaultItem extends BlockItem {
 		if (face.getAxis() != vaultBlockAxis)
 			return;
 
-		Direction vaultFacing = Direction.fromAxisAndDirection(vaultBlockAxis, AxisDirection.POSITIVE);
-		BlockPos startPos = face == vaultFacing.getOpposite() ? controllerBE.getBlockPos()
-			.relative(vaultFacing.getOpposite())
-			: controllerBE.getBlockPos()
-				.relative(vaultFacing, controllerBE.length);
+		Direction vaultFacing = Direction.from(vaultBlockAxis, AxisDirection.POSITIVE);
+		BlockPos startPos = face == vaultFacing.getOpposite() ? controllerBE.getPos()
+			.offset(vaultFacing.getOpposite())
+			: controllerBE.getPos()
+				.offset(vaultFacing, controllerBE.length);
 
 		if (VecHelper.getCoordinate(startPos, vaultBlockAxis) != VecHelper.getCoordinate(pos, vaultBlockAxis))
 			return;
 
 		for (int xOffset = 0; xOffset < width; xOffset++) {
 			for (int zOffset = 0; zOffset < width; zOffset++) {
-				BlockPos offsetPos = vaultBlockAxis == Axis.X ? startPos.offset(0, xOffset, zOffset)
-					: startPos.offset(xOffset, zOffset, 0);
+				BlockPos offsetPos = vaultBlockAxis == Axis.X ? startPos.add(0, xOffset, zOffset)
+					: startPos.add(xOffset, zOffset, 0);
 				BlockState blockState = world.getBlockState(offsetPos);
 				if (ItemVaultBlock.isVault(blockState))
 					continue;
-				if (!blockState.canBeReplaced())
+				if (!blockState.isReplaceable())
 					return;
 				tanksToPlace++;
 			}
@@ -118,12 +117,12 @@ public class ItemVaultItem extends BlockItem {
 
 		for (int xOffset = 0; xOffset < width; xOffset++) {
 			for (int zOffset = 0; zOffset < width; zOffset++) {
-				BlockPos offsetPos = vaultBlockAxis == Axis.X ? startPos.offset(0, xOffset, zOffset)
-					: startPos.offset(xOffset, zOffset, 0);
+				BlockPos offsetPos = vaultBlockAxis == Axis.X ? startPos.add(0, xOffset, zOffset)
+					: startPos.add(xOffset, zOffset, 0);
 				BlockState blockState = world.getBlockState(offsetPos);
 				if (ItemVaultBlock.isVault(blockState))
 					continue;
-				BlockPlaceContext context = BlockPlaceContext.at(ctx, offsetPos, face);
+				ItemPlacementContext context = ItemPlacementContext.offset(ctx, offsetPos, face);
 				player.getCustomData()
 					.putBoolean("SilenceVaultSound", true);
 				IS_PLACING_NBT = FluidTankItem.checkPlacingNbt(context);

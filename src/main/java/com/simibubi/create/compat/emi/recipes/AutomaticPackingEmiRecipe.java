@@ -8,9 +8,9 @@ import com.simibubi.create.foundation.gui.AllGuiTextures;
 
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.widget.WidgetHolder;
-import net.minecraft.core.NonNullList;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.collection.DefaultedList;
 
 public class AutomaticPackingEmiRecipe extends CreateEmiRecipe<BasinRecipe> {
 
@@ -19,8 +19,8 @@ public class AutomaticPackingEmiRecipe extends CreateEmiRecipe<BasinRecipe> {
 		if (recipe.getRequiredHeat() == HeatCondition.NONE) {
 			height = 90;
 		}
-		ResourceLocation id = recipe.getId();
-		this.id = new ResourceLocation("emi", "create/automatic_packing/" + id.getNamespace() + "/" + id.getPath());
+		Identifier id = recipe.getId();
+		this.id = new Identifier("emi", "create/automatic_packing/" + id.getNamespace() + "/" + id.getPath());
 	}
 
 	@Override
@@ -28,7 +28,7 @@ public class AutomaticPackingEmiRecipe extends CreateEmiRecipe<BasinRecipe> {
 		addTexture(widgets, AllGuiTextures.JEI_DOWN_ARROW, 136, 32);
 		addTexture(widgets, AllGuiTextures.JEI_SHADOW, 81, 74);
 
-		NonNullList<Ingredient> ingredients = recipe.getIngredients();
+		DefaultedList<Ingredient> ingredients = recipe.getIngredients();
 		int size = ingredients.size();
 		int rows = size == 4 ? 2 : 3;
 		for (int i = 0; i < size; i++) {

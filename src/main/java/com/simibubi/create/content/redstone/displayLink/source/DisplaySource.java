@@ -13,29 +13,28 @@ import com.simibubi.create.content.trains.display.FlapDisplayBlockEntity;
 import com.simibubi.create.content.trains.display.FlapDisplayLayout;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.Components;
-
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 
 public abstract class DisplaySource extends DisplayBehaviour {
 
-	public static final List<MutableComponent> EMPTY = ImmutableList.of(Components.empty());
-	public static final MutableComponent EMPTY_LINE = Components.empty();
-	public static final MutableComponent WHITESPACE = Components.literal(" ");
+	public static final List<MutableText> EMPTY = ImmutableList.of(Components.empty());
+	public static final MutableText EMPTY_LINE = Components.empty();
+	public static final MutableText WHITESPACE = Components.literal(" ");
 
-	public abstract List<MutableComponent> provideText(DisplayLinkContext context, DisplayTargetStats stats);
+	public abstract List<MutableText> provideText(DisplayLinkContext context, DisplayTargetStats stats);
 
 	public void transferData(DisplayLinkContext context, DisplayTarget activeTarget, int line) {
 		DisplayTargetStats stats = activeTarget.provideStats(context);
 
 		if (activeTarget instanceof DisplayBoardTarget fddt) {
-			List<List<MutableComponent>> flapDisplayText = provideFlapDisplayText(context, stats);
+			List<List<MutableText>> flapDisplayText = provideFlapDisplayText(context, stats);
 			fddt.acceptFlapText(line, flapDisplayText, context);
 		}
 
-		List<MutableComponent> text = provideText(context, stats);
+		List<MutableText> text = provideText(context, stats);
 		if (text.isEmpty())
 			text = EMPTY;
 		activeTarget.acceptText(line, text, context);
@@ -57,7 +56,7 @@ public abstract class DisplaySource extends DisplayBehaviour {
 		return id.getPath();
 	}
 
-	public Component getName() {
+	public Text getName() {
 		return Components.translatable(id.getNamespace() + ".display_source." + getTranslationKey());
 	}
 
@@ -71,7 +70,7 @@ public abstract class DisplaySource extends DisplayBehaviour {
 			layout.loadDefault(flapDisplay.getMaxCharCount());
 	}
 
-	public List<List<MutableComponent>> provideFlapDisplayText(DisplayLinkContext context, DisplayTargetStats stats) {
+	public List<List<MutableText>> provideFlapDisplayText(DisplayLinkContext context, DisplayTargetStats stats) {
 		return provideText(context, stats).stream()
 			.map(Arrays::asList)
 			.toList();

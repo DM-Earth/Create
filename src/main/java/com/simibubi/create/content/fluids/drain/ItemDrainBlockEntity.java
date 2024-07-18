@@ -29,15 +29,15 @@ import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation, SidedStorageBlockEntity {
 
@@ -91,7 +91,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (!getHeldItemStack().isEmpty())
 			return inserted;
 
-		if (inserted.getCount() > 1 && GenericItemEmptying.canItemBeEmptied(level, inserted)) {
+		if (inserted.getCount() > 1 && GenericItemEmptying.canItemBeEmptied(world, inserted)) {
 			returned = ItemHandlerHelper.copyStackWithSize(inserted, inserted.getCount() - 1);
 			inserted = ItemHandlerHelper.copyStackWithSize(inserted, 1);
 		}
@@ -106,7 +106,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		transportedStack.prevSideOffset = transportedStack.sideOffset;
 		transportedStack.prevBeltPosition = transportedStack.beltPosition;
 		setHeldItem(transportedStack, side);
-		setChanged();
+		markDirty();
 		sendData();
 
 		return returned;
@@ -125,7 +125,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return;
 		}
 
-		boolean onClient = level.isClientSide && !isVirtual();
+		boolean onClient = world.isClient && !isVirtual();
 
 		if (processingTicks > 0) {
 			heldItem.prevBeltPosition = .5f;
@@ -169,26 +169,26 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 					return;
 			}
 
-			BlockPos nextPosition = worldPosition.relative(side);
+			BlockPos nextPosition = pos.offset(side);
 			DirectBeltInputBehaviour directBeltInputBehaviour =
-				BlockEntityBehaviour.get(level, nextPosition, DirectBeltInputBehaviour.TYPE);
+				BlockEntityBehaviour.get(world, nextPosition, DirectBeltInputBehaviour.TYPE);
 			if (directBeltInputBehaviour == null) {
-				if (!BlockHelper.hasBlockSolidSide(level.getBlockState(nextPosition), level, nextPosition,
+				if (!BlockHelper.hasBlockSolidSide(world.getBlockState(nextPosition), world, nextPosition,
 					side.getOpposite())) {
 					ItemStack ejected = heldItem.stack;
-					Vec3 outPos = VecHelper.getCenterOf(worldPosition)
-						.add(Vec3.atLowerCornerOf(side.getNormal())
-							.scale(.75));
+					Vec3d outPos = VecHelper.getCenterOf(pos)
+						.add(Vec3d.of(side.getVector())
+							.multiply(.75));
 					float movementSpeed = itemMovementPerTick();
-					Vec3 outMotion = Vec3.atLowerCornerOf(side.getNormal())
-						.scale(movementSpeed)
+					Vec3d outMotion = Vec3d.of(side.getVector())
+						.multiply(movementSpeed)
 						.add(0, 1 / 8f, 0);
 					outPos.add(outMotion.normalize());
-					ItemEntity entity = new ItemEntity(level, outPos.x, outPos.y + 6 / 16f, outPos.z, ejected);
-					entity.setDeltaMovement(outMotion);
-					entity.setDefaultPickUpDelay();
-					entity.hurtMarked = true;
-					level.addFreshEntity(entity);
+					ItemEntity entity = new ItemEntity(world, outPos.x, outPos.y + 6 / 16f, outPos.z, ejected);
+					entity.setVelocity(outMotion);
+					entity.setToDefaultPickupDelay();
+					entity.velocityModified = true;
+					world.spawnEntity(entity);
 
 					heldItem = null;
 					notifyUpdate();
@@ -202,7 +202,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			ItemStack returned = directBeltInputBehaviour.handleInsertion(heldItem.copy(), side, false);
 
 			if (returned.isEmpty()) {
-				if (level.getBlockEntity(nextPosition) instanceof ItemDrainBlockEntity)
+				if (world.getBlockEntity(nextPosition) instanceof ItemDrainBlockEntity)
 					award(AllAdvancements.CHAINED_DRAIN);
 				heldItem = null;
 				notifyUpdate();
@@ -219,7 +219,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		}
 
 		if (heldItem.prevBeltPosition < .5f && heldItem.beltPosition >= .5f) {
-			if (!GenericItemEmptying.canItemBeEmptied(level, heldItem.stack))
+			if (!GenericItemEmptying.canItemBeEmptied(world, heldItem.stack))
 				return;
 			heldItem.beltPosition = .5f;
 			if (onClient)
@@ -231,14 +231,14 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	protected boolean continueProcessing() {
-		if (level.isClientSide && !isVirtual())
+		if (world.isClient && !isVirtual())
 			return true;
 		if (processingTicks < 5)
 			return true;
-		if (!GenericItemEmptying.canItemBeEmptied(level, heldItem.stack))
+		if (!GenericItemEmptying.canItemBeEmptied(world, heldItem.stack))
 			return false;
 
-		Pair<FluidStack, ItemStack> emptyItem = GenericItemEmptying.emptyItem(level, heldItem.stack, true);
+		Pair<FluidStack, ItemStack> emptyItem = GenericItemEmptying.emptyItem(world, heldItem.stack, true);
 		FluidStack fluidFromItem = emptyItem.getFirst();
 
 		try (Transaction t = TransferUtil.getTransaction()) {
@@ -258,7 +258,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 				return true;
 			}
 
-			emptyItem = GenericItemEmptying.emptyItem(level, heldItem.stack.copy(), false);
+			emptyItem = GenericItemEmptying.emptyItem(world, heldItem.stack.copy(), false);
 			award(AllAdvancements.DRAIN);
 
 			// Process finished
@@ -291,7 +291,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		compound.putInt("ProcessingTicks", processingTicks);
 		if (heldItem != null)
 			compound.put("HeldItem", heldItem.serializeNBT());
@@ -299,7 +299,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		heldItem = null;
 		processingTicks = compound.getInt("ProcessingTicks");
 		if (compound.contains("HeldItem"))
@@ -326,7 +326,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	@Override
-	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+	public boolean addToGoggleTooltip(List<Text> tooltip, boolean isPlayerSneaking) {
 		return containedFluidTooltip(tooltip, isPlayerSneaking, getFluidStorage(null));
 	}
 }

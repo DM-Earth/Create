@@ -1,15 +1,13 @@
 package com.simibubi.create.infrastructure.gametest;
 
 import java.util.Collection;
-
+import net.minecraft.test.CustomTestProvider;
+import net.minecraft.test.TestFunction;
 import com.simibubi.create.infrastructure.gametest.tests.TestContraptions;
 import com.simibubi.create.infrastructure.gametest.tests.TestFluids;
 import com.simibubi.create.infrastructure.gametest.tests.TestItems;
 import com.simibubi.create.infrastructure.gametest.tests.TestMisc;
 import com.simibubi.create.infrastructure.gametest.tests.TestProcessing;
-
-import net.minecraft.gametest.framework.GameTestGenerator;
-import net.minecraft.gametest.framework.TestFunction;
 
 public class CreateGameTests {
 	private static final Class<?>[] testHolders = {
@@ -20,7 +18,7 @@ public class CreateGameTests {
 			TestProcessing.class
 	};
 
-	@GameTestGenerator
+	@CustomTestProvider
 	public static Collection<TestFunction> generateTests() {
 		return CreateTestFunction.getTestsFrom(testHolders);
 	}

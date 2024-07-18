@@ -1,12 +1,11 @@
 package com.simibubi.create.content.schematics.client.tools;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.outliner.LineOutline;
 import com.simibubi.create.foundation.render.SuperRenderTypeBuffer;
 import com.simibubi.create.foundation.utility.AnimationTickHolder;
-
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 
 public class RotateTool extends PlacementToolBase {
 
@@ -21,14 +20,14 @@ public class RotateTool extends PlacementToolBase {
 	}
 
 	@Override
-	public void renderOnSchematic(PoseStack ms, SuperRenderTypeBuffer buffer) {
-		AABB bounds = schematicHandler.getBounds();
-		double height = bounds.getYsize() + Math.max(20, bounds.getYsize());
-		Vec3 center = bounds.getCenter()
+	public void renderOnSchematic(MatrixStack ms, SuperRenderTypeBuffer buffer) {
+		Box bounds = schematicHandler.getBounds();
+		double height = bounds.getYLength() + Math.max(20, bounds.getYLength());
+		Vec3d center = bounds.getCenter()
 			.add(schematicHandler.getTransformation()
 				.getRotationOffset(false));
-		Vec3 start = center.subtract(0, height / 2, 0);
-		Vec3 end = center.add(0, height / 2, 0);
+		Vec3d start = center.subtract(0, height / 2, 0);
+		Vec3d end = center.add(0, height / 2, 0);
 
 		line.getParams()
 			.disableCull()
@@ -36,7 +35,7 @@ public class RotateTool extends PlacementToolBase {
 			.colored(0xdddddd)
 			.lineWidth(1 / 16f);
 		line.set(start, end)
-			.render(ms, buffer, Vec3.ZERO, AnimationTickHolder.getPartialTicks());
+			.render(ms, buffer, Vec3d.ZERO, AnimationTickHolder.getPartialTicks());
 
 		super.renderOnSchematic(ms, buffer);
 	}

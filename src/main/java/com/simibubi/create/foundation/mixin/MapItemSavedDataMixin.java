@@ -4,7 +4,14 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
+import net.minecraft.item.map.MapIcon;
+import net.minecraft.item.map.MapState;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldAccess;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -19,16 +26,7 @@ import com.simibubi.create.content.trains.station.StationBlockEntity;
 import com.simibubi.create.content.trains.station.StationMapData;
 import com.simibubi.create.content.trains.station.StationMarker;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.saveddata.maps.MapDecoration;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-
-@Mixin(MapItemSavedData.class)
+@Mixin(MapState.class)
 public class MapItemSavedDataMixin implements StationMapData {
 	@Unique
 	private static final String STATION_MARKERS_KEY = "create:stations";
@@ -47,23 +45,23 @@ public class MapItemSavedDataMixin implements StationMapData {
 
 	@Shadow
 	@Final
-	Map<String, MapDecoration> decorations;
+	Map<String, MapIcon> icons;
 
 	@Shadow
-	private int trackedDecorationCount;
+	private int iconCount;
 
 	@Unique
 	private final Map<String, StationMarker> create$stationMarkers = Maps.newHashMap();
 
 	@Inject(
-			method = "load(Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/world/level/saveddata/maps/MapItemSavedData;",
+			method = "fromNbt(Lnet/minecraft/nbt/NbtCompound;)Lnet/minecraft/item/map/MapState;",
 			at = @At("RETURN")
 	)
-	private static void create$onLoad(CompoundTag compound, CallbackInfoReturnable<MapItemSavedData> cir) {
-		MapItemSavedData mapData = cir.getReturnValue();
+	private static void create$onLoad(NbtCompound compound, CallbackInfoReturnable<MapState> cir) {
+		MapState mapData = cir.getReturnValue();
 		StationMapData stationMapData = (StationMapData) mapData;
 
-		ListTag listTag = compound.getList(STATION_MARKERS_KEY, Tag.TAG_COMPOUND);
+		NbtList listTag = compound.getList(STATION_MARKERS_KEY, NbtElement.COMPOUND_TYPE);
 		for (int i = 0; i < listTag.size(); ++i) {
 			StationMarker stationMarker = StationMarker.load(listTag.getCompound(i));
 			stationMapData.addStationMarker(stationMarker);
@@ -71,11 +69,11 @@ public class MapItemSavedDataMixin implements StationMapData {
 	}
 
 	@Inject(
-			method = "save(Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/nbt/CompoundTag;",
+			method = "writeNbt(Lnet/minecraft/nbt/NbtCompound;)Lnet/minecraft/nbt/NbtCompound;",
 			at = @At("RETURN")
 	)
-	public void create$onSave(CompoundTag compound, CallbackInfoReturnable<CompoundTag> cir) {
-		ListTag listTag = new ListTag();
+	public void create$onSave(NbtCompound compound, CallbackInfoReturnable<NbtCompound> cir) {
+		NbtList listTag = new NbtList();
 		for (StationMarker stationMarker : create$stationMarkers.values()) {
 			listTag.add(stationMarker.save());
 		}
@@ -91,45 +89,45 @@ public class MapItemSavedDataMixin implements StationMapData {
 		float localZ = (marker.getTarget().getZ() - centerZ) / (float) scaleMultiplier;
 
 		if (localX < -63.0F || localX > 63.0F || localZ < -63.0F || localZ > 63.0F) {
-			removeDecoration(marker.getId());
+			removeIcon(marker.getId());
 			return;
 		}
 
 		byte localXByte = (byte) (int) (localX * 2.0F + 0.5F);
 		byte localZByte = (byte) (int) (localZ * 2.0F + 0.5F);
 
-		MapDecoration decoration = new StationMarker.Decoration(localXByte, localZByte, marker.getName());
-		MapDecoration oldDecoration = decorations.put(marker.getId(), decoration);
+		MapIcon decoration = new StationMarker.Decoration(localXByte, localZByte, marker.getName());
+		MapIcon oldDecoration = icons.put(marker.getId(), decoration);
 		if (!decoration.equals(oldDecoration)) {
-			if (oldDecoration != null && oldDecoration.getType().shouldTrackCount()) {
-				--trackedDecorationCount;
+			if (oldDecoration != null && oldDecoration.getType().shouldUseIconCountLimit()) {
+				--iconCount;
 			}
 
-			if (decoration.getType().shouldTrackCount()) {
-				++trackedDecorationCount;
+			if (decoration.getType().shouldUseIconCountLimit()) {
+				++iconCount;
 			}
 
-			setDecorationsDirty();
+			markIconsDirty();
 		}
 	}
 
 	@Shadow
-	private void removeDecoration(String identifier) {
+	private void removeIcon(String identifier) {
 		throw new AssertionError();
 	}
 
 	@Shadow
-	private void setDecorationsDirty() {
+	private void markIconsDirty() {
 		throw new AssertionError();
 	}
 
 	@Shadow
-	public boolean isTrackedCountOverLimit(int trackedCount) {
+	public boolean iconCountNotLessThan(int trackedCount) {
 		throw new AssertionError();
 	}
 
 	@Override
-	public boolean toggleStation(LevelAccessor level, BlockPos pos, StationBlockEntity stationBlockEntity) {
+	public boolean toggleStation(WorldAccess level, BlockPos pos, StationBlockEntity stationBlockEntity) {
 		double xCenter = pos.getX() + 0.5D;
 		double zCenter = pos.getZ() + 0.5D;
 		int scaleMultiplier = 1 << scale;
@@ -145,11 +143,11 @@ public class MapItemSavedDataMixin implements StationMapData {
 			return false;
 
 		if (create$stationMarkers.remove(marker.getId(), marker)) {
-			removeDecoration(marker.getId());
+			removeIcon(marker.getId());
 			return true;
 		}
 
-		if (!isTrackedCountOverLimit(256)) {
+		if (!iconCountNotLessThan(256)) {
 			addStationMarker(marker);
 			return true;
 		}
@@ -158,15 +156,15 @@ public class MapItemSavedDataMixin implements StationMapData {
 	}
 
 	@Inject(
-			method = "checkBanners(Lnet/minecraft/world/level/BlockGetter;II)V",
+			method = "removeBanner(Lnet/minecraft/world/BlockView;II)V",
 			at = @At("RETURN")
 	)
-	public void create$onCheckBanners(BlockGetter blockGetter, int x, int z, CallbackInfo ci) {
+	public void create$onCheckBanners(BlockView blockGetter, int x, int z, CallbackInfo ci) {
 		create$checkStations(blockGetter, x, z);
 	}
 
 	@Unique
-	private void create$checkStations(BlockGetter blockGetter, int x, int z) {
+	private void create$checkStations(BlockView blockGetter, int x, int z) {
 		Iterator<StationMarker> iterator = create$stationMarkers.values().iterator();
 		List<StationMarker> newMarkers = new ArrayList<>();
 
@@ -176,7 +174,7 @@ public class MapItemSavedDataMixin implements StationMapData {
 				StationMarker other = StationMarker.fromWorld(blockGetter, marker.getSource());
 				if (!marker.equals(other)) {
 					iterator.remove();
-					removeDecoration(marker.getId());
+					removeIcon(marker.getId());
 
 					if (other != null && marker.getTarget().equals(other.getTarget())) {
 						newMarkers.add(other);

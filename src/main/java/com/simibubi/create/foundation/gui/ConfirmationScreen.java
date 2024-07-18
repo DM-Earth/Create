@@ -5,27 +5,25 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.StringVisitable;
+import net.minecraft.text.Style;
 import org.lwjgl.opengl.GL30;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.gui.element.BoxElement;
 import com.simibubi.create.foundation.gui.element.TextStencilElement;
 import com.simibubi.create.foundation.gui.widget.BoxWidget;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.network.chat.Style;
 
 public class ConfirmationScreen extends AbstractSimiScreen {
 
 	private Screen source;
 	private Consumer<Response> action = _success -> {
 	};
-	private List<FormattedText> text = new ArrayList<>();
+	private List<StringVisitable> text = new ArrayList<>();
 	private boolean centered = false;
 	private int x;
 	private int y;
@@ -58,12 +56,12 @@ public class ConfirmationScreen extends AbstractSimiScreen {
 		return this;
 	}
 
-	public ConfirmationScreen addText(FormattedText text) {
+	public ConfirmationScreen addText(StringVisitable text) {
 		this.text.add(text);
 		return this;
 	}
 
-	public ConfirmationScreen withText(FormattedText text) {
+	public ConfirmationScreen withText(StringVisitable text) {
 		return clearText().addText(text);
 	}
 
@@ -92,9 +90,9 @@ public class ConfirmationScreen extends AbstractSimiScreen {
 
 	public void open(@Nonnull Screen source) {
 		this.source = source;
-		Minecraft client = Minecraft.getInstance();
-		this.init(client, client.getWindow().getGuiScaledWidth(), client.getWindow().getGuiScaledHeight());
-		this.minecraft.screen = this;
+		MinecraftClient client = MinecraftClient.getInstance();
+		this.init(client, client.getWindow().getScaledWidth(), client.getWindow().getScaledHeight());
+		this.client.currentScreen = this;
 	}
 
 	@Override
@@ -107,11 +105,11 @@ public class ConfirmationScreen extends AbstractSimiScreen {
 	protected void init() {
 		super.init();
 
-		ArrayList<FormattedText> copy = new ArrayList<>(text);
+		ArrayList<StringVisitable> copy = new ArrayList<>(text);
 		text.clear();
-		copy.forEach(t -> text.addAll(font.getSplitter().splitLines(t, 300, Style.EMPTY)));
+		copy.forEach(t -> text.addAll(textRenderer.getTextHandler().wrapLines(t, 300, Style.EMPTY)));
 
-		textHeight = text.size() * (font.lineHeight + 1) + 4;
+		textHeight = text.size() * (textRenderer.fontHeight + 1) + 4;
 		textWidth = 300;
 
 		if (centered) {
@@ -133,29 +131,29 @@ public class ConfirmationScreen extends AbstractSimiScreen {
 		int buttonX = x + textWidth / 2 - 6 - (int) (70 * (tristate ? 1.5f : 1));
 
 		TextStencilElement confirmText =
-				new TextStencilElement(font, tristate ? "Save" : "Confirm").centered(true, true);
+				new TextStencilElement(textRenderer, tristate ? "Save" : "Confirm").centered(true, true);
 		confirm = new BoxWidget(buttonX, y + textHeight + 6, 70, 16).withCallback(() -> accept(Response.Confirm));
 		confirm.showingElement(confirmText.withElementRenderer(BoxWidget.gradientFactory.apply(confirm)));
-		addRenderableWidget(confirm);
+		addDrawableChild(confirm);
 
 		buttonX += 12 + 70;
 
 		if (tristate) {
 			TextStencilElement confirmDontSaveText =
-					new TextStencilElement(font, "Don't Save").centered(true, true);
+					new TextStencilElement(textRenderer, "Don't Save").centered(true, true);
 			confirmDontSave =
 					new BoxWidget(buttonX, y + textHeight + 6, 70, 16).withCallback(() -> accept(Response.ConfirmDontSave));
 			confirmDontSave.showingElement(
 					confirmDontSaveText.withElementRenderer(BoxWidget.gradientFactory.apply(confirmDontSave)));
-			addRenderableWidget(confirmDontSave);
+			addDrawableChild(confirmDontSave);
 			buttonX += 12 + 70;
 		}
 
-		TextStencilElement cancelText = new TextStencilElement(font, "Cancel").centered(true, true);
+		TextStencilElement cancelText = new TextStencilElement(textRenderer, "Cancel").centered(true, true);
 		cancel = new BoxWidget(buttonX, y + textHeight + 6, 70, 16)
 				.withCallback(() -> accept(Response.Cancel));
 		cancel.showingElement(cancelText.withElementRenderer(BoxWidget.gradientFactory.apply(cancel)));
-		addRenderableWidget(cancel);
+		addDrawableChild(cancel);
 
 		textBackground = new BoxElement()
 				.gradientBorder(Theme.p(Theme.Key.BUTTON_DISABLE))
@@ -163,41 +161,41 @@ public class ConfirmationScreen extends AbstractSimiScreen {
 				.at(-5, y - 5);
 
 		if (text.size() == 1)
-			x = (width - font.width(text.get(0))) / 2;
+			x = (width - textRenderer.getWidth(text.get(0))) / 2;
 	}
 
 	@Override
-	public void onClose() {
+	public void close() {
 		accept(Response.Cancel);
 	}
 
 	private void accept(Response success) {
-		minecraft.screen = source;
+		client.currentScreen = source;
 		action.accept(success);
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		textBackground.render(graphics);
-		int offset = font.lineHeight + 1;
+		int offset = textRenderer.fontHeight + 1;
 		int lineY = y - offset;
 
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(0, 0, 200);
 
-		for (FormattedText line : text) {
+		for (StringVisitable line : text) {
 			lineY += offset;
 			if (line == null)
 				continue;
-			graphics.drawString(font, line.getString(), x, lineY, 0xeaeaea, false);
+			graphics.drawText(textRenderer, line.getString(), x, lineY, 0xeaeaea, false);
 		}
 
-		ms.popPose();
+		ms.pop();
 	}
 
 	@Override
-	protected void renderWindowBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindowBackground(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		endFrame();
 
 		source.render(graphics, 0, 0, 10); // zero mouse coords to prevent further tooltips
@@ -210,23 +208,23 @@ public class ConfirmationScreen extends AbstractSimiScreen {
 
 	@Override
 	protected void prepareFrame() {
-		UIRenderHelper.swapAndBlitColor(minecraft.getMainRenderTarget(), UIRenderHelper.framebuffer);
-		RenderSystem.clear(GL30.GL_STENCIL_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+		UIRenderHelper.swapAndBlitColor(client.getFramebuffer(), UIRenderHelper.framebuffer);
+		RenderSystem.clear(GL30.GL_STENCIL_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT, MinecraftClient.IS_SYSTEM_MAC);
 	}
 
 	@Override
 	protected void endFrame() {
-		UIRenderHelper.swapAndBlitColor(UIRenderHelper.framebuffer, minecraft.getMainRenderTarget());
+		UIRenderHelper.swapAndBlitColor(UIRenderHelper.framebuffer, client.getFramebuffer());
 	}
 
 	@Override
-	public void resize(@Nonnull Minecraft client, int width, int height) {
+	public void resize(@Nonnull MinecraftClient client, int width, int height) {
 		super.resize(client, width, height);
 		source.resize(client, width, height);
 	}
 
 	@Override
-	public boolean isPauseScreen() {
+	public boolean shouldPause() {
 		return true;
 	}
 }

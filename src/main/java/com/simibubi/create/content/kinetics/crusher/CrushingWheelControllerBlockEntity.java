@@ -31,27 +31,27 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ItemParticleOption;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ItemStackParticleEffect;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
 
 public class CrushingWheelControllerBlockEntity extends SmartBlockEntity implements SidedStorageBlockEntity {
 
@@ -80,10 +80,10 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 	}
 
 	private boolean supportsDirectBeltInput(Direction side) {
-		BlockState blockState = getBlockState();
+		BlockState blockState = getCachedState();
 		if (blockState == null)
 			return false;
-		Direction direction = blockState.getValue(CrushingWheelControllerBlock.FACING);
+		Direction direction = blockState.get(CrushingWheelControllerBlock.FACING);
 		return direction == Direction.DOWN || direction == side;
 	}
 
@@ -92,8 +92,8 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 		super.tick();
 		if (searchForEntity) {
 			searchForEntity = false;
-			List<Entity> search = level.getEntities((Entity) null, new AABB(getBlockPos()),
-				e -> entityUUID.equals(e.getUUID()));
+			List<Entity> search = world.getOtherEntities((Entity) null, new Box(getPos()),
+				e -> entityUUID.equals(e.getUuid()));
 			if (search.isEmpty())
 				clear();
 			else
@@ -105,39 +105,39 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 		if (crushingspeed == 0)
 			return;
 
-		if (level.isClientSide)
+		if (world.isClient)
 			EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> this.tickAudio());
 
 		float speed = crushingspeed * 4;
 
-		Vec3 centerPos = VecHelper.getCenterOf(worldPosition);
-		Direction facing = getBlockState().getValue(CrushingWheelControllerBlock.FACING);
-		int offset = facing.getAxisDirection()
-			.getStep();
-		Vec3 outSpeed = new Vec3((facing.getAxis() == Axis.X ? 0.25D : 0.0D) * offset,
+		Vec3d centerPos = VecHelper.getCenterOf(pos);
+		Direction facing = getCachedState().get(CrushingWheelControllerBlock.FACING);
+		int offset = facing.getDirection()
+			.offset();
+		Vec3d outSpeed = new Vec3d((facing.getAxis() == Axis.X ? 0.25D : 0.0D) * offset,
 			offset == 1 ? (facing.getAxis() == Axis.Y ? 0.5D : 0.0D) : 0.0D // Increased upwards speed so upwards
 																			// crushing wheels shoot out the item
 																			// properly.
 			, (facing.getAxis() == Axis.Z ? 0.25D : 0.0D) * offset); // No downwards speed, so downwards crushing wheels
 																		// drop the items as before.
-		Vec3 outPos = centerPos.add((facing.getAxis() == Axis.X ? .55f * offset : 0f),
+		Vec3d outPos = centerPos.add((facing.getAxis() == Axis.X ? .55f * offset : 0f),
 			(facing.getAxis() == Axis.Y ? .55f * offset : 0f), (facing.getAxis() == Axis.Z ? .55f * offset : 0f));
 
 		if (!hasEntity()) {
 
 			float processingSpeed =
-				Mth.clamp((speed) / (!inventory.appliedRecipe ? Mth.log2(inventory.getStackInSlot(0)
+				MathHelper.clamp((speed) / (!inventory.appliedRecipe ? MathHelper.floorLog2(inventory.getStackInSlot(0)
 					.getCount()) : 1), .25f, 20);
 			inventory.remainingTime -= processingSpeed;
 			spawnParticles(inventory.getStackInSlot(0));
 
-			if (level.isClientSide)
+			if (world.isClient)
 				return;
 
 			if (inventory.remainingTime < 20 && !inventory.appliedRecipe) {
 				applyRecipe();
 				inventory.appliedRecipe = true;
-				level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2 | 16);
+				world.updateListeners(pos, getCachedState(), getCachedState(), 2 | 16);
 				return;
 			}
 
@@ -148,10 +148,10 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 
 			// Output Items
 			if (facing != Direction.UP) {
-				BlockPos nextPos = worldPosition.offset(facing.getAxis() == Axis.X ? 1 * offset : 0, -1,
+				BlockPos nextPos = pos.add(facing.getAxis() == Axis.X ? 1 * offset : 0, -1,
 					facing.getAxis() == Axis.Z ? 1 * offset : 0);
 				DirectBeltInputBehaviour behaviour =
-					BlockEntityBehaviour.get(level, nextPos, DirectBeltInputBehaviour.TYPE);
+					BlockEntityBehaviour.get(world, nextPos, DirectBeltInputBehaviour.TYPE);
 				if (behaviour != null) {
 					boolean changed = false;
 					if (!behaviour.canInsertFromSide(facing))
@@ -161,13 +161,13 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 						if (stack.isEmpty())
 							continue;
 						ItemStack remainder = behaviour.handleInsertion(stack, facing, false);
-						if (ItemStack.matches(stack, remainder))
+						if (ItemStack.areEqual(stack, remainder))
 							continue;
 						inventory.setStackInSlot(slot, remainder);
 						changed = true;
 					}
 					if (changed) {
-						setChanged();
+						markDirty();
 						sendData();
 					}
 					return;
@@ -179,31 +179,31 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 				ItemStack stack = inventory.getStackInSlot(slot);
 				if (stack.isEmpty())
 					continue;
-				ItemEntity entityIn = new ItemEntity(level, outPos.x, outPos.y, outPos.z, stack);
-				entityIn.setDeltaMovement(outSpeed);
+				ItemEntity entityIn = new ItemEntity(world, outPos.x, outPos.y, outPos.z, stack);
+				entityIn.setVelocity(outSpeed);
 				entityIn.getCustomData()
-					.put("BypassCrushingWheel", NbtUtils.writeBlockPos(worldPosition));
-				level.addFreshEntity(entityIn);
+					.put("BypassCrushingWheel", NbtHelper.fromBlockPos(pos));
+				world.spawnEntity(entityIn);
 			}
 			inventory.clear();
-			level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2 | 16);
+			world.updateListeners(pos, getCachedState(), getCachedState(), 2 | 16);
 
 			return;
 		}
 
 		if (!processingEntity.isAlive() || !processingEntity.getBoundingBox()
-			.intersects(new AABB(worldPosition).inflate(.5f))) {
+			.intersects(new Box(pos).expand(.5f))) {
 			clear();
 			return;
 		}
 
-		double xMotion = ((worldPosition.getX() + .5f) - processingEntity.getX()) / 2f;
-		double zMotion = ((worldPosition.getZ() + .5f) - processingEntity.getZ()) / 2f;
-		if (processingEntity.isShiftKeyDown())
+		double xMotion = ((pos.getX() + .5f) - processingEntity.getX()) / 2f;
+		double zMotion = ((pos.getZ() + .5f) - processingEntity.getZ()) / 2f;
+		if (processingEntity.isSneaking())
 			xMotion = zMotion = 0;
 		double movement = Math.max(-speed / 4f, -.5f) * -offset;
-		processingEntity.setDeltaMovement(
-			new Vec3(facing.getAxis() == Axis.X ? movement : xMotion, facing.getAxis() == Axis.Y ? movement : 0f // Do
+		processingEntity.setVelocity(
+			new Vec3d(facing.getAxis() == Axis.X ? movement : xMotion, facing.getAxis() == Axis.Y ? movement : 0f // Do
 																														// not
 																														// move
 																														// entities
@@ -215,11 +215,11 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 																														// crushers,
 				, facing.getAxis() == Axis.Z ? movement : zMotion)); // Or they'll only get their feet crushed.
 
-		if (level.isClientSide)
+		if (world.isClient)
 			return;
 
 		if (!(processingEntity instanceof ItemEntity)) {
-			Vec3 entityOutPos = outPos.add(facing.getAxis() == Axis.X ? .5f * offset : 0f,
+			Vec3d entityOutPos = outPos.add(facing.getAxis() == Axis.X ? .5f * offset : 0f,
 				facing.getAxis() == Axis.Y ? .5f * offset : 0f, facing.getAxis() == Axis.Z ? .5f * offset : 0f);
 			int crusherDamage = AllConfigs.server().kinetics.crushingDamage.get();
 
@@ -230,18 +230,18 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 																							// kill them.
 					&& (((LivingEntity) processingEntity).hurtTime <= 0)) { // This way it can actually output the items
 																			// to the right spot.
-					processingEntity.setPos(entityOutPos.x, entityOutPos.y, entityOutPos.z);
+					processingEntity.setPosition(entityOutPos.x, entityOutPos.y, entityOutPos.z);
 				}
 			}
-			processingEntity.hurt(CreateDamageSources.crush(level), crusherDamage);
+			processingEntity.damage(CreateDamageSources.crush(world), crusherDamage);
 			if (!processingEntity.isAlive()) {
-				processingEntity.setPos(entityOutPos.x, entityOutPos.y, entityOutPos.z);
+				processingEntity.setPosition(entityOutPos.x, entityOutPos.y, entityOutPos.z);
 			}
 			return;
 		}
 
 		ItemEntity itemEntity = (ItemEntity) processingEntity;
-		itemEntity.setPickUpDelay(20);
+		itemEntity.setPickupDelay(20);
 		if (facing.getAxis() == Axis.Y) {
 			if (processingEntity.getY() * -offset < (centerPos.y - .25f) * -offset) {
 				intakeItem(itemEntity);
@@ -259,41 +259,41 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 
 	@Environment(EnvType.CLIENT)
 	public void tickAudio() {
-		float pitch = Mth.clamp((crushingspeed / 256f) + .45f, .85f, 1f);
+		float pitch = MathHelper.clamp((crushingspeed / 256f) + .45f, .85f, 1f);
 		if (entityUUID == null && inventory.getStackInSlot(0)
 			.isEmpty())
 			return;
-		SoundScapes.play(AmbienceGroup.CRUSHING, worldPosition, pitch);
+		SoundScapes.play(AmbienceGroup.CRUSHING, pos, pitch);
 	}
 
 	private void intakeItem(ItemEntity itemEntity) {
 		inventory.clear();
-		inventory.setStackInSlot(0, itemEntity.getItem()
+		inventory.setStackInSlot(0, itemEntity.getStack()
 			.copy());
 		itemInserted(inventory.getStackInSlot(0));
 		itemEntity.discard();
-		level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2 | 16);
+		world.updateListeners(pos, getCachedState(), getCachedState(), 2 | 16);
 	}
 
 	protected void spawnParticles(ItemStack stack) {
 		if (stack == null || stack.isEmpty())
 			return;
 
-		ParticleOptions particleData = null;
+		ParticleEffect particleData = null;
 		if (stack.getItem() instanceof BlockItem)
-			particleData = new BlockParticleOption(ParticleTypes.BLOCK, ((BlockItem) stack.getItem()).getBlock()
-				.defaultBlockState());
+			particleData = new BlockStateParticleEffect(ParticleTypes.BLOCK, ((BlockItem) stack.getItem()).getBlock()
+				.getDefaultState());
 		else
-			particleData = new ItemParticleOption(ParticleTypes.ITEM, stack);
+			particleData = new ItemStackParticleEffect(ParticleTypes.ITEM, stack);
 
-		RandomSource r = level.random;
+		Random r = world.random;
 		for (int i = 0; i < 4; i++)
-			level.addParticle(particleData, worldPosition.getX() + r.nextFloat(), worldPosition.getY() + r.nextFloat(),
-				worldPosition.getZ() + r.nextFloat(), 0, 0, 0);
+			world.addParticle(particleData, pos.getX() + r.nextFloat(), pos.getY() + r.nextFloat(),
+				pos.getZ() + r.nextFloat(), 0, 0, 0);
 	}
 
 	private void applyRecipe() {
-		Optional<ProcessingRecipe<Container>> recipe = findRecipe();
+		Optional<ProcessingRecipe<Inventory>> recipe = findRecipe();
 
 		List<ItemStack> list = new ArrayList<>();
 		if (recipe.isPresent()) {
@@ -316,27 +316,27 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 
 	}
 
-	public Optional<ProcessingRecipe<Container>> findRecipe() {
-		Optional<ProcessingRecipe<Container>> crushingRecipe = AllRecipeTypes.CRUSHING.find(inventory, level);
+	public Optional<ProcessingRecipe<Inventory>> findRecipe() {
+		Optional<ProcessingRecipe<Inventory>> crushingRecipe = AllRecipeTypes.CRUSHING.find(inventory, world);
 		if (!crushingRecipe.isPresent())
-			crushingRecipe = AllRecipeTypes.MILLING.find(inventory, level);
+			crushingRecipe = AllRecipeTypes.MILLING.find(inventory, world);
 		return crushingRecipe;
 	}
 
 	@Override
-	public void write(CompoundTag compound, boolean clientPacket) {
+	public void write(NbtCompound compound, boolean clientPacket) {
 		if (hasEntity())
-			compound.put("Entity", NbtUtils.createUUID(entityUUID));
+			compound.put("Entity", NbtHelper.fromUuid(entityUUID));
 		compound.put("Inventory", NBTSerializer.serializeNBT(inventory));
 		compound.putFloat("Speed", crushingspeed);
 		super.write(compound, clientPacket);
 	}
 
 	@Override
-	protected void read(CompoundTag compound, boolean clientPacket) {
+	protected void read(NbtCompound compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		if (compound.contains("Entity") && !isOccupied()) {
-			entityUUID = NbtUtils.loadUUID(NBTHelper.getINBT(compound, "Entity"));
+			entityUUID = NbtHelper.toUuid(NBTHelper.getINBT(compound, "Entity"));
 			this.searchForEntity = true;
 		}
 		crushingspeed = compound.getFloat("Speed");
@@ -345,11 +345,11 @@ public class CrushingWheelControllerBlockEntity extends SmartBlockEntity impleme
 
 	public void startCrushing(Entity entity) {
 		processingEntity = entity;
-		entityUUID = entity.getUUID();
+		entityUUID = entity.getUuid();
 	}
 
 	private void itemInserted(ItemStack stack) {
-		Optional<ProcessingRecipe<Container>> recipe = findRecipe();
+		Optional<ProcessingRecipe<Inventory>> recipe = findRecipe();
 		inventory.remainingTime = recipe.isPresent() ? recipe.get()
 			.getProcessingDuration() : 100;
 		inventory.appliedRecipe = false;

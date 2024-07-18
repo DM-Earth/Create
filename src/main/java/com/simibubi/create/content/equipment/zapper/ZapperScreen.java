@@ -1,9 +1,17 @@
 package com.simibubi.create.content.equipment.zapper;
 
 import java.util.Vector;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.Registries;
+import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.RotationAxis;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.foundation.gui.AbstractSimiScreen;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
@@ -14,27 +22,17 @@ import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.NBTHelper;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-
 public abstract class ZapperScreen extends AbstractSimiScreen {
 
-	protected final Component patternSection = Lang.translateDirect("gui.terrainzapper.patternSection");
+	protected final Text patternSection = Lang.translateDirect("gui.terrainzapper.patternSection");
 
 	protected AllGuiTextures background;
 	protected ItemStack zapper;
-	protected InteractionHand hand;
+	protected Hand hand;
 
 	protected float animationProgress;
 
-	protected Component title;
+	protected Text title;
 	protected Vector<IconButton> patternButtons = new Vector<>(6);
 	private IconButton confirmButton;
 	protected int brightColor;
@@ -42,7 +40,7 @@ public abstract class ZapperScreen extends AbstractSimiScreen {
 
 	protected PlacementPatterns currentPattern;
 
-	public ZapperScreen(AllGuiTextures background, ItemStack zapper, InteractionHand hand) {
+	public ZapperScreen(AllGuiTextures background, ItemStack zapper, Hand hand) {
 		this.background = background;
 		this.zapper = zapper;
 		this.hand = hand;
@@ -50,7 +48,7 @@ public abstract class ZapperScreen extends AbstractSimiScreen {
 		brightColor = 0xFEFEFE;
 		fontColor = AllGuiTextures.FONT_COLOR;
 
-		CompoundTag nbt = zapper.getOrCreateTag();
+		NbtCompound nbt = zapper.getOrCreateNbt();
 		currentPattern = NBTHelper.readEnum(nbt, "Pattern", PlacementPatterns.class);
 	}
 
@@ -68,9 +66,9 @@ public abstract class ZapperScreen extends AbstractSimiScreen {
 		confirmButton =
 			new IconButton(x + background.width - 33, y + background.height - 24, AllIcons.I_CONFIRM);
 		confirmButton.withCallback(() -> {
-			onClose();
+			close();
 		});
-		addRenderableWidget(confirmButton);
+		addDrawableChild(confirmButton);
 
 		patternButtons.clear();
 		for (int row = 0; row <= 1; row++) {
@@ -94,7 +92,7 @@ public abstract class ZapperScreen extends AbstractSimiScreen {
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		int x = guiLeft;
 		int y = guiTop;
 
@@ -105,8 +103,8 @@ public abstract class ZapperScreen extends AbstractSimiScreen {
 		renderZapper(graphics, x, y);
 	}
 
-	protected void drawOnBackground(GuiGraphics graphics, int x, int y) {
-		graphics.drawString(font, title, x + 11, y + 4, 0x54214F, false);
+	protected void drawOnBackground(DrawContext graphics, int x, int y) {
+		graphics.drawText(textRenderer, title, x + 11, y + 4, 0x54214F, false);
 	}
 
 	@Override
@@ -122,7 +120,7 @@ public abstract class ZapperScreen extends AbstractSimiScreen {
 		AllPackets.getChannel().sendToServer(packet);
 	}
 
-	protected void renderZapper(GuiGraphics graphics, int x, int y) {
+	protected void renderZapper(DrawContext graphics, int x, int y) {
 		GuiGameElement.of(zapper)
 				.scale(4)
 				.at(x + background.width, y + background.height - 48, -200)
@@ -130,23 +128,23 @@ public abstract class ZapperScreen extends AbstractSimiScreen {
 	}
 
 	@SuppressWarnings("deprecation")
-	protected void renderBlock(GuiGraphics graphics, int x, int y) {
-		PoseStack ms = graphics.pose();
-		ms.pushPose();
+	protected void renderBlock(DrawContext graphics, int x, int y) {
+		MatrixStack ms = graphics.getMatrices();
+		ms.push();
 		ms.translate(x + 32, y + 42, 120);
-		ms.mulPose(Axis.XP.rotationDegrees(-25f));
-		ms.mulPose(Axis.YP.rotationDegrees(-45f));
+		ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-25f));
+		ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-45f));
 		ms.scale(20, 20, 20);
 
-		BlockState state = Blocks.AIR.defaultBlockState();
-		if (zapper.hasTag() && zapper.getTag()
+		BlockState state = Blocks.AIR.getDefaultState();
+		if (zapper.hasNbt() && zapper.getNbt()
 			.contains("BlockUsed"))
-			state = NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(), zapper.getTag()
+			state = NbtHelper.toBlockState(Registries.BLOCK.getReadOnlyWrapper(), zapper.getNbt()
 				.getCompound("BlockUsed"));
 
 		GuiGameElement.of(state)
 			.render(graphics);
-		ms.popPose();
+		ms.pop();
 	}
 
 	protected abstract ConfigureZapperPacket getConfigurationPacket();

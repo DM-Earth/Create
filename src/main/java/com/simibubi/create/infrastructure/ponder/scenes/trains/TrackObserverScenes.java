@@ -12,12 +12,11 @@ import com.simibubi.create.foundation.ponder.element.ParrotElement;
 import com.simibubi.create.foundation.ponder.element.ParrotElement.FacePointOfInterestPose;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class TrackObserverScenes {
 
@@ -46,14 +45,14 @@ public class TrackObserverScenes {
 
 		scene.idle(10);
 
-		Vec3 target = util.vector.topOf(5, 0, 7);
-		AABB bb = new AABB(target, target).move(0, 2 / 16f, 0);
+		Vec3d target = util.vector.topOf(5, 0, 7);
+		Box bb = new Box(target, target).offset(0, 2 / 16f, 0);
 
 		scene.overlay.showControls(new InputWindowElement(target, Pointing.DOWN).rightClick()
 			.withItem(AllBlocks.TRACK_OBSERVER.asStack()), 40);
 		scene.idle(6);
 		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb, 1);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb.inflate(.45f, 1 / 16f, .45f), 60);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, bb.expand(.45f, 1 / 16f, .45f), 60);
 		scene.idle(10);
 
 		scene.overlay.showText(50)
@@ -65,7 +64,7 @@ public class TrackObserverScenes {
 
 		scene.world.showSection(observer, Direction.DOWN);
 		scene.idle(15);
-		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, new AABB(util.grid.at(5, 1, 4)), 20);
+		scene.overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, bb, new Box(util.grid.at(5, 1, 4)), 20);
 		scene.idle(25);
 
 		scene.overlay.showText(70)
@@ -106,7 +105,7 @@ public class TrackObserverScenes {
 		scene.idle(20);
 
 		target = util.vector.topOf(5, 1, 4);
-		bb = new AABB(target, target);
+		bb = new Box(target, target);
 		scene.overlay.showCenteredScrollInput(util.grid.at(5, 1, 4), Direction.UP, 60);
 
 		scene.overlay.showText(80)

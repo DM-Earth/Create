@@ -2,19 +2,18 @@ package com.simibubi.create.content.contraptions.behaviour;
 
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.structure.StructureTemplate.StructureBlockInfo;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
 
 public abstract class SimpleBlockMovingInteraction extends MovingInteractionBehaviour {
 
 	@Override
-	public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos,
+	public boolean handlePlayerInteraction(PlayerEntity player, Hand activeHand, BlockPos localPos,
 		AbstractContraptionEntity contraptionEntity) {
 		Contraption contraption = contraptionEntity.getContraption();
 		StructureBlockInfo info = contraption.getBlocks()
@@ -34,11 +33,11 @@ public abstract class SimpleBlockMovingInteraction extends MovingInteractionBeha
 		return false;
 	}
 
-	protected void playSound(Player player, SoundEvent sound, float pitch) {
-		player.level().playSound(player, player.blockPosition(), sound, SoundSource.BLOCKS, 0.3f, pitch);
+	protected void playSound(PlayerEntity player, SoundEvent sound, float pitch) {
+		player.getWorld().playSound(player, player.getBlockPos(), sound, SoundCategory.BLOCKS, 0.3f, pitch);
 	}
 
-	protected abstract BlockState handle(Player player, Contraption contraption, BlockPos pos,
+	protected abstract BlockState handle(PlayerEntity player, Contraption contraption, BlockPos pos,
 		BlockState currentState);
 
 }

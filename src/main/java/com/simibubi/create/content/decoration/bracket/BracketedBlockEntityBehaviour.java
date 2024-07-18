@@ -1,7 +1,11 @@
 package com.simibubi.create.content.decoration.bracket;
 
 import java.util.function.Predicate;
-
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 import com.simibubi.create.content.contraptions.StructureTransform;
@@ -10,12 +14,6 @@ import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.NBTHelper;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class BracketedBlockEntityBehaviour extends BlockEntityBehaviour {
 
@@ -44,11 +42,11 @@ public class BracketedBlockEntityBehaviour extends BlockEntityBehaviour {
 		this.bracket = state;
 		reRender = true;
 		blockEntity.notifyUpdate();
-		Level world = getWorld();
-		if (world.isClientSide)
+		World world = getWorld();
+		if (world.isClient)
 			return;
-		blockEntity.getBlockState()
-			.updateNeighbourShapes(world, getPos(), 3);
+		blockEntity.getCachedState()
+			.updateNeighbors(world, getPos(), 3);
 	}
 
 	public void transformBracket(StructureTransform transform) {
@@ -65,9 +63,9 @@ public class BracketedBlockEntityBehaviour extends BlockEntityBehaviour {
 		}
 
 		BlockState removed = this.bracket;
-		Level world = getWorld();
-		if (!world.isClientSide)
-			world.levelEvent(2001, getPos(), Block.getId(bracket));
+		World world = getWorld();
+		if (!world.isClient)
+			world.syncWorldEvent(2001, getPos(), Block.getRawIdFromState(bracket));
 		this.bracket = null;
 		reRender = true;
 		if (inOnReplacedContext) {
@@ -75,10 +73,10 @@ public class BracketedBlockEntityBehaviour extends BlockEntityBehaviour {
 			return removed;
 		}
 		blockEntity.notifyUpdate();
-		if (world.isClientSide)
+		if (world.isClient)
 			return removed;
-		blockEntity.getBlockState()
-			.updateNeighbourShapes(world, getPos(), 3);
+		blockEntity.getCachedState()
+			.updateNeighbors(world, getPos(), 3);
 		return removed;
 	}
 
@@ -92,7 +90,7 @@ public class BracketedBlockEntityBehaviour extends BlockEntityBehaviour {
 	}
 
 	public boolean canHaveBracket() {
-		return pred.test(blockEntity.getBlockState());
+		return pred.test(blockEntity.getCachedState());
 	}
 
 	@Override
@@ -109,9 +107,9 @@ public class BracketedBlockEntityBehaviour extends BlockEntityBehaviour {
 	}
 
 	@Override
-	public void write(CompoundTag nbt, boolean clientPacket) {
+	public void write(NbtCompound nbt, boolean clientPacket) {
 		if (isBracketPresent()) {
-			nbt.put("Bracket", NbtUtils.writeBlockState(bracket));
+			nbt.put("Bracket", NbtHelper.fromBlockState(bracket));
 		}
 		if (clientPacket && reRender) {
 			NBTHelper.putMarker(nbt, "Redraw");
@@ -121,11 +119,11 @@ public class BracketedBlockEntityBehaviour extends BlockEntityBehaviour {
 	}
 
 	@Override
-	public void read(CompoundTag nbt, boolean clientPacket) {
+	public void read(NbtCompound nbt, boolean clientPacket) {
 		if (nbt.contains("Bracket"))
-			bracket = NbtUtils.readBlockState(blockEntity.blockHolderGetter(), nbt.getCompound("Bracket"));
+			bracket = NbtHelper.toBlockState(blockEntity.blockHolderGetter(), nbt.getCompound("Bracket"));
 		if (clientPacket && nbt.contains("Redraw"))
-			getWorld().sendBlockUpdated(getPos(), blockEntity.getBlockState(), blockEntity.getBlockState(), 16);
+			getWorld().updateListeners(getPos(), blockEntity.getCachedState(), blockEntity.getCachedState(), 16);
 		super.read(nbt, clientPacket);
 	}
 

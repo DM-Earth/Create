@@ -1,60 +1,59 @@
 package com.simibubi.create.content.equipment.zapper;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.CrossCollisionBlock;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.HorizontalConnectingBlock;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.math.MathHelper;
 
 public abstract class ZapperItemRenderer extends CustomRenderedItemModelRenderer {
 
 	@Override
-	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ItemDisplayContext transformType,
-		PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
+	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer, ModelTransformationMode transformType,
+		MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay) {
 		// Block indicator
-		if (transformType == ItemDisplayContext.GUI && stack.hasTag() && stack.getTag()
+		if (transformType == ModelTransformationMode.GUI && stack.hasNbt() && stack.getNbt()
 			.contains("BlockUsed"))
 			renderBlockUsed(stack, ms, buffer, light, overlay);
 	}
 
 	@SuppressWarnings("deprecation")
-	private void renderBlockUsed(ItemStack stack, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
-		BlockState state = NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(), stack.getTag()
+	private void renderBlockUsed(ItemStack stack, MatrixStack ms, VertexConsumerProvider buffer, int light, int overlay) {
+		BlockState state = NbtHelper.toBlockState(Registries.BLOCK.getReadOnlyWrapper(), stack.getNbt()
 			.getCompound("BlockUsed"));
 
-		ms.pushPose();
+		ms.push();
 		ms.translate(-0.3F, -0.45F, -0.0F);
 		ms.scale(0.25F, 0.25F, 0.25F);
-		BakedModel modelForState = Minecraft.getInstance()
-			.getBlockRenderer()
-			.getBlockModel(state);
+		BakedModel modelForState = MinecraftClient.getInstance()
+			.getBlockRenderManager()
+			.getModel(state);
 
-		if (state.getBlock() instanceof CrossCollisionBlock)
-			modelForState = Minecraft.getInstance()
+		if (state.getBlock() instanceof HorizontalConnectingBlock)
+			modelForState = MinecraftClient.getInstance()
 				.getItemRenderer()
 				.getModel(new ItemStack(state.getBlock()), null, null, 0);
 
-		Minecraft.getInstance()
+		MinecraftClient.getInstance()
 			.getItemRenderer()
-			.render(new ItemStack(state.getBlock()), ItemDisplayContext.NONE, false, ms, buffer, light, overlay,
+			.renderItem(new ItemStack(state.getBlock()), ModelTransformationMode.NONE, false, ms, buffer, light, overlay,
 				modelForState);
-		ms.popPose();
+		ms.pop();
 	}
 
 	protected float getAnimationProgress(float pt, boolean leftHanded, boolean mainHand) {
 		float animation = CreateClient.ZAPPER_RENDER_HANDLER.getAnimation(mainHand ^ leftHanded, pt);
-		return Mth.clamp(animation * 5, 0, 1);
+		return MathHelper.clamp(animation * 5, 0, 1);
 	}
 
 }

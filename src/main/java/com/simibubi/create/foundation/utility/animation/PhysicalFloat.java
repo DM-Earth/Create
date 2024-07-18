@@ -1,8 +1,7 @@
 package com.simibubi.create.foundation.utility.animation;
 
 import java.util.ArrayList;
-
-import net.minecraft.util.Mth;
+import net.minecraft.util.math.MathHelper;
 
 public class PhysicalFloat {
 
@@ -60,7 +59,7 @@ public class PhysicalFloat {
         forces.removeIf(Force::finished);
 
         if (Float.isFinite(limit)) {
-        	speed = Mth.clamp(speed, -limit, limit);
+        	speed = MathHelper.clamp(speed, -limit, limit);
         }
 
         value += speed;
@@ -84,7 +83,7 @@ public class PhysicalFloat {
     }
 
     public float getValue(float partialTicks) {
-        return Mth.lerp(partialTicks, previousValue, value);
+        return MathHelper.lerp(partialTicks, previousValue, value);
     }
 
 }

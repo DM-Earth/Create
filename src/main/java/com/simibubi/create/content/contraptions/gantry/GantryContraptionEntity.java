@@ -1,6 +1,5 @@
 package com.simibubi.create.content.contraptions.gantry;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllEntityTypes;
 import com.simibubi.create.AllPackets;
@@ -16,17 +15,18 @@ import com.simibubi.create.foundation.utility.VecHelper;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 public class GantryContraptionEntity extends AbstractContraptionEntity {
 
@@ -36,12 +36,12 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 
 	public double sequencedOffsetLimit;
 
-	public GantryContraptionEntity(EntityType<?> entityTypeIn, Level worldIn) {
+	public GantryContraptionEntity(EntityType<?> entityTypeIn, World worldIn) {
 		super(entityTypeIn, worldIn);
 		sequencedOffsetLimit = -1;
 	}
 
-	public static GantryContraptionEntity create(Level world, Contraption contraption, Direction movementAxis) {
+	public static GantryContraptionEntity create(World world, Contraption contraption, Direction movementAxis) {
 		GantryContraptionEntity entity = new GantryContraptionEntity(AllEntityTypes.GANTRY_CONTRAPTION.get(), world);
 		entity.setContraption(contraption);
 		entity.movementAxis = movementAxis;
@@ -58,22 +58,22 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 			return;
 
 		double prevAxisMotion = axisMotion;
-		if (level().isClientSide) {
+		if (getWorld().isClient) {
 			clientOffsetDiff *= .75f;
 			updateClientMotion();
 		}
 
 		checkPinionShaft();
 		tickActors();
-		Vec3 movementVec = getDeltaMovement();
+		Vec3d movementVec = getVelocity();
 
 		if (ContraptionCollider.collideBlocks(this)) {
-			if (!level().isClientSide)
+			if (!getWorld().isClient)
 				disassemble();
 			return;
 		}
 
-		if (!isStalled() && tickCount > 2) {
+		if (!isStalled() && age > 2) {
 			if (sequencedOffsetLimit >= 0)
 				movementVec = VecHelper.clampComponentWise(movementVec, (float) sequencedOffsetLimit);
 			move(movementVec.x, movementVec.y, movementVec.z);
@@ -82,8 +82,8 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 		}
 
 		if (Math.signum(prevAxisMotion) != Math.signum(axisMotion) && prevAxisMotion != 0)
-			contraption.stop(level());
-		if (!level().isClientSide && (prevAxisMotion != axisMotion || tickCount % 3 == 0))
+			contraption.stop(getWorld());
+		if (!getWorld().isClient && (prevAxisMotion != axisMotion || age % 3 == 0))
 			sendPacket();
 	}
 
@@ -94,53 +94,53 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	protected void checkPinionShaft() {
-		Vec3 movementVec;
+		Vec3d movementVec;
 		Direction facing = ((GantryContraption) contraption).getFacing();
-		Vec3 currentPosition = getAnchorVec().add(.5, .5, .5);
-		BlockPos gantryShaftPos = BlockPos.containing(currentPosition).relative(facing.getOpposite());
+		Vec3d currentPosition = getAnchorVec().add(.5, .5, .5);
+		BlockPos gantryShaftPos = BlockPos.ofFloored(currentPosition).offset(facing.getOpposite());
 
-		BlockEntity be = level().getBlockEntity(gantryShaftPos);
-		if (!(be instanceof GantryShaftBlockEntity) || !AllBlocks.GANTRY_SHAFT.has(be.getBlockState())) {
-			if (!level().isClientSide) {
-				setContraptionMotion(Vec3.ZERO);
+		BlockEntity be = getWorld().getBlockEntity(gantryShaftPos);
+		if (!(be instanceof GantryShaftBlockEntity) || !AllBlocks.GANTRY_SHAFT.has(be.getCachedState())) {
+			if (!getWorld().isClient) {
+				setContraptionMotion(Vec3d.ZERO);
 				disassemble();
 			}
 			return;
 		}
 
-		BlockState blockState = be.getBlockState();
-		Direction direction = blockState.getValue(GantryShaftBlock.FACING);
+		BlockState blockState = be.getCachedState();
+		Direction direction = blockState.get(GantryShaftBlock.FACING);
 		GantryShaftBlockEntity gantryShaftBlockEntity = (GantryShaftBlockEntity) be;
 
 		float pinionMovementSpeed = gantryShaftBlockEntity.getPinionMovementSpeed();
-		if (blockState.getValue(GantryShaftBlock.POWERED) || pinionMovementSpeed == 0) {
-			setContraptionMotion(Vec3.ZERO);
-			if (!level().isClientSide)
+		if (blockState.get(GantryShaftBlock.POWERED) || pinionMovementSpeed == 0) {
+			setContraptionMotion(Vec3d.ZERO);
+			if (!getWorld().isClient)
 				disassemble();
 			return;
 		}
 
 		if (sequencedOffsetLimit >= 0)
-			pinionMovementSpeed = (float) Mth.clamp(pinionMovementSpeed, -sequencedOffsetLimit, sequencedOffsetLimit);
-		movementVec = Vec3.atLowerCornerOf(direction.getNormal())
-			.scale(pinionMovementSpeed);
+			pinionMovementSpeed = (float) MathHelper.clamp(pinionMovementSpeed, -sequencedOffsetLimit, sequencedOffsetLimit);
+		movementVec = Vec3d.of(direction.getVector())
+			.multiply(pinionMovementSpeed);
 
-		Vec3 nextPosition = currentPosition.add(movementVec);
+		Vec3d nextPosition = currentPosition.add(movementVec);
 		double currentCoord = direction.getAxis()
 			.choose(currentPosition.x, currentPosition.y, currentPosition.z);
 		double nextCoord = direction.getAxis()
 			.choose(nextPosition.x, nextPosition.y, nextPosition.z);
 
-		if ((Mth.floor(currentCoord) + .5f < nextCoord != (pinionMovementSpeed * direction.getAxisDirection()
-			.getStep() < 0)))
+		if ((MathHelper.floor(currentCoord) + .5f < nextCoord != (pinionMovementSpeed * direction.getDirection()
+			.offset() < 0)))
 			if (!gantryShaftBlockEntity.canAssembleOn()) {
-				setContraptionMotion(Vec3.ZERO);
-				if (!level().isClientSide)
+				setContraptionMotion(Vec3d.ZERO);
+				if (!getWorld().isClient)
 					disassemble();
 				return;
 			}
 
-		if (level().isClientSide)
+		if (getWorld().isClient)
 			return;
 
 		axisMotion = pinionMovementSpeed;
@@ -148,14 +148,14 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	@Override
-	protected void writeAdditional(CompoundTag compound, boolean spawnPacket) {
+	protected void writeAdditional(NbtCompound compound, boolean spawnPacket) {
 		NBTHelper.writeEnum(compound, "GantryAxis", movementAxis);
 		if (sequencedOffsetLimit >= 0)
 			compound.putDouble("SequencedOffsetLimit", sequencedOffsetLimit);
 		super.writeAdditional(compound, spawnPacket);
 	}
 
-	protected void readAdditional(CompoundTag compound, boolean spawnData) {
+	protected void readAdditional(NbtCompound compound, boolean spawnData) {
 		movementAxis = NBTHelper.readEnum(compound, "GantryAxis", Direction.class);
 		sequencedOffsetLimit =
 			compound.contains("SequencedOffsetLimit") ? compound.getDouble("SequencedOffsetLimit") : -1;
@@ -163,18 +163,18 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	@Override
-	public Vec3 applyRotation(Vec3 localPos, float partialTicks) {
+	public Vec3d applyRotation(Vec3d localPos, float partialTicks) {
 		return localPos;
 	}
 
 	@Override
-	public Vec3 reverseRotation(Vec3 localPos, float partialTicks) {
+	public Vec3d reverseRotation(Vec3d localPos, float partialTicks) {
 		return localPos;
 	}
 
 	@Override
 	protected StructureTransform makeStructureTransform() {
-		return new StructureTransform(BlockPos.containing(getAnchorVec().add(.5, .5, .5)), 0, 0, 0);
+		return new StructureTransform(BlockPos.ofFloored(getAnchorVec().add(.5, .5, .5)), 0, 0, 0);
 	}
 
 	@Override
@@ -183,15 +183,15 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 	}
 
 	@Override
-	public void teleportTo(double p_70634_1_, double p_70634_3_, double p_70634_5_) {}
+	public void requestTeleport(double p_70634_1_, double p_70634_3_, double p_70634_5_) {}
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public void lerpTo(double x, double y, double z, float yw, float pt, int inc, boolean t) {}
+	public void updateTrackedPositionAndAngles(double x, double y, double z, float yw, float pt, int inc, boolean t) {}
 
 	@Override
 	protected void handleStallInformation(double x, double y, double z, float angle) {
-		setPosRaw(x, y, z);
+		setPos(x, y, z);
 		clientOffsetDiff = 0;
 	}
 
@@ -202,20 +202,20 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 
 	@Override
 	@Environment(EnvType.CLIENT)
-	public void applyLocalTransforms(PoseStack matrixStack, float partialTicks) { }
+	public void applyLocalTransforms(MatrixStack matrixStack, float partialTicks) { }
 
 	public void updateClientMotion() {
-		float modifier = movementAxis.getAxisDirection()
-			.getStep();
-		Vec3 motion = Vec3.atLowerCornerOf(movementAxis.getNormal())
-			.scale((axisMotion + clientOffsetDiff * modifier / 2f) * ServerSpeedProvider.get());
+		float modifier = movementAxis.getDirection()
+			.offset();
+		Vec3d motion = Vec3d.of(movementAxis.getVector())
+			.multiply((axisMotion + clientOffsetDiff * modifier / 2f) * ServerSpeedProvider.get());
 		if (sequencedOffsetLimit >= 0)
 			motion = VecHelper.clampComponentWise(motion, (float) sequencedOffsetLimit);
 		setContraptionMotion(motion);
 	}
 
 	public double getAxisCoord() {
-		Vec3 anchorVec = getAnchorVec();
+		Vec3d anchorVec = getAnchorVec();
 		return movementAxis.getAxis()
 			.choose(anchorVec.x, anchorVec.y, anchorVec.z);
 	}
@@ -227,7 +227,7 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
 
 	@Environment(EnvType.CLIENT)
 	public static void handlePacket(GantryContraptionUpdatePacket packet) {
-		Entity entity = Minecraft.getInstance().level.getEntity(packet.entityID);
+		Entity entity = MinecraftClient.getInstance().world.getEntityById(packet.entityID);
 		if (!(entity instanceof GantryContraptionEntity))
 			return;
 		GantryContraptionEntity ce = (GantryContraptionEntity) entity;

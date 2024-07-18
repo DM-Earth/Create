@@ -20,10 +20,9 @@ import com.tterrag.registrate.builders.MenuBuilder;
 import com.tterrag.registrate.builders.MenuBuilder.ScreenFactory;
 import com.tterrag.registrate.util.entry.MenuEntry;
 import com.tterrag.registrate.util.nullness.NonNullSupplier;
-
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.MenuAccess;
-import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
+import net.minecraft.screen.ScreenHandler;
 
 public class AllMenuTypes {
 
@@ -51,7 +50,7 @@ public class AllMenuTypes {
 	public static final MenuEntry<ScheduleMenu> SCHEDULE =
 		register("schedule", ScheduleMenu::new, () -> ScheduleScreen::new);
 
-	private static <C extends AbstractContainerMenu, S extends Screen & MenuAccess<C>> MenuEntry<C> register(
+	private static <C extends ScreenHandler, S extends Screen & ScreenHandlerProvider<C>> MenuEntry<C> register(
 			String name, MenuBuilder.ForgeMenuFactory<C> factory, NonNullSupplier<ScreenFactory<C, S>> screenFactory) {
 		return Create.REGISTRATE
 			.menu(name, factory, screenFactory)

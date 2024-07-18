@@ -59,7 +59,7 @@ public class BasinEmiRecipe extends CreateEmiRecipe<BasinRecipe> {
 		if (needsHeating) {
 			AllGuiTextures heatBar = noHeat ? AllGuiTextures.JEI_NO_HEAT_BAR : AllGuiTextures.JEI_HEAT_BAR;
 			addTexture(widgets, heatBar, 4, 80);
-			widgets.addText(Lang.translateDirect(requiredHeat.getTranslationKey()).getVisualOrderText(), 9, 86, requiredHeat.getColor(), true);
+			widgets.addText(Lang.translateDirect(requiredHeat.getTranslationKey()).asOrderedText(), 9, 86, requiredHeat.getColor(), true);
 		}
 
 		int xOff = inputSize < 3 ? (3 - inputSize) * 19 / 2 : 0;

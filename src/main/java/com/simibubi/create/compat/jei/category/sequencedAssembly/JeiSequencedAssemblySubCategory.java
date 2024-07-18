@@ -1,6 +1,5 @@
 package com.simibubi.create.compat.jei.category.sequencedAssembly;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.compat.jei.category.CreateRecipeCategory;
 import com.simibubi.create.compat.jei.category.animations.AnimatedDeployer;
 import com.simibubi.create.compat.jei.category.animations.AnimatedPress;
@@ -16,8 +15,9 @@ import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Formatting;
 
 public abstract class JeiSequencedAssemblySubCategory {
 
@@ -33,7 +33,7 @@ public abstract class JeiSequencedAssemblySubCategory {
 
 	public void setRecipe(IRecipeLayoutBuilder builder, SequencedRecipe<?> recipe, IFocusGroup focuses, int x) {}
 
-	public abstract void draw(SequencedRecipe<?> recipe, GuiGraphics graphics, double mouseX, double mouseY, int index);
+	public abstract void draw(SequencedRecipe<?> recipe, DrawContext graphics, double mouseX, double mouseY, int index);
 
 	public static class AssemblyPressing extends JeiSequencedAssemblySubCategory {
 
@@ -45,14 +45,14 @@ public abstract class JeiSequencedAssemblySubCategory {
 		}
 
 		@Override
-		public void draw(SequencedRecipe<?> recipe, GuiGraphics graphics, double mouseX, double mouseY, int index) {
-			PoseStack ms = graphics.pose();
+		public void draw(SequencedRecipe<?> recipe, DrawContext graphics, double mouseX, double mouseY, int index) {
+			MatrixStack ms = graphics.getMatrices();
 			press.offset = index;
-			ms.pushPose();
+			ms.push();
 			ms.translate(-5, 50, 0);
 			ms.scale(.6f, .6f, .6f);
 			press.draw(graphics, getWidth() / 2, 0);
-			ms.popPose();
+			ms.pop();
 		}
 
 	}
@@ -80,10 +80,10 @@ public abstract class JeiSequencedAssemblySubCategory {
 		}
 
 		@Override
-		public void draw(SequencedRecipe<?> recipe, GuiGraphics graphics, double mouseX, double mouseY, int index) {
-			PoseStack ms = graphics.pose();
+		public void draw(SequencedRecipe<?> recipe, DrawContext graphics, double mouseX, double mouseY, int index) {
+			MatrixStack ms = graphics.getMatrices();
 			spout.offset = index;
-			ms.pushPose();
+			ms.push();
 			ms.translate(-7, 50, 0);
 			ms.scale(.75f, .75f, .75f);
 			spout.withFluids(recipe.getRecipe()
@@ -91,7 +91,7 @@ public abstract class JeiSequencedAssemblySubCategory {
 				.get(0)
 				.getMatchingFluidStacks())
 				.draw(graphics, getWidth() / 2, 0);
-			ms.popPose();
+			ms.pop();
 		}
 
 	}
@@ -114,20 +114,20 @@ public abstract class JeiSequencedAssemblySubCategory {
 
 			if (recipe.getAsAssemblyRecipe() instanceof DeployerApplicationRecipe deployerRecipe && deployerRecipe.shouldKeepHeldItem()) {
 				slot.addTooltipCallback(
-						(recipeSlotView, tooltip) -> tooltip.add(1, Lang.translateDirect("recipe.deploying.not_consumed").withStyle(ChatFormatting.GOLD))
+						(recipeSlotView, tooltip) -> tooltip.add(1, Lang.translateDirect("recipe.deploying.not_consumed").formatted(Formatting.GOLD))
 				);
 			}
 		}
 
 		@Override
-		public void draw(SequencedRecipe<?> recipe, GuiGraphics graphics, double mouseX, double mouseY, int index) {
-			PoseStack ms = graphics.pose();
+		public void draw(SequencedRecipe<?> recipe, DrawContext graphics, double mouseX, double mouseY, int index) {
+			MatrixStack ms = graphics.getMatrices();
 			deployer.offset = index;
-			ms.pushPose();
+			ms.push();
 			ms.translate(-7, 50, 0);
 			ms.scale(.75f, .75f, .75f);
 			deployer.draw(graphics, getWidth() / 2, 0);
-			ms.popPose();
+			ms.pop();
 		}
 
 	}
@@ -142,13 +142,13 @@ public abstract class JeiSequencedAssemblySubCategory {
 		}
 
 		@Override
-		public void draw(SequencedRecipe<?> recipe, GuiGraphics graphics, double mouseX, double mouseY, int index) {
-			PoseStack ms = graphics.pose();
-			ms.pushPose();
+		public void draw(SequencedRecipe<?> recipe, DrawContext graphics, double mouseX, double mouseY, int index) {
+			MatrixStack ms = graphics.getMatrices();
+			ms.push();
 			ms.translate(0, 51.5f, 0);
 			ms.scale(.6f, .6f, .6f);
 			saw.draw(graphics, getWidth() / 2, 30);
-			ms.popPose();
+			ms.pop();
 		}
 
 	}

@@ -3,16 +3,15 @@ package com.simibubi.create.content.kinetics.simpleRelays;
 import com.jozufozu.flywheel.api.Instancer;
 import com.jozufozu.flywheel.api.MaterialManager;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.content.kinetics.base.SingleRotatingInstance;
 import com.simibubi.create.content.kinetics.base.flwdata.RotatingData;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.AxisDirection;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.AxisDirection;
+import net.minecraft.util.math.RotationAxis;
 
 public class BracketedKineticBlockEntityInstance extends SingleRotatingInstance<BracketedKineticBlockEntity> {
 
@@ -25,7 +24,7 @@ public class BracketedKineticBlockEntityInstance extends SingleRotatingInstance<
 	@Override
 	public void init() {
 		super.init();
-		if (!ICogWheel.isLargeCog(blockEntity.getBlockState()))
+		if (!ICogWheel.isLargeCog(blockEntity.getCachedState()))
 			return;
 
 		// Large cogs sometimes have to offset their teeth by 11.25 degrees in order to
@@ -33,9 +32,9 @@ public class BracketedKineticBlockEntityInstance extends SingleRotatingInstance<
 
 		float speed = blockEntity.getSpeed();
 		Direction.Axis axis = KineticBlockEntityRenderer.getRotationAxisOf(blockEntity);
-		BlockPos pos = blockEntity.getBlockPos();
+		BlockPos pos = blockEntity.getPos();
 		float offset = BracketedKineticBlockEntityRenderer.getShaftAngleOffset(axis, pos);
-		Direction facing = Direction.fromAxisAndDirection(axis, AxisDirection.POSITIVE);
+		Direction facing = Direction.from(axis, AxisDirection.POSITIVE);
 		Instancer<RotatingData> half = getRotatingMaterial().getModel(AllPartialModels.COGWHEEL_SHAFT, blockState,
 			facing, () -> this.rotateToAxis(axis));
 
@@ -45,22 +44,22 @@ public class BracketedKineticBlockEntityInstance extends SingleRotatingInstance<
 
 	@Override
 	protected Instancer<RotatingData> getModel() {
-		if (!ICogWheel.isLargeCog(blockEntity.getBlockState()))
+		if (!ICogWheel.isLargeCog(blockEntity.getCachedState()))
 			return super.getModel();
 
 		Direction.Axis axis = KineticBlockEntityRenderer.getRotationAxisOf(blockEntity);
-		Direction facing = Direction.fromAxisAndDirection(axis, AxisDirection.POSITIVE);
+		Direction facing = Direction.from(axis, AxisDirection.POSITIVE);
 		return getRotatingMaterial().getModel(AllPartialModels.SHAFTLESS_LARGE_COGWHEEL, blockState, facing,
 			() -> this.rotateToAxis(axis));
 	}
 
-	private PoseStack rotateToAxis(Direction.Axis axis) {
-		Direction facing = Direction.fromAxisAndDirection(axis, AxisDirection.POSITIVE);
-		PoseStack poseStack = new PoseStack();
+	private MatrixStack rotateToAxis(Direction.Axis axis) {
+		Direction facing = Direction.from(axis, AxisDirection.POSITIVE);
+		MatrixStack poseStack = new MatrixStack();
 		TransformStack.cast(poseStack)
 				.centre()
 				.rotateToFace(facing)
-				.multiply(Axis.XN.rotationDegrees(-90))
+				.multiply(RotationAxis.NEGATIVE_X.rotationDegrees(-90))
 				.unCentre();
 		return poseStack;
 	}

@@ -4,7 +4,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 
 import com.simibubi.create.AllKeys;
@@ -18,24 +21,19 @@ import com.simibubi.create.foundation.outliner.Outliner;
 import com.simibubi.create.foundation.utility.Color;
 import com.simibubi.create.foundation.utility.Pair;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-
 public class TrackGraphVisualizer {
 
 	public static void visualiseSignalEdgeGroups(TrackGraph graph) {
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 		Entity cameraEntity = mc.cameraEntity;
 		if (cameraEntity == null)
 			return;
-		AABB box = graph.getBounds(mc.level).box;
+		Box box = graph.getBounds(mc.world).box;
 		if (box == null || !box.intersects(cameraEntity.getBoundingBox()
-			.inflate(50)))
+			.expand(50)))
 			return;
 
-		Vec3 camera = cameraEntity.getEyePosition();
+		Vec3d camera = cameraEntity.getEyePos();
 		Outliner outliner = CreateClient.OUTLINER;
 		Map<UUID, SignalEdgeGroup> allGroups = Create.RAILWAYS.sided(null).signalEdgeGroups;
 		float width = 1 / 8f;
@@ -46,10 +44,10 @@ public class TrackGraphVisualizer {
 			if (nodeLocation == null)
 				continue;
 
-			Vec3 location = nodeLocation.getLocation();
+			Vec3d location = nodeLocation.getLocation();
 			if (location.distanceTo(camera) > 50)
 				continue;
-			if (!mc.level.dimension()
+			if (!mc.world.getRegistryKey()
 				.equals(nodeLocation.dimension))
 				continue;
 
@@ -69,9 +67,9 @@ public class TrackGraphVisualizer {
 					.distanceTo(camera) <= 50)
 					continue;
 
-				Vec3 yOffset = new Vec3(0, (other.hashCode() > hashCode ? 6 : 5) / 64f, 0);
-				Vec3 startPoint = edge.getPosition(graph, 0);
-				Vec3 endPoint = edge.getPosition(graph, 1);
+				Vec3d yOffset = new Vec3d(0, (other.hashCode() > hashCode ? 6 : 5) / 64f, 0);
+				Vec3d startPoint = edge.getPosition(graph, 0);
+				Vec3d endPoint = edge.getPosition(graph, 1);
 
 				if (!edge.isTurn()) {
 
@@ -149,13 +147,13 @@ public class TrackGraphVisualizer {
 							continue;
 
 						Color currentColour = initialGroup.color.get();
-						Vec3 previous = null;
+						Vec3d previous = null;
 						BezierConnection turn = edge.getTurn();
 
 						for (int i = 0; i <= turn.getSegmentCount(); i++) {
 							double f = i * 1f / turn.getSegmentCount();
 							double position = f * turn.getLength();
-							Vec3 current = edge.getPosition(graph, f);
+							Vec3d current = edge.getPosition(graph, f);
 
 							if (previous != null) {
 								if (currentBoundary != null && position > currentBoundaryPosition) {
@@ -197,10 +195,10 @@ public class TrackGraphVisualizer {
 					SignalEdgeGroup singleEdgeGroup = singleGroup == null ? null : allGroups.get(singleGroup);
 					if (singleEdgeGroup == null)
 						continue;
-					Vec3 previous = null;
+					Vec3d previous = null;
 					BezierConnection turn = edge.getTurn();
 					for (int i = 0; i <= turn.getSegmentCount(); i++) {
-						Vec3 current = edge.getPosition(graph, i * 1f / turn.getSegmentCount());
+						Vec3d current = edge.getPosition(graph, i * 1f / turn.getSegmentCount());
 						if (previous != null)
 							outliner.showLine(Pair.of(edge, previous), previous.add(yOffset), current.add(yOffset))
 								.colored(singleEdgeGroup.color.get())
@@ -213,32 +211,32 @@ public class TrackGraphVisualizer {
 	}
 
 	public static void debugViewGraph(TrackGraph graph, boolean extended) {
-		Minecraft mc = Minecraft.getInstance();
+		MinecraftClient mc = MinecraftClient.getInstance();
 		Entity cameraEntity = mc.cameraEntity;
 		if (cameraEntity == null)
 			return;
-		AABB box = graph.getBounds(mc.level).box;
+		Box box = graph.getBounds(mc.world).box;
 		if (box == null || !box.intersects(cameraEntity.getBoundingBox()
-			.inflate(50)))
+			.expand(50)))
 			return;
 
-		Vec3 camera = cameraEntity.getEyePosition();
+		Vec3d camera = cameraEntity.getEyePos();
 		for (Entry<TrackNodeLocation, TrackNode> nodeEntry : graph.nodes.entrySet()) {
 			TrackNodeLocation nodeLocation = nodeEntry.getKey();
 			TrackNode node = nodeEntry.getValue();
 			if (nodeLocation == null)
 				continue;
 
-			Vec3 location = nodeLocation.getLocation();
+			Vec3d location = nodeLocation.getLocation();
 			if (location.distanceTo(camera) > 50)
 				continue;
-			if (!mc.level.dimension()
+			if (!mc.world.getRegistryKey()
 				.equals(nodeLocation.dimension))
 				continue;
 
-			Vec3 yOffset = new Vec3(0, 3 / 16f, 0);
-			Vec3 v1 = location.add(yOffset);
-			Vec3 v2 = v1.add(node.normal.scale(3 / 16f));
+			Vec3d yOffset = new Vec3d(0, 3 / 16f, 0);
+			Vec3d v1 = location.add(yOffset);
+			Vec3d v2 = v1.add(node.normal.multiply(3 / 16f));
 			CreateClient.OUTLINER.showLine(Integer.valueOf(node.netId), v1, v2)
 				.colored(Color.mixColors(Color.WHITE, graph.color, 1))
 				.lineWidth(1 / 8f);
@@ -254,7 +252,7 @@ public class TrackGraphVisualizer {
 
 				if (!edge.node1.location.dimension.equals(edge.node2.location.dimension)) {
 					v1 = location.add(yOffset);
-					v2 = v1.add(node.normal.scale(3 / 16f));
+					v2 = v1.add(node.normal.multiply(3 / 16f));
 					CreateClient.OUTLINER.showLine(Integer.valueOf(node.netId), v1, v2)
 						.colored(Color.mixColors(Color.WHITE, graph.color, 1))
 						.lineWidth(1 / 4f);
@@ -263,16 +261,16 @@ public class TrackGraphVisualizer {
 				if (other.hashCode() > hashCode && !AllKeys.isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL))
 					continue;
 
-				yOffset = new Vec3(0, (other.hashCode() > hashCode ? 6 : 4) / 16f, 0);
+				yOffset = new Vec3d(0, (other.hashCode() > hashCode ? 6 : 4) / 16f, 0);
 				if (!edge.isTurn()) {
 					if (extended) {
-						Vec3 materialPos = edge.getPosition(graph, 0.5)
+						Vec3d materialPos = edge.getPosition(graph, 0.5)
 							.add(0, 1, 0);
 						CreateClient.OUTLINER.showItem(Pair.of(edge, edge.edgeData), materialPos,
 							edge.getTrackMaterial()
 								.asStack());
-						CreateClient.OUTLINER.showAABB(edge.edgeData, AABB.ofSize(materialPos, .25, 0, .25)
-							.move(0, -0.5, 0))
+						CreateClient.OUTLINER.showAABB(edge.edgeData, Box.of(materialPos, .25, 0, .25)
+							.offset(0, -0.5, 0))
 							.lineWidth(1 / 16f)
 							.colored(graph.color);
 					}
@@ -285,20 +283,20 @@ public class TrackGraphVisualizer {
 					continue;
 				}
 
-				Vec3 previous = null;
+				Vec3d previous = null;
 				BezierConnection turn = edge.getTurn();
 				if (extended) {
-					Vec3 materialPos = edge.getPosition(graph, 0.5)
+					Vec3d materialPos = edge.getPosition(graph, 0.5)
 						.add(0, 1, 0);
 					CreateClient.OUTLINER.showItem(Pair.of(edge, edge.edgeData), materialPos, edge.getTrackMaterial()
 						.asStack());
-					CreateClient.OUTLINER.showAABB(edge.edgeData, AABB.ofSize(materialPos, .25, 0, .25)
-						.move(0, -0.5, 0))
+					CreateClient.OUTLINER.showAABB(edge.edgeData, Box.of(materialPos, .25, 0, .25)
+						.offset(0, -0.5, 0))
 						.lineWidth(1 / 16f)
 						.colored(graph.color);
 				}
 				for (int i = 0; i <= turn.getSegmentCount(); i++) {
-					Vec3 current = edge.getPosition(graph, i * 1f / turn.getSegmentCount());
+					Vec3d current = edge.getPosition(graph, i * 1f / turn.getSegmentCount());
 					if (previous != null)
 						CreateClient.OUTLINER
 							.showLine(Pair.of(edge, previous), previous.add(yOffset), current.add(yOffset))

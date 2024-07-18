@@ -16,8 +16,8 @@ import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.client.gui.widgets.Widgets;
 import me.shedaniel.rei.api.common.entry.EntryStack;
 import me.shedaniel.rei.api.common.entry.type.VanillaEntryTypes;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public class PressingCategory extends CreateRecipeCategory<PressingRecipe> {
 
@@ -37,10 +37,10 @@ public class PressingCategory extends CreateRecipeCategory<PressingRecipe> {
 			widgets.add(WidgetUtil.textured(AllGuiTextures.JEI_LONG_ARROW, origin.x + 52, origin.y + 54));
 
 		for (int outputIndex = 0; outputIndex < results.size(); outputIndex++) {
-			List<Component> tooltip = new ArrayList<>();
+			List<Text> tooltip = new ArrayList<>();
 			if (results.get(outputIndex).getChance() != 1)
 				tooltip.add(Lang.translateDirect("recipe.processing.chance", results.get(outputIndex).getChance() < 0.01 ? "<1" : (int) (results.get(outputIndex).getChance() * 100))
-						.withStyle(ChatFormatting.GOLD));
+						.formatted(Formatting.GOLD));
 			widgets.add(Widgets.createSlot(new Point((origin.x + 131 + 19 * outputIndex) + 1, (origin.y + 50) + 1))
 					.disableBackground().markOutput()
 					.entry(EntryStack.of(VanillaEntryTypes.ITEM, results.get(outputIndex).getStack()).tooltip(tooltip)));

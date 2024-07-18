@@ -2,36 +2,35 @@ package com.simibubi.create.foundation.recipe;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.world.World;
 import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingOutput;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.foundation.item.ItemHelper;
 
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.level.Level;
 
 public class RecipeApplier {
 	public static void applyRecipeOn(ItemEntity entity, Recipe<?> recipe) {
-		List<ItemStack> stacks = applyRecipeOn(entity.level(), entity.getItem(), recipe);
+		List<ItemStack> stacks = applyRecipeOn(entity.getWorld(), entity.getStack(), recipe);
 		if (stacks == null)
 			return;
 		if (stacks.isEmpty()) {
 			entity.discard();
 			return;
 		}
-		entity.setItem(stacks.remove(0));
+		entity.setStack(stacks.remove(0));
 		for (ItemStack additional : stacks) {
-			ItemEntity entityIn = new ItemEntity(entity.level(), entity.getX(), entity.getY(), entity.getZ(), additional);
-			entityIn.setDeltaMovement(entity.getDeltaMovement());
-			entity.level().addFreshEntity(entityIn);
+			ItemEntity entityIn = new ItemEntity(entity.getWorld(), entity.getX(), entity.getY(), entity.getZ(), additional);
+			entityIn.setVelocity(entity.getVelocity());
+			entity.getWorld().spawnEntity(entityIn);
 		}
 	}
 
-	public static List<ItemStack> applyRecipeOn(Level level, ItemStack stackIn, Recipe<?> recipe) {
+	public static List<ItemStack> applyRecipeOn(World level, ItemStack stackIn, Recipe<?> recipe) {
 		List<ItemStack> stacks;
 
 		if (recipe instanceof ProcessingRecipe<?> pr) {
@@ -45,10 +44,10 @@ public class RecipeApplier {
 							continue;
 						if (!ItemHandlerHelper.canItemStacksStack(stack, previouslyRolled))
 							continue;
-						int amount = Math.min(previouslyRolled.getMaxStackSize() - previouslyRolled.getCount(),
+						int amount = Math.min(previouslyRolled.getMaxCount() - previouslyRolled.getCount(),
 							stack.getCount());
-						previouslyRolled.grow(amount);
-						stack.shrink(amount);
+						previouslyRolled.increment(amount);
+						stack.decrement(amount);
 					}
 
 					if (stack.isEmpty())
@@ -58,7 +57,7 @@ public class RecipeApplier {
 				}
 			}
 		} else {
-			ItemStack out = recipe.getResultItem(level.registryAccess())
+			ItemStack out = recipe.getOutput(level.getRegistryManager())
 				.copy();
 			stacks = ItemHelper.multipliedOutput(stackIn, out);
 		}

@@ -15,10 +15,10 @@ import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.access
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.handlers.IGhostIngredientHandler;
 import mezz.jei.api.ingredients.ITypedIngredient;
-import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.util.math.Rect2i;
+import net.minecraft.item.ItemStack;
+import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.annotation.MethodsReturnNonnullByDefault;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
@@ -32,9 +32,9 @@ public class GhostIngredientHandler<T extends GhostItemMenu<?>>
 		List<Target<I>> targets = new LinkedList<>();
 
 		if (ingredient.getType() == VanillaTypes.ITEM_STACK) {
-			for (int i = 36; i < gui.getMenu().slots.size(); i++) {
-				if (gui.getMenu().slots.get(i)
-						.isActive())
+			for (int i = 36; i < gui.getScreenHandler().slots.size(); i++) {
+				if (gui.getScreenHandler().slots.get(i)
+						.isEnabled())
 					targets.add(new GhostTarget<>(gui, i - 36, isAttributeFilter));
 
 				// Only accept items in 1st slot. 2nd is used for functionality, don't wanna
@@ -67,7 +67,7 @@ public class GhostIngredientHandler<T extends GhostItemMenu<?>>
 			this.gui = gui;
 			this.slotIndex = slotIndex;
 			this.isAttributeFilter = isAttributeFilter;
-			Slot slot = gui.getMenu().slots.get(slotIndex + 36);
+			Slot slot = gui.getScreenHandler().slots.get(slotIndex + 36);
 			AbstractContainerScreenAccessor access = (AbstractContainerScreenAccessor) gui;
 			this.area = new Rect2i(access.port_lib$getGuiLeft() + slot.x, access.port_lib$getGuiTop() + slot.y, 16, 16);
 		}
@@ -81,7 +81,7 @@ public class GhostIngredientHandler<T extends GhostItemMenu<?>>
 		public void accept(I ingredient) {
 			ItemStack stack = ((ItemStack) ingredient).copy();
 			stack.setCount(1);
-			gui.getMenu().ghostInventory.setStackInSlot(slotIndex, stack);
+			gui.getScreenHandler().ghostInventory.setStackInSlot(slotIndex, stack);
 
 			if (isAttributeFilter)
 				return;

@@ -14,20 +14,20 @@ import com.tterrag.registrate.util.nullness.NonNullSupplier;
 import io.github.fabricators_of_create.porting_lib.util.EnvExecutor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.item.ItemConvertible;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.util.Identifier;
 
 public class TrackMaterialFactory {
-	private final ResourceLocation id;
+	private final Identifier id;
 	private String langName;
 	private NonNullSupplier<NonNullSupplier<? extends TrackBlock>> trackBlock;
 	private Ingredient sleeperIngredient = Ingredient.EMPTY;
-	private Ingredient railsIngredient = Ingredient.fromValues(Stream.of(
+	private Ingredient railsIngredient = Ingredient.ofEntries(Stream.of(
 			TagValueAccessor.createTagValue(AllTags.forgeItemTag("iron_nuggets")),
 			TagValueAccessor.createTagValue(AllTags.forgeItemTag("zinc_nuggets"))
 	));
-	private ResourceLocation particle;
+	private Identifier particle;
 	private TrackMaterial.TrackType trackType = TrackMaterial.TrackType.STANDARD;
 
 	@Nullable
@@ -42,11 +42,11 @@ public class TrackMaterialFactory {
 	@Environment(EnvType.CLIENT)
 	private PartialModel rightSegmentModel;
 
-	public TrackMaterialFactory(ResourceLocation id) {
+	public TrackMaterialFactory(Identifier id) {
 		this.id = id;
 	}
 
-	public static TrackMaterialFactory make(ResourceLocation id) {  // Convenience function for static import
+	public static TrackMaterialFactory make(Identifier id) {  // Convenience function for static import
 		return new TrackMaterialFactory(id);
 	}
 
@@ -70,8 +70,8 @@ public class TrackMaterialFactory {
 		return this;
 	}
 
-	public TrackMaterialFactory sleeper(ItemLike... items) {
-		this.sleeperIngredient = Ingredient.of(items);
+	public TrackMaterialFactory sleeper(ItemConvertible... items) {
+		this.sleeperIngredient = Ingredient.ofItems(items);
 		return this;
 	}
 
@@ -80,8 +80,8 @@ public class TrackMaterialFactory {
 		return this;
 	}
 
-	public TrackMaterialFactory rails(ItemLike... items) {
-		this.railsIngredient = Ingredient.of(items);
+	public TrackMaterialFactory rails(ItemConvertible... items) {
+		this.railsIngredient = Ingredient.ofItems(items);
 		return this;
 	}
 
@@ -91,7 +91,7 @@ public class TrackMaterialFactory {
 		return this;
 	}
 
-	public TrackMaterialFactory particle(ResourceLocation particle) {
+	public TrackMaterialFactory particle(Identifier particle) {
 		this.particle = particle;
 		return this;
 	}
@@ -105,9 +105,9 @@ public class TrackMaterialFactory {
 		EnvExecutor.runWhenOn(EnvType.CLIENT, () -> () -> {
 			String namespace = id.getNamespace();
 			String prefix = "block/track/" + id.getPath() + "/";
-			tieModel = new PartialModel(new ResourceLocation(namespace, prefix + "tie"));
-			leftSegmentModel = new PartialModel(new ResourceLocation(namespace, prefix + "segment_left"));
-			rightSegmentModel = new PartialModel(new ResourceLocation(namespace, prefix + "segment_right"));
+			tieModel = new PartialModel(new Identifier(namespace, prefix + "tie"));
+			leftSegmentModel = new PartialModel(new Identifier(namespace, prefix + "segment_left"));
+			rightSegmentModel = new PartialModel(new Identifier(namespace, prefix + "segment_right"));
 		});
 		return this;
 	}

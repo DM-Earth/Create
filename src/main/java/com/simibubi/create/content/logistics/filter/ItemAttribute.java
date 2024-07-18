@@ -33,26 +33,25 @@ import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.ComposterBlock;
-import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
+import net.minecraft.block.ComposterBlock;
+import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.text.MutableText;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 
 public interface ItemAttribute {
 
@@ -79,20 +78,20 @@ public interface ItemAttribute {
 	}
 
 	@Nullable
-	static ItemAttribute fromNBT(CompoundTag nbt) {
+	static ItemAttribute fromNBT(NbtCompound nbt) {
 		for (ItemAttribute itemAttribute : types)
 			if (itemAttribute.canRead(nbt))
 				return itemAttribute.readNBT(nbt.getCompound(itemAttribute.getNBTKey()));
 		return null;
 	}
 
-	default boolean appliesTo(ItemStack stack, Level world) {
+	default boolean appliesTo(ItemStack stack, World world) {
 		return appliesTo(stack);
 	}
 
 	boolean appliesTo(ItemStack stack);
 
-	default List<ItemAttribute> listAttributesOf(ItemStack stack, Level world) {
+	default List<ItemAttribute> listAttributesOf(ItemStack stack, World world) {
 		return listAttributesOf(stack);
 	}
 
@@ -100,12 +99,12 @@ public interface ItemAttribute {
 
 	String getTranslationKey();
 
-	void writeNBT(CompoundTag nbt);
+	void writeNBT(NbtCompound nbt);
 
-	ItemAttribute readNBT(CompoundTag nbt);
+	ItemAttribute readNBT(NbtCompound nbt);
 
-	default void serializeNBT(CompoundTag nbt) {
-		CompoundTag compound = new CompoundTag();
+	default void serializeNBT(NbtCompound nbt) {
+		NbtCompound compound = new NbtCompound();
 		writeNBT(compound);
 		nbt.put(getNBTKey(), compound);
 	}
@@ -114,7 +113,7 @@ public interface ItemAttribute {
 		return new String[0];
 	}
 
-	default boolean canRead(CompoundTag nbt) {
+	default boolean canRead(NbtCompound nbt) {
 		return nbt.contains(getNBTKey());
 	}
 
@@ -123,7 +122,7 @@ public interface ItemAttribute {
 	}
 
 	@Environment(value = EnvType.CLIENT)
-	default MutableComponent format(boolean inverted) {
+	default MutableText format(boolean inverted) {
 		return Lang.translateDirect("item_attributes." + getTranslationKey() + (inverted ? ".inverted" : ""),
 				getTranslationParameters());
 	}
@@ -132,17 +131,17 @@ public interface ItemAttribute {
 
 		DUMMY(s -> false),
 		PLACEABLE(s -> s.getItem() instanceof BlockItem),
-		CONSUMABLE(ItemStack::isEdible),
+		CONSUMABLE(ItemStack::isFood),
 		FLUID_CONTAINER(s -> ContainerItemContext.withConstant(s).find(FluidStorage.ITEM) != null),
-		ENCHANTED(ItemStack::isEnchanted),
+		ENCHANTED(ItemStack::hasEnchantments),
 		MAX_ENCHANTED(StandardTraits::maxEnchanted),
-		RENAMED(ItemStack::hasCustomHoverName),
+		RENAMED(ItemStack::hasCustomName),
 		DAMAGED(ItemStack::isDamaged),
-		BADLY_DAMAGED(s -> s.isDamaged() && (float) s.getDamageValue() / s.getMaxDamage() > 3 / 4f),
+		BADLY_DAMAGED(s -> s.isDamaged() && (float) s.getDamage() / s.getMaxDamage() > 3 / 4f),
 		NOT_STACKABLE(((Predicate<ItemStack>) ItemStack::isStackable).negate()),
-		EQUIPABLE(s -> LivingEntity.getEquipmentSlotForItem(s)
+		EQUIPABLE(s -> LivingEntity.getPreferredEquipmentSlot(s)
 				.getType() != EquipmentSlot.Type.HAND),
-		FURNACE_FUEL(AbstractFurnaceBlockEntity::isFuel),
+		FURNACE_FUEL(AbstractFurnaceBlockEntity::canUseAsFuel),
 		WASHABLE(AllFanProcessingTypes.SPLASHING::canProcess),
 		HAUNTABLE(AllFanProcessingTypes.HAUNTING::canProcess),
 		CRUSHABLE((s, w) -> testRecipe(s, w, AllRecipeTypes.CRUSHING.getType())
@@ -150,37 +149,37 @@ public interface ItemAttribute {
 		SMELTABLE((s, w) -> testRecipe(s, w, RecipeType.SMELTING)),
 		SMOKABLE((s, w) -> testRecipe(s, w, RecipeType.SMOKING)),
 		BLASTABLE((s, w) -> testRecipe(s, w, RecipeType.BLASTING)),
-		COMPOSTABLE(s -> ComposterBlock.COMPOSTABLES.containsKey(s.getItem()));
+		COMPOSTABLE(s -> ComposterBlock.ITEM_TO_LEVEL_INCREASE_CHANCE.containsKey(s.getItem()));
 
-		private static final Container RECIPE_WRAPPER = new ItemStackHandlerContainer(1);
+		private static final Inventory RECIPE_WRAPPER = new ItemStackHandlerContainer(1);
 		private Predicate<ItemStack> test;
-		private BiPredicate<ItemStack, Level> testWithWorld;
+		private BiPredicate<ItemStack, World> testWithWorld;
 
 		private StandardTraits(Predicate<ItemStack> test) {
 			this.test = test;
 		}
 
-		private static boolean testRecipe(ItemStack s, Level w, RecipeType<? extends Recipe<Container>> type) {
-			RECIPE_WRAPPER.setItem(0, s.copy());
+		private static boolean testRecipe(ItemStack s, World w, RecipeType<? extends Recipe<Inventory>> type) {
+			RECIPE_WRAPPER.setStack(0, s.copy());
 			return w.getRecipeManager()
-					.getRecipeFor(type, RECIPE_WRAPPER, w)
+					.getFirstMatch(type, RECIPE_WRAPPER, w)
 					.isPresent();
 		}
 
 		private static boolean maxEnchanted(ItemStack s) {
-			return EnchantmentHelper.getEnchantments(s)
+			return EnchantmentHelper.get(s)
 					.entrySet()
 					.stream()
 					.anyMatch(e -> e.getKey()
 							.getMaxLevel() <= e.getValue());
 		}
 
-		private StandardTraits(BiPredicate<ItemStack, Level> test) {
+		private StandardTraits(BiPredicate<ItemStack, World> test) {
 			this.testWithWorld = test;
 		}
 
 		@Override
-		public boolean appliesTo(ItemStack stack, Level world) {
+		public boolean appliesTo(ItemStack stack, World world) {
 			if (testWithWorld != null)
 				return testWithWorld.test(stack, world);
 			return appliesTo(stack);
@@ -192,7 +191,7 @@ public interface ItemAttribute {
 		}
 
 		@Override
-		public List<ItemAttribute> listAttributesOf(ItemStack stack, Level world) {
+		public List<ItemAttribute> listAttributesOf(ItemStack stack, World world) {
 			List<ItemAttribute> attributes = new ArrayList<>();
 			for (StandardTraits trait : values())
 				if (trait.appliesTo(stack, world))
@@ -216,12 +215,12 @@ public interface ItemAttribute {
 		}
 
 		@Override
-		public void writeNBT(CompoundTag nbt) {
+		public void writeNBT(NbtCompound nbt) {
 			nbt.putBoolean(name(), true);
 		}
 
 		@Override
-		public ItemAttribute readNBT(CompoundTag nbt) {
+		public ItemAttribute readNBT(NbtCompound nbt) {
 			for (StandardTraits trait : values())
 				if (nbt.contains(trait.name()))
 					return trait;
@@ -240,12 +239,12 @@ public interface ItemAttribute {
 
 		@Override
 		public boolean appliesTo(ItemStack stack) {
-			return stack.is(tag);
+			return stack.isIn(tag);
 		}
 
 		@Override
 		public List<ItemAttribute> listAttributesOf(ItemStack stack) {
-			return stack.getTags()
+			return stack.streamTags()
 					.map(InTag::new)
 					.collect(Collectors.toList());
 		}
@@ -257,18 +256,18 @@ public interface ItemAttribute {
 
 		@Override
 		public Object[] getTranslationParameters() {
-			return new Object[]{"#" + tag.location()};
+			return new Object[]{"#" + tag.id()};
 		}
 
 		@Override
-		public void writeNBT(CompoundTag nbt) {
-			nbt.putString("space", tag.location().getNamespace());
-			nbt.putString("path", tag.location().getPath());
+		public void writeNBT(NbtCompound nbt) {
+			nbt.putString("space", tag.id().getNamespace());
+			nbt.putString("path", tag.id().getPath());
 		}
 
 		@Override
-		public ItemAttribute readNBT(CompoundTag nbt) {
-			return new InTag(TagKey.create(Registries.ITEM, new ResourceLocation(nbt.getString("space"), nbt.getString("path"))));
+		public ItemAttribute readNBT(NbtCompound nbt) {
+			return new InTag(TagKey.of(RegistryKeys.ITEM, new Identifier(nbt.getString("space"), nbt.getString("path"))));
 		}
 
 	}
@@ -283,12 +282,12 @@ public interface ItemAttribute {
 
 		@Override
 		public boolean appliesTo(ItemStack stack) {
-			return modId.equals(BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace());
+			return modId.equals(Registries.ITEM.getId(stack.getItem()).getNamespace());
 		}
 
 		@Override
 		public List<ItemAttribute> listAttributesOf(ItemStack stack) {
-			String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace();
+			String id = Registries.ITEM.getId(stack.getItem()).getNamespace();
 			return id == null ? Collections.emptyList() : Arrays.asList(new AddedBy(id));
 		}
 
@@ -305,12 +304,12 @@ public interface ItemAttribute {
 		}
 
 		@Override
-		public void writeNBT(CompoundTag nbt) {
+		public void writeNBT(NbtCompound nbt) {
 			nbt.putString("id", modId);
 		}
 
 		@Override
-		public ItemAttribute readNBT(CompoundTag nbt) {
+		public ItemAttribute readNBT(NbtCompound nbt) {
 			return new AddedBy(nbt.getString("id"));
 		}
 

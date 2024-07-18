@@ -1,9 +1,8 @@
 package com.simibubi.create.foundation.blockEntity;
 
 import com.simibubi.create.foundation.networking.BlockEntityDataPacket;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.math.BlockPos;
 
 public class RemoveBlockEntityPacket extends BlockEntityDataPacket<SyncedBlockEntity> {
 
@@ -11,21 +10,21 @@ public class RemoveBlockEntityPacket extends BlockEntityDataPacket<SyncedBlockEn
 		super(pos);
 	}
 
-	public RemoveBlockEntityPacket(FriendlyByteBuf buffer) {
+	public RemoveBlockEntityPacket(PacketByteBuf buffer) {
 		super(buffer);
 	}
 
 	@Override
-	protected void writeData(FriendlyByteBuf buffer) {}
+	protected void writeData(PacketByteBuf buffer) {}
 
 	@Override
 	protected void handlePacket(SyncedBlockEntity be) {
-		if (!be.hasLevel()) {
-			be.setRemoved();
+		if (!be.hasWorld()) {
+			be.markRemoved();
 			return;
 		}
 
-		be.getLevel()
+		be.getWorld()
 			.removeBlockEntity(pos);
 	}
 

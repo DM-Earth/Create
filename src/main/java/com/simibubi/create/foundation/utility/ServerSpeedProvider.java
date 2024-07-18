@@ -8,8 +8,8 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.MinecraftServer;
 
 public class ServerSpeedProvider {
@@ -22,16 +22,16 @@ public class ServerSpeedProvider {
 	public static void serverTick(MinecraftServer server) {
 		serverTimer++;
 		if (serverTimer > getSyncInterval()) {
-			AllPackets.getChannel().sendToClients(new Packet(), server.getPlayerList().getPlayers());
+			AllPackets.getChannel().sendToClients(new Packet(), server.getPlayerManager().getPlayerList());
 			serverTimer = 0;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
 	public static void clientTick() {
-		if (Minecraft.getInstance()
-			.hasSingleplayerServer()
-			&& Minecraft.getInstance()
+		if (MinecraftClient.getInstance()
+			.isIntegratedServerRunning()
+			&& MinecraftClient.getInstance()
 				.isPaused())
 			return;
 		modifier.tickChaser();
@@ -50,10 +50,10 @@ public class ServerSpeedProvider {
 
 		public Packet() {}
 
-		public Packet(FriendlyByteBuf buffer) {}
+		public Packet(PacketByteBuf buffer) {}
 
 		@Override
-		public void write(FriendlyByteBuf buffer) {}
+		public void write(PacketByteBuf buffer) {}
 
 		@Override
 		public boolean handle(Context context) {

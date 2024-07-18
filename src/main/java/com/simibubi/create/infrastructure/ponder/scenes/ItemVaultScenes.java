@@ -10,12 +10,11 @@ import com.simibubi.create.foundation.ponder.Selection;
 import com.simibubi.create.foundation.ponder.element.InputWindowElement;
 import com.simibubi.create.foundation.ponder.element.WorldSectionElement;
 import com.simibubi.create.foundation.utility.Pointing;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public class ItemVaultScenes {
 
@@ -226,7 +225,7 @@ public class ItemVaultScenes {
 		scene.world.showSection(full1, Direction.WEST);
 		scene.idle(10);
 
-		Vec3 blockSurface = util.vector.blockSurface(util.grid.at(1, 3, 3), Direction.NORTH);
+		Vec3d blockSurface = util.vector.blockSurface(util.grid.at(1, 3, 3), Direction.NORTH);
 		scene.overlay.showText(60)
 			.text("...and grow in length up to 3x their diameter")
 			.attachKeyFrame()

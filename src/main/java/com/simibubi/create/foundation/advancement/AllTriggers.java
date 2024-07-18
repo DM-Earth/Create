@@ -2,8 +2,7 @@ package com.simibubi.create.foundation.advancement;
 
 import java.util.LinkedList;
 import java.util.List;
-
-import net.minecraft.advancements.CriteriaTriggers;
+import net.minecraft.advancement.criterion.Criteria;
 
 public class AllTriggers {
 
@@ -19,7 +18,7 @@ public class AllTriggers {
 	}
 
 	public static void register() {
-		triggers.forEach(CriteriaTriggers::register);
+		triggers.forEach(Criteria::register);
 	}
 
 }

@@ -1,12 +1,11 @@
 package com.simibubi.create.foundation.ponder;
 
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
 
 /**
  * Helpful shortcuts for marking boundaries, points or sections inside the scene
@@ -17,9 +16,9 @@ public class SceneBuildingUtil {
 	public final VectorUtil vector;
 	public final PositionUtil grid;
 
-	private final BoundingBox sceneBounds;
+	private final BlockBox sceneBounds;
 
-	SceneBuildingUtil(BoundingBox sceneBounds) {
+	SceneBuildingUtil(BlockBox sceneBounds) {
 		this.sceneBounds = sceneBounds;
 		this.select = new SelectionUtil();
 		this.vector = new VectorUtil();
@@ -40,33 +39,33 @@ public class SceneBuildingUtil {
 
 	public class VectorUtil {
 
-		public Vec3 centerOf(int x, int y, int z) {
+		public Vec3d centerOf(int x, int y, int z) {
 			return centerOf(grid.at(x, y, z));
 		}
 
-		public Vec3 centerOf(BlockPos pos) {
+		public Vec3d centerOf(BlockPos pos) {
 			return VecHelper.getCenterOf(pos);
 		}
 
-		public Vec3 topOf(int x, int y, int z) {
+		public Vec3d topOf(int x, int y, int z) {
 			return blockSurface(grid.at(x, y, z), Direction.UP);
 		}
 
-		public Vec3 topOf(BlockPos pos) {
+		public Vec3d topOf(BlockPos pos) {
 			return blockSurface(pos, Direction.UP);
 		}
 
-		public Vec3 blockSurface(BlockPos pos, Direction face) {
+		public Vec3d blockSurface(BlockPos pos, Direction face) {
 			return blockSurface(pos, face, 0);
 		}
 
-		public Vec3 blockSurface(BlockPos pos, Direction face, float margin) {
-			return centerOf(pos).add(Vec3.atLowerCornerOf(face.getNormal())
-				.scale(.5f + margin));
+		public Vec3d blockSurface(BlockPos pos, Direction face, float margin) {
+			return centerOf(pos).add(Vec3d.of(face.getVector())
+				.multiply(.5f + margin));
 		}
 
-		public Vec3 of(double x, double y, double z) {
-			return new Vec3(x, y, z);
+		public Vec3d of(double x, double y, double z) {
+			return new Vec3d(x, y, z);
 		}
 
 	}
@@ -82,7 +81,7 @@ public class SceneBuildingUtil {
 		}
 
 		public Selection position(BlockPos pos) {
-			return cuboid(pos, BlockPos.ZERO);
+			return cuboid(pos, BlockPos.ORIGIN);
 		}
 
 		public Selection fromTo(int x, int y, int z, int x2, int y2, int z2) {
@@ -94,7 +93,7 @@ public class SceneBuildingUtil {
 		}
 
 		public Selection column(int x, int z) {
-			return cuboid(new BlockPos(x, 1, z), new Vec3i(0, sceneBounds.getYSpan(), 0));
+			return cuboid(new BlockPos(x, 1, z), new Vec3i(0, sceneBounds.getBlockCountY(), 0));
 		}
 
 		public Selection layer(int y) {
@@ -102,16 +101,16 @@ public class SceneBuildingUtil {
 		}
 
 		public Selection layersFrom(int y) {
-			return layers(y, sceneBounds.getYSpan() - y);
+			return layers(y, sceneBounds.getBlockCountY() - y);
 		}
 
 		public Selection layers(int y, int height) {
-			return cuboid(new BlockPos(0, y, 0), new Vec3i(sceneBounds.getXSpan() - 1,
-				Math.min(sceneBounds.getYSpan() - y, height) - 1, sceneBounds.getZSpan() - 1));
+			return cuboid(new BlockPos(0, y, 0), new Vec3i(sceneBounds.getBlockCountX() - 1,
+				Math.min(sceneBounds.getBlockCountY() - y, height) - 1, sceneBounds.getBlockCountZ() - 1));
 		}
 
 		public Selection cuboid(BlockPos origin, Vec3i size) {
-			return Selection.of(BoundingBox.fromCorners(origin, origin.offset(size)));
+			return Selection.of(BlockBox.create(origin, origin.add(size)));
 		}
 
 	}

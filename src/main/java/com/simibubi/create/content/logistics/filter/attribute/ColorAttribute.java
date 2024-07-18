@@ -7,20 +7,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
+import net.minecraft.client.resource.language.I18n;
+import net.minecraft.item.FireworkRocketItem;
+import net.minecraft.item.FireworkStarItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.util.DyeColor;
 import com.simibubi.create.content.logistics.filter.ItemAttribute;
 import com.simibubi.create.foundation.utility.RegisteredObjects;
 
 import io.github.fabricators_of_create.porting_lib.util.TagUtil;
-
-import net.minecraft.client.resources.language.I18n;
-import net.minecraft.core.Registry;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.FireworkRocketItem;
-import net.minecraft.world.item.FireworkStarItem;
-import net.minecraft.world.item.ItemStack;
 
 public class ColorAttribute implements ItemAttribute {
 	public static final ColorAttribute EMPTY = new ColorAttribute(DyeColor.PURPLE);
@@ -42,7 +39,7 @@ public class ColorAttribute implements ItemAttribute {
 	}
 
 	private Collection<DyeColor> findMatchingDyeColors(ItemStack stack) {
-		CompoundTag nbt = stack.getTag();
+		NbtCompound nbt = stack.getNbt();
 
 		DyeColor color = TagUtil.getColorFromStack(stack);
 		if (color != null)
@@ -50,7 +47,7 @@ public class ColorAttribute implements ItemAttribute {
 
 		Set<DyeColor> colors = new HashSet<>();
 		if (stack.getItem() instanceof FireworkRocketItem && nbt != null) {
-			ListTag listnbt = nbt.getCompound("Fireworks").getList("Explosions", 10);
+			NbtList listnbt = nbt.getCompound("Fireworks").getList("Explosions", 10);
 			for (int i = 0; i < listnbt.size(); i++) {
 				colors.addAll(getFireworkStarColors(listnbt.getCompound(i)));
 			}
@@ -65,7 +62,7 @@ public class ColorAttribute implements ItemAttribute {
 		return colors;
 	}
 
-	private Collection<DyeColor> getFireworkStarColors(CompoundTag compound) {
+	private Collection<DyeColor> getFireworkStarColors(NbtCompound compound) {
 		Set<DyeColor> colors = new HashSet<>();
 		Arrays.stream(compound.getIntArray("Colors")).mapToObj(DyeColor::byFireworkColor).forEach(colors::add);
 		Arrays.stream(compound.getIntArray("FadeColors")).mapToObj(DyeColor::byFireworkColor).forEach(colors::add);
@@ -79,16 +76,16 @@ public class ColorAttribute implements ItemAttribute {
 
 	@Override
 	public Object[] getTranslationParameters() {
-		return new Object[] { I18n.get("color.minecraft." + color.getName()) };
+		return new Object[] { I18n.translate("color.minecraft." + color.getName()) };
 	}
 
 	@Override
-	public void writeNBT(CompoundTag nbt) {
+	public void writeNBT(NbtCompound nbt) {
 		nbt.putInt("id", color.getId());
 	}
 
 	@Override
-	public ItemAttribute readNBT(CompoundTag nbt) {
+	public ItemAttribute readNBT(NbtCompound nbt) {
 		return nbt.contains("id") ?
 			new ColorAttribute(DyeColor.byId(nbt.getInt("id")))
 			: EMPTY;

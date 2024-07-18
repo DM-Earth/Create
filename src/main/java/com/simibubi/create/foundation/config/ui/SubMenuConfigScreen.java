@@ -13,7 +13,12 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.text.StringVisitable;
+import net.minecraft.util.Formatting;
 import io.github.fabricators_of_create.porting_lib.config.ConfigType;
 import io.github.fabricators_of_create.porting_lib.config.ModConfigSpec;
 import io.github.fabricators_of_create.porting_lib.mixin.accessors.client.accessor.AbstractSelectionListAccessor;
@@ -44,13 +49,6 @@ import com.simibubi.create.foundation.utility.Color;
 import com.simibubi.create.foundation.utility.Components;
 import com.simibubi.create.foundation.utility.Couple;
 import com.simibubi.create.foundation.utility.Pair;
-
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.FormattedText;
 
 public class SubMenuConfigScreen extends ConfigScreen {
 
@@ -138,8 +136,8 @@ public class SubMenuConfigScreen extends ConfigScreen {
 			}
 
 			String command = change.annotations.get("Execute");
-			if (minecraft.player != null && command != null && command.startsWith("/")) {
-				minecraft.player.connection.sendCommand(command.substring(1));
+			if (client.player != null && command != null && command.startsWith("/")) {
+				client.player.networkHandler.sendChatCommand(command.substring(1));
 			}
 		});
 		clearChanges();
@@ -185,7 +183,7 @@ public class SubMenuConfigScreen extends ConfigScreen {
 				.withCallback((x, y) ->
 						new ConfirmationScreen()
 								.centered()
-								.withText(FormattedText.of("Resetting all settings of the " + type.toString() + " config. Are you sure?"))
+								.withText(StringVisitable.plain("Resetting all settings of the " + type.toString() + " config. Are you sure?"))
 								.withAction(success -> {
 									if (success)
 										resetConfig(spec.getValues());
@@ -205,7 +203,7 @@ public class SubMenuConfigScreen extends ConfigScreen {
 
 					ConfirmationScreen confirm = new ConfirmationScreen()
 							.centered()
-							.withText(FormattedText.of("Saving " + ConfigHelper.changes.size() + " changed value" + (ConfigHelper.changes.size() != 1 ? "s" : "") + ""))
+							.withText(StringVisitable.plain("Saving " + ConfigHelper.changes.size() + " changed value" + (ConfigHelper.changes.size() != 1 ? "s" : "") + ""))
 							.withAction(success -> {
 								if (success)
 									saveChanges();
@@ -225,7 +223,7 @@ public class SubMenuConfigScreen extends ConfigScreen {
 
 					new ConfirmationScreen()
 							.centered()
-							.withText(FormattedText.of("Discarding " + ConfigHelper.changes.size() + " unsaved change" + (ConfigHelper.changes.size() != 1 ? "s" : "") + ""))
+							.withText(StringVisitable.plain("Discarding " + ConfigHelper.changes.size() + " unsaved change" + (ConfigHelper.changes.size() != 1 ? "s" : "") + ""))
 							.withAction(success -> {
 								if (success)
 									clearChanges();
@@ -242,21 +240,21 @@ public class SubMenuConfigScreen extends ConfigScreen {
 		goBack.showingElement(AllIcons.I_CONFIG_BACK.asStencil().withElementRenderer(BoxWidget.gradientFactory.apply(goBack)));
 		goBack.getToolTip().add(Components.literal("Go Back"));
 
-		addRenderableWidget(resetAll);
-		addRenderableWidget(saveChanges);
-		addRenderableWidget(discardChanges);
-		addRenderableWidget(goBack);
+		addDrawableChild(resetAll);
+		addDrawableChild(saveChanges);
+		addDrawableChild(discardChanges);
+		addDrawableChild(goBack);
 
-		list = new ConfigScreenList(minecraft, listWidth, height - 80, 35, height - 45, 40);
+		list = new ConfigScreenList(client, listWidth, height - 80, 35, height - 45, 40);
 		list.setLeftPos(this.width / 2 - ((AbstractSelectionListAccessor) list).port_lib$getWidth() / 2);
 
-		addRenderableWidget(list);
+		addDrawableChild(list);
 
-		search = new ConfigTextField(font, width / 2 - listWidth / 2, height - 35, listWidth, 20);
-		search.setResponder(this::updateFilter);
+		search = new ConfigTextField(textRenderer, width / 2 - listWidth / 2, height - 35, listWidth, 20);
+		search.setChangedListener(this::updateFilter);
 		search.setHint("Search...");
-		search.moveCursorToStart();
-		addRenderableWidget(search);
+		search.setCursorToStart();
+		addDrawableChild(search);
 
 		configGroup.valueMap().forEach((key, obj) -> {
 			String humanKey = toHumanReadable(key);
@@ -313,10 +311,10 @@ public class SubMenuConfigScreen extends ConfigScreen {
 		//extras for server configs
 		if (type != ConfigType.SERVER)
 			return;
-		if (minecraft.hasSingleplayerServer())
+		if (client.isIntegratedServerRunning())
 			return;
 
-		boolean canEdit = minecraft != null && minecraft.player != null && minecraft.player.hasPermissions(2);
+		boolean canEdit = client != null && client.player != null && client.player.hasPermissionLevel(2);
 
 		Couple<Color> red = Theme.p(Theme.Key.BUTTON_FAIL);
 		Couple<Color> green = Theme.p(Theme.Key.BUTTON_SUCCESS);
@@ -333,35 +331,35 @@ public class SubMenuConfigScreen extends ConfigScreen {
 			stencil.withStencilRenderer((ms, w, h, alpha) -> AllIcons.I_CONFIG_LOCKED.render(ms, 0, 0));
 			stencil.withElementRenderer((ms, w, h, alpha) -> UIRenderHelper.angledGradient(ms, 90, 8, 0, 16, 16, red));
 			serverLocked.withBorderColors(red);
-			serverLocked.getToolTip().add(Components.literal("Locked").withStyle(ChatFormatting.BOLD));
+			serverLocked.getToolTip().add(Components.literal("Locked").formatted(Formatting.BOLD));
 			serverLocked.getToolTip().addAll(TooltipHelper.cutStringTextComponent("You do not have enough permissions to edit the server config. You can still look at the current values here though.", Palette.ALL_GRAY));
 		} else {
 			stencil.withStencilRenderer((ms, w, h, alpha) -> AllIcons.I_CONFIG_UNLOCKED.render(ms, 0, 0));
 			stencil.withElementRenderer((ms, w, h, alpha) -> UIRenderHelper.angledGradient(ms, 90, 8, 0, 16, 16, green));
 			serverLocked.withBorderColors(green);
-			serverLocked.getToolTip().add(Components.literal("Unlocked").withStyle(ChatFormatting.BOLD));
+			serverLocked.getToolTip().add(Components.literal("Unlocked").formatted(Formatting.BOLD));
 			serverLocked.getToolTip().addAll(TooltipHelper.cutStringTextComponent("You have enough permissions to edit the server config. Changes you make here will be synced with the server when you save them.", Palette.ALL_GRAY));
 		}
 
-		addRenderableWidget(serverLocked);
+		addDrawableChild(serverLocked);
 	}
 
 	@Override
-	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindow(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		super.renderWindow(graphics, mouseX, mouseY, partialTicks);
 
 		int x = width / 2;
-		graphics.drawCenteredString(minecraft.font, ConfigScreen.modID + " > " + type.toString()
+		graphics.drawCenteredTextWithShadow(client.textRenderer, ConfigScreen.modID + " > " + type.toString()
 			.toLowerCase(Locale.ROOT) + " > " + title, x, 15, Theme.i(Theme.Key.TEXT));
 	}
 
 	@Override
-	protected void renderWindowForeground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+	protected void renderWindowForeground(DrawContext graphics, int mouseX, int mouseY, float partialTicks) {
 		super.renderWindowForeground(graphics, mouseX, mouseY, partialTicks);
 	}
 
 	@Override
-	public void resize(@Nonnull Minecraft client, int width, int height) {
+	public void resize(@Nonnull MinecraftClient client, int width, int height) {
 		double scroll = list.getScrollAmount();
 		init(client, width, height);
 		list.setScrollAmount(scroll);
@@ -369,7 +367,7 @@ public class SubMenuConfigScreen extends ConfigScreen {
 
 	@Nullable
 	@Override
-	public GuiEventListener getFocused() {
+	public Element getFocused() {
 		if (ConfigScreenList.currentText != null)
 			return ConfigScreenList.currentText;
 
@@ -396,9 +394,9 @@ public class SubMenuConfigScreen extends ConfigScreen {
 
 	protected void updateFilter(String search) {
 		if (list.search(search)) {
-			this.search.setTextColor(Theme.i(Theme.Key.TEXT));
+			this.search.setEditableColor(Theme.i(Theme.Key.TEXT));
 		} else {
-			this.search.setTextColor(Theme.i(Theme.Key.BUTTON_FAIL));
+			this.search.setEditableColor(Theme.i(Theme.Key.BUTTON_FAIL));
 		}
 	}
 
@@ -419,9 +417,9 @@ public class SubMenuConfigScreen extends ConfigScreen {
 	}
 
 	@Override
-	public void onClose() {
+	public void close() {
 		if (ConfigHelper.changes.isEmpty()) {
-			super.onClose();
+			super.close();
 			return;
 		}
 
@@ -431,7 +429,7 @@ public class SubMenuConfigScreen extends ConfigScreen {
 			if (success == Response.Confirm)
 				saveChanges();
 			ConfigHelper.changes.clear();
-			super.onClose();
+			super.close();
 		});
 	}
 
@@ -439,7 +437,7 @@ public class SubMenuConfigScreen extends ConfigScreen {
 		ConfirmationScreen screen = new ConfirmationScreen()
 				.centered()
 				.withThreeActions(action)
-				.addText(FormattedText.of("Leaving with " + ConfigHelper.changes.size() + " unsaved change"
+				.addText(StringVisitable.plain("Leaving with " + ConfigHelper.changes.size() + " unsaved change"
 						+ (ConfigHelper.changes.size() != 1 ? "s" : "") + " for this config"));
 
 		addAnnotationsToConfirm(screen).open(this);
@@ -457,13 +455,13 @@ public class SubMenuConfigScreen extends ConfigScreen {
 		});
 
 		if (relog.get()) {
-			screen.addText(FormattedText.of(" "));
-			screen.addText(FormattedText.of("At least one changed value will require you to relog to take full effect"));
+			screen.addText(StringVisitable.plain(" "));
+			screen.addText(StringVisitable.plain("At least one changed value will require you to relog to take full effect"));
 		}
 
 		if (restart.get()) {
-			screen.addText(FormattedText.of(" "));
-			screen.addText(FormattedText.of("At least one changed value will require you to restart your game to take full effect"));
+			screen.addText(StringVisitable.plain(" "));
+			screen.addText(StringVisitable.plain("At least one changed value will require you to restart your game to take full effect"));
 		}
 
 		return screen;

@@ -4,40 +4,40 @@ import com.simibubi.create.foundation.utility.IInteractionChecker;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.screen.slot.Slot;
 
-public abstract class MenuBase<T> extends AbstractContainerMenu {
+public abstract class MenuBase<T> extends ScreenHandler {
 
-	public Player player;
-	public Inventory playerInventory;
+	public PlayerEntity player;
+	public PlayerInventory playerInventory;
 	public T contentHolder;
 
-	protected MenuBase(MenuType<?> type, int id, Inventory inv, FriendlyByteBuf extraData) {
+	protected MenuBase(ScreenHandlerType<?> type, int id, PlayerInventory inv, PacketByteBuf extraData) {
 		super(type, id);
 		init(inv, createOnClient(extraData));
 	}
 
-	protected MenuBase(MenuType<?> type, int id, Inventory inv, T contentHolder) {
+	protected MenuBase(ScreenHandlerType<?> type, int id, PlayerInventory inv, T contentHolder) {
 		super(type, id);
 		init(inv, contentHolder);
 	}
 
-	protected void init(Inventory inv, T contentHolderIn) {
+	protected void init(PlayerInventory inv, T contentHolderIn) {
 		player = inv.player;
 		playerInventory = inv;
 		contentHolder = contentHolderIn;
 		initAndReadInventory(contentHolder);
 		addSlots();
-		broadcastChanges();
+		sendContentUpdates();
 	}
 
 	@Environment(EnvType.CLIENT)
-	protected abstract T createOnClient(FriendlyByteBuf extraData);
+	protected abstract T createOnClient(PacketByteBuf extraData);
 
 	protected abstract void initAndReadInventory(T contentHolder);
 
@@ -54,13 +54,13 @@ public abstract class MenuBase<T> extends AbstractContainerMenu {
 	}
 
 	@Override
-	public void removed(Player playerIn) {
-		super.removed(playerIn);
+	public void onClosed(PlayerEntity playerIn) {
+		super.onClosed(playerIn);
 		saveData(contentHolder);
 	}
 
 	@Override
-	public boolean stillValid(Player player) {
+	public boolean canUse(PlayerEntity player) {
 		if (contentHolder == null)
 			return false;
 		if (contentHolder instanceof IInteractionChecker)

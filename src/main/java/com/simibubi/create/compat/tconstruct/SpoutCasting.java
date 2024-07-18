@@ -13,21 +13,21 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class SpoutCasting extends BlockSpoutingBehaviour {
 
 	static Boolean TICON_PRESENT = null;
 
-	ResourceLocation TABLE = new ResourceLocation("tconstruct", "table");
-	ResourceLocation BASIN = new ResourceLocation("tconstruct", "basin");
+	Identifier TABLE = new Identifier("tconstruct", "table");
+	Identifier BASIN = new Identifier("tconstruct", "basin");
 
 	@Override
-	public long fillBlock(Level level, BlockPos pos, SpoutBlockEntity spout, FluidStack availableFluid,
+	public long fillBlock(World level, BlockPos pos, SpoutBlockEntity spout, FluidStack availableFluid,
 		boolean simulate) {
 		if (!enabled())
 			return 0;
@@ -36,7 +36,7 @@ public class SpoutCasting extends BlockSpoutingBehaviour {
 		if (blockEntity == null)
 			return 0;
 
-		ResourceLocation registryName = RegisteredObjects.getKeyOrThrow(blockEntity.getType());
+		Identifier registryName = RegisteredObjects.getKeyOrThrow(blockEntity.getType());
 		if (!registryName.equals(TABLE) && !registryName.equals(BASIN))
 			return 0;
 

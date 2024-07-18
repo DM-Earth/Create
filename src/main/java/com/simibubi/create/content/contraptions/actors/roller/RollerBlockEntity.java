@@ -1,9 +1,20 @@
 package com.simibubi.create.content.contraptions.actors.roller;
 
 import java.util.List;
-
+import net.minecraft.block.BlockEntityProvider;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.StairsBlock;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
 import com.jozufozu.flywheel.util.transform.TransformStack;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
@@ -15,19 +26,6 @@ import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Iterate;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.StairBlock;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class RollerBlockEntity extends SmartBlockEntity {
 
@@ -70,24 +68,24 @@ public class RollerBlockEntity extends SmartBlockEntity {
 		BlockState appliedState = RollerMovementBehaviour.getStateToPaveWith(newFilter);
 		if (appliedState.isAir())
 			return false;
-		if (appliedState.getBlock() instanceof EntityBlock)
+		if (appliedState.getBlock() instanceof BlockEntityProvider)
 			return false;
-		if (appliedState.getBlock() instanceof StairBlock)
+		if (appliedState.getBlock() instanceof StairsBlock)
 			return false;
-		VoxelShape shape = appliedState.getShape(level, worldPosition);
-		if (shape.isEmpty() || !shape.bounds()
-			.equals(Shapes.block()
-				.bounds()))
+		VoxelShape shape = appliedState.getOutlineShape(world, pos);
+		if (shape.isEmpty() || !shape.getBoundingBox()
+			.equals(VoxelShapes.fullCube()
+				.getBoundingBox()))
 			return false;
-		VoxelShape collisionShape = appliedState.getCollisionShape(level, worldPosition);
+		VoxelShape collisionShape = appliedState.getCollisionShape(world, pos);
 		if (collisionShape.isEmpty())
 			return false;
 		return true;
 	}
 
 	@Override
-	protected AABB createRenderBoundingBox() {
-		return new AABB(worldPosition).inflate(1);
+	protected Box createRenderBoundingBox() {
+		return new Box(pos).expand(1);
 	}
 
 	public float getAnimatedSpeed() {
@@ -99,15 +97,15 @@ public class RollerBlockEntity extends SmartBlockEntity {
 	}
 
 	public void searchForSharedValues() {
-		BlockState blockState = getBlockState();
-		Direction facing = blockState.getOptionalValue(RollerBlock.FACING)
+		BlockState blockState = getCachedState();
+		Direction facing = blockState.getOrEmpty(RollerBlock.FACING)
 			.orElse(Direction.SOUTH);
 
 		for (int side : Iterate.positiveAndNegative) {
-			BlockPos pos = worldPosition.relative(facing.getClockWise(), side);
-			if (level.getBlockState(pos) != blockState)
+			BlockPos blockPos = pos.offset(facing.rotateYClockwise(), side);
+			if (world.getBlockState(blockPos) != blockState)
 				continue;
-			if (!(level.getBlockEntity(pos) instanceof RollerBlockEntity otherRoller))
+			if (!(world.getBlockEntity(blockPos) instanceof RollerBlockEntity otherRoller))
 				continue;
 			acceptSharedValues(otherRoller.mode.getValue(), otherRoller.filtering.getFilter());
 			shareValuesToAdjacent();
@@ -124,18 +122,18 @@ public class RollerBlockEntity extends SmartBlockEntity {
 	}
 
 	public void shareValuesToAdjacent() {
-		if (dontPropagate || level.isClientSide())
+		if (dontPropagate || world.isClient())
 			return;
-		BlockState blockState = getBlockState();
-		Direction facing = blockState.getOptionalValue(RollerBlock.FACING)
+		BlockState blockState = getCachedState();
+		Direction facing = blockState.getOrEmpty(RollerBlock.FACING)
 			.orElse(Direction.SOUTH);
 
 		for (int side : Iterate.positiveAndNegative) {
 			for (int i = 1; i < 100; i++) {
-				BlockPos pos = worldPosition.relative(facing.getClockWise(), side * i);
-				if (level.getBlockState(pos) != blockState)
+				BlockPos blockPos = pos.offset(facing.rotateYClockwise(), side * i);
+				if (world.getBlockState(blockPos) != blockState)
 					break;
-				if (!(level.getBlockEntity(pos) instanceof RollerBlockEntity otherRoller))
+				if (!(world.getBlockEntity(blockPos) instanceof RollerBlockEntity otherRoller))
 					break;
 				otherRoller.acceptSharedValues(mode.getValue(), filtering.getFilter());
 			}
@@ -179,25 +177,25 @@ public class RollerBlockEntity extends SmartBlockEntity {
 		}
 
 		@Override
-		public void rotate(BlockState state, PoseStack ms) {
-			Direction facing = state.getValue(RollerBlock.FACING);
+		public void rotate(BlockState state, MatrixStack ms) {
+			Direction facing = state.get(RollerBlock.FACING);
 			float yRot = AngleHelper.horizontalAngle(facing) + 180;
 			TransformStack.cast(ms)
 				.rotateY(yRot)
 				.rotateX(90);
 		}
-		
+
 		@Override
-		public boolean testHit(BlockState state, Vec3 localHit) {
-			Vec3 offset = getLocalOffset(state);
+		public boolean testHit(BlockState state, Vec3d localHit) {
+			Vec3d offset = getLocalOffset(state);
 			if (offset == null)
 				return false;
 			return localHit.distanceTo(offset) < scale / 3;
 		}
 
 		@Override
-		public Vec3 getLocalOffset(BlockState state) {
-			Direction facing = state.getValue(RollerBlock.FACING);
+		public Vec3d getLocalOffset(BlockState state) {
+			Direction facing = state.get(RollerBlock.FACING);
 			float stateAngle = AngleHelper.horizontalAngle(facing) + 180;
 			return VecHelper.rotateCentered(VecHelper.voxelSpace(8 + hOffset, 15.5f, 11), stateAngle, Axis.Y);
 		}

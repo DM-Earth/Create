@@ -4,7 +4,7 @@ import com.simibubi.create.foundation.networking.SimplePacketBase;
 import com.tterrag.registrate.fabric.EnvExecutor;
 
 import net.fabricmc.api.EnvType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketByteBuf;
 
 
 public class ContraptionDisassemblyPacket extends SimplePacketBase {
@@ -17,13 +17,13 @@ public class ContraptionDisassemblyPacket extends SimplePacketBase {
 		this.transform = transform;
 	}
 
-	public ContraptionDisassemblyPacket(FriendlyByteBuf buffer) {
+	public ContraptionDisassemblyPacket(PacketByteBuf buffer) {
 		entityID = buffer.readInt();
 		transform = StructureTransform.fromBuffer(buffer);
 	}
 
 	@Override
-	public void write(FriendlyByteBuf buffer) {
+	public void write(PacketByteBuf buffer) {
 		buffer.writeInt(entityID);
 		transform.writeToBuffer(buffer);
 	}

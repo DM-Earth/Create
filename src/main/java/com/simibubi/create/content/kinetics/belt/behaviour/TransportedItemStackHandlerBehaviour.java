@@ -4,7 +4,8 @@ import java.util.List;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.Vec3d;
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
@@ -12,9 +13,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.VecHelper;
 import io.github.fabricators_of_create.porting_lib.util.ItemStackUtil;
-
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
 
 public class TransportedItemStackHandlerBehaviour extends BlockEntityBehaviour {
 
@@ -62,7 +60,7 @@ public class TransportedItemStackHandlerBehaviour extends BlockEntityBehaviour {
 
 		public boolean didntChangeFrom(ItemStack stackBefore) {
 			return doesNothing()
-				|| outputs.size() == 1 && ItemStack.matches(outputs.get(0).stack, stackBefore) && !hasHeldOutput();
+				|| outputs.size() == 1 && ItemStack.areEqual(outputs.get(0).stack, stackBefore) && !hasHeldOutput();
 		}
 
 		public List<TransportedItemStack> getOutputs() {
@@ -88,7 +86,7 @@ public class TransportedItemStackHandlerBehaviour extends BlockEntityBehaviour {
 	public TransportedItemStackHandlerBehaviour(SmartBlockEntity be, ProcessingCallback processingCallback) {
 		super(be);
 		this.processingCallback = processingCallback;
-		positionGetter = t -> VecHelper.getCenterOf(be.getBlockPos());
+		positionGetter = t -> VecHelper.getCenterOf(be.getPos());
 	}
 
 	public TransportedItemStackHandlerBehaviour withStackPlacement(PositionGetter function) {
@@ -113,7 +111,7 @@ public class TransportedItemStackHandlerBehaviour extends BlockEntityBehaviour {
 		this.processingCallback.applyToAllItems(maxDistanceFromCenter, processFunction);
 	}
 
-	public Vec3 getWorldPositionOf(TransportedItemStack transported) {
+	public Vec3d getWorldPositionOf(TransportedItemStack transported) {
 		return positionGetter.getWorldPositionVector(transported);
 	}
 
@@ -130,7 +128,7 @@ public class TransportedItemStackHandlerBehaviour extends BlockEntityBehaviour {
 
 	@FunctionalInterface
 	public interface PositionGetter {
-		public Vec3 getWorldPositionVector(TransportedItemStack transported);
+		public Vec3d getWorldPositionVector(TransportedItemStack transported);
 	}
 
 }

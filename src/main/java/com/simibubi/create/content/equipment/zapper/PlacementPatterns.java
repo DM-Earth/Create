@@ -1,16 +1,14 @@
 package com.simibubi.create.content.equipment.zapper;
 
 import java.util.List;
-import net.minecraft.util.RandomSource;
 import java.util.function.Predicate;
-
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.random.Random;
 import com.google.common.base.Predicates;
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.utility.Lang;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
 
 public enum PlacementPatterns {
 
@@ -30,10 +28,10 @@ public enum PlacementPatterns {
 	}
 
 	public static void applyPattern(List<BlockPos> blocksIn, ItemStack stack) {
-		CompoundTag tag = stack.getTag();
+		NbtCompound tag = stack.getNbt();
 		PlacementPatterns pattern =
 			!tag.contains("Pattern") ? Solid : valueOf(tag.getString("Pattern"));
-		RandomSource r = RandomSource.create();
+		Random r = Random.create();
 		Predicate<BlockPos> filter = Predicates.alwaysFalse();
 
 		switch (pattern) {
